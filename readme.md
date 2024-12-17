@@ -11,9 +11,10 @@
 
 # Tech:
 ## Server side:
-    1. Sqlite
+    1. Supabase.
     2. Python on server side
 ## Client side:
     1. element-io
     2. Vue
     3. Vite
+    4. Drizzle

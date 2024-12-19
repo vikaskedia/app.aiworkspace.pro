@@ -10,6 +10,12 @@ import TasksCt from './components/TasksCt.vue';
 import EventsCt from './components/EventsCt.vue';
 
 const routes = [
+  {
+    path: '/all-matters',
+    name: 'AllMattersPage',
+    component: () => import('./components/AllMattersCt.vue'),
+    meta: { requiresAuth: true }
+  },
   { 
     path: '/matter/:matterId?', 
     name: 'DashboardPage',
@@ -52,7 +58,7 @@ const routes = [
   },
   {
     path: '/',
-    redirect: '/matter'
+    redirect: '/all-matters'
   }
 ];
 
@@ -72,7 +78,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.path === '/login' && session) {
-    next('/matter');
+    next('/all-matters');
     return;
   }
 

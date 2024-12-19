@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
+import { useRouter } from 'vue-router';
 
 export default {
   emits: ['matter-selected'],
@@ -13,6 +14,7 @@ export default {
       title: '',
       description: ''
     });
+    const router = useRouter();
 
     const loadMatters = async () => {
       try {
@@ -55,7 +57,11 @@ export default {
 
     const handleMatterSelect = (matter) => {
       selectedMatter.value = matter;
-      emit('matter-selected', matter);
+      if (matter === null) {
+        router.push('/all-matters');
+      } else {
+        emit('matter-selected', matter);
+      }
     };
 
     onMounted(() => {

@@ -90,6 +90,9 @@ export default {
           };
           this.editDialogVisible = true;
           break;
+        case 'manage-matter':
+          this.$router.push(`/matter/${matterId}/manage`);
+          break;
         case 'logout':
           this.handleLogout();
           break;
@@ -169,6 +172,7 @@ export default {
             <el-dropdown-item command="events">Events</el-dropdown-item>
             <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
             <el-dropdown-item command="edit-matter">Edit Matter</el-dropdown-item>
+            <el-dropdown-item command="manage-matter">Manage Matter</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>

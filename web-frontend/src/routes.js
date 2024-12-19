@@ -41,6 +41,11 @@ const routes = [
         path: 'files',
         name: 'ManageFilesPage',
         component: ManageFilesCt
+      },
+      {
+        path: 'manage',
+        name: 'ManageMatterPage',
+        component: () => import('./components/ManageMatterCt.vue')
       }
     ]
   },

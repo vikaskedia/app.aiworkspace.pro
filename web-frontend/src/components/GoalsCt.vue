@@ -75,7 +75,6 @@ export default {
 
         if (error) throw error;
         this.goals = goals;
-        
         // Store in cache
         this.cacheStore.setCachedData('goals', this.currentMatter.id, goals);
       } catch (error) {
@@ -198,7 +197,6 @@ export default {
         type="primary" 
         @click="dialogVisible = true"
         :disabled="!currentMatter">
-        <el-icon><Plus /></el-icon>
         New Goal
       </el-button>
     </div>

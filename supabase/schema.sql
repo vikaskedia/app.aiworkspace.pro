@@ -244,25 +244,45 @@ FROM (
     ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
     
     -- Policies for goals
-    CREATE POLICY "Users can delete their own goals" ON goals FOR DELETE USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid())))));
-    CREATE POLICY "Users can update their own goals" ON goals FOR UPDATE USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid())))));
-    CREATE POLICY "Users can view their own goals" ON goals FOR SELECT USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid())))));
-CREATE POLICY "Users can create goals in their matters" 
-ON goals 
-FOR INSERT 
-WITH CHECK (
-  matter_id IN (
-    SELECT id 
-    FROM matters 
-    WHERE created_by = auth.uid()
-  )
-);    
+    CREATE POLICY "Users can view goals" ON goals
+    FOR SELECT USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
+      )
+    );
+
+    CREATE POLICY "Users can update goals" ON goals
+    FOR UPDATE USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
+
+    CREATE POLICY "Users can delete goals" ON goals
+    FOR DELETE USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
+
+    CREATE POLICY "Users can create goals" ON goals
+    FOR INSERT WITH CHECK (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
+    
 
 
     -------------------------------  TABLE: matter_shares ------------------------------

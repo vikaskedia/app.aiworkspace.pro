@@ -114,7 +114,7 @@ FROM (
 
 
 
-    ---------------------- TABLE: events ------------------------------
+    ---------------------- TABLE: EVENTS ------------------------------
     CREATE TABLE events (
       end_time timestamp with time zone NOT NULL,
       start_time timestamp with time zone NOT NULL,
@@ -152,7 +152,7 @@ FROM (
     
 
 
-    ---------------------- TABLE: file_content ------------------------------
+    ---------------------- TABLE: FILE_CONTENT ------------------------------
     CREATE TABLE file_content (
       id bigint NOT NULL,
       created_at date,
@@ -173,7 +173,7 @@ FROM (
     
 
 
-    ---------------------- TABLE: file_meta ------------------------------
+    ---------------------- TABLE: FILE_META ------------------------------
     CREATE TABLE file_meta (
       matter_id bigint,
       file_content_id bigint,

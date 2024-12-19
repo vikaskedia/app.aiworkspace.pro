@@ -8,7 +8,6 @@ import CallbackPage from './components/CallbackPage.vue';
 import GoalsCt from './components/GoalsCt.vue';
 import TasksCt from './components/TasksCt.vue';
 import EventsCt from './components/EventsCt.vue';
-import PlanCt from './components/PlanCt.vue';
 
 const routes = [
   { 
@@ -31,11 +30,6 @@ const routes = [
         path: 'events',
         name: 'EventsPage',
         component: EventsCt
-      },
-      {
-        path: 'plan',
-        name: 'PlanPage',
-        component: PlanCt
       },
       {
         path: 'files',

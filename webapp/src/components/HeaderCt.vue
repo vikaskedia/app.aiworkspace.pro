@@ -80,9 +80,6 @@ export default {
         case 'events':
           this.$router.push(`/matters/${matterId}/events`);
           break;
-        case 'plan':
-          this.$router.push(`/matters/${matterId}/plan`);
-          break;
         case 'manage-files':
           this.$router.push(`/matters/${matterId}/files`);
           break;
@@ -170,7 +167,6 @@ export default {
             <el-dropdown-item command="goals">Goals</el-dropdown-item>
             <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
             <el-dropdown-item command="events">Events</el-dropdown-item>
-            <el-dropdown-item command="plan">Plan</el-dropdown-item>
             <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
             <el-dropdown-item command="edit-matter">Edit Matter</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>

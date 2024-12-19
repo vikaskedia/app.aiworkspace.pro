@@ -101,7 +101,18 @@ export default {
     handleMatterSelect(matter) {
       const matterStore = useMatterStore();
       matterStore.setCurrentMatter(matter);
-      this.$router.push(`/matters/${matter.id}`);
+      
+      // Get the current route path segments
+      const currentPath = this.$route.path;
+      const segments = currentPath.split('/');
+      
+      // If we're in a sub-route (goals, tasks, etc.), preserve it
+      if (segments.length > 3) {
+        const subRoute = segments[3]; // 'goals', 'tasks', etc.
+        this.$router.push(`/matters/${matter.id}/${subRoute}`);
+      } else {
+        this.$router.push(`/matters/${matter.id}`);
+      }
     },
     async handleEditMatter() {
       const matterStore = useMatterStore();

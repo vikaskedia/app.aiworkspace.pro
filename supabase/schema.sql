@@ -428,16 +428,44 @@ CREATE TRIGGER update_matters_updated_at
     ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
     
     -- Policies for tasks
-    CREATE POLICY Users can delete tasks in their matters ON tasks FOR DELETE USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
-    CREATE POLICY Users can update tasks in their matters ON tasks FOR UPDATE USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
-    CREATE POLICY Users can view tasks in their matters ON tasks FOR SELECT USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
-    
+    CREATE POLICY "Users can view tasks" ON tasks
+    FOR SELECT USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
+      )
+    );
+
+    CREATE POLICY "Users can update tasks" ON tasks
+    FOR UPDATE USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
+
+    CREATE POLICY "Users can delete tasks" ON tasks
+    FOR DELETE USING (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
+
+    CREATE POLICY "Users can create tasks" ON tasks
+    FOR INSERT WITH CHECK (
+      matter_id IN (
+        SELECT id FROM matters WHERE created_by = auth.uid()
+        UNION
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+      )
+    );
 
 
     -- Function: get_user_id_by_email

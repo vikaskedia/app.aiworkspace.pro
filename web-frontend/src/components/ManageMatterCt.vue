@@ -38,16 +38,29 @@ export default {
       try {
         const { data: shares, error } = await supabase
           .from('matter_shares')
-          .select(`
-            shared_with_user_id,
-            access_type,
-            created_at,
-            users:shared_with_user_id(email)
-          `)
+          .select('id, shared_with_user_id, access_type, created_at')
           .eq('matter_id', this.currentMatter.id);
 
         if (error) throw error;
-        this.sharedUsers = shares;
+
+        // Get user details for each share
+        const sharesWithUserInfo = await Promise.all(
+          shares.map(async (share) => {
+            const { data: userData, error: userError } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: share.shared_with_user_id
+              });
+
+            if (userError) throw userError;
+
+            return {
+              ...share,
+              user: userData[0] // Note: The function returns a table, so we take the first row
+            };
+          })
+        );
+
+        this.sharedUsers = sharesWithUserInfo;
       } catch (error) {
         ElMessage.error('Error loading shared users: ' + error.message);
       }

@@ -7,16 +7,19 @@ Create a new migration to add a function that safely handles user lookup:
 
 
 -- Create a function to safely get user ID by email
-CREATE OR REPLACE FUNCTION get_user_id_by_email(email_address text)
-RETURNS uuid
+CREATE OR REPLACE FUNCTION get_user_info_by_id(user_id uuid)
+RETURNS TABLE (
+  id uuid,
+  email text
+)
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT id 
+  SELECT id, email
   FROM auth.users 
-  WHERE email = email_address;
+  WHERE id = user_id;
 $$;
 
 -- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION get_user_id_by_email TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_info_by_id TO authenticated;

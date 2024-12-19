@@ -78,20 +78,20 @@ export default {
 
     async shareMatter() {
       try {
-        // First find the user by email
-        const { data: users, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', this.newShare.email)
-          .single();
+        // Get user ID using the database function
+        const { data: userId, error: userError } = await supabase
+          .rpc('get_user_id_by_email', {
+            email_address: this.newShare.email
+          });
 
         if (userError) throw userError;
+        if (!userId) throw new Error('User not found');
 
         const { error: shareError } = await supabase
           .from('matter_shares')
           .insert({
             matter_id: this.currentMatter.id,
-            user_id: users.id,
+            user_id: userId,
             access_type: this.newShare.access_type
           });
 

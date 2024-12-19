@@ -18,12 +18,7 @@ export default {
   },
   data: function () {
     return {
-      user: null,
-      editDialogVisible: false,
-      editingMatter: {
-        title: '',
-        description: ''
-      }
+      user: null
     };
   },
   computed: {
@@ -83,13 +78,6 @@ export default {
         case 'manage-files':
           this.$router.push(`/matter/${matterId}/files`);
           break;
-        case 'edit-matter':
-          this.editingMatter = {
-            title: currentMatter.title,
-            description: currentMatter.description || ''
-          };
-          this.editDialogVisible = true;
-          break;
         case 'manage-matter':
           this.$router.push(`/matter/${matterId}/manage`);
           break;
@@ -112,30 +100,6 @@ export default {
         this.$router.push(`/matter/${matter.id}/${subRoute}`);
       } else {
         this.$router.push(`/matter/${matter.id}`);
-      }
-    },
-    async handleEditMatter() {
-      const matterStore = useMatterStore();
-      const currentMatter = matterStore.currentMatter;
-
-      try {
-        const { data, error } = await supabase
-          .from('matters')
-          .update({
-            title: this.editingMatter.title,
-            description: this.editingMatter.description
-          })
-          .eq('id', currentMatter.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        matterStore.setCurrentMatter(data);
-        this.editDialogVisible = false;
-        ElMessage.success('Matter updated successfully');
-      } catch (error) {
-        ElMessage.error('Error updating matter: ' + error.message);
       }
     }
   }
@@ -171,7 +135,6 @@ export default {
             <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
             <el-dropdown-item command="events">Events</el-dropdown-item>
             <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
-            <el-dropdown-item command="edit-matter">Edit Matter</el-dropdown-item>
             <el-dropdown-item command="manage-matter">Manage Matter</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
@@ -179,36 +142,6 @@ export default {
       </el-dropdown>
     </div>
   </header>
-  <el-dialog
-    v-model="editDialogVisible"
-    title="Edit Matter"
-    width="500px">
-    <el-form :model="editingMatter" label-position="top">
-      <el-form-item label="Title" required>
-        <el-input v-model="editingMatter.title" placeholder="Enter matter title" />
-      </el-form-item>
-      
-      <el-form-item label="Description">
-        <el-input
-          v-model="editingMatter.description"
-          type="textarea"
-          rows="3"
-          placeholder="Enter matter description" />
-      </el-form-item>
-    </el-form>
-    
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="editDialogVisible = false">Cancel</el-button>
-        <el-button
-          type="primary"
-          :disabled="!editingMatter.title"
-          @click="handleEditMatter">
-          Save Changes
-        </el-button>
-      </span>
-    </template>
-  </el-dialog>
 </template>
 
 <style scoped>

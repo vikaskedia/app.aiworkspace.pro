@@ -1,41 +1,32 @@
+<template>
+  <div class="dashboard-container">
+    <HeaderCt />
+    <div class="dashboard-content">
+      <router-view></router-view>
+    </div>
+  </div>
+</template>
+
 <script>
 import HeaderCt from './HeaderCt.vue';
 
 export default {
-  data: function () {
-    return {
-      
-    };
-  },
-  components: { 
+  name: 'DashboardCt',
+  components: {
     HeaderCt
-  },
-  created: async function () {
-    
-  },
-  async mounted() {
-
-  },
-  beforeDestroy() {
-  },
-  computed: {
-    
-  },
-  methods: {
-   
   }
 };
 </script>
 
-<template>
-  <div>
-    <HeaderCt />
-
-    <h2>Dashboard</h2>
-    <p>jaikalima</p>
-  </div>
-</template>
-
 <style scoped>
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
 
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
 </style>

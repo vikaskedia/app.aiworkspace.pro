@@ -4,6 +4,7 @@ import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar } from 'element-pl
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
+import { ElMessage } from 'element-plus';
 
 export default {
   components: {
@@ -50,24 +51,34 @@ export default {
       }
     },
     handleCommand(command) {
+      const matterStore = useMatterStore();
+      const currentMatter = matterStore.currentMatter;
+      
+      if (!currentMatter && command !== 'logout') {
+        ElMessage.warning('Please select a matter first');
+        return;
+      }
+
+      const matterId = currentMatter?.id;
+      
       switch(command) {
         case 'dashboard':
-          this.$router.push('/');
+          this.$router.push(`/matters/${matterId}`);
           break;
         case 'goals':
-          this.$router.push('/goals');
+          this.$router.push(`/matters/${matterId}/goals`);
           break;
         case 'tasks':
-          this.$router.push('/tasks');
+          this.$router.push(`/matters/${matterId}/tasks`);
           break;
         case 'events':
-          this.$router.push('/events');
+          this.$router.push(`/matters/${matterId}/events`);
           break;
         case 'plan':
-          this.$router.push('/plan');
+          this.$router.push(`/matters/${matterId}/plan`);
           break;
         case 'manage-files':
-          this.$router.push('/manage-files');
+          this.$router.push(`/matters/${matterId}/files`);
           break;
         case 'logout':
           this.handleLogout();

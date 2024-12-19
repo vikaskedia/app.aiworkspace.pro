@@ -2,7 +2,7 @@
   <div class="dashboard-container">
     <HeaderCt />
     <div class="dashboard-content">
-      <router-view v-if="$route.path !== `/matters/${currentMatter?.id}`">
+      <router-view v-if="$route.path !== `/matter/${currentMatter?.id}`">
       </router-view>
       <div v-else class="dashboard-overview">
         <h2 class="dashboard-title">Dashboard Overview</h2>
@@ -14,7 +14,7 @@
             <el-button 
               type="primary" 
               link 
-              @click="$router.push(`/matters/${currentMatter?.id}/goals`)">
+              @click="$router.push(`/matter/${currentMatter?.id}/goals`)">
               View All Goals
             </el-button>
           </div>
@@ -64,7 +64,7 @@
             <el-button 
               type="primary" 
               link 
-              @click="$router.push(`/matters/${currentMatter?.id}/tasks`)">
+              @click="$router.push(`/matter/${currentMatter?.id}/tasks`)">
               View All Tasks
             </el-button>
           </div>
@@ -112,7 +112,7 @@
             <el-button 
               type="primary" 
               link 
-              @click="$router.push(`/matters/${currentMatter?.id}/events`)">
+              @click="$router.push(`/matter/${currentMatter?.id}/events`)">
               View All Events
             </el-button>
           </div>

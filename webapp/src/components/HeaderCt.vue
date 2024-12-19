@@ -69,19 +69,19 @@ export default {
       
       switch(command) {
         case 'dashboard':
-          this.$router.push(`/matters/${matterId}`);
+          this.$router.push(`/matter/${matterId}`);
           break;
         case 'goals':
-          this.$router.push(`/matters/${matterId}/goals`);
+          this.$router.push(`/matter/${matterId}/goals`);
           break;
         case 'tasks':
-          this.$router.push(`/matters/${matterId}/tasks`);
+          this.$router.push(`/matter/${matterId}/tasks`);
           break;
         case 'events':
-          this.$router.push(`/matters/${matterId}/events`);
+          this.$router.push(`/matter/${matterId}/events`);
           break;
         case 'manage-files':
-          this.$router.push(`/matters/${matterId}/files`);
+          this.$router.push(`/matter/${matterId}/files`);
           break;
         case 'edit-matter':
           this.editingMatter = {
@@ -106,9 +106,9 @@ export default {
       // If we're in a sub-route (goals, tasks, etc.), preserve it
       if (segments.length > 3) {
         const subRoute = segments[3]; // 'goals', 'tasks', etc.
-        this.$router.push(`/matters/${matter.id}/${subRoute}`);
+        this.$router.push(`/matter/${matter.id}/${subRoute}`);
       } else {
-        this.$router.push(`/matters/${matter.id}`);
+        this.$router.push(`/matter/${matter.id}`);
       }
     },
     async handleEditMatter() {

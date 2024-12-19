@@ -11,7 +11,7 @@ import EventsCt from './components/EventsCt.vue';
 
 const routes = [
   { 
-    path: '/matters/:matterId?', 
+    path: '/matter/:matterId?', 
     name: 'DashboardPage',
     component: DashboardCt,
     meta: { requiresAuth: true },
@@ -52,7 +52,7 @@ const routes = [
   },
   {
     path: '/',
-    redirect: '/matters'
+    redirect: '/matter'
   }
 ];
 
@@ -72,7 +72,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.path === '/login' && session) {
-    next('/matters');
+    next('/matter');
     return;
   }
 

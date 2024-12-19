@@ -3,12 +3,16 @@ import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
+import TaskCommentDialog from './TaskCommentDialog.vue';
 
 export default {
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
     return { currentMatter };
+  },
+  components: {
+    TaskCommentDialog
   },
   data() {
     return {
@@ -25,7 +29,9 @@ export default {
       },
       sharedUsers: [],
       editingTask: null,
-      editDialogVisible: false
+      editDialogVisible: false,
+      commentDialogVisible: false,
+      selectedTask: null
     };
   },
   watch: {
@@ -202,7 +208,15 @@ export default {
         <el-table-column 
           prop="title" 
           label="Title"
-          min-width="200" />
+          min-width="200">
+          <template #default="scope">
+            <span 
+              class="clickable-title"
+              @click="selectedTask = scope.row; commentDialogVisible = true">
+              {{ scope.row.title }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column 
           prop="status" 
           label="Status"
@@ -348,6 +362,12 @@ export default {
           </span>
         </template>
       </el-dialog>
+
+      <TaskCommentDialog
+        v-if="selectedTask"
+        :task="selectedTask"
+        v-model:visible="commentDialogVisible"
+      />
     </div>
   </div>
 </template>
@@ -380,5 +400,14 @@ h2 {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.clickable-title {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable-title:hover {
+  text-decoration: underline;
 }
 </style> 

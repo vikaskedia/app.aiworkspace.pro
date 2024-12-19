@@ -10,7 +10,15 @@ export default {
   data() {
     return {
       goals: [],
-      loading: false
+      loading: false,
+      dialogVisible: false,
+      newGoal: {
+        title: '',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        due_date: ''
+      }
     };
   },
   async created() {
@@ -32,6 +40,44 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    async createGoal() {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const goalData = {
+          ...this.newGoal,
+          due_date: this.newGoal.due_date || null,
+          created_by: user.id
+        };
+
+        const { data, error } = await supabase
+          .from('goals')
+          .insert([goalData])
+          .select();
+
+        if (error) throw error;
+        
+        ElMessage.success('Goal created successfully');
+        this.goals.unshift(data[0]);
+        this.dialogVisible = false;
+        this.resetForm();
+      } catch (error) {
+        ElMessage.error('Error creating goal: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    resetForm() {
+      this.newGoal = {
+        title: '',
+        description: '',
+        status: 'in_progress',
+        priority: 'medium',
+        due_date: ''
+      };
     }
   }
 };
@@ -43,8 +89,64 @@ export default {
     <div class="content">
       <div class="header">
         <h2>Goals</h2>
-        <el-button type="primary" size="small">Add Goal</el-button>
+        <el-button type="primary" size="small" @click="dialogVisible = true">Add Goal</el-button>
       </div>
+
+      <!-- Add Goal Dialog -->
+      <el-dialog
+        v-model="dialogVisible"
+        title="Add New Goal"
+        width="500px">
+        <el-form :model="newGoal" label-position="top">
+          <el-form-item label="Title" required>
+            <el-input v-model="newGoal.title" placeholder="Enter goal title" />
+          </el-form-item>
+          
+          <el-form-item label="Description">
+            <el-input
+              v-model="newGoal.description"
+              type="textarea"
+              rows="3"
+              placeholder="Enter goal description" />
+          </el-form-item>
+          
+          <el-form-item label="Status">
+            <el-select v-model="newGoal.status" style="width: 100%">
+              <el-option label="In Progress" value="in_progress" />
+              <el-option label="Completed" value="completed" />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="Priority">
+            <el-select v-model="newGoal.priority" style="width: 100%">
+              <el-option label="High" value="high" />
+              <el-option label="Medium" value="medium" />
+              <el-option label="Low" value="low" />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="Due Date">
+            <el-date-picker
+              v-model="newGoal.due_date"
+              type="datetime"
+              style="width: 100%"
+              placeholder="Select due date" />
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="dialogVisible = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              :loading="loading"
+              :disabled="!newGoal.title"
+              @click="createGoal">
+              Create Goal
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
 
       <el-table
         v-loading="loading"
@@ -135,6 +237,28 @@ export default {
   
   .header h2 {
     font-size: 1.4rem;
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Add responsive styles for mobile */
+@media (max-width: 640px) {
+  :deep(.el-dialog) {
+    width: 90% !important;
+  }
+  
+  .dialog-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .dialog-footer .el-button {
+    width: 100%;
   }
 }
 </style> 

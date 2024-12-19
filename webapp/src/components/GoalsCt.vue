@@ -36,9 +36,17 @@ export default {
   },
   watch: {
     currentMatter: {
-      handler(newMatter) {
+      handler(newMatter, oldMatter) {
         if (newMatter) {
           this.loadGoals();
+          if (!oldMatter) {
+            this.setupRealtimeSubscription();
+          }
+        } else {
+          if (this.subscription) {
+            this.subscription.unsubscribe();
+          }
+          this.goals = [];
         }
       },
       immediate: true
@@ -50,6 +58,15 @@ export default {
       
       try {
         this.loading = true;
+        
+        // Check cache first
+        const cachedGoals = this.cacheStore.getCachedData('goals', this.currentMatter.id);
+        if (cachedGoals) {
+          this.goals = cachedGoals;
+          this.loading = false;
+          return;
+        }
+
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
@@ -58,6 +75,9 @@ export default {
 
         if (error) throw error;
         this.goals = goals;
+        
+        // Store in cache
+        this.cacheStore.setCachedData('goals', this.currentMatter.id, goals);
       } catch (error) {
         ElMessage.error('Error loading goals: ' + error.message);
       } finally {
@@ -116,7 +136,10 @@ export default {
     },
 
     setupRealtimeSubscription() {
-     
+      if (this.subscription) {
+        this.subscription.unsubscribe();
+      }
+      
       this.subscription = supabase
         .channel('goals-changes')
         .on('postgres_changes', 
@@ -134,24 +157,34 @@ export default {
                 break;
               
               case 'UPDATE':
-                this.cacheStore.updateCachedItem('goals', this.currentMatter.id, payload.new.id, payload.new);
                 const updateIndex = this.goals.findIndex(goal => goal.id === payload.new.id);
                 if (updateIndex !== -1) {
                   this.goals[updateIndex] = payload.new;
+                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
                 }
                 break;
               
               case 'DELETE':
-                this.cacheStore.removeCachedItem('goals', this.currentMatter.id, payload.old.id);
                 const deleteIndex = this.goals.findIndex(goal => goal.id === payload.old.id);
                 if (deleteIndex !== -1) {
                   this.goals.splice(deleteIndex, 1);
+                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
                 }
                 break;
             }
           }
         )
         .subscribe();
+    }
+  },
+  mounted() {
+    if (this.currentMatter) {
+      this.setupRealtimeSubscription();
+    }
+  },
+  beforeUnmount() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
     }
   }
 };

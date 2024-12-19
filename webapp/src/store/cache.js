@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { supabase } from '../supabase';
 
 export const useCacheStore = defineStore('cache', {
   state: () => ({
@@ -27,7 +28,9 @@ export const useCacheStore = defineStore('cache', {
       if (!cached) return null;
       
       const isStale = Date.now() - cached.timestamp > 24 * 60 * 60 * 1000;
-      const hasRealtimeConnection = supabase.channel('system').state === 'joined';
+      
+      const channel = supabase.channel('system');
+      const hasRealtimeConnection = channel.state === 'joined';
       
       if (!hasRealtimeConnection && isStale) {
         delete this[type][matterId];

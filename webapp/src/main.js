@@ -3,8 +3,10 @@ import './style.css'
 import App from './router.vue'
 import { createPinia } from 'pinia';
 import { useCacheStore } from './store/cache';
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 
 const pinia = createPinia();
+pinia.use(piniaPluginPersistedstate);
 const rootVueApp = createApp(App);
 rootVueApp.use(pinia);
 

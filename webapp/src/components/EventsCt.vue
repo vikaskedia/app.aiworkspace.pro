@@ -1,14 +1,10 @@
 <script>
-import HeaderCt from './HeaderCt.vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
 
 export default {
-  components: { 
-    HeaderCt
-  },
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
@@ -114,7 +110,6 @@ export default {
 
 <template>
   <div class="events-container">
-    <HeaderCt />
     <div class="content">
       <div class="events-header">
         <h2>Events</h2>

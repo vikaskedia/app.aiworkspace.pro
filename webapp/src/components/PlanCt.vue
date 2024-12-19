@@ -1,16 +1,18 @@
 <script>
-import HeaderCt from './HeaderCt.vue';
+import { useMatterStore } from '../store/matter';
+import { storeToRefs } from 'pinia';
 
 export default {
-  components: { 
-    HeaderCt
+  setup() {
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+    return { currentMatter };
   }
 };
 </script>
 
 <template>
   <div class="plan-container">
-    <HeaderCt />
     <div class="content">
       <h2>Plan</h2>
       <p>Coming soon...</p>

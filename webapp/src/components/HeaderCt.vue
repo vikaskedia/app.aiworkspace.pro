@@ -213,10 +213,14 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 0.8rem 2rem;
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  font-family: Open Sans,sans-serif;
+  background: white;
+  color: #1a1a1a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .header-left {
@@ -234,11 +238,11 @@ export default {
 }
 
 .header-left h1 {
-  font-weight: 400;
-  font-size: 1.5rem;
-  letter-spacing: -0.5px;
+  font-weight: 500;
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
   margin: 0;
-  color: white;
+  color: #1a1a1a;
 }
 
 .header-right {
@@ -249,23 +253,26 @@ export default {
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.8rem;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   transition: background-color 0.2s;
-  outline: none !important;
 }
 
-.dropdown-icon {
-  color: white;
-  font-size: 14px;
-  transition: transform 0.2s;
+.user-profile:hover {
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .user-name {
-  color: white;
+  color: #1a1a1a;
   font-size: 0.9rem;
+  font-weight: 450;
+}
+
+.dropdown-icon {
+  color: #666;
+  font-size: 12px;
 }
 
 /* Responsive styles */

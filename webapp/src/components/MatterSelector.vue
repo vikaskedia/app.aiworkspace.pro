@@ -141,11 +141,24 @@ export default {
 }
 
 .matter-dropdown-link {
-  color: white;
+  color: #1a1a1a;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.matter-dropdown-link:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Style the dropdown icon */
+.el-icon--right {
+  color: #666;
+  font-size: 12px;
 }
 
 .dialog-footer {

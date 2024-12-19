@@ -19,10 +19,12 @@ export default {
     const loadMatters = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Get matters created by the user and shared with the user
         const { data, error } = await supabase
           .from('matters')
           .select('*')
-          .eq('created_by', user.id)
+          .or(`created_by.eq.${user.id},id.in.(select matter_id from matter_shares where shared_with_user_id = '${user.id}')`)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

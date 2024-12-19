@@ -1,18 +1,18 @@
 
     -- Table: events
     CREATE TABLE events (
+      end_time timestamp with time zone NOT NULL,
       start_time timestamp with time zone NOT NULL,
+      event_type text NOT NULL,
       description text,
       title text NOT NULL,
       id bigint NOT NULL,
-      updated_at timestamp with time zone,
       created_at timestamp with time zone,
       created_by uuid,
       matter_id bigint,
       attendees jsonb,
       location text,
-      end_time timestamp with time zone NOT NULL,
-      event_type text NOT NULL
+      updated_at timestamp with time zone
     );
     
     -- Indexes for events
@@ -42,13 +42,13 @@
       id bigint NOT NULL,
       created_at date,
       file_content jsonb,
-      created_by uuid REFERENCES auth.users(id),
-      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
+      created_by uuid,
+      matter_id bigint
     );
     
     -- Indexes for file_content
-    CREATE UNIQUE INDEX files_pkey ON public.file_content USING btree (id);
-    CREATE INDEX file_content_matter_id_idx ON file_content(matter_id);
+    CREATE UNIQUE INDEX files_pkey ON public.file_content USING btree (id)
+    CREATE INDEX file_content_matter_id_idx ON public.file_content USING btree (matter_id)
     
     -- RLS for file_content
     -- No RLS enabled
@@ -60,18 +60,18 @@
 
     -- Table: file_meta
     CREATE TABLE file_meta (
+      matter_id bigint,
       file_content_id bigint,
       id bigint NOT NULL,
       created_at timestamp with time zone NOT NULL,
       file_name character varying,
-      created_by uuid REFERENCES auth.users(id),
-      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
+      created_by uuid
     );
     
     -- Indexes for file_meta
-    CREATE UNIQUE INDEX file_meta_pkey ON public.file_meta USING btree (id);
-    CREATE INDEX file_meta_matter_id_idx ON file_meta(matter_id);
-    CREATE INDEX file_meta_created_by_idx ON file_meta(created_by);
+    CREATE UNIQUE INDEX file_meta_pkey ON public.file_meta USING btree (id)
+    CREATE INDEX file_meta_matter_id_idx ON public.file_meta USING btree (matter_id)
+    CREATE INDEX file_meta_created_by_idx ON public.file_meta USING btree (created_by)
     
     -- RLS for file_meta
     ALTER TABLE file_meta ENABLE ROW LEVEL SECURITY;
@@ -83,18 +83,18 @@
 
     -- Table: folders
     CREATE TABLE folders (
+      id bigint NOT NULL,
+      matter_id bigint,
       created_at timestamp with time zone NOT NULL,
-      created_by uuid REFERENCES auth.users(id),
+      created_by uuid,
       folder_name character varying,
       parent_folder_id bigint,
-      file_meta_ids json,
-      id bigint NOT NULL,
-      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
+      file_meta_ids json
     );
     
     -- Indexes for folders
-    CREATE UNIQUE INDEX folders_pkey ON public.folders USING btree (id);
-    CREATE INDEX folders_matter_id_idx ON folders(matter_id);
+    CREATE UNIQUE INDEX folders_pkey ON public.folders USING btree (id)
+    CREATE INDEX folders_matter_id_idx ON public.folders USING btree (matter_id)
     
     -- RLS for folders
     ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
@@ -111,12 +111,12 @@
       created_by uuid,
       related_files jsonb,
       matter_id bigint,
-      due_date timestamp with time zone,
-      priority character varying,
-      status character varying,
-      description text,
+      id bigint NOT NULL,
       title character varying NOT NULL,
-      id bigint NOT NULL
+      description text,
+      status character varying,
+      priority character varying,
+      due_date timestamp with time zone
     );
     
     -- Indexes for goals
@@ -142,14 +142,39 @@
     
 
 
+    -- Table: matter_shares
+    CREATE TABLE matter_shares (
+      matter_id bigint,
+      id bigint NOT NULL,
+      created_at timestamp with time zone NOT NULL,
+      created_by uuid,
+      access_type character varying NOT NULL,
+      shared_with_user_id uuid
+    );
+    
+    -- Indexes for matter_shares
+    CREATE UNIQUE INDEX matter_shares_pkey ON public.matter_shares USING btree (id)
+    CREATE UNIQUE INDEX matter_shares_matter_id_shared_with_user_id_key ON public.matter_shares USING btree (matter_id, shared_with_user_id)
+    CREATE INDEX matter_shares_matter_id_idx ON public.matter_shares USING btree (matter_id)
+    CREATE INDEX matter_shares_shared_with_user_id_idx ON public.matter_shares USING btree (shared_with_user_id)
+    CREATE INDEX matter_shares_created_by_idx ON public.matter_shares USING btree (created_by)
+    
+    -- RLS for matter_shares
+    ALTER TABLE matter_shares ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for matter_shares
+    CREATE POLICY Users can view matter shares ON matter_shares FOR SELECT USING (((created_by = auth.uid()) OR (shared_with_user_id = auth.uid())));
+    
+
+
     -- Table: matters
     CREATE TABLE matters (
+      id bigint NOT NULL,
       created_by uuid,
       updated_at timestamp with time zone NOT NULL,
       created_at timestamp with time zone NOT NULL,
       description text,
-      title character varying NOT NULL,
-      id bigint NOT NULL
+      title character varying NOT NULL
     );
     
     -- Indexes for matters
@@ -162,47 +187,11 @@
     -- Policies for matters
     CREATE POLICY Users can delete their own matters ON matters FOR DELETE USING ((auth.uid() = created_by));
     CREATE POLICY Users can update their own matters ON matters FOR UPDATE USING ((auth.uid() = created_by));
+    CREATE POLICY Users can view their matters and shared matters ON matters FOR SELECT USING (((created_by = auth.uid()) OR (id IN ( SELECT matter_shares.matter_id
+   FROM matter_shares
+  WHERE (matter_shares.shared_with_user_id = auth.uid())))));
     CREATE POLICY Users can view their own matters ON matters FOR SELECT USING ((auth.uid() = created_by));
-
-
-    -- Table: matter_shares
-    CREATE TABLE matter_shares (
-    id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    matter_id bigint REFERENCES matters(id) ON DELETE CASCADE,
-    shared_with_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-    access_type varchar NOT NULL CHECK (access_type IN ('view', 'edit')),
-    created_by uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    UNIQUE(matter_id, shared_with_user_id)
-    );
-
-    -- Create indexes
-    CREATE INDEX matter_shares_matter_id_idx ON matter_shares(matter_id);
-    CREATE INDEX matter_shares_shared_with_user_id_idx ON matter_shares(shared_with_user_id);
-    CREATE INDEX matter_shares_created_by_idx ON matter_shares(created_by);
-
-    -- Enable RLS
-    ALTER TABLE matter_shares ENABLE ROW LEVEL SECURITY;
-
-    -- Create policies
-    CREATE POLICY "Users can view shares for their matters"
-        ON matter_shares FOR SELECT
-        USING (
-            matter_id IN (
-                SELECT id FROM matters WHERE created_by = auth.uid()
-            )
-            OR
-            shared_with_user_id = auth.uid()
-        );
-
-    CREATE POLICY "Matter owners can manage shares"
-        ON matter_shares FOR ALL
-        USING (
-            matter_id IN (
-                SELECT id FROM matters WHERE created_by = auth.uid()
-            )
-        ); 
-
+    
 
 
     -- Table: tasks
@@ -241,10 +230,63 @@
   WHERE (matters.created_by = auth.uid()))));
     
 
--- Functions and Triggers
+
+    -- Function: get_user_id_by_email
+    CREATE OR REPLACE FUNCTION public.get_user_id_by_email(email_address text)
+ RETURNS uuid
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT id 
+  FROM auth.users 
+  WHERE email = email_address;
+$function$
+
+    
+    -- Triggers using get_user_id_by_email
+    -- No triggers
+    
+
+
+    -- Function: get_user_info_by_email
+    CREATE OR REPLACE FUNCTION public.get_user_info_by_email(email_address text)
+ RETURNS TABLE(id uuid, email text)
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT id, email
+  FROM auth.users 
+  WHERE email = email_address;
+$function$
+
+    
+    -- Triggers using get_user_info_by_email
+    -- No triggers
+    
+
+
+    -- Function: get_user_info_by_id
+    CREATE OR REPLACE FUNCTION public.get_user_info_by_id(user_id uuid)
+ RETURNS TABLE(id uuid, email text)
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT id, email
+  FROM auth.users 
+  WHERE id = user_id;
+$function$
+
+    
+    -- Triggers using get_user_info_by_id
+    -- No triggers
+    
+
 
     -- Function: update_updated_at_column
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+    CREATE OR REPLACE FUNCTION public.update_updated_at_column()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -261,7 +303,4 @@ $function$
     CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     CREATE TRIGGER update_matters_updated_at BEFORE UPDATE ON matters FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     
-
-
-
 

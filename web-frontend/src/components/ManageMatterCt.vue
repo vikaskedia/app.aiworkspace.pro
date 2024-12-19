@@ -39,12 +39,10 @@ export default {
         const { data: shares, error } = await supabase
           .from('matter_shares')
           .select(`
-            id,
+            shared_with_user_id,
             access_type,
-            user:user_id (
-              email,
-              user_metadata
-            )
+            created_at,
+            users:shared_with_user_id(email)
           `)
           .eq('matter_id', this.currentMatter.id);
 
@@ -87,18 +85,24 @@ export default {
         if (userError) throw userError;
         if (!userId) throw new Error('User not found');
 
-        const { error: shareError } = await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Insert the share record with the new column name
+        const { data, error } = await supabase
           .from('matter_shares')
           .insert({
             matter_id: this.currentMatter.id,
-            user_id: userId,
+            shared_with_user_id: userId,  // Changed from user_id
+            created_by: user.id,
             access_type: this.newShare.access_type
-          });
+          })
+          .select();
 
-        if (shareError) throw shareError;
-
+        if (error) throw error;
+        
         await this.loadSharedUsers();
-        this.newShare.email = '';
+        this.dialogVisible = false;
+        this.newShare = { email: '', access_type: 'view' };
         ElMessage.success('Matter shared successfully');
       } catch (error) {
         ElMessage.error('Error sharing matter: ' + error.message);
@@ -186,7 +190,7 @@ export default {
           <el-table :data="sharedUsers">
             <el-table-column label="User" min-width="200">
               <template #default="{ row }">
-                {{ row.user.email }}
+                {{ row.users.email }}
               </template>
             </el-table-column>
             

@@ -51,6 +51,18 @@ export default {
         case 'dashboard':
           this.$router.push('/');
           break;
+        case 'goals':
+          this.$router.push('/goals');
+          break;
+        case 'tasks':
+          this.$router.push('/tasks');
+          break;
+        case 'events':
+          this.$router.push('/events');
+          break;
+        case 'plan':
+          this.$router.push('/plan');
+          break;
         case 'manage-files':
           this.$router.push('/manage-files');
           break;
@@ -84,6 +96,10 @@ export default {
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
+            <el-dropdown-item command="goals">Goals</el-dropdown-item>
+            <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
+            <el-dropdown-item command="events">Events</el-dropdown-item>
+            <el-dropdown-item command="plan">Plan</el-dropdown-item>
             <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>

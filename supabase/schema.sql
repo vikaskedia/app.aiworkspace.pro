@@ -1,4 +1,4 @@
-// this stores the current schema after all the migrations have been applied
+-- this stores the current schema after all the migrations have been applied
 
 -- Create tables
 

@@ -4,6 +4,10 @@ import DashboardCt from './components/DashboardCt.vue';
 import ManageFilesCt from './components/ManageFilesCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
+import GoalsCt from './components/GoalsCt.vue';
+import TasksCt from './components/TasksCt.vue';
+import EventsCt from './components/EventsCt.vue';
+import PlanCt from './components/PlanCt.vue';
 
 const routes = [
   { 
@@ -29,6 +33,30 @@ const routes = [
     name: 'CallbackPage',
     component: CallbackPage,
     meta: { requiresAuth: false }
+  },
+  {
+    path: '/goals',
+    name: 'GoalsPage',
+    component: GoalsCt,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/tasks',
+    name: 'TasksPage',
+    component: TasksCt,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/events',
+    name: 'EventsPage',
+    component: EventsCt,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/plan',
+    name: 'PlanPage',
+    component: PlanCt,
+    meta: { requiresAuth: true }
   }
 ];
 

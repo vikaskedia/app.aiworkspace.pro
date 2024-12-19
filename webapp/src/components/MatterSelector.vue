@@ -78,12 +78,16 @@ export default {
   <div class="matter-selector">
     <el-dropdown v-if="matters.length" trigger="click">
       <span class="matter-dropdown-link">
-        {{ selectedMatter?.title || 'Select Matter' }}
+        {{ selectedMatter?.title || 'All Matters' }}
         <el-icon class="el-icon--right"><arrow-down /></el-icon>
       </span>
       
       <template #dropdown>
         <el-dropdown-menu>
+          <el-dropdown-item @click="handleMatterSelect(null)">
+            All Matters
+          </el-dropdown-item>
+          <el-dropdown-item divided />
           <el-dropdown-item
             v-for="matter in matters"
             :key="matter.id"

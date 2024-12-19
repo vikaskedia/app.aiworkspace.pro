@@ -27,6 +27,11 @@
               label="Title"
               min-width="200" />
             <el-table-column 
+              v-if="!currentMatter"
+              prop="matter_title" 
+              label="Matter"
+              min-width="150" />
+            <el-table-column 
               prop="status" 
               label="Status"
               width="120">
@@ -72,6 +77,11 @@
               label="Title"
               min-width="200" />
             <el-table-column 
+              v-if="!currentMatter"
+              prop="matter_title" 
+              label="Matter"
+              min-width="150" />
+            <el-table-column 
               prop="status" 
               label="Status"
               width="120">
@@ -114,6 +124,11 @@
               prop="title" 
               label="Title"
               min-width="200" />
+            <el-table-column 
+              v-if="!currentMatter"
+              prop="matter_title" 
+              label="Matter"
+              min-width="150" />
             <el-table-column 
               prop="event_type" 
               label="Type"

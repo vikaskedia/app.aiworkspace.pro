@@ -153,11 +153,13 @@ FROM (
       id bigint NOT NULL,
       created_at date,
       file_content jsonb,
-      created_by bigint
+      created_by uuid REFERENCES auth.users(id),
+      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
     );
     
     -- Indexes for file_content
-    CREATE UNIQUE INDEX files_pkey ON public.file_content USING btree (id)
+    CREATE UNIQUE INDEX files_pkey ON public.file_content USING btree (id);
+    CREATE INDEX file_content_matter_id_idx ON file_content(matter_id);
     
     -- RLS for file_content
     -- No RLS enabled
@@ -172,11 +174,15 @@ FROM (
       file_content_id bigint,
       id bigint NOT NULL,
       created_at timestamp with time zone NOT NULL,
-      file_name character varying
+      file_name character varying,
+      created_by uuid REFERENCES auth.users(id),
+      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
     );
     
     -- Indexes for file_meta
-    CREATE UNIQUE INDEX file_meta_pkey ON public.file_meta USING btree (id)
+    CREATE UNIQUE INDEX file_meta_pkey ON public.file_meta USING btree (id);
+    CREATE INDEX file_meta_matter_id_idx ON file_meta(matter_id);
+    CREATE INDEX file_meta_created_by_idx ON file_meta(created_by);
     
     -- RLS for file_meta
     ALTER TABLE file_meta ENABLE ROW LEVEL SECURITY;
@@ -189,15 +195,17 @@ FROM (
     -- Table: folders
     CREATE TABLE folders (
       created_at timestamp with time zone NOT NULL,
-      created_by bigint,
+      created_by uuid REFERENCES auth.users(id),
       folder_name character varying,
       parent_folder_id bigint,
       file_meta_ids json,
-      id bigint NOT NULL
+      id bigint NOT NULL,
+      matter_id bigint REFERENCES matters(id) ON DELETE CASCADE
     );
     
     -- Indexes for folders
-    CREATE UNIQUE INDEX folders_pkey ON public.folders USING btree (id)
+    CREATE UNIQUE INDEX folders_pkey ON public.folders USING btree (id);
+    CREATE INDEX folders_matter_id_idx ON folders(matter_id);
     
     -- RLS for folders
     ALTER TABLE folders ENABLE ROW LEVEL SECURITY;

@@ -2,10 +2,12 @@
 import HeaderCt from './HeaderCt.vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
+import AIChatPanel from './AIChatPanel.vue';
 
 export default {
   components: { 
-    HeaderCt
+    HeaderCt,
+    AIChatPanel
   },
   data() {
     return {
@@ -18,7 +20,9 @@ export default {
         status: 'in_progress',
         priority: 'medium',
         due_date: ''
-      }
+      },
+      showAIChat: false,
+      selectedGoal: null,
     };
   },
   async created() {
@@ -78,6 +82,11 @@ export default {
         priority: 'medium',
         due_date: ''
       };
+    },
+
+    handleTitleClick(goal) {
+      this.selectedGoal = goal;
+      this.showAIChat = true;
     }
   }
 };
@@ -157,7 +166,15 @@ export default {
         <el-table-column 
           prop="title" 
           label="Title"
-          min-width="200" />
+          min-width="200">
+          <template #default="scope">
+            <span 
+              class="clickable-title"
+              @click="handleTitleClick(scope.row)">
+              {{ scope.row.title }}
+            </span>
+          </template>
+        </el-table-column>
           
         <el-table-column 
           prop="description" 
@@ -199,6 +216,13 @@ export default {
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- Add AI Chat Panel -->
+      <AIChatPanel
+        v-if="showAIChat"
+        :goal="selectedGoal"
+        @close="showAIChat = false"
+      />
     </div>
   </div>
 </template>
@@ -260,5 +284,14 @@ export default {
   .dialog-footer .el-button {
     width: 100%;
   }
+}
+
+.clickable-title {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable-title:hover {
+  text-decoration: underline;
 }
 </style> 

@@ -20,7 +20,7 @@
     4. Drizzle
 
 # How to run on local?
-1. inside webapp .. do npm install
+1. inside web-frontend .. do npm install
 2. copy env.sample to .env and fill in the values
 3. npm run dev
 

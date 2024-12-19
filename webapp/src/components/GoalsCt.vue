@@ -15,9 +15,6 @@ export default {
     const cacheStore = useCacheStore();
     const { currentMatter } = storeToRefs(matterStore);
     
-    // Check cache version on component creation
-    cacheStore.checkVersion();
-    
     return { currentMatter, cacheStore };
   },
   data() {
@@ -119,8 +116,7 @@ export default {
     },
 
     setupRealtimeSubscription() {
-      // ... existing subscription code ...
-      
+     
       this.subscription = supabase
         .channel('goals-changes')
         .on('postgres_changes', 

@@ -1,7 +1,16 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './router.vue'
+import { createPinia } from 'pinia';
+import { useCacheStore } from './store/cache';
+
+const pinia = createPinia();
 const rootVueApp = createApp(App);
+rootVueApp.use(pinia);
+
+// Initialize cache store
+const cacheStore = useCacheStore();
+cacheStore.checkVersion();
 
 import router from "./routes";
 rootVueApp.use(router);
@@ -30,9 +39,5 @@ rootVueApp.config.globalProperties.emitter = emitter;
 
 // set base url
 rootVueApp.config.globalProperties.baseUrlForApiCall = '';
-
-import { createPinia } from 'pinia';
-const pinia = createPinia();
-rootVueApp.use(pinia);
 
 rootVueApp.mount('#app')

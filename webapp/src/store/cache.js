@@ -2,40 +2,35 @@ import { defineStore } from 'pinia';
 
 export const useCacheStore = defineStore('cache', {
   state: () => ({
-    goals: new Map(),
-    tasks: new Map(),
-    events: new Map(),
-    files: new Map(),
-    // Optional: persist cache version to detect app updates
+    goals: {},
+    tasks: {},
+    events: {},
+    files: {},
     cacheVersion: '1.0'
   }),
   
   persist: {
-    // Use localStorage to persist cache between page reloads
     storage: localStorage,
     paths: ['goals', 'tasks', 'events', 'files', 'cacheVersion']
   },
 
   actions: {
     setCachedData(type, matterId, data) {
-      this[type].set(matterId, {
+      this[type][matterId] = {
         data,
         timestamp: Date.now()
-      });
+      };
     },
     
     getCachedData(type, matterId) {
-      const cached = this[type].get(matterId);
+      const cached = this[type][matterId];
       if (!cached) return null;
       
-      // Only invalidate cache if:
-      // 1. No real-time connection is available
-      // 2. Cache is more than 24 hours old (as a fallback)
       const isStale = Date.now() - cached.timestamp > 24 * 60 * 60 * 1000;
       const hasRealtimeConnection = supabase.channel('system').state === 'joined';
       
       if (!hasRealtimeConnection && isStale) {
-        this[type].delete(matterId);
+        delete this[type][matterId];
         return null;
       }
       
@@ -43,7 +38,7 @@ export const useCacheStore = defineStore('cache', {
     },
     
     updateCachedItem(type, matterId, itemId, newData) {
-      const cached = this[type].get(matterId);
+      const cached = this[type][matterId];
       if (!cached) return;
       
       const index = cached.data.findIndex(item => item.id === itemId);
@@ -54,7 +49,7 @@ export const useCacheStore = defineStore('cache', {
     },
     
     removeCachedItem(type, matterId, itemId) {
-      const cached = this[type].get(matterId);
+      const cached = this[type][matterId];
       if (!cached) return;
       
       cached.data = cached.data.filter(item => item.id !== itemId);
@@ -62,15 +57,14 @@ export const useCacheStore = defineStore('cache', {
     },
     
     clearCache() {
-      this.goals.clear();
-      this.tasks.clear();
-      this.events.clear();
-      this.files.clear();
+      this.goals = {};
+      this.tasks = {};
+      this.events = {};
+      this.files = {};
     },
 
-    // Clear cache when app updates
     checkVersion() {
-      const currentVersion = '1.0'; // Update this when making breaking changes
+      const currentVersion = '1.0';
       if (this.cacheVersion !== currentVersion) {
         this.clearCache();
         this.cacheVersion = currentVersion;

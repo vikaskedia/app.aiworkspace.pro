@@ -3,11 +3,18 @@ import HeaderCt from './HeaderCt.vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
+import { useMatterStore } from '../store/matter';
+import { storeToRefs } from 'pinia';
 
 export default {
   components: { 
     HeaderCt,
     AIChatPanel
+  },
+  setup() {
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+    return { currentMatter };
   },
   data() {
     return {
@@ -19,22 +26,33 @@ export default {
         description: '',
         status: 'in_progress',
         priority: 'medium',
-        due_date: ''
+        due_date: '',
+        matter_id: null
       },
       showAIChat: false,
       selectedGoal: null,
     };
   },
-  async created() {
-    await this.loadGoals();
+  watch: {
+    currentMatter: {
+      handler(newMatter) {
+        if (newMatter) {
+          this.loadGoals();
+        }
+      },
+      immediate: true
+    }
   },
   methods: {
     async loadGoals() {
+      if (!this.currentMatter) return;
+      
       try {
         this.loading = true;
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
+          .eq('matter_id', this.currentMatter.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -46,12 +64,18 @@ export default {
       }
     },
     async createGoal() {
+      if (!this.currentMatter) {
+        ElMessage.warning('Please select a matter first');
+        return;
+      }
+
       try {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
         const goalData = {
           ...this.newGoal,
+          matter_id: this.currentMatter.id,
           due_date: this.newGoal.due_date || null,
           created_by: user.id
         };
@@ -80,7 +104,8 @@ export default {
         description: '',
         status: 'in_progress',
         priority: 'medium',
-        due_date: ''
+        due_date: '',
+        matter_id: null
       };
     },
 

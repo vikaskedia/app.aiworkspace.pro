@@ -31,4 +31,8 @@ rootVueApp.config.globalProperties.emitter = emitter;
 // set base url
 rootVueApp.config.globalProperties.baseUrlForApiCall = '';
 
+import { createPinia } from 'pinia';
+const pinia = createPinia();
+rootVueApp.use(pinia);
+
 rootVueApp.mount('#app')

@@ -6,39 +6,21 @@ import { Plus } from '@element-plus/icons-vue';
 import HeaderCt from './HeaderCt.vue';
 import { supabase } from '../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useMatterStore } from '../store/matter';
+import { storeToRefs } from 'pinia';
 
 export default {
+  components: { 
+    HeaderCt
+  },
+  setup() {
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+    return { currentMatter };
+  },
   data: function () {
     return {
-      files: [
-        {
-          id: '1',
-          name: 'Contract_Draft_v1.pdf',
-          storage_path: 'dummy/path/Contract_Draft_v1.pdf',
-          size: 1024000,
-          type: 'application/pdf',
-          tags: ['contract', 'draft'],
-          created_at: '2024-03-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          name: 'Legal_Brief_2024.docx',
-          storage_path: 'dummy/path/Legal_Brief_2024.docx',
-          size: 512000,
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          tags: ['brief', 'important'],
-          created_at: '2024-03-14T15:45:00Z'
-        },
-        {
-          id: '3',
-          name: 'Evidence_Photo.jpg',
-          storage_path: 'dummy/path/Evidence_Photo.jpg',
-          size: 2048000,
-          type: 'image/jpeg',
-          tags: ['evidence', 'photo'],
-          created_at: '2024-03-13T09:20:00Z'
-        }
-      ],
+      files: [],
       uploadDialogVisible: false,
       fileList: [],
       tags: [],
@@ -48,19 +30,28 @@ export default {
       loading: false
     };
   },
-  components: { 
-    HeaderCt
-  },
-  created: async function () {
-    // await this.loadFiles(); // Uncomment this when switching to real data
+  watch: {
+    currentMatter: {
+      handler(newMatter) {
+        if (newMatter) {
+          this.loadFiles();
+        } else {
+          this.files = [];
+        }
+      },
+      immediate: true
+    }
   },
   methods: {
     async loadFiles() {
+      if (!this.currentMatter) return;
+      
       try {
         this.loading = true;
         const { data: files, error } = await supabase
           .from('files')
           .select('*')
+          .eq('matter_id', this.currentMatter.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -72,90 +63,47 @@ export default {
       }
     },
 
-    async handleFileUpload(file) {
+    async handleUpload(file) {
+      if (!this.currentMatter) {
+        ElMessage.warning('Please select a matter first');
+        return false;
+      }
+
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData?.user?.id) throw new Error('User not authenticated');
+        const { data: { user } } = await supabase.auth.getUser();
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${this.currentMatter.id}/${user.id}/${Date.now()}.${fileExt}`;
 
-        // Upload file to Supabase Storage
-        const fileName = `${Date.now()}-${file.name}`;
-        const { data, error } = await supabase.storage
+        // Upload file to storage
+        const { error: uploadError } = await supabase.storage
           .from('files')
-          .upload(`${userData.user.id}/${fileName}`, file);
+          .upload(filePath, file);
 
-        if (error) throw error;
+        if (uploadError) throw uploadError;
 
         // Create file record in database
-        const { error: dbError } = await supabase
+        const { data, error: dbError } = await supabase
           .from('files')
           .insert([{
             name: file.name,
-            storage_path: data.path,
+            storage_path: filePath,
             size: file.size,
             type: file.type,
             tags: this.selectedTags,
-            user_id: userData.user.id
-          }]);
+            matter_id: this.currentMatter.id,
+            created_by: user.id
+          }])
+          .select()
+          .single();
 
         if (dbError) throw dbError;
 
+        this.files.unshift(data);
         ElMessage.success('File uploaded successfully');
-        this.uploadDialogVisible = false;
-        await this.loadFiles();
       } catch (error) {
-        ElMessage.error('Upload failed: ' + error.message);
+        ElMessage.error('Error uploading file: ' + error.message);
+        return false;
       }
-    },
-
-    async deleteFile(file) {
-      try {
-        // Show confirmation dialog
-        await ElMessageBox.confirm(
-          `Are you sure you want to delete "${file.name}"?`,
-          'Delete File',
-          {
-            confirmButtonText: 'Delete',
-            cancelButtonText: 'Cancel',
-            type: 'warning',
-          }
-        );
-
-        // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from('files')
-          .remove([file.storage_path]);
-
-        if (storageError) throw storageError;
-
-        // Delete from database
-        const { error: dbError } = await supabase
-          .from('files')
-          .delete()
-          .match({ id: file.id });
-
-        if (dbError) throw dbError;
-
-        ElMessage.success('File deleted successfully');
-        await this.loadFiles();
-      } catch (error) {
-        if (error === 'cancel') return; // User cancelled the deletion
-        ElMessage.error('Delete failed: ' + error.message);
-      }
-    },
-
-    showTagInput() {
-      this.tagInputVisible = true;
-      this.$nextTick(_ => {
-        this.$refs.tagInput.focus();
-      });
-    },
-
-    handleTagInputConfirm() {
-      if (this.tagInputValue) {
-        this.selectedTags.push(this.tagInputValue);
-      }
-      this.tagInputVisible = false;
-      this.tagInputValue = '';
     }
   }
 };

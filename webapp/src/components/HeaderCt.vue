@@ -2,6 +2,8 @@
 import { supabase } from '../supabase';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
+import MatterSelector from './MatterSelector.vue';
+import { useMatterStore } from '../store/matter';
 
 export default {
   components: {
@@ -9,7 +11,8 @@ export default {
     ElDropdownMenu,
     ElDropdownItem,
     ElAvatar,
-    CaretBottom
+    CaretBottom,
+    MatterSelector
   },
   data: function () {
     return {
@@ -70,6 +73,11 @@ export default {
           this.handleLogout();
           break;
       }
+    },
+    handleMatterSelect(matter) {
+      const matterStore = useMatterStore();
+      matterStore.setCurrentMatter(matter);
+      this.$router.push(`/matters/${matter.id}`);
     }
   }
 };
@@ -80,6 +88,10 @@ export default {
     <div class="header-left">
       <img src="/logo.png" alt="Legal AI Studio" class="logo-image" />
       <h1>Legal AI Studio</h1>
+    </div>
+    
+    <div class="header-center">
+      <MatterSelector @matter-selected="handleMatterSelect" />
     </div>
     
     <div class="header-right" v-if="user">

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
+import { useMatterStore } from './store/matter';
 import DashboardCt from './components/DashboardCt.vue';
 import ManageFilesCt from './components/ManageFilesCt.vue';
 import LoginPage from './components/LoginPage.vue';
@@ -11,16 +12,37 @@ import PlanCt from './components/PlanCt.vue';
 
 const routes = [
   { 
-    path: '/', 
+    path: '/matters/:matterId?', 
     name: 'DashboardPage',
     component: DashboardCt,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/manage-files',
-    name: 'ManageFilesPage',
-    component: ManageFilesCt,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'goals',
+        name: 'GoalsPage',
+        component: GoalsCt
+      },
+      {
+        path: 'tasks',
+        name: 'TasksPage',
+        component: TasksCt
+      },
+      {
+        path: 'events',
+        name: 'EventsPage',
+        component: EventsCt
+      },
+      {
+        path: 'plan',
+        name: 'PlanPage',
+        component: PlanCt
+      },
+      {
+        path: 'files',
+        name: 'ManageFilesPage',
+        component: ManageFilesCt
+      }
+    ]
   },
   {
     path: '/login',
@@ -35,34 +57,14 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/goals',
-    name: 'GoalsPage',
-    component: GoalsCt,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/tasks',
-    name: 'TasksPage',
-    component: TasksCt,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/events',
-    name: 'EventsPage',
-    component: EventsCt,
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/plan',
-    name: 'PlanPage',
-    component: PlanCt,
-    meta: { requiresAuth: true }
+    path: '/',
+    redirect: '/matters'
   }
 ];
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: routes,
+  routes
 });
 
 // Navigation guard
@@ -72,11 +74,29 @@ router.beforeEach(async (to, from, next) => {
 
   if (requiresAuth && !session) {
     next('/login');
-  } else if (to.path === '/login' && session) {
-    next('/');
-  } else {
-    next();
+    return;
   }
+
+  if (to.path === '/login' && session) {
+    next('/matters');
+    return;
+  }
+
+  // Handle matter context
+  if (session && to.params.matterId) {
+    const matterStore = useMatterStore();
+    try {
+      await matterStore.loadMatters();
+      const matter = matterStore.matters.find(m => m.id === parseInt(to.params.matterId));
+      if (matter) {
+        matterStore.setCurrentMatter(matter);
+      }
+    } catch (error) {
+      console.error('Error loading matter:', error);
+    }
+  }
+
+  next();
 });
 
 export default router;

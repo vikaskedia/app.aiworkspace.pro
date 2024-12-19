@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
 import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
+import { useCacheStore } from '../store/cache';
 
 export default {
   components: { 
@@ -11,8 +12,13 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
+    const cacheStore = useCacheStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    
+    // Check cache version on component creation
+    cacheStore.checkVersion();
+    
+    return { currentMatter, cacheStore };
   },
   data() {
     return {
@@ -110,6 +116,46 @@ export default {
     handleTitleClick(goal) {
       this.selectedGoal = goal;
       this.showAIChat = true;
+    },
+
+    setupRealtimeSubscription() {
+      // ... existing subscription code ...
+      
+      this.subscription = supabase
+        .channel('goals-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*',
+            schema: 'public',
+            table: 'goals',
+            filter: `matter_id=eq.${this.currentMatter.id}`
+          },
+          (payload) => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                this.goals.unshift(payload.new);
+                this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
+                break;
+              
+              case 'UPDATE':
+                this.cacheStore.updateCachedItem('goals', this.currentMatter.id, payload.new.id, payload.new);
+                const updateIndex = this.goals.findIndex(goal => goal.id === payload.new.id);
+                if (updateIndex !== -1) {
+                  this.goals[updateIndex] = payload.new;
+                }
+                break;
+              
+              case 'DELETE':
+                this.cacheStore.removeCachedItem('goals', this.currentMatter.id, payload.old.id);
+                const deleteIndex = this.goals.findIndex(goal => goal.id === payload.old.id);
+                if (deleteIndex !== -1) {
+                  this.goals.splice(deleteIndex, 1);
+                }
+                break;
+            }
+          }
+        )
+        .subscribe();
     }
   }
 };

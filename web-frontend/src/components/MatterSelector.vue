@@ -1,8 +1,10 @@
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import { useMatterStore } from '../store/matter';
+import { storeToRefs } from 'pinia';
 
 export default {
   emits: ['matter-selected'],
@@ -15,6 +17,14 @@ export default {
       description: ''
     });
     const router = useRouter();
+    const route = useRoute();
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+
+    // Watch for changes in the store's currentMatter
+    watch(currentMatter, (newMatter) => {
+      selectedMatter.value = newMatter;
+    });
 
     const loadMatters = async () => {
       try {
@@ -44,6 +54,16 @@ export default {
         if (sharedError) throw sharedError;
 
         matters.value = [...ownedMatters, ...sharedMatters];
+
+        // After loading matters, check URL for matter ID
+        const matterId = route.params.matterId;
+        if (matterId) {
+          const matter = matters.value.find(m => m.id === parseInt(matterId));
+          if (matter) {
+            selectedMatter.value = matter;
+            emit('matter-selected', matter);
+          }
+        }
       } catch (error) {
         ElMessage.error('Error loading matters: ' + error.message);
       }

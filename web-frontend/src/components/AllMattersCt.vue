@@ -170,16 +170,20 @@ export default {
     async loadMatters() {
       try {
         this.loading = true;
-        const { data: { user } } = await supabase.auth.getUser();
-        
         const { data: matters, error } = await supabase
           .from('matters')
           .select('*')
-          .or(`created_by.eq.${user.id},id.in.(select matter_id from matter_shares where shared_with_user_id = '${user.id}')`)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        this.matters = matters;
+
+        // Load statistics for each matter
+        const mattersWithStats = await Promise.all(matters.map(async (matter) => {
+          const stats = await this.loadMatterStats(matter.id);
+          return { ...matter, stats };
+        }));
+
+        this.matters = mattersWithStats;
       } catch (error) {
         ElMessage.error('Error loading matters: ' + error.message);
       } finally {
@@ -228,7 +232,9 @@ export default {
           .insert([{
             title: this.newMatter.title,
             description: this.newMatter.description,
-            created_by: user.id
+            created_by: user.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           }])
           .select()
           .single();

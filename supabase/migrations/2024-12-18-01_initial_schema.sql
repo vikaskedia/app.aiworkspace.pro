@@ -1,41 +1,196 @@
--- Create tables
+    -- Table: events
+    CREATE TABLE events (
+      start_time timestamp with time zone NOT NULL,
+      description text,
+      title text NOT NULL,
+      id bigint NOT NULL,
+      updated_at timestamp with time zone,
+      created_at timestamp with time zone,
+      created_by uuid,
+      matter_id bigint,
+      attendees jsonb,
+      location text,
+      end_time timestamp with time zone NOT NULL,
+      event_type text NOT NULL
+    );
+    
+    -- Indexes for events
+    CREATE UNIQUE INDEX events_pkey ON public.events USING btree (id)
+    CREATE INDEX events_matter_id_idx ON public.events USING btree (matter_id)
+    CREATE INDEX events_created_by_idx ON public.events USING btree (created_by)
+    CREATE INDEX events_start_time_idx ON public.events USING btree (start_time)
+    
+    -- RLS for events
+    ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for events
+    CREATE POLICY Users can delete events in their matters ON events FOR DELETE USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    CREATE POLICY Users can update events in their matters ON events FOR UPDATE USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    CREATE POLICY Users can view events in their matters ON events FOR SELECT USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    
 
-CREATE TABLE file_content (
-    file_content jsonb,
-    id bigint NOT NULL,
-    created_by bigint,
-    created_at date
-);
 
-CREATE TABLE file_meta (
-    file_content_id bigint,
-    id bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    file_name character varying
-);
-
-CREATE TABLE folders (
-    parent_folder_id bigint,
-    file_meta_ids json,
-    folder_name character varying,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    created_by bigint,
-    id bigint NOT NULL
-);
+    -- Table: file_content
+    CREATE TABLE file_content (
+      id bigint NOT NULL,
+      created_at date,
+      file_content jsonb,
+      created_by bigint
+    );
+    
+    -- Indexes for file_content
+    CREATE UNIQUE INDEX files_pkey ON public.file_content USING btree (id)
+    
+    -- RLS for file_content
+    -- No RLS enabled
+    
+    -- Policies for file_content
+    -- No policies
+    
 
 
--- Create indexes
+    -- Table: file_meta
+    CREATE TABLE file_meta (
+      file_content_id bigint,
+      id bigint NOT NULL,
+      created_at timestamp with time zone NOT NULL,
+      file_name character varying
+    );
+    
+    -- Indexes for file_meta
+    CREATE UNIQUE INDEX file_meta_pkey ON public.file_meta USING btree (id)
+    
+    -- RLS for file_meta
+    ALTER TABLE file_meta ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for file_meta
+    -- No policies
+    
 
 
--- Set up RLS (Row Level Security)
+    -- Table: folders
+    CREATE TABLE folders (
+      created_at timestamp with time zone NOT NULL,
+      created_by bigint,
+      folder_name character varying,
+      parent_folder_id bigint,
+      file_meta_ids json,
+      id bigint NOT NULL
+    );
+    
+    -- Indexes for folders
+    CREATE UNIQUE INDEX folders_pkey ON public.folders USING btree (id)
+    
+    -- RLS for folders
+    ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for folders
+    -- No policies
+    
 
 
--- Create policies
+    -- Table: goals
+    CREATE TABLE goals (
+      created_at timestamp with time zone NOT NULL,
+      updated_at timestamp with time zone NOT NULL,
+      created_by uuid,
+      related_files jsonb,
+      matter_id bigint,
+      due_date timestamp with time zone,
+      priority character varying,
+      status character varying,
+      description text,
+      title character varying NOT NULL,
+      id bigint NOT NULL
+    );
+    
+    -- Indexes for goals
+    CREATE UNIQUE INDEX goals_pkey ON public.goals USING btree (id)
+    CREATE INDEX goals_created_by_idx ON public.goals USING btree (created_by)
+    CREATE INDEX goals_status_idx ON public.goals USING btree (status)
+    CREATE INDEX goals_due_date_idx ON public.goals USING btree (due_date)
+    CREATE INDEX goals_matter_id_idx ON public.goals USING btree (matter_id)
+    
+    -- RLS for goals
+    ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for goals
+    CREATE POLICY Users can delete their own goals ON goals FOR DELETE USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid())))));
+    CREATE POLICY Users can update their own goals ON goals FOR UPDATE USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid())))));
+    CREATE POLICY Users can view their own goals ON goals FOR SELECT USING (((auth.uid() = created_by) AND (matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid())))));
+    
 
 
--- Create function to update updated_at timestamp
+    -- Table: matters
+    CREATE TABLE matters (
+      created_by uuid,
+      updated_at timestamp with time zone NOT NULL,
+      created_at timestamp with time zone NOT NULL,
+      description text,
+      title character varying NOT NULL,
+      id bigint NOT NULL
+    );
+    
+    -- Indexes for matters
+    CREATE UNIQUE INDEX matters_pkey ON public.matters USING btree (id)
+    CREATE INDEX matters_created_by_idx ON public.matters USING btree (created_by)
+    
+    -- RLS for matters
+    ALTER TABLE matters ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for matters
+    CREATE POLICY Users can delete their own matters ON matters FOR DELETE USING ((auth.uid() = created_by));
+    CREATE POLICY Users can update their own matters ON matters FOR UPDATE USING ((auth.uid() = created_by));
+    CREATE POLICY Users can view their own matters ON matters FOR SELECT USING ((auth.uid() = created_by));
+    
 
 
--- Create trigger for updated_at
+    -- Table: tasks
+    CREATE TABLE tasks (
+      title text NOT NULL,
+      description text,
+      status text NOT NULL,
+      priority text NOT NULL,
+      assignee uuid,
+      due_date timestamp with time zone,
+      matter_id bigint,
+      created_by uuid,
+      created_at timestamp with time zone,
+      updated_at timestamp with time zone,
+      id bigint NOT NULL
+    );
+    
+    -- Indexes for tasks
+    CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
+    CREATE INDEX tasks_matter_id_idx ON public.tasks USING btree (matter_id)
+    CREATE INDEX tasks_created_by_idx ON public.tasks USING btree (created_by)
+    CREATE INDEX tasks_assignee_idx ON public.tasks USING btree (assignee)
+    
+    -- RLS for tasks
+    ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+    
+    -- Policies for tasks
+    CREATE POLICY Users can delete tasks in their matters ON tasks FOR DELETE USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    CREATE POLICY Users can update tasks in their matters ON tasks FOR UPDATE USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    CREATE POLICY Users can view tasks in their matters ON tasks FOR SELECT USING ((matter_id IN ( SELECT matters.id
+   FROM matters
+  WHERE (matters.created_by = auth.uid()))));
+    
 
 

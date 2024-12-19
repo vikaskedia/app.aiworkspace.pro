@@ -74,6 +74,39 @@ FROM (
   GROUP BY t.table_name
 ) subq;
 
+
+--  For functions and triggers, add this additional query:
+
+SELECT string_agg(function_definition || E'\n\n', '')
+FROM (
+  SELECT format(
+    $fmt$
+    -- Function: %I
+    %s
+    
+    -- Triggers using %I
+    %s
+    $fmt$,
+    p.proname,
+    pg_get_functiondef(p.oid),
+    p.proname,
+    COALESCE((
+      SELECT string_agg(
+        'CREATE TRIGGER ' || t.tgname || 
+        ' BEFORE UPDATE ON ' || c.relname ||
+        ' FOR EACH ROW EXECUTE FUNCTION ' || p.proname || '();',
+        E'\n    '
+      )
+      FROM pg_trigger t
+      JOIN pg_class c ON t.tgrelid = c.oid
+      WHERE t.tgfoid = p.oid
+    ), '-- No triggers')
+  ) as function_definition
+  FROM pg_proc p
+  JOIN pg_namespace n ON p.pronamespace = n.oid
+  WHERE n.nspname = 'public'
+) subq;
+
 */
 
 
@@ -270,6 +303,27 @@ FROM (
     CREATE POLICY Users can view tasks in their matters ON tasks FOR SELECT USING ((matter_id IN ( SELECT matters.id
    FROM matters
   WHERE (matters.created_by = auth.uid()))));
+    
+
+-- Functions and Triggers
+
+    -- Function: update_updated_at_column
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$function$
+
+    
+    -- Triggers using update_updated_at_column
+    CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_goals_updated_at BEFORE UPDATE ON goals FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    CREATE TRIGGER update_matters_updated_at BEFORE UPDATE ON matters FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     
 
 

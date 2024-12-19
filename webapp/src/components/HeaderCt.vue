@@ -5,6 +5,7 @@ import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
 import { ElMessage } from 'element-plus';
+import { ref } from 'vue';
 
 export default {
   components: {
@@ -18,6 +19,11 @@ export default {
   data: function () {
     return {
       user: null,
+      editDialogVisible: false,
+      editingMatter: {
+        title: '',
+        description: ''
+      }
     };
   },
   computed: {
@@ -80,6 +86,13 @@ export default {
         case 'manage-files':
           this.$router.push(`/matters/${matterId}/files`);
           break;
+        case 'edit-matter':
+          this.editingMatter = {
+            title: currentMatter.title,
+            description: currentMatter.description || ''
+          };
+          this.editDialogVisible = true;
+          break;
         case 'logout':
           this.handleLogout();
           break;
@@ -89,6 +102,30 @@ export default {
       const matterStore = useMatterStore();
       matterStore.setCurrentMatter(matter);
       this.$router.push(`/matters/${matter.id}`);
+    },
+    async handleEditMatter() {
+      const matterStore = useMatterStore();
+      const currentMatter = matterStore.currentMatter;
+
+      try {
+        const { data, error } = await supabase
+          .from('matters')
+          .update({
+            title: this.editingMatter.title,
+            description: this.editingMatter.description
+          })
+          .eq('id', currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        matterStore.setCurrentMatter(data);
+        this.editDialogVisible = false;
+        ElMessage.success('Matter updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating matter: ' + error.message);
+      }
     }
   }
 };
@@ -124,12 +161,43 @@ export default {
             <el-dropdown-item command="events">Events</el-dropdown-item>
             <el-dropdown-item command="plan">Plan</el-dropdown-item>
             <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
+            <el-dropdown-item command="edit-matter">Edit Matter</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
     </div>
   </header>
+  <el-dialog
+    v-model="editDialogVisible"
+    title="Edit Matter"
+    width="500px">
+    <el-form :model="editingMatter" label-position="top">
+      <el-form-item label="Title" required>
+        <el-input v-model="editingMatter.title" placeholder="Enter matter title" />
+      </el-form-item>
+      
+      <el-form-item label="Description">
+        <el-input
+          v-model="editingMatter.description"
+          type="textarea"
+          rows="3"
+          placeholder="Enter matter description" />
+      </el-form-item>
+    </el-form>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="editDialogVisible = false">Cancel</el-button>
+        <el-button
+          type="primary"
+          :disabled="!editingMatter.title"
+          @click="handleEditMatter">
+          Save Changes
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -234,5 +302,27 @@ export default {
 :deep(.el-dropdown-menu__item) {
   font-family: 'Open Sans', sans-serif !important;
   font-size: 0.9rem;
+}
+
+/* Add to existing styles */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  :deep(.el-dialog) {
+    width: 90% !important;
+  }
+  
+  .dialog-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .dialog-footer .el-button {
+    width: 100%;
+  }
 }
 </style>

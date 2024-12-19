@@ -22,7 +22,10 @@ export default {
         priority: 'medium',
         due_date: null,
         assignee: null
-      }
+      },
+      sharedUsers: [],
+      editingTask: null,
+      editDialogVisible: false
     };
   },
   watch: {
@@ -30,8 +33,10 @@ export default {
       handler(newMatter) {
         if (newMatter) {
           this.loadTasks();
+          this.loadSharedUsers();
         } else {
           this.tasks = [];
+          this.sharedUsers = [];
         }
       },
       immediate: true
@@ -101,6 +106,77 @@ export default {
         due_date: null,
         assignee: null
       };
+      this.loadSharedUsers();
+    },
+
+    async loadSharedUsers() {
+      try {
+        const { data: shares, error } = await supabase
+          .from('matter_shares')
+          .select('id, shared_with_user_id, access_type')
+          .eq('matter_id', this.currentMatter.id);
+
+        if (error) throw error;
+
+        // Get user details for each share
+        const sharesWithUserInfo = await Promise.all(
+          shares.map(async (share) => {
+            const { data: userData, error: userError } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: share.shared_with_user_id
+              });
+
+            if (userError) throw userError;
+
+            return {
+              id: share.shared_with_user_id,
+              email: userData[0].email
+            };
+          })
+        );
+
+        // Add the matter owner
+        const { data: ownerData } = await supabase
+          .rpc('get_user_info_by_id', {
+            user_id: this.currentMatter.created_by
+          });
+
+        this.sharedUsers = [
+          { id: this.currentMatter.created_by, email: ownerData[0].email },
+          ...sharesWithUserInfo
+        ];
+      } catch (error) {
+        ElMessage.error('Error loading shared users: ' + error.message);
+      }
+    },
+
+    async updateTask(task) {
+      try {
+        this.loading = true;
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({
+            assignee: task.assignee,
+            status: task.status
+          })
+          .eq('id', task.id)
+          .select();
+
+        if (error) throw error;
+        
+        const index = this.tasks.findIndex(t => t.id === task.id);
+        if (index !== -1) {
+          this.tasks[index] = data[0];
+        }
+        
+        this.editDialogVisible = false;
+        this.editingTask = null;
+        ElMessage.success('Task updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating task: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     }
   }
 };
@@ -115,7 +191,6 @@ export default {
           type="primary" 
           @click="dialogVisible = true"
           :disabled="!currentMatter">
-          <el-icon><Plus /></el-icon>
           New Task
         </el-button>
       </div>
@@ -162,6 +237,26 @@ export default {
             {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
           </template>
         </el-table-column>
+        <el-table-column 
+          label="Assignee"
+          width="200">
+          <template #default="scope">
+            <span>{{ sharedUsers.find(u => u.id === scope.row.assignee)?.email || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          label="Actions"
+          width="100"
+          align="center">
+          <template #default="scope">
+            <el-button
+              type="primary"
+              link
+              @click="editingTask = {...scope.row}; editDialogVisible = true">
+              Edit
+            </el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <!-- Create Task Dialog -->
@@ -192,6 +287,15 @@ export default {
               type="date"
               style="width: 100%" />
           </el-form-item>
+          <el-form-item label="Assignee">
+            <el-select v-model="newTask.assignee" style="width: 100%">
+              <el-option
+                v-for="user in sharedUsers"
+                :key="user.id"
+                :label="user.email"
+                :value="user.id" />
+            </el-select>
+          </el-form-item>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
@@ -201,6 +305,45 @@ export default {
               @click="createTask"
               :disabled="!newTask.title">
               Create
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- Edit Task Dialog -->
+      <el-dialog
+        v-model="editDialogVisible"
+        title="Edit Task Assignment"
+        width="500px">
+        <el-form v-if="editingTask" :model="editingTask" label-position="top">
+          <el-form-item label="Title">
+            <el-input v-model="editingTask.title" disabled />
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-select v-model="editingTask.status" style="width: 100%">
+              <el-option label="Pending" value="pending" />
+              <el-option label="In Progress" value="in_progress" />
+              <el-option label="Completed" value="completed" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Assignee">
+            <el-select v-model="editingTask.assignee" style="width: 100%">
+              <el-option
+                v-for="user in sharedUsers"
+                :key="user.id"
+                :label="user.email"
+                :value="user.id" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="editDialogVisible = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              @click="updateTask(editingTask)"
+              :loading="loading">
+              Update
             </el-button>
           </span>
         </template>

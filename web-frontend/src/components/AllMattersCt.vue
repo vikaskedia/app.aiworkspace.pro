@@ -170,15 +170,41 @@ export default {
     async loadMatters() {
       try {
         this.loading = true;
-        const { data: matters, error } = await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Get matters created by the user
+        const { data: ownedMatters, error: ownedError } = await supabase
           .from('matters')
           .select('*')
+          .eq('created_by', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (ownedError) throw ownedError;
+
+        // Get shared matter IDs
+        const { data: sharedIds, error: shareError } = await supabase
+          .from('matter_shares')
+          .select('matter_id')
+          .eq('shared_with_user_id', user.id);
+
+        if (shareError) throw shareError;
+
+        let sharedMatters = [];
+        if (sharedIds && sharedIds.length > 0) {
+          const { data: shared, error: sharedError } = await supabase
+            .from('matters')
+            .select('*')
+            .in('id', sharedIds.map(share => share.matter_id))
+            .order('created_at', { ascending: false });
+
+          if (sharedError) throw sharedError;
+          sharedMatters = shared || [];
+        }
+
+        const allMatters = [...(ownedMatters || []), ...sharedMatters];
 
         // Load statistics for each matter
-        const mattersWithStats = await Promise.all(matters.map(async (matter) => {
+        const mattersWithStats = await Promise.all(allMatters.map(async (matter) => {
           const stats = await this.loadMatterStats(matter.id);
           return { ...matter, stats };
         }));

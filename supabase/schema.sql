@@ -287,6 +287,8 @@ WITH CHECK (
     
     -- Policies for matter_shares
     CREATE POLICY Users can view matter shares ON matter_shares FOR SELECT USING (((created_by = auth.uid()) OR (shared_with_user_id = auth.uid())));
+
+    -- Create policy to allow users to share matters they own
     CREATE POLICY "Users can share their own matters" 
     ON matter_shares 
     FOR INSERT 
@@ -297,8 +299,40 @@ WITH CHECK (
             WHERE created_by = auth.uid()
         )
     );
-    
 
+    -- Create policy to allow users to view shares they're involved in
+    CREATE POLICY "Users can view their matter shares" 
+    ON matter_shares 
+    FOR SELECT 
+    USING (
+        created_by = auth.uid() OR 
+        shared_with_user_id = auth.uid()
+    );
+
+    CREATE POLICY "Users can view shared matters" 
+    ON matters 
+    FOR SELECT 
+    USING (
+      id IN (
+        SELECT matter_id 
+        FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid()
+      )
+    );  
+
+    -- Add delete policy
+    CREATE POLICY "Users can delete their matter shares" 
+    ON matter_shares 
+    FOR DELETE 
+    USING (
+        created_by = auth.uid() OR 
+        matter_id IN (
+            SELECT id 
+            FROM matters 
+            WHERE created_by = auth.uid()
+        )
+    );
+    
 
 ------------------------ Create the matters table ------------------------------
 CREATE TABLE matters (

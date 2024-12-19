@@ -19,14 +19,31 @@ export default {
     const loadMatters = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const { data, error } = await supabase
+        
+        // Get matters created by the user
+        const { data: ownedMatters, error: ownedError } = await supabase
           .from('matters')
           .select('*')
           .eq('created_by', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        matters.value = data;
+        if (ownedError) throw ownedError;
+
+        // Get matters shared with the user
+        const { data: sharedMatters, error: sharedError } = await supabase
+          .from('matters')
+          .select('*')
+          .in('id', (
+            await supabase
+              .from('matter_shares')
+              .select('matter_id')
+              .eq('shared_with_user_id', user.id)
+          ).data?.map(share => share.matter_id) || [])
+          .order('created_at', { ascending: false });
+
+        if (sharedError) throw sharedError;
+
+        matters.value = [...ownedMatters, ...sharedMatters];
       } catch (error) {
         ElMessage.error('Error loading matters: ' + error.message);
       }
@@ -87,7 +104,6 @@ export default {
     <el-dropdown v-if="matters.length" trigger="click">
       <span class="matter-dropdown-link">
         {{ selectedMatter?.title || 'All Matters' }}
-        <el-icon class="el-icon--right"><arrow-down /></el-icon>
       </span>
       
       <template #dropdown>
@@ -103,7 +119,7 @@ export default {
             {{ matter.title }}
           </el-dropdown-item>
           <el-dropdown-item divided @click="dialogVisible = true">
-            <el-icon><plus /></el-icon> New Matter
+            New Matter
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>

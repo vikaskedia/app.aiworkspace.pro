@@ -1,6 +1,12 @@
 <!-- src/components/TasksList.vue -->
 <script>
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+
 export default {
+  components: {
+    ArrowUp,
+    ArrowDown
+  },
   props: {
     tasks: {
       type: Array,
@@ -24,7 +30,8 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null
-      }
+      },
+      showFilters: false
     }
   },
   computed: {
@@ -84,6 +91,13 @@ export default {
       }
 
       return result
+    },
+    hasActiveFilters() {
+      return this.filters.search ||
+        this.filters.status ||
+        this.filters.priority ||
+        this.filters.assignee ||
+        this.filters.dueDate
     }
   },
   methods: {
@@ -102,65 +116,79 @@ export default {
 
 <template>
   <div class="tasks-list">
-    <!-- Filters -->
-    <div class="filters-section">
-      <el-input
-        v-model="filters.search"
-        placeholder="Search tasks..."
-        prefix-icon="Search"
-        clearable
-        class="filter-item"
-      />
-      
-      <div class="filters-row">
-        <el-select 
-          v-model="filters.status" 
-          placeholder="Status" 
-          clearable
-          class="filter-item">
-          <el-option label="Pending" value="pending" />
-          <el-option label="In Progress" value="in_progress" />
-          <el-option label="Completed" value="completed" />
-        </el-select>
-
-        <el-select 
-          v-model="filters.priority" 
-          placeholder="Priority" 
-          clearable
-          class="filter-item">
-          <el-option label="High" value="high" />
-          <el-option label="Medium" value="medium" />
-          <el-option label="Low" value="low" />
-        </el-select>
-
-        <el-select 
-          v-model="filters.assignee" 
-          placeholder="Assignee" 
-          clearable
-          class="filter-item">
-          <el-option
-            v-for="user in sharedUsers"
-            :key="user.id"
-            :label="user.email"
-            :value="user.id"
-          />
-        </el-select>
-
-        <el-select 
-          v-model="filters.dueDate" 
-          placeholder="Due Date" 
-          clearable
-          class="filter-item">
-          <el-option label="Overdue" value="overdue" />
-          <el-option label="Due Today" value="today" />
-          <el-option label="Due This Week" value="week" />
-        </el-select>
-
-        <el-button @click="clearFilters" class="filter-item">
-          Clear Filters
-        </el-button>
-      </div>
+    <div class="filters-header">
+      <el-button 
+        @click="showFilters = !showFilters"
+        :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
+        type="primary"
+        plain>
+        {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+      </el-button>
+      <el-button 
+        v-if="hasActiveFilters"
+        @click="clearFilters"
+        type="info"
+        plain>
+        Clear Filters
+      </el-button>
     </div>
+
+    <el-collapse-transition>
+      <div v-show="showFilters" class="filters-section">
+        <el-input
+          v-model="filters.search"
+          placeholder="Search tasks..."
+          prefix-icon="Search"
+          clearable
+          class="filter-item"
+        />
+        
+        <div class="filters-row">
+          <el-select 
+            v-model="filters.status" 
+            placeholder="Status" 
+            clearable
+            class="filter-item">
+            <el-option label="Pending" value="pending" />
+            <el-option label="In Progress" value="in_progress" />
+            <el-option label="Completed" value="completed" />
+          </el-select>
+
+          <el-select 
+            v-model="filters.priority" 
+            placeholder="Priority" 
+            clearable
+            class="filter-item">
+            <el-option label="High" value="high" />
+            <el-option label="Medium" value="medium" />
+            <el-option label="Low" value="low" />
+          </el-select>
+
+          <el-select 
+            v-model="filters.assignee" 
+            placeholder="Assignee" 
+            clearable
+            class="filter-item">
+            <el-option
+              v-for="user in sharedUsers"
+              :key="user.id"
+              :label="user.email"
+              :value="user.id"
+            />
+          </el-select>
+
+          <el-select 
+            v-model="filters.dueDate" 
+            placeholder="Due Date" 
+            clearable
+            class="filter-item">
+            <el-option label="Overdue" value="overdue" />
+            <el-option label="Due Today" value="today" />
+            <el-option label="Due This Week" value="week" />
+          </el-select>
+        </div>
+      </div>
+    </el-collapse-transition>
 
     <!-- Tasks Table -->
     <el-table
@@ -247,6 +275,12 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.filters-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .filters-section {

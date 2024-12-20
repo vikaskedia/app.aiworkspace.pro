@@ -211,8 +211,10 @@ export default {
         const { data, error } = await supabase
           .from('tasks')
           .update({
+            title: task.title,
             assignee: task.assignee,
-            status: task.status
+            status: task.status,
+            due_date: task.due_date
           })
           .eq('id', task.id)
           .select();
@@ -250,6 +252,9 @@ export default {
 
         // Log changes as activities
         const changes = [];
+        if (originalTask.title !== task.title) {
+          changes.push(`title from "${originalTask.title}" to "${task.title}"`);
+        }
         if (originalTask.status !== task.status) {
           changes.push(`status from "${originalTask.status}" to "${task.status}"`);
         }
@@ -257,6 +262,11 @@ export default {
           const oldAssignee = this.sharedUsers.find(u => u.id === originalTask.assignee)?.email || 'unassigned';
           const newAssignee = this.sharedUsers.find(u => u.id === task.assignee)?.email || 'unassigned';
           changes.push(`assignee from ${oldAssignee} to ${newAssignee}`);
+        }
+        if (originalTask.due_date !== task.due_date) {
+          const oldDate = originalTask.due_date ? new Date(originalTask.due_date).toLocaleDateString() : 'none';
+          const newDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'none';
+          changes.push(`due date from ${oldDate} to ${newDate}`);
         }
 
         if (changes.length > 0) {
@@ -270,6 +280,10 @@ export default {
               metadata: {
                 action: 'update',
                 changes: {
+                  title: task.title !== originalTask.title ? {
+                    from: originalTask.title,
+                    to: task.title
+                  } : null,
                   status: task.status !== originalTask.status ? {
                     from: originalTask.status,
                     to: task.status
@@ -277,6 +291,10 @@ export default {
                   assignee: task.assignee !== originalTask.assignee ? {
                     from: originalTask.assignee,
                     to: task.assignee
+                  } : null,
+                  due_date: task.due_date !== originalTask.due_date ? {
+                    from: originalTask.due_date,
+                    to: task.due_date
                   } : null
                 }
               }
@@ -458,11 +476,11 @@ export default {
       <!-- Edit Task Dialog -->
       <el-dialog
         v-model="editDialogVisible"
-        title="Edit Task Assignment"
+        title="Edit Task"
         width="500px">
         <el-form v-if="editingTask" :model="editingTask" label-position="top">
-          <el-form-item label="Title">
-            <el-input v-model="editingTask.title" disabled />
+          <el-form-item label="Title" required>
+            <el-input v-model="editingTask.title" />
           </el-form-item>
           <el-form-item label="Status">
             <el-select v-model="editingTask.status" style="width: 100%">
@@ -470,6 +488,12 @@ export default {
               <el-option label="In Progress" value="in_progress" />
               <el-option label="Completed" value="completed" />
             </el-select>
+          </el-form-item>
+          <el-form-item label="Due Date">
+            <el-date-picker
+              v-model="editingTask.due_date"
+              type="date"
+              style="width: 100%" />
           </el-form-item>
           <el-form-item label="Assignee">
             <el-select 
@@ -490,7 +514,8 @@ export default {
             <el-button
               type="primary"
               @click="updateTask(editingTask)"
-              :loading="loading">
+              :loading="loading"
+              :disabled="!editingTask?.title">
               Update
             </el-button>
           </span>

@@ -87,6 +87,26 @@ export default {
       }
     },
 
+    async createNotification(userId, type, data) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('notifications')
+          .insert([{
+            user_id: userId,
+            actor_id: user.id,
+            type,
+            data,
+            read: false
+          }]);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error creating notification:', error);
+      }
+    },
+
     async shareMatter() {
       try {
         // Get user ID using the database function
@@ -100,22 +120,32 @@ export default {
 
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Insert the share record with the new column name
+        // Insert the share record
         const { data, error } = await supabase
           .from('matter_shares')
           .insert({
             matter_id: this.currentMatter.id,
-            shared_with_user_id: userId,  // Changed from user_id
+            shared_with_user_id: userId,
             created_by: user.id,
             access_type: this.newShare.access_type
           })
           .select();
 
         if (error) throw error;
+
+        // Create notification for the user
+        await this.createNotification(
+          userId,
+          'matter_shared',
+          { 
+            matter_id: this.currentMatter.id,
+            matter_title: this.currentMatter.title,
+            access_type: this.newShare.access_type
+          }
+        );
         
         await this.loadSharedUsers();
         this.dialogVisible = false;
-        this.newShare = { email: '', access_type: 'view' };
         ElMessage.success('Matter shared successfully');
       } catch (error) {
         ElMessage.error('Error sharing matter: ' + error.message);

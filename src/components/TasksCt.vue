@@ -116,6 +116,15 @@ export default {
 
         if (error) throw error;
 
+        // Create notification if task is assigned to someone
+        if (taskData.assignee && taskData.assignee !== user.id) {
+          await this.createNotification(
+            taskData.assignee,
+            'task_assigned',
+            { task_id: data[0].id, task_title: data[0].title }
+          );
+        }
+
         // Log task creation activity
         await supabase
           .from('task_comments')
@@ -210,6 +219,35 @@ export default {
 
         if (error) throw error;
 
+        // Create notifications for changes
+        if (originalTask.assignee !== task.assignee && task.assignee) {
+          await this.createNotification(
+            task.assignee,
+            'task_assigned',
+            { task_id: task.id, task_title: task.title }
+          );
+        }
+
+        if (originalTask.status !== task.status) {
+          // Notify task creator and assignee (if different from updater)
+          const notifyUsers = new Set([data[0].created_by, data[0].assignee]);
+          notifyUsers.delete(user.id); // Don't notify the user making the change
+          
+          for (const userId of notifyUsers) {
+            if (userId) {
+              await this.createNotification(
+                userId,
+                'task_updated',
+                { 
+                  task_id: task.id, 
+                  task_title: task.title,
+                  status: task.status 
+                }
+              );
+            }
+          }
+        }
+
         // Log changes as activities
         const changes = [];
         if (originalTask.status !== task.status) {
@@ -300,6 +338,26 @@ export default {
           }
         )
         .subscribe();
+    },
+
+    async createNotification(userId, type, data) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('notifications')
+          .insert([{
+            user_id: userId,
+            actor_id: user.id,
+            type,
+            data,
+            read: false
+          }]);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error creating notification:', error);
+      }
     },
   },
 

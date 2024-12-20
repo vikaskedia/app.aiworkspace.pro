@@ -5,6 +5,7 @@ import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
 import { ElMessage } from 'element-plus';
+import NotificationsCt from './NotificationsCt.vue';
 import { ref } from 'vue';
 
 export default {
@@ -14,7 +15,8 @@ export default {
     ElDropdownItem,
     ElAvatar,
     CaretBottom,
-    MatterSelector
+    MatterSelector,
+    NotificationsCt
   },
   data: function () {
     return {
@@ -118,6 +120,7 @@ export default {
     </div>
     
     <div class="header-right" v-if="user">
+      <NotificationsCt />
       <el-dropdown @command="handleCommand" trigger="hover">
         <div class="user-profile">
           <span class="user-name">{{ displayName }}</span>
@@ -185,6 +188,7 @@ export default {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .user-profile {

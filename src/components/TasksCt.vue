@@ -5,6 +5,7 @@ import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
 import TaskCommentDialog from './TaskCommentDialog.vue';
 import { useCacheStore } from '../store/cache';
+import TasksList from './TasksList.vue'
 
 export default {
   setup() {
@@ -14,7 +15,8 @@ export default {
     return { currentMatter, cacheStore };
   },
   components: {
-    TaskCommentDialog
+    TaskCommentDialog,
+    TasksList
   },
   data() {
     return {
@@ -329,81 +331,20 @@ export default {
         </el-button>
       </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tasks"
-        style="width: 100%">
-        <el-table-column 
-          prop="title" 
-          label="Title"
-          min-width="200">
-          <template #default="scope">
-            <span 
-              class="clickable-title"
-              @click="selectedTask = scope.row; commentDialogVisible = true">
-              {{ scope.row.title }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="status" 
-          label="Status"
-          width="120">
-          <template #default="scope">
-            <el-tag :type="
-              scope.row.status === 'completed' ? 'success' :
-              scope.row.status === 'in_progress' ? 'warning' : 'info'
-            ">
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="priority" 
-          label="Priority"
-          width="120">
-          <template #default="scope">
-            <el-tag :type="
-              scope.row.priority === 'high' ? 'danger' :
-              scope.row.priority === 'medium' ? 'warning' : 'info'
-            ">
-              {{ scope.row.priority }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="due_date" 
-          label="Due Date"
-          width="150">
-          <template #default="scope">
-            {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column 
-          label="Assignee"
-          width="200">
-          <template #default="scope">
-            <span>{{ sharedUsers.find(u => u.id === scope.row.assignee)?.email || '-' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          label="Actions"
-          width="100"
-          align="center">
-          <template #default="scope">
-            <el-button
-              type="primary"
-              link
-              @click="async () => {
-                editingTask = {...scope.row};
-                await loadSharedUsers();
-                editDialogVisible = true;
-              }">
-              Edit
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <TasksList
+        :tasks="tasks"
+        :loading="loading"
+        :shared-users="sharedUsers"
+        @edit="async (task) => {
+          editingTask = {...task};
+          await loadSharedUsers();
+          editDialogVisible = true;
+        }"
+        @view-comments="(task) => {
+          selectedTask = task;
+          commentDialogVisible = true;
+        }"
+      />
 
       <!-- Create Task Dialog -->
       <el-dialog

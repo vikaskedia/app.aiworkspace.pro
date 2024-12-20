@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Justice Scale Base -->
+  <rect x="14" y="24" width="4" height="6" fill="#1a1a1a"/>
+  
+  <!-- Scale Bar -->
+  <rect x="6" y="14" width="20" height="2" fill="#1a1a1a"/>
+  
+  <!-- Scale Plates -->
+  <circle cx="8" cy="20" r="4" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  <circle cx="24" cy="20" r="4" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+  
+  <!-- Neural Network Nodes -->
+  <circle cx="16" cy="6" r="2" fill="#3b82f6"/>
+  <circle cx="10" cy="10" r="2" fill="#3b82f6"/>
+  <circle cx="22" cy="10" r="2" fill="#3b82f6"/>
+  
+  <!-- Neural Network Connections -->
+  <line x1="16" y1="6" x2="10" y2="10" stroke="#3b82f6" stroke-width="1"/>
+  <line x1="16" y1="6" x2="22" y2="10" stroke="#3b82f6" stroke-width="1"/>
+  <line x1="10" y1="10" x2="22" y2="10" stroke="#3b82f6" stroke-width="1"/>
+</svg>

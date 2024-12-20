@@ -475,7 +475,9 @@ CREATE TRIGGER update_matters_updated_at
       user_id UUID REFERENCES auth.users(id),
       content TEXT NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      type TEXT NOT NULL DEFAULT 'comment',
+      metadata JSONB
     );
 
     -- Index for faster lookups

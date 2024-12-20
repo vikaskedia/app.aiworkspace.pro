@@ -4,18 +4,21 @@ import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
 import TaskCommentDialog from './TaskCommentDialog.vue';
+import { useCacheStore } from '../store/cache';
 
 export default {
   setup() {
     const matterStore = useMatterStore();
+    const cacheStore = useCacheStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    return { currentMatter, cacheStore };
   },
   components: {
     TaskCommentDialog
   },
   data() {
     return {
+      subscription: null,
       tasks: [],
       loading: false,
       dialogVisible: false,
@@ -36,11 +39,19 @@ export default {
   },
   watch: {
     currentMatter: {
-      handler(newMatter) {
+      async handler(newMatter, oldMatter) {
         if (newMatter) {
-          this.loadTasks();
-          this.loadSharedUsers();
+          await Promise.all([
+            this.loadTasks(),
+            this.loadSharedUsers()
+          ]);
+          if (!oldMatter) {
+            this.setupRealtimeSubscription();
+          }
         } else {
+          if (this.subscription) {
+            this.subscription.unsubscribe();
+          }
           this.tasks = [];
           this.sharedUsers = [];
         }
@@ -54,6 +65,15 @@ export default {
       
       try {
         this.loading = true;
+        
+        // Check cache first
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
+        if (cachedTasks) {
+          this.tasks = cachedTasks;
+          this.loading = false;
+          return;
+        }
+
         const { data: tasks, error } = await supabase
           .from('tasks')
           .select('*')
@@ -62,6 +82,8 @@ export default {
 
         if (error) throw error;
         this.tasks = tasks;
+        // Store in cache
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);
       } finally {
@@ -91,8 +113,21 @@ export default {
           .select();
 
         if (error) throw error;
+
+        // Log task creation activity
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: data[0].id,
+            user_id: user.id,
+            content: 'Created this task',
+            type: 'activity',
+            metadata: {
+              action: 'create',
+              task_title: data[0].title
+            }
+          });
         
-        this.tasks.unshift(data[0]);
         this.dialogVisible = false;
         this.resetForm();
         ElMessage.success('Task created successfully');
@@ -159,6 +194,9 @@ export default {
     async updateTask(task) {
       try {
         this.loading = true;
+        const originalTask = this.tasks.find(t => t.id === task.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { data, error } = await supabase
           .from('tasks')
           .update({
@@ -169,6 +207,41 @@ export default {
           .select();
 
         if (error) throw error;
+
+        // Log changes as activities
+        const changes = [];
+        if (originalTask.status !== task.status) {
+          changes.push(`status from "${originalTask.status}" to "${task.status}"`);
+        }
+        if (originalTask.assignee !== task.assignee) {
+          const oldAssignee = this.sharedUsers.find(u => u.id === originalTask.assignee)?.email || 'unassigned';
+          const newAssignee = this.sharedUsers.find(u => u.id === task.assignee)?.email || 'unassigned';
+          changes.push(`assignee from ${oldAssignee} to ${newAssignee}`);
+        }
+
+        if (changes.length > 0) {
+          await supabase
+            .from('task_comments')
+            .insert({
+              task_id: task.id,
+              user_id: user.id,
+              content: `Updated ${changes.join(' and ')}`,
+              type: 'activity',
+              metadata: {
+                action: 'update',
+                changes: {
+                  status: task.status !== originalTask.status ? {
+                    from: originalTask.status,
+                    to: task.status
+                  } : null,
+                  assignee: task.assignee !== originalTask.assignee ? {
+                    from: originalTask.assignee,
+                    to: task.assignee
+                  } : null
+                }
+              }
+            });
+        }
         
         const index = this.tasks.findIndex(t => t.id === task.id);
         if (index !== -1) {
@@ -183,6 +256,61 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    setupRealtimeSubscription() {
+      if (this.subscription) {
+        this.subscription.unsubscribe();
+      }
+      
+      this.subscription = supabase
+        .channel('tasks-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+            filter: `matter_id=eq.${this.currentMatter.id}`
+          },
+          (payload) => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                // Add new task to the beginning of the list
+                this.tasks.unshift(payload.new);
+                break;
+              
+              case 'UPDATE':
+                // Update existing task
+                const updateIndex = this.tasks.findIndex(task => task.id === payload.new.id);
+                if (updateIndex !== -1) {
+                  this.tasks[updateIndex] = payload.new;
+                }
+                break;
+              
+              case 'DELETE':
+                // Remove deleted task
+                const deleteIndex = this.tasks.findIndex(task => task.id === payload.old.id);
+                if (deleteIndex !== -1) {
+                  this.tasks.splice(deleteIndex, 1);
+                }
+                break;
+            }
+          }
+        )
+        .subscribe();
+    },
+  },
+
+  mounted() {
+    if (this.currentMatter) {
+      this.setupRealtimeSubscription();
+      this.loadSharedUsers();
+    }
+  },
+
+  beforeUnmount() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
     }
   }
 };
@@ -266,7 +394,11 @@ export default {
             <el-button
               type="primary"
               link
-              @click="editingTask = {...scope.row}; editDialogVisible = true">
+              @click="async () => {
+                editingTask = {...scope.row};
+                await loadSharedUsers();
+                editDialogVisible = true;
+              }">
               Edit
             </el-button>
           </template>
@@ -341,7 +473,10 @@ export default {
             </el-select>
           </el-form-item>
           <el-form-item label="Assignee">
-            <el-select v-model="editingTask.assignee" style="width: 100%">
+            <el-select 
+              v-model="editingTask.assignee" 
+              style="width: 100%"
+              :loading="loading">
               <el-option
                 v-for="user in sharedUsers"
                 :key="user.id"

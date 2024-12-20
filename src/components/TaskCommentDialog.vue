@@ -19,7 +19,8 @@ export default {
       comments: [],
       newComment: '',
       loading: false,
-      userEmails: {}
+      userEmails: {},
+      subscription: null
     };
   },
   watch: {
@@ -27,6 +28,11 @@ export default {
       handler(newVal) {
         if (newVal && this.task) {
           this.loadComments();
+          this.setupRealtimeSubscription();
+        } else {
+          if (this.subscription) {
+            this.subscription.unsubscribe();
+          }
         }
       },
       immediate: true
@@ -35,6 +41,7 @@ export default {
       handler(newTask) {
         if (newTask && this.visible) {
           this.loadComments();
+          this.setupRealtimeSubscription();
         }
       },
       immediate: true
@@ -98,6 +105,61 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    setupRealtimeSubscription() {
+      if (this.subscription) {
+        this.subscription.unsubscribe();
+      }
+      
+      this.subscription = supabase
+        .channel('task-comments-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*',
+            schema: 'public',
+            table: 'task_comments',
+            filter: `task_id=eq.${this.task.id}`
+          },
+          async (payload) => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                // Load user email for new comment if not already cached
+                if (!this.userEmails[payload.new.user_id]) {
+                  const { data: userData } = await supabase
+                    .rpc('get_user_info_by_id', {
+                      user_id: payload.new.user_id
+                    });
+                  if (userData?.[0]) {
+                    this.userEmails[payload.new.user_id] = userData[0].email;
+                  }
+                }
+                // Add new comment to the beginning of the list
+                this.comments.unshift(payload.new);
+                break;
+              
+              case 'UPDATE':
+                const updateIndex = this.comments.findIndex(comment => comment.id === payload.new.id);
+                if (updateIndex !== -1) {
+                  this.comments[updateIndex] = payload.new;
+                }
+                break;
+              
+              case 'DELETE':
+                const deleteIndex = this.comments.findIndex(comment => comment.id === payload.old.id);
+                if (deleteIndex !== -1) {
+                  this.comments.splice(deleteIndex, 1);
+                }
+                break;
+            }
+          }
+        )
+        .subscribe();
+    }
+  },
+  beforeUnmount() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
     }
   }
 };
@@ -111,16 +173,17 @@ export default {
     direction="rtl"
     size="35%">
     <div class="comments-container">
-      <div class="comments-list" v-loading="loading">
-        <div v-for="comment in comments" :key="comment.id" class="comment">
-          <div class="comment-header">
-            <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
-            <span class="comment-date">{{ new Date(comment.created_at).toLocaleString() }}</span>
+      <div class="comment-list">
+        <div v-for="comment in comments" :key="comment.id" class="comment-item">
+          <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
+            <div class="comment-header">
+              <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
+              <span class="comment-date">
+                {{ new Date(comment.created_at).toLocaleString() }}
+              </span>
+            </div>
+            <div class="comment-text">{{ comment.content }}</div>
           </div>
-          <div class="comment-content">{{ comment.content }}</div>
-        </div>
-        <div v-if="comments.length === 0" class="no-comments">
-          No comments yet
         </div>
       </div>
 
@@ -152,7 +215,7 @@ export default {
   padding: 20px;
 }
 
-.comments-list {
+.comment-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -160,10 +223,20 @@ export default {
   gap: 15px;
 }
 
-.comment {
-  padding: 12px;
+.comment-item {
+  margin-bottom: 1rem;
+}
+
+.comment-content {
   background-color: #f5f7fa;
+  padding: 12px;
   border-radius: 8px;
+}
+
+.comment-content.activity {
+  background-color: #f0f9ff;
+  font-style: italic;
+  font-size: 0.95em;
 }
 
 .comment-header {
@@ -182,7 +255,8 @@ export default {
   color: #909399;
 }
 
-.comment-content {
+.comment-text {
+  color: #606266;
   white-space: pre-wrap;
 }
 

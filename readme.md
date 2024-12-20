@@ -3,8 +3,8 @@
 2. AI will write the motion for them.
 
 # Features to get to MVP:
-1. Allow one user to share a matter with another user.
-2. oauth login google 
+1. App running from vercel
+2. Notification system.
 3. Allow users to upload files.
 4. Files can be tagged.
 5. Give a button called "Create a new motion" when users click this they can choose a set of files that will be used for the motion and give the AI the goal of the motion.
@@ -24,7 +24,7 @@
     4. Drizzle
 
 # How to run on local?
-1. inside web-frontend .. do npm install
+1. in root folder of this repo do npm install
 2. copy env.sample to .env and fill in the values
 3. npm run dev
 

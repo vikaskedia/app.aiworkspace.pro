@@ -66,11 +66,15 @@ export default {
   methods: {
     async loginWithProvider(provider) {
       try {
+        const redirectTo = `${window.location.origin}/callback`;
         const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: provider,
-            options: {
-                redirectTo: `${window.location.origin}/callback`,
-            },
+          provider: provider,
+          options: {
+            redirectTo: redirectTo,
+            queryParams: {
+              redirect_origin: window.location.origin
+            }
+          },
         });
         
         if (error) {

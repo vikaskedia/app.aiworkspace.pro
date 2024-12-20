@@ -109,8 +109,8 @@ export default {
 <template>
   <header class="site-header">
     <div class="header-left">
-      <img src="/logo.png" alt="Legal AI Studio" class="logo-image" />
-      <h1>Legal AI Studio</h1>
+      <img src="/associate-ai-attorney-logo.svg" alt="Legal Studio" class="logo-image" />
+      <h1>Legal Studio</h1>
     </div>
     
     <div class="header-center">

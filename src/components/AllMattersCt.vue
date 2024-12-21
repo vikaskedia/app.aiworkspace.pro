@@ -264,7 +264,11 @@ export default {
             updated_at: new Date().toISOString()
           }])
           .select()
-          .single();
+          .single()
+          .then(result => {
+                console.log('SQL Query:', result.query); // If available
+                return result;
+          });
 
         if (error) throw error;
         

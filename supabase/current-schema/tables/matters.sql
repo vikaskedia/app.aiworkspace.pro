@@ -29,6 +29,8 @@ CREATE TABLE matters (
     )
 );
 
+COMMENT ON TABLE matters IS 'Matters can be archived but not deleted. Archiving requires both archived_by and archived_at to be set.';
+
 -- Create indexes
 CREATE INDEX matters_created_by_idx ON matters USING btree (created_by);
 CREATE INDEX matters_archived_idx ON matters USING btree (archived);

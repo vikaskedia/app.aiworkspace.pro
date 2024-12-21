@@ -177,6 +177,7 @@ export default {
           .from('matters')
           .select('*')
           .eq('created_by', user.id)
+          .eq('archived', false)
           .order('created_at', { ascending: false });
 
         if (ownedError) throw ownedError;
@@ -307,19 +308,22 @@ export default {
       }
     },
 
-    async deleteMatter(matter) {
+    async archiveMatter(matter) {
       try {
         const { error } = await supabase
           .from('matters')
-          .delete()
+          .update({ 
+            archived: true,
+            archived_at: new Date().toISOString() 
+          })
           .eq('id', matter.id);
 
         if (error) throw error;
 
         this.matters = this.matters.filter(m => m.id !== matter.id);
-        ElMessage.success('Matter deleted successfully');
+        ElMessage.success('Matter archived successfully');
       } catch (error) {
-        ElMessage.error('Error deleting matter: ' + error.message);
+        ElMessage.error('Error archiving matter: ' + error.message);
       }
     },
 
@@ -339,15 +343,15 @@ export default {
           break;
         case 'delete':
           ElMessageBox.confirm(
-            'Are you sure you want to delete this matter? This action cannot be undone.',
+            'Are you sure you want to archive this matter? You can restore it later from the archived matters section.',
             'Warning',
             {
-              confirmButtonText: 'Delete',
+              confirmButtonText: 'Archive',
               cancelButtonText: 'Cancel',
               type: 'warning'
             }
           ).then(() => {
-            this.deleteMatter(matter);
+            this.archiveMatter(matter);
           }).catch(() => {});
           break;
       }

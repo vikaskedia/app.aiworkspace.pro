@@ -4,11 +4,14 @@ CREATE TABLE matters (
     description text,
     created_by uuid REFERENCES auth.users(id),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    archived boolean DEFAULT false,
+    archived_at timestamp with time zone
 );
 
 -- Create indexes
 CREATE INDEX matters_created_by_idx ON matters USING btree (created_by);
+CREATE INDEX matters_archived_idx ON matters USING btree (archived);
 
 -- Enable Row Level Security
 ALTER TABLE matters ENABLE ROW LEVEL SECURITY;
@@ -24,8 +27,4 @@ CREATE POLICY "Users can view their own matters"
 
 CREATE POLICY "Users can update their own matters" 
     ON matters FOR UPDATE 
-    USING (auth.uid() = created_by);
-
-CREATE POLICY "Users can delete their own matters" 
-    ON matters FOR DELETE 
     USING (auth.uid() = created_by);

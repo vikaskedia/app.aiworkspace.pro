@@ -12,14 +12,20 @@ export const useMatterStore = defineStore('matter', {
       this.currentMatter = matter;
     },
 
-    async loadMatters() {
+    async loadMatters(includeArchived = false) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const { data: ownedMatters, error: ownedError } = await supabase
+        const query = supabase
           .from('matters')
           .select('*')
           .eq('created_by', user.id)
           .order('created_at', { ascending: false });
+
+        if (!includeArchived) {
+          query.eq('archived', false);
+        }
+
+        const { data: ownedMatters, error: ownedError } = await query;
 
         if (ownedError) throw ownedError;
 

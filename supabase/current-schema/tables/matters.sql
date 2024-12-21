@@ -6,12 +6,14 @@ CREATE TABLE matters (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     archived boolean DEFAULT false,
-    archived_at timestamp with time zone
+    archived_at timestamp with time zone,
+    archived_by uuid REFERENCES auth.users(id)
 );
 
 -- Create indexes
 CREATE INDEX matters_created_by_idx ON matters USING btree (created_by);
 CREATE INDEX matters_archived_idx ON matters USING btree (archived);
+CREATE INDEX matters_archived_by_idx ON matters USING btree (archived_by);
 
 -- Enable Row Level Security
 ALTER TABLE matters ENABLE ROW LEVEL SECURITY;

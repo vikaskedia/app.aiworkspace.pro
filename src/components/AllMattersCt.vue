@@ -310,11 +310,14 @@ export default {
 
     async archiveMatter(matter) {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase
           .from('matters')
           .update({ 
             archived: true,
-            archived_at: new Date().toISOString() 
+            archived_at: new Date().toISOString(),
+            archived_by: user.id
           })
           .eq('id', matter.id);
 

@@ -18,11 +18,15 @@ CREATE TABLE matters (
     title character varying NOT NULL,
     description text,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    archived boolean DEFAULT false,
+    archived boolean DEFAULT false NOT NULL,
     archived_by uuid REFERENCES auth.users(id)
     archived_at timestamp with time zone,
-    created_by uuid REFERENCES auth.users(id),
+    created_by uuid REFERENCES auth.users(id) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+     CONSTRAINT archive_consistency CHECK (
+        (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
+        (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
+    )
 );
 
 -- Create indexes

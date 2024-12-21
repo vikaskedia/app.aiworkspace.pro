@@ -12,18 +12,18 @@ Features we want to support:
 */
 
 CREATE TABLE matter_shares (
-  id bigint NOT NULL,
-  matter_id bigint,
-  shared_with_user_id uuid
-  access_type character varying NOT NULL,
-  created_by uuid,
-  created_at timestamp with time zone NOT NULL,
+  matter_id bigint REFERENCES matters(id) NOT NULL,
+  shared_with_user_id uuid REFERENCES auth.users(id) NOT NULL,
+  access_type character varying NOT NULL CHECK (access_type IN ('view', 'edit')),
+  created_by uuid REFERENCES auth.users(id) NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  PRIMARY KEY (matter_id, shared_with_user_id),
+  CONSTRAINT no_self_sharing CHECK (shared_with_user_id != created_by)
 );
 
+COMMENT ON TABLE matter_shares IS 'Tracks matter sharing permissions. View access allows reading only, while edit access allows updating matter details and sharing with others.';
+
 -- Indexes for matter_shares
-CREATE UNIQUE INDEX matter_shares_pkey ON public.matter_shares USING btree (id)
-CREATE UNIQUE INDEX matter_shares_matter_id_shared_with_user_id_key ON public.matter_shares USING btree (matter_id, shared_with_user_id)
-CREATE INDEX matter_shares_matter_id_idx ON public.matter_shares USING btree (matter_id)
 CREATE INDEX matter_shares_shared_with_user_id_idx ON public.matter_shares USING btree (shared_with_user_id)
 CREATE INDEX matter_shares_created_by_idx ON public.matter_shares USING btree (created_by)
 

@@ -31,49 +31,39 @@ CREATE INDEX matter_shares_created_by_idx ON public.matter_shares USING btree (c
 ALTER TABLE matter_shares ENABLE ROW LEVEL SECURITY;
 
 -- Policies for matter_shares
-CREATE POLICY Users can view matter shares ON matter_shares FOR SELECT USING (((created_by = auth.uid()) OR (shared_with_user_id = auth.uid())));
-
--- Create policy to allow users to share matters they own
-CREATE POLICY "Users can share their own matters" 
-ON matter_shares 
-FOR INSERT 
-WITH CHECK (
+CREATE POLICY "Users can view matter shares" ON matter_shares
+FOR SELECT USING (
     matter_id IN (
-        SELECT id 
-        FROM matters 
-        WHERE created_by = auth.uid()
+        SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
     )
 );
 
--- Create policy to allow users to view shares they're involved in
-CREATE POLICY "Users can view their matter shares" 
-ON matter_shares 
-FOR SELECT 
-USING (
-    created_by = auth.uid() OR 
-    shared_with_user_id = auth.uid()
-);
-
-CREATE POLICY "Users can view shared matters" 
-ON matters 
-FOR SELECT 
-USING (
-  id IN (
-    SELECT matter_id 
-    FROM matter_shares 
-    WHERE shared_with_user_id = auth.uid()
-  )
-);  
-
--- Add delete policy
-CREATE POLICY "Users can delete their matter shares" 
-ON matter_shares 
-FOR DELETE 
-USING (
-    created_by = auth.uid() OR 
+CREATE POLICY "Users with edit access can create shares" ON matter_shares
+FOR INSERT WITH CHECK (
     matter_id IN (
-        SELECT id 
-        FROM matters 
-        WHERE created_by = auth.uid()
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
     )
 );
+
+CREATE POLICY "Users with edit access can delete shares" ON matter_shares
+FOR DELETE USING (
+    matter_id IN (
+        SELECT matter_id FROM matter_shares 
+        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+    )
+);
+
+-- Add trigger to automatically add creator to matter_shares
+CREATE FUNCTION add_creator_share() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO matter_shares (matter_id, shared_with_user_id, access_type, created_by)
+    VALUES (NEW.id, auth.uid(), 'edit', auth.uid());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_matter_created
+    AFTER INSERT ON matters
+    FOR EACH ROW
+    EXECUTE FUNCTION add_creator_share();

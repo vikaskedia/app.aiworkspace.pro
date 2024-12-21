@@ -50,13 +50,13 @@ ALTER TABLE matters ENABLE ROW LEVEL SECURITY;
 -- Create RLS Policies
 CREATE POLICY "Users can create matters" 
     ON matters FOR INSERT 
-    WITH CHECK (true);  -- Creator will get access via trigger
+    WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Users can view matters" 
     ON matters FOR SELECT 
     USING (id IN (
         SELECT matter_id 
-        FROM matter_shares 
+        FROM matter_access 
         WHERE shared_with_user_id = auth.uid()
     ));
 
@@ -64,7 +64,7 @@ CREATE POLICY "Users can update matters"
     ON matters FOR UPDATE 
     USING (id IN (
         SELECT matter_id 
-        FROM matter_shares 
+        FROM matter_access 
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
     ));

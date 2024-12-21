@@ -25,10 +25,10 @@ Each matter has:
 5. Events (see events.sql)
 6. Files stored in gitea repository';
 
--- Automatically add creator to matter_shares on matter creation
-CREATE FUNCTION add_creator_share() RETURNS TRIGGER AS $$
+-- Automatically add creator to matter_access on matter creation
+CREATE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO matter_shares (matter_id, shared_with_user_id, access_type, created_by)
+    INSERT INTO matter_access (matter_id, shared_with_user_id, access_type, granted_by_uuid)
     VALUES (NEW.id, auth.uid(), 'edit', auth.uid());
     RETURN NEW;
 END;
@@ -37,7 +37,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER on_matter_created
     AFTER INSERT ON matters
     FOR EACH ROW
-    EXECUTE FUNCTION add_creator_share();
+    EXECUTE FUNCTION add_creator_access();
 
 -- Create indexes
 CREATE INDEX matters_created_by_idx ON matters USING btree (created_by);

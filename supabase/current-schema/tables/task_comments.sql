@@ -24,7 +24,7 @@
         WHERE t.matter_id IN (
           SELECT id FROM matters WHERE created_by = auth.uid()
           UNION
-          SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
+          SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
         )
       )
     );
@@ -36,7 +36,7 @@
         WHERE t.matter_id IN (
           SELECT id FROM matters WHERE created_by = auth.uid()
           UNION
-          SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
+          SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
         )
       )
     );

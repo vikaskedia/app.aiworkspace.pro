@@ -35,7 +35,7 @@ export const useMatterStore = defineStore('matter', {
           .select('*')
           .in('id', (
             await supabase
-              .from('matter_shares')
+              .from('matter_access')
               .select('matter_id')
               .eq('shared_with_user_id', user.id)
           ).data?.map(share => share.matter_id) || [])

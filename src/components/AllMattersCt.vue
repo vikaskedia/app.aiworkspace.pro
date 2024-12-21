@@ -184,7 +184,7 @@ export default {
 
         // Get shared matter IDs
         const { data: sharedIds, error: shareError } = await supabase
-          .from('matter_shares')
+          .from('matter_access')
           .select('matter_id')
           .eq('shared_with_user_id', user.id);
 

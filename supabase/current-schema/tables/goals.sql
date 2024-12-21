@@ -25,14 +25,14 @@
     CREATE POLICY "Users can view goals" ON goals
     FOR SELECT USING (
       matter_id IN (
-        SELECT matter_id FROM matter_shares WHERE shared_with_user_id = auth.uid()
+        SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
       )
     );
 
     CREATE POLICY "Users can edit goals" ON goals
     FOR UPDATE USING (
       matter_id IN (
-        SELECT matter_id FROM matter_shares 
+        SELECT matter_id FROM matter_access 
         WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
       )
     );
@@ -40,7 +40,7 @@
     CREATE POLICY "Users can create goals" ON goals
     FOR INSERT WITH CHECK (
       matter_id IN (
-        SELECT matter_id FROM matter_shares 
+        SELECT matter_id FROM matter_access 
         WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
       )
     );
@@ -48,7 +48,7 @@
     CREATE POLICY "Users can delete goals" ON goals
     FOR DELETE USING (
       matter_id IN (
-        SELECT matter_id FROM matter_shares 
+        SELECT matter_id FROM matter_access 
         WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
       )
     );

@@ -1,6 +1,6 @@
 -- Import tables
 \ir tables/matters.sql
-\ir tables/matter_shares.sql
+\ir tables/matter_access.sql
 \ir tables/events.sql
 \ir tables/tasks.sql
 \ir tables/task_comments.sql

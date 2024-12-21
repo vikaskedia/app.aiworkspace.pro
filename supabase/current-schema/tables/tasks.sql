@@ -25,38 +25,38 @@
     CREATE POLICY "Users can view tasks" ON tasks
     FOR SELECT USING (
       matter_id IN (
-        SELECT id FROM matters WHERE created_by = auth.uid()
-        UNION
-        SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+        SELECT matter_id 
+        FROM matter_access 
+        WHERE shared_with_user_id = auth.uid()
       )
     );
 
     CREATE POLICY "Users can update tasks" ON tasks
     FOR UPDATE USING (
       matter_id IN (
-        SELECT id FROM matters WHERE created_by = auth.uid()
-        UNION
-        SELECT matter_id FROM matter_access 
-        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+        SELECT matter_id 
+        FROM matter_access 
+        WHERE shared_with_user_id = auth.uid() 
+        AND access_type = 'edit'
       )
     );
 
     CREATE POLICY "Users can delete tasks" ON tasks
     FOR DELETE USING (
       matter_id IN (
-        SELECT id FROM matters WHERE created_by = auth.uid()
-        UNION
-        SELECT matter_id FROM matter_access 
-        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+        SELECT matter_id 
+        FROM matter_access 
+        WHERE shared_with_user_id = auth.uid() 
+        AND access_type = 'edit'
       )
     );
 
     CREATE POLICY "Users can create tasks" ON tasks
     FOR INSERT WITH CHECK (
       matter_id IN (
-        SELECT id FROM matters WHERE created_by = auth.uid()
-        UNION
-        SELECT matter_id FROM matter_access 
-        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+        SELECT matter_id 
+        FROM matter_access 
+        WHERE shared_with_user_id = auth.uid() 
+        AND access_type = 'edit'
       )
     );

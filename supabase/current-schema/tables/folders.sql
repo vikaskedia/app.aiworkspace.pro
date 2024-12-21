@@ -16,5 +16,42 @@ CREATE TABLE folders (
     ALTER TABLE folders ENABLE ROW LEVEL SECURITY;
     
     -- Policies for folders
-    -- No policies
+    CREATE POLICY "Users can view folders" ON folders
+    FOR SELECT USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid()
+        )
+    );
+
+    CREATE POLICY "Users can update folders" ON folders
+    FOR UPDATE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+
+    CREATE POLICY "Users can delete folders" ON folders
+    FOR DELETE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+
+    CREATE POLICY "Users can create folders" ON folders
+    FOR INSERT WITH CHECK (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
     

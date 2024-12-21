@@ -23,13 +23,42 @@
     ALTER TABLE events ENABLE ROW LEVEL SECURITY;
     
     -- Policies for events
-    CREATE POLICY Users can delete events in their matters ON events FOR DELETE USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
-    CREATE POLICY Users can update events in their matters ON events FOR UPDATE USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
-    CREATE POLICY Users can view events in their matters ON events FOR SELECT USING ((matter_id IN ( SELECT matters.id
-   FROM matters
-  WHERE (matters.created_by = auth.uid()))));
+    CREATE POLICY "Users can view events" ON events
+    FOR SELECT USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid()
+        )
+    );
+    
+    CREATE POLICY "Users can update events" ON events
+    FOR UPDATE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+    
+    CREATE POLICY "Users can delete events" ON events
+    FOR DELETE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+    
+    CREATE POLICY "Users can create events" ON events
+    FOR INSERT WITH CHECK (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
     

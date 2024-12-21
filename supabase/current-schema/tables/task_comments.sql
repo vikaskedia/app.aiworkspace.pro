@@ -22,8 +22,6 @@
       task_id IN (
         SELECT t.id FROM tasks t
         WHERE t.matter_id IN (
-          SELECT id FROM matters WHERE created_by = auth.uid()
-          UNION
           SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
         )
       )
@@ -34,8 +32,28 @@
       task_id IN (
         SELECT t.id FROM tasks t
         WHERE t.matter_id IN (
-          SELECT id FROM matters WHERE created_by = auth.uid()
-          UNION
+          SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+        )
+      )
+    );
+
+    CREATE POLICY "Users can update their own comments" ON task_comments
+    FOR UPDATE USING (
+      user_id = auth.uid() AND
+      task_id IN (
+        SELECT t.id FROM tasks t
+        WHERE t.matter_id IN (
+          SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+        )
+      )
+    );
+
+    CREATE POLICY "Users can delete their own comments" ON task_comments
+    FOR DELETE USING (
+      user_id = auth.uid() AND
+      task_id IN (
+        SELECT t.id FROM tasks t
+        WHERE t.matter_id IN (
           SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
         )
       )

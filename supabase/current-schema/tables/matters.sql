@@ -23,7 +23,11 @@ Each matter has:
 3. Goals (see goals.sql)
 4. Tasks (see tasks.sql)
 5. Events (see events.sql)
-6. Files stored in gitea repository';
+6. Files stored in gitea repository
+7. The user who created the matter is:
+7A. Automatically given edit rights
+7B. Can later give up his edit rights
+7C. The user who created the matter is not treated special than anyone else who has edit rights to the matter';
 
 -- Automatically add creator to matter_access on matter creation
 CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
@@ -83,3 +87,15 @@ CREATE POLICY "Users can update matters"
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
     ));
+
+CREATE POLICY "Users can archive matters" 
+    ON matters FOR UPDATE 
+    USING (
+        id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    )
+    WITH CHECK (archived = true);

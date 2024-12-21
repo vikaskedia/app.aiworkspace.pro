@@ -16,3 +16,46 @@ CREATE TABLE file_content (
     -- Policies for file_content
     -- No policies
     
+    -- Enable RLS for file_content
+    ALTER TABLE file_content ENABLE ROW LEVEL SECURITY;
+
+    -- Policies for file_content
+    CREATE POLICY "Users can view file content" ON file_content
+    FOR SELECT USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid()
+        )
+    );
+
+    CREATE POLICY "Users can update file content" ON file_content
+    FOR UPDATE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+
+    CREATE POLICY "Users can delete file content" ON file_content
+    FOR DELETE USING (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+
+    CREATE POLICY "Users can create file content" ON file_content
+    FOR INSERT WITH CHECK (
+        matter_id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid() 
+            AND access_type = 'edit'
+        )
+    );
+    

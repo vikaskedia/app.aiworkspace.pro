@@ -1,10 +1,10 @@
     CREATE TABLE matter_shares (
-      matter_id bigint,
       id bigint NOT NULL,
-      created_at timestamp with time zone NOT NULL,
-      created_by uuid,
-      access_type character varying NOT NULL,
+      matter_id bigint,
       shared_with_user_id uuid
+      access_type character varying NOT NULL,
+      created_by uuid,
+      created_at timestamp with time zone NOT NULL,
     );
     
     -- Indexes for matter_shares

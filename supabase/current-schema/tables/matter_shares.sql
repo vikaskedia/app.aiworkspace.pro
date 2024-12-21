@@ -1,4 +1,3 @@
-
 CREATE TABLE matter_shares (
   matter_id bigint REFERENCES matters(id) NOT NULL,
   shared_with_user_id uuid REFERENCES auth.users(id) NOT NULL,

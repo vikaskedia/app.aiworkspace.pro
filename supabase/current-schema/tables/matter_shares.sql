@@ -53,17 +53,3 @@ FOR DELETE USING (
         WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
     )
 );
-
--- Add trigger to automatically add creator to matter_shares
-CREATE FUNCTION add_creator_share() RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO matter_shares (matter_id, shared_with_user_id, access_type, created_by)
-    VALUES (NEW.id, auth.uid(), 'edit', auth.uid());
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER on_matter_created
-    AFTER INSERT ON matters
-    FOR EACH ROW
-    EXECUTE FUNCTION add_creator_share();

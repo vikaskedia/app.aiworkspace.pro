@@ -26,10 +26,25 @@ Each matter has:
 6. Files stored in gitea repository';
 
 -- Automatically add creator to matter_access on matter creation
-CREATE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
+DECLARE
+    creator_id uuid;
 BEGIN
-    INSERT INTO matter_access (matter_id, shared_with_user_id, access_type, granted_by_uuid)
-    VALUES (NEW.id, auth.uid(), 'edit', auth.uid());
+    -- Get the creator_id from the NEW record instead of auth.uid()
+    creator_id := NEW.created_by;
+    
+    INSERT INTO matter_access (
+        matter_id, 
+        shared_with_user_id, 
+        access_type, 
+        granted_by_uuid
+    )
+    VALUES (
+        NEW.id, 
+        creator_id, 
+        'edit', 
+        creator_id
+    );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

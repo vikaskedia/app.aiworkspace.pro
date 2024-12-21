@@ -5,7 +5,10 @@ CREATE TABLE matter_access (
   granted_by_uuid uuid REFERENCES auth.users(id) NOT NULL,
   granted_at timestamp with time zone DEFAULT now() NOT NULL,
   PRIMARY KEY (matter_id, shared_with_user_id),
-  CONSTRAINT no_self_sharing CHECK (shared_with_user_id != granted_by_uuid)
+  CONSTRAINT no_self_sharing CHECK (
+        (shared_with_user_id != granted_by_uuid) OR 
+        (shared_with_user_id = granted_by_uuid AND access_type = 'edit')
+    )
 );
 
 COMMENT ON TABLE matter_access IS 'Manages access control for matters. 

@@ -1,15 +1,3 @@
-/* 
-Features we want to support:
-
-1. Each matter has View rights and edit rights.
-
-2. Users with edit rights can:
-2A. Give View rights or edit rights to other users.
-2B. Edit the matter name or description.
-2C. Archive the matter.
-
-3. Users with View rights can only view the matter.
-*/
 
 CREATE TABLE matter_shares (
   matter_id bigint REFERENCES matters(id) NOT NULL,
@@ -21,7 +9,21 @@ CREATE TABLE matter_shares (
   CONSTRAINT no_self_sharing CHECK (shared_with_user_id != created_by)
 );
 
-COMMENT ON TABLE matter_shares IS 'Tracks matter sharing permissions. View access allows reading only, while edit access allows updating matter details and sharing with others.';
+COMMENT ON TABLE matter_shares IS 'Manages access control for matters. 
+1. Each matter has View rights and edit rights.
+
+2. Users with edit rights can:
+2A. Give View rights or edit rights to other users.
+2B. Edit the matter name or description.
+2C. Archive the matter.
+2D. Add, Edit or Archivegoals, tasks, events, and files.
+
+3. Users with View rights can only view:
+3A. The matter name and description.
+3B. Goals (see goals.sql)
+3C. Tasks (see tasks.sql)
+3D. Events (see events.sql)
+3E. Files stored in gitea repository';
 
 -- Indexes for matter_shares
 CREATE INDEX matter_shares_shared_with_user_id_idx ON public.matter_shares USING btree (shared_with_user_id)

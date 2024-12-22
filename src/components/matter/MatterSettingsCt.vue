@@ -128,7 +128,7 @@ export default {
           .insert({
             matter_id: this.currentMatter.id,
             shared_with_user_id: userId,
-            created_by: user.id,
+            granted_by_uuid: user.id,
             access_type: this.newShare.access_type
           })
           .select();

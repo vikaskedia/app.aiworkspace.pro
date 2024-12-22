@@ -246,6 +246,17 @@ function handleTagInputConfirm() {
   tagInputVisible.value = false;
   tagInputValue.value = '';
 }
+
+function handleFileUpdate(updatedFile) {
+  // Update the selected file
+  selectedFile.value = updatedFile;
+  
+  // Update the file in the files array
+  const index = files.value.findIndex(f => f.id === updatedFile.id);
+  if (index !== -1) {
+    files.value[index] = updatedFile;
+  }
+}
 </script>
 
 <template>
@@ -328,6 +339,7 @@ function handleTagInputConfirm() {
         v-if="selectedFile"
         v-model:file="selectedFile"
         @close="selectedFile = null"
+        @update:file="handleFileUpdate"
       />
     </div>
 

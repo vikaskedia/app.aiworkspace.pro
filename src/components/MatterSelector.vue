@@ -109,8 +109,8 @@ export default {
         case 'files':
           router.push(`/matter/${selectedMatter.value.id}/files`);
           break;
-        case 'manage':
-          router.push(`/matter/${selectedMatter.value.id}/manage`);
+        case 'settings':
+          router.push(`/matter/${selectedMatter.value.id}/settings`);
           break;
       }
     };

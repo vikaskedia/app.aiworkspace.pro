@@ -38,7 +38,7 @@ export default {
       if (path.includes('/tasks')) return 'Tasks';
       if (path.includes('/events')) return 'Events';
       if (path.includes('/files')) return 'Files';
-      if (path.includes('/manage')) return 'Manage Matter';
+      if (path.includes('/settings')) return 'Settings';
       if (path.includes('/dashboard')) return 'Dashboard';
       if (path.includes('/all-matters')) {
         if (path.endsWith('/tasks')) return 'All Tasks';
@@ -116,8 +116,8 @@ export default {
           case 'files':
             this.$router.push(`/matter/${this.currentMatter.id}/files`);
             break;
-          case 'manage':
-            this.$router.push(`/matter/${this.currentMatter.id}/manage`);
+          case 'settings':
+            this.$router.push(`/matter/${this.currentMatter.id}/settings`);
             break;
         }
       } else {
@@ -171,7 +171,7 @@ export default {
               <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
               <el-dropdown-item command="events">Events</el-dropdown-item>
               <el-dropdown-item command="files">Manage Files</el-dropdown-item>
-              <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
+              <el-dropdown-item command="settings">Settings</el-dropdown-item>
             </template>
             <!-- Show these options when "All Matters" is selected -->
             <template v-else>

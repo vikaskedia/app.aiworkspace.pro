@@ -5,6 +5,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 
 export default {
+  name: 'MatterSettingsCt',
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);

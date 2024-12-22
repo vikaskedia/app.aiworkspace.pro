@@ -86,9 +86,9 @@ const routes = [
         component: ManageFilesCt
       },
       {
-        path: 'manage',
-        name: 'ManageMatterPage',
-        component: () => import('./components/matter/ManageMatterCt.vue')
+        path: 'settings',
+        name: 'MatterSettingsPage',
+        component: () => import('./components/matter/MatterSettingsCt.vue')
       }
     ]
   },

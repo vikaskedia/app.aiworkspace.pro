@@ -157,6 +157,14 @@ export default {
             }
           });
         
+        // Update cache
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedTasks = [data[0], ...cachedTasks];
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedTasks);
+        
+        // Update UI
+        this.tasks = this.organizeTasksHierarchy(updatedTasks);
+        
         this.dialogVisible = false;
         this.resetForm();
         ElMessage.success('Task created successfully');

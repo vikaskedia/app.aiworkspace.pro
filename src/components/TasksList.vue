@@ -1,6 +1,7 @@
 <!-- src/components/TasksList.vue -->
 <script>
 import { ArrowUp, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
+import { supabase } from '../supabase'
 
 export default {
   components: {
@@ -130,20 +131,30 @@ export default {
       }
     },
     async loadUserEmail(userId) {
-      if (!this.userEmails[userId]) {
-        try {
-          const { data: userData } = await supabase
-            .rpc('get_user_info_by_id', {
-              user_id: userId
-            });
-          if (userData?.[0]) {
-            this.userEmails[userId] = userData[0].email;
-          }
-        } catch (error) {
-          console.error('Error loading user email:', error);
-        }
+      if (!userId) return 'Unknown User';
+      
+      if (this.userEmails[userId]) {
+        return this.userEmails[userId];
       }
-      return this.userEmails[userId] || 'Unknown User';
+      
+      try {
+        const { data: userData, error } = await supabase
+          .rpc('get_user_info_by_id', {
+            user_id: userId
+          });
+          
+        if (error) throw error;
+        
+        if (userData?.[0]) {
+          this.userEmails[userId] = userData[0].email;
+          return userData[0].email;
+        }
+        
+        return 'Unknown User';
+      } catch (error) {
+        console.error('Error loading user email:', error);
+        return 'Unknown User';
+      }
     },
     getStatusType(task) {
       if (task.archived) return 'info';

@@ -292,16 +292,29 @@ export default {
     },
     async loadSharedUsers() {
       try {
-        const { data: users, error } = await supabase
+        const { data: shares, error } = await supabase
           .from('matter_access')
-          .select('shared_with_user_id, users:shared_with_user_id (id, email)')
+          .select('shared_with_user_id')
           .eq('matter_id', this.currentMatter.id);
 
         if (error) throw error;
-        this.sharedUsers = users.map(u => ({
-          id: u.users.id,
-          email: u.users.email
-        }));
+
+        // Get user details for each share using the RPC function
+        const sharesWithUserInfo = await Promise.all(
+          shares.map(async (share) => {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: share.shared_with_user_id
+              });
+
+            return {
+              id: share.shared_with_user_id,
+              email: userData?.[0]?.email
+            };
+          })
+        );
+
+        this.sharedUsers = sharesWithUserInfo;
       } catch (error) {
         ElMessage.error('Error loading users: ' + error.message);
       }

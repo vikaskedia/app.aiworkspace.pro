@@ -8,6 +8,7 @@ import TasksCt from './components/matter/TasksCt.vue';
 import EventsCt from './components/matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
+import MatterLayout from './components/matter/MatterLayout.vue';
 
 const routes = [
   {
@@ -46,8 +47,7 @@ const routes = [
   },
   { 
     path: '/matter/:matterId?', 
-    name: 'MatterRoot',
-    component: DashboardCt,
+    component: MatterLayout,
     meta: { requiresAuth: true },
     children: [
       {

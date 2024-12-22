@@ -1,159 +1,150 @@
 <template>
-  <div class="dashboard-container">
-    <HeaderCt />
-    <div class="dashboard-content">
-      <router-view v-if="$route.path !== `/matter/${currentMatter?.id}`">
-      </router-view>
-      <div v-else class="dashboard-overview">
-        <h2 class="dashboard-title">Dashboard Overview</h2>
-        
-        <!-- Goals Section -->
-        <div class="dashboard-section">
-          <div class="section-header">
-            <h3>Recent Goals</h3>
-            <el-button 
-              type="primary" 
-              link 
-              @click="$router.push(`/matter/${currentMatter?.id}/goals`)">
-              View All Goals
-            </el-button>
-          </div>
-          <el-table
-            v-loading="loadingGoals"
-            :data="recentGoals"
-            style="width: 100%">
-            <el-table-column 
-              prop="title" 
-              label="Title"
-              min-width="200" />
-            <el-table-column 
-              v-if="!currentMatter"
-              prop="matter_title" 
-              label="Matter"
-              min-width="150" />
-            <el-table-column 
-              prop="status" 
-              label="Status"
-              width="120">
-              <template #default="scope">
-                <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'">
-                  {{ scope.row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column 
-              prop="priority" 
-              label="Priority"
-              width="100">
-              <template #default="scope">
-                <el-tag :type="
-                  scope.row.priority === 'high' ? 'danger' : 
-                  scope.row.priority === 'medium' ? 'warning' : 'info'
-                ">
-                  {{ scope.row.priority }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-
-        <!-- Tasks Section -->
-        <div class="dashboard-section">
-          <div class="section-header">
-            <h3>Recent Tasks</h3>
-            <el-button 
-              type="primary" 
-              link 
-              @click="$router.push(`/matter/${currentMatter?.id}/tasks`)">
-              View All Tasks
-            </el-button>
-          </div>
-          <el-table
-            v-loading="loadingTasks"
-            :data="recentTasks"
-            style="width: 100%">
-            <el-table-column 
-              prop="title" 
-              label="Title"
-              min-width="200" />
-            <el-table-column 
-              v-if="!currentMatter"
-              prop="matter_title" 
-              label="Matter"
-              min-width="150" />
-            <el-table-column 
-              prop="status" 
-              label="Status"
-              width="120">
-              <template #default="scope">
-                <el-tag :type="
-                  scope.row.status === 'completed' ? 'success' :
-                  scope.row.status === 'in_progress' ? 'warning' : 'info'
-                ">
-                  {{ scope.row.status }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column 
-              prop="due_date" 
-              label="Due Date"
-              width="150">
-              <template #default="scope">
-                {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-
-        <!-- Events Section -->
-        <div class="dashboard-section">
-          <div class="section-header">
-            <h3>Upcoming Events</h3>
-            <el-button 
-              type="primary" 
-              link 
-              @click="$router.push(`/matter/${currentMatter?.id}/events`)">
-              View All Events
-            </el-button>
-          </div>
-          <el-table
-            v-loading="loadingEvents"
-            :data="upcomingEvents"
-            style="width: 100%">
-            <el-table-column 
-              prop="title" 
-              label="Title"
-              min-width="200" />
-            <el-table-column 
-              v-if="!currentMatter"
-              prop="matter_title" 
-              label="Matter"
-              min-width="150" />
-            <el-table-column 
-              prop="event_type" 
-              label="Type"
-              width="120">
-              <template #default="scope">
-                <el-tag>{{ scope.row.event_type }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column 
-              prop="start_time" 
-              label="Date"
-              width="150">
-              <template #default="scope">
-                {{ scope.row.start_time ? new Date(scope.row.start_time).toLocaleDateString() : '-' }}
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
+  <div class="dashboard-overview">
+    <h2 class="dashboard-title">Dashboard Overview</h2>
+    <!-- Goals Section -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h3>Recent Goals</h3>
+        <el-button 
+          type="primary" 
+          link 
+          @click="$router.push(`/matter/${currentMatter?.id}/goals`)">
+          View All Goals
+        </el-button>
       </div>
+      <el-table
+        v-loading="loadingGoals"
+        :data="recentGoals"
+        style="width: 100%">
+        <el-table-column 
+          prop="title" 
+          label="Title"
+          min-width="200" />
+        <el-table-column 
+          v-if="!currentMatter"
+          prop="matter_title" 
+          label="Matter"
+          min-width="150" />
+        <el-table-column 
+          prop="status" 
+          label="Status"
+          width="120">
+          <template #default="scope">
+            <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'">
+              {{ scope.row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="priority" 
+          label="Priority"
+          width="100">
+          <template #default="scope">
+            <el-tag :type="
+              scope.row.priority === 'high' ? 'danger' : 
+              scope.row.priority === 'medium' ? 'warning' : 'info'
+            ">
+              {{ scope.row.priority }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- Tasks Section -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h3>Recent Tasks</h3>
+        <el-button 
+          type="primary" 
+          link 
+          @click="$router.push(`/matter/${currentMatter?.id}/tasks`)">
+          View All Tasks
+        </el-button>
+      </div>
+      <el-table
+        v-loading="loadingTasks"
+        :data="recentTasks"
+        style="width: 100%">
+        <el-table-column 
+          prop="title" 
+          label="Title"
+          min-width="200" />
+        <el-table-column 
+          v-if="!currentMatter"
+          prop="matter_title" 
+          label="Matter"
+          min-width="150" />
+        <el-table-column 
+          prop="status" 
+          label="Status"
+          width="120">
+          <template #default="scope">
+            <el-tag :type="
+              scope.row.status === 'completed' ? 'success' :
+              scope.row.status === 'in_progress' ? 'warning' : 'info'
+            ">
+              {{ scope.row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="due_date" 
+          label="Due Date"
+          width="150">
+          <template #default="scope">
+            {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- Events Section -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h3>Upcoming Events</h3>
+        <el-button 
+          type="primary" 
+          link 
+          @click="$router.push(`/matter/${currentMatter?.id}/events`)">
+          View All Events
+        </el-button>
+      </div>
+      <el-table
+        v-loading="loadingEvents"
+        :data="upcomingEvents"
+        style="width: 100%">
+        <el-table-column 
+          prop="title" 
+          label="Title"
+          min-width="200" />
+        <el-table-column 
+          v-if="!currentMatter"
+          prop="matter_title" 
+          label="Matter"
+          min-width="150" />
+        <el-table-column 
+          prop="event_type" 
+          label="Type"
+          width="120">
+          <template #default="scope">
+            <el-tag>{{ scope.row.event_type }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="start_time" 
+          label="Date"
+          width="150">
+          <template #default="scope">
+            {{ scope.row.start_time ? new Date(scope.row.start_time).toLocaleDateString() : '-' }}
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
   </div>
 </template>
 
 <script>
-import HeaderCt from '../HeaderCt.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -161,9 +152,6 @@ import { ElMessage } from 'element-plus';
 
 export default {
   name: 'DashboardCt',
-  components: {
-    HeaderCt
-  },
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
@@ -266,17 +254,6 @@ export default {
 </script>
 
 <style scoped>
-.dashboard-container {
-  min-height: 100vh;
-  background-color: #f5f7fa;
-}
-
-.dashboard-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .dashboard-overview {
   display: flex;
   flex-direction: column;
@@ -313,16 +290,12 @@ export default {
 
 /* Responsive styles */
 @media (max-width: 640px) {
-  .dashboard-content {
+  .dashboard-section {
     padding: 1rem;
   }
   
   .dashboard-title {
     font-size: 1.5rem;
-  }
-  
-  .dashboard-section {
-    padding: 1rem;
   }
 }
 </style>

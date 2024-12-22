@@ -699,17 +699,6 @@ export default {
 </template>
 
 <style scoped>
-.tasks-container {
-  min-height: 100vh;
-  background-color: #f5f7fa;
-}
-
-.content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .tasks-header {
   display: flex;
   justify-content: space-between;

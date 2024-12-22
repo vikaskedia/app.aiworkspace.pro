@@ -190,7 +190,7 @@ export default {
 </script>
 
 <template>
-  <div class="content">
+  <div class="goals-container">
     <div class="goals-header">
       <h2>Goals</h2>
       <el-button 
@@ -327,17 +327,11 @@ export default {
 </template>
 
 <style scoped>
-.content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .goals-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .goals-header h2 {
@@ -349,10 +343,6 @@ export default {
 
 /* Responsive styles */
 @media (max-width: 640px) {
-  .content {
-    padding: 1rem;
-  }
-  
   .goals-header h2 {
     font-size: 1.4rem;
   }

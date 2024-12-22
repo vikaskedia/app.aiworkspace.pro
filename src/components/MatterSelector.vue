@@ -28,18 +28,14 @@ export default {
 
     const loadMatters = async () => {
       try {
-
-        // The RLS policies in the database will automatically handle the access control, 
-        // so there's no need to explicitly check for ownership or shared access in the application code. 
-        //This will also prevent any potential duplicate matters from appearing in the lists.
-        const { data: matters, error } = await supabase
+        const { data: mattersData, error } = await supabase
           .from('matters')
           .select('*')
           .eq('archived', false)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        matters.value = matters;
+        matters.value = mattersData;
 
         // After loading matters, check URL for matter ID
         const matterId = route.params.matterId;

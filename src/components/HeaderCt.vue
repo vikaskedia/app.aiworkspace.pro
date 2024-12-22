@@ -53,39 +53,9 @@ export default {
         console.error('Unexpected error during logout:', err);
       }
     },
-    handleCommand(command) {
-      const matterStore = useMatterStore();
-      const currentMatter = matterStore.currentMatter;
-      
-      if (!currentMatter && command !== 'logout') {
-        ElMessage.warning('Please select a matter first');
-        return;
-      }
-
-      const matterId = currentMatter?.id;
-      
-      switch(command) {
-        case 'dashboard':
-          this.$router.push(`/matter/${matterId}`);
-          break;
-        case 'goals':
-          this.$router.push(`/matter/${matterId}/goals`);
-          break;
-        case 'tasks':
-          this.$router.push(`/matter/${matterId}/tasks`);
-          break;
-        case 'events':
-          this.$router.push(`/matter/${matterId}/events`);
-          break;
-        case 'manage-files':
-          this.$router.push(`/matter/${matterId}/files`);
-          break;
-        case 'manage-matter':
-          this.$router.push(`/matter/${matterId}/manage`);
-          break;
-        case 'logout':
-          this.handleLogout();
-          break;
+    async handleCommand(command) {
+      if (command === 'logout') {
+        await this.handleLogout();
       }
     },
     handleMatterSelect(matter) {
@@ -133,13 +103,7 @@ export default {
         </div>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
-            <el-dropdown-item command="goals">Goals</el-dropdown-item>
-            <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
-            <el-dropdown-item command="events">Events</el-dropdown-item>
-            <el-dropdown-item command="manage-files">Manage Files</el-dropdown-item>
-            <el-dropdown-item command="manage-matter">Manage Matter</el-dropdown-item>
-            <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
+            <el-dropdown-item command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

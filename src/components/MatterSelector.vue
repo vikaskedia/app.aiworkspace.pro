@@ -5,8 +5,13 @@ import { ElMessage } from 'element-plus';
 import { useRouter, useRoute } from 'vue-router';
 import { useMatterStore } from '../store/matter';
 import { storeToRefs } from 'pinia';
+import { CaretBottom, More } from '@element-plus/icons-vue';
 
 export default {
+  components: {
+    CaretBottom,
+    More
+  },
   emits: ['matter-selected'],
   setup(props, { emit }) {
     const matters = ref([]);
@@ -83,6 +88,31 @@ export default {
       }
     };
 
+    const handleMatterCommand = (command) => {
+      if (!selectedMatter.value) return;
+      
+      switch(command) {
+        case 'dashboard':
+          router.push(`/matter/${selectedMatter.value.id}`);
+          break;
+        case 'goals':
+          router.push(`/matter/${selectedMatter.value.id}/goals`);
+          break;
+        case 'tasks':
+          router.push(`/matter/${selectedMatter.value.id}/tasks`);
+          break;
+        case 'events':
+          router.push(`/matter/${selectedMatter.value.id}/events`);
+          break;
+        case 'files':
+          router.push(`/matter/${selectedMatter.value.id}/files`);
+          break;
+        case 'manage':
+          router.push(`/matter/${selectedMatter.value.id}/manage`);
+          break;
+      }
+    };
+
     onMounted(() => {
       loadMatters();
     });
@@ -93,7 +123,8 @@ export default {
       dialogVisible,
       newMatter,
       createMatter,
-      handleMatterSelect
+      handleMatterSelect,
+      handleMatterCommand
     };
   }
 };
@@ -101,9 +132,10 @@ export default {
 
 <template>
   <div class="matter-selector">
-    <el-dropdown v-if="matters.length" trigger="click">
+    <el-dropdown trigger="click">
       <span class="matter-dropdown-link">
         {{ selectedMatter?.title || 'All Matters' }}
+        <el-icon><caret-bottom /></el-icon>
       </span>
       
       <template #dropdown>
@@ -125,73 +157,43 @@ export default {
       </template>
     </el-dropdown>
 
-    <el-button v-else type="primary" @click="dialogVisible = true">
-      Create First Matter
-    </el-button>
-
-    <!-- Create Matter Dialog -->
-    <el-dialog
-      v-model="dialogVisible"
-      title="Create New Matter"
-      width="500px">
-      <el-form :model="newMatter" label-position="top">
-        <el-form-item label="Title" required>
-          <el-input v-model="newMatter.title" placeholder="Enter matter title" />
-        </el-form-item>
-        
-        <el-form-item label="Description">
-          <el-input
-            v-model="newMatter.description"
-            type="textarea"
-            rows="3"
-            placeholder="Enter matter description" />
-        </el-form-item>
-      </el-form>
-      
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            :disabled="!newMatter.title"
-            @click="createMatter">
-            Create Matter
-          </el-button>
-        </span>
+    <!-- Matter Context Menu -->
+    <el-dropdown v-if="selectedMatter" trigger="click" @command="handleMatterCommand">
+      <el-button type="primary" link>
+        <el-icon><More /></el-icon>
+      </el-button>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
+          <el-dropdown-item command="goals">Goals</el-dropdown-item>
+          <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
+          <el-dropdown-item command="events">Events</el-dropdown-item>
+          <el-dropdown-item command="files">Manage Files</el-dropdown-item>
+          <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
+        </el-dropdown-menu>
       </template>
-    </el-dialog>
+    </el-dropdown>
   </div>
 </template>
 
 <style scoped>
 .matter-selector {
-  margin-right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .matter-dropdown-link {
-  color: #1a1a1a;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 .matter-dropdown-link:hover {
   background-color: rgba(0, 0, 0, 0.03);
-}
-
-/* Style the dropdown icon */
-.el-icon--right {
-  color: #666;
-  font-size: 12px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
 }
 </style> 

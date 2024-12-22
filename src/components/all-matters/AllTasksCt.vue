@@ -173,7 +173,10 @@ export default {
           .from('tasks')
           .select(`
             *,
-            matters!tasks_matter_id_fkey(title)
+            matter:matter_id (
+              id,
+              title
+            )
           `)
           .eq('deleted', false)
           .order('created_at', { ascending: false });
@@ -207,7 +210,7 @@ export default {
 
           return {
             ...task,
-            matter_title: task.matters?.title || 'Unknown Matter',
+            matter_title: task.matter?.title || 'Unknown Matter',
             assignee_email: assigneeEmail
           };
         }));

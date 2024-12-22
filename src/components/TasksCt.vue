@@ -399,6 +399,47 @@ export default {
         console.error('Error creating notification:', error);
       }
     },
+
+    async archiveTask(task) {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            archived: true,
+            archived_by: user.id,
+            archived_at: new Date().toISOString()
+          })
+          .eq('id', task.id);
+
+        if (error) throw error;
+
+        // Remove the archived task from the local state
+        const removeTaskRecursively = (tasks, taskId) => {
+          return tasks.filter(t => {
+            if (t.children?.length) {
+              t.children = removeTaskRecursively(t.children, taskId);
+            }
+            return t.id !== taskId;
+          });
+        };
+
+        this.tasks = removeTaskRecursively(this.tasks, task.id);
+        
+        // Update cache
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedCachedTasks = cachedTasks.filter(t => t.id !== task.id);
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+
+        ElMessage.success('Task archived successfully');
+      } catch (error) {
+        ElMessage.error('Error archiving task: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    }
   },
 
   mounted() {

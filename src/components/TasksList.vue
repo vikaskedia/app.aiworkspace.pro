@@ -19,9 +19,13 @@ export default {
     sharedUsers: {
       type: Array,
       required: true
+    },
+    showFilters: {
+      type: Boolean,
+      required: true
     }
   },
-  emits: ['edit', 'view-comments'],
+  emits: ['edit', 'view-comments', 'update:show-filters'],
   data() {
     return {
       filters: {
@@ -30,8 +34,7 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null
-      },
-      showFilters: false
+      }
     }
   },
   computed: {
@@ -128,23 +131,6 @@ export default {
 
 <template>
   <div class="tasks-list">
-    <div class="filters-header">
-      <el-button 
-        @click="showFilters = !showFilters"
-        :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
-        type="primary"
-        plain>
-        {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
-      </el-button>
-      <el-button 
-        v-if="hasActiveFilters"
-        @click="clearFilters"
-        type="info"
-        plain>
-        Clear Filters
-      </el-button>
-    </div>
-
     <el-collapse-transition>
       <div v-show="showFilters" class="filters-section">
         <el-input

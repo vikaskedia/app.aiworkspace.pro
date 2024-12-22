@@ -24,6 +24,7 @@ export default {
       tasks: [],
       loading: false,
       dialogVisible: false,
+      showFilters: false,
       newTask: {
         title: '',
         description: '',
@@ -439,18 +440,28 @@ export default {
     <div class="content">
       <div class="tasks-header">
         <h2>Tasks</h2>
-        <el-button 
-          type="primary" 
-          @click="dialogVisible = true"
-          :disabled="!currentMatter">
-          New Task
-        </el-button>
+        <div class="header-buttons">
+          <el-button 
+            @click="dialogVisible = true"
+            type="primary"
+            :disabled="!currentMatter">
+            New Task
+          </el-button>
+          <el-button 
+            @click="showFilters = !showFilters"
+            :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
+            type="info"
+            plain>
+            {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+          </el-button>
+        </div>
       </div>
 
       <TasksList
         :tasks="tasks"
         :loading="loading"
         :shared-users="sharedUsers"
+        v-model:show-filters="showFilters"
         @edit="async (task) => {
           editingTask = {...task};
           await loadSharedUsers();
@@ -636,5 +647,10 @@ h2 {
 
 .clickable-title:hover {
   text-decoration: underline;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 12px;
 }
 </style> 

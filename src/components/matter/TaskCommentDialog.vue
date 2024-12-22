@@ -179,8 +179,24 @@ export default {
     async loadFiles() {
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        
+        // First get the matter's git repo
+        const { data: matter, error: matterError } = await supabase
+          .from('matters')
+          .select('git_repo')
+          .eq('id', this.task.matter_id)
+          .single();
+
+        if (matterError) {
+          throw new Error('Failed to fetch matter details');
+        }
+
+        if (!matter?.git_repo) {
+          throw new Error('No git repository found for this matter');
+        }
+
         const response = await fetch(
-          `/gitea/api/v1/repos/vikas/${this.task.git_repo}/contents/`,
+          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
@@ -189,7 +205,10 @@ export default {
           }
         );
 
-        if (!response.ok) throw new Error('Failed to fetch files');
+        if (!response.ok) {
+          throw new Error('Failed to fetch files');
+        }
+
         const contents = await response.json();
         
         this.files = contents
@@ -200,18 +219,30 @@ export default {
             path: file.path,
             download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
           }));
+
       } catch (error) {
         ElMessage.error('Error loading files: ' + error.message);
+        this.files = [];
       }
     },
 
     handleInput(event) {
-      const text = event.target.value;
-      const lastWord = text.slice(0, event.target.selectionStart).split(' ').pop();
+      // For v-model, the value is directly in event
+      const text = event.target.value || '';
+      const selectionStart = event.target.selectionStart || 0;
+      const lastWord = text.slice(0, selectionStart).split(' ').pop();
+      
+      console.log('Input event:', {
+        text,
+        selectionStart,
+        lastWord,
+        showFileSelector: this.showFileSelector
+      });
       
       if (lastWord === '@files') {
+        console.log('Showing file selector');
         this.showFileSelector = true;
-        this.mentionIndex = event.target.selectionStart;
+        this.mentionIndex = selectionStart;
         this.loadFiles();
       }
     },
@@ -304,7 +335,8 @@ export default {
           :rows="3"
           placeholder="Write a comment... (Type @files to mention a file)"
           @keyup.ctrl.enter="addComment"
-          @input="handleInput" />
+          @input="handleInput"
+          @keyup="handleInput" />
         <el-button
           type="primary"
           :disabled="!newComment.trim()"
@@ -373,8 +405,12 @@ export default {
 
 .comment-input {
   margin-top: auto;
-  padding-top: 20px;
+  padding: 20px;
   border-top: 1px solid #eee;
+}
+
+:deep(.el-dialog) {
+  margin-top: 15vh !important;
 }
 
 .file-list {
@@ -394,6 +430,15 @@ export default {
   background-color: #f5f7fa;
 }
 
+:deep(.file-link) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+:deep(.file-link:hover) {
+  text-decoration: underline;
+}
+
 @media (max-width: 1024px) {
   :deep(.el-drawer) {
     width: 50% !important;
@@ -404,14 +449,5 @@ export default {
   :deep(.el-drawer) {
     width: 90% !important;
   }
-}
-
-:deep(.file-link) {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-:deep(.file-link:hover) {
-  text-decoration: underline;
 }
 </style>

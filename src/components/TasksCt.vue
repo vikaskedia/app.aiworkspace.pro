@@ -170,33 +170,22 @@ export default {
 
         if (error) throw error;
 
-        // Get user details for each share
         const sharesWithUserInfo = await Promise.all(
           shares.map(async (share) => {
-            const { data: userData, error: userError } = await supabase
+            const { data: userData } = await supabase
               .rpc('get_user_info_by_id', {
                 user_id: share.shared_with_user_id
               });
 
-            if (userError) throw userError;
-
             return {
               id: share.shared_with_user_id,
-              email: userData[0].email
+              email: userData[0].email,
+              access_type: share.access_type
             };
           })
         );
 
-        // Add the matter owner
-        const { data: ownerData } = await supabase
-          .rpc('get_user_info_by_id', {
-            user_id: this.currentMatter.created_by
-          });
-
-        this.sharedUsers = [
-          { id: this.currentMatter.created_by, email: ownerData[0].email },
-          ...sharesWithUserInfo
-        ];
+        this.sharedUsers = sharesWithUserInfo;
       } catch (error) {
         ElMessage.error('Error loading shared users: ' + error.message);
       }

@@ -77,9 +77,7 @@ export default {
           .insert([{
             title: newMatter.value.title,
             description: newMatter.value.description,
-            created_by: user.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            created_by: user.id
           }])
           .select();
 

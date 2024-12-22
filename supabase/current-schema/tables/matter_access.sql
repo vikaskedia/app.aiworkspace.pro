@@ -37,9 +37,7 @@ ALTER TABLE matter_access ENABLE ROW LEVEL SECURITY;
 -- Policies for matter_access
 CREATE POLICY "Users can view matter access" ON matter_access
 FOR SELECT USING (
-    matter_id IN (
-        SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
-    )
+    shared_with_user_id = auth.uid()
 );
 
 CREATE POLICY "Users with edit access can create shares" ON matter_access

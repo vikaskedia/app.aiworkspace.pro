@@ -4,7 +4,7 @@ All the files are stored in the Gitea server.
 The files are stored in the matter's repository.
 -->
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { Plus, UploadFilled, Folder, FolderAdd } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
@@ -29,6 +29,40 @@ const folders = ref([]);
 const newFolderDialogVisible = ref(false);
 const newFolderName = ref('');
 const folderBreadcrumbs = ref([]);
+const filters = ref({
+  search: '',
+  type: null,
+  showFilters: false
+});
+
+const activeFiltersCount = computed(() => {
+  let count = 0;
+  if (filters.value.search) count++;
+  if (filters.value.type) count++;
+  return count;
+});
+
+const filteredItems = computed(() => {
+  let result = [...folders.value, ...files.value];
+  
+  if (filters.value.search) {
+    const query = filters.value.search.toLowerCase();
+    result = result.filter(item => 
+      item.name.toLowerCase().includes(query)
+    );
+  }
+  
+  if (filters.value.type) {
+    result = result.filter(item => {
+      if (filters.value.type === 'folder') {
+        return item.type === 'dir';
+      }
+      return item.type === filters.value.type;
+    });
+  }
+  
+  return result;
+});
 
 // Load files when matter changes
 watch(currentMatter, async (newMatter) => {
@@ -402,6 +436,37 @@ async function navigateToFolder(folder) {
     loading.value = false;
   }
 }
+
+// Add this function to handle sorting
+function handleSort({ prop, order }) {
+  if (!prop || !order) return;
+  
+  const sortedItems = [...filteredItems.value].sort((a, b) => {
+    if (prop === 'size') {
+      // Handle folder size sorting
+      if (a.type === 'dir' && b.type === 'dir') return 0;
+      if (a.type === 'dir') return -1;
+      if (b.type === 'dir') return 1;
+      return a.size - b.size;
+    }
+    
+    if (prop === 'type') {
+      if (a.type === 'dir' && b.type !== 'dir') return -1;
+      if (a.type !== 'dir' && b.type === 'dir') return 1;
+      return a.type.localeCompare(b.type);
+    }
+    
+    // Default name sorting
+    return a[prop].localeCompare(b[prop]);
+  });
+  
+  if (order === 'descending') {
+    sortedItems.reverse();
+  }
+  
+  files.value = sortedItems.filter(item => item.type !== 'dir');
+  folders.value = sortedItems.filter(item => item.type === 'dir');
+}
 </script>
 
 <template>
@@ -427,6 +492,14 @@ async function navigateToFolder(folder) {
           </div>
           <div class="actions">
             <el-button 
+              @click="filters.showFilters = !filters.showFilters"
+              :icon="filters.showFilters ? 'ArrowUp' : 'ArrowDown'"
+              type="info"
+              plain
+              size="small">
+              {{ filters.showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
+            </el-button>
+            <el-button 
               type="primary" 
               @click="newFolderDialogVisible = true" 
               size="small" 
@@ -443,16 +516,49 @@ async function navigateToFolder(folder) {
           </div>
         </div>
 
+        <!-- Add Filters Section -->
+        <el-collapse-transition>
+          <div v-show="filters.showFilters" class="filters-section">
+            <el-form :inline="true" class="filter-form">
+              <el-form-item label="Search">
+                <el-input
+                  v-model="filters.search"
+                  placeholder="Search files..."
+                  clearable
+                />
+              </el-form-item>
+              <el-form-item label="Type">
+                <el-select
+                  v-model="filters.type"
+                  placeholder="All types"
+                  clearable>
+                  <el-option label="Folders" value="folder" />
+                  <el-option label="PDF" value="application/pdf" />
+                  <el-option label="Word" value="application/msword" />
+                  <el-option label="Text" value="text/plain" />
+                  <el-option label="Image" value="image/jpeg" />
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button @click="filters.search = ''; filters.type = null">
+                  Clear Filters
+                </el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+        </el-collapse-transition>
+
         <!-- Existing Files Table -->
         <el-table
           v-loading="loading"
-          :data="[...folders, ...files]"
+          :data="filteredItems"
           style="width: 100%"
-          :default-sort="{ prop: 'name', order: 'ascending' }">
+          @sort-change="handleSort">
           
           <el-table-column 
             prop="name" 
             label="Name"
+            sortable="custom"
             min-width="200">
             <template #default="scope">
               <div class="name-cell">
@@ -469,6 +575,7 @@ async function navigateToFolder(folder) {
           <el-table-column 
             prop="type" 
             label="Type" 
+            sortable="custom"
             width="120"
             :show-overflow-tooltip="true">
             <template #default="scope">
@@ -479,6 +586,7 @@ async function navigateToFolder(folder) {
           <el-table-column 
             prop="size" 
             label="Size" 
+            sortable="custom"
             width="90">
             <template #default="scope">
               {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
@@ -738,5 +846,36 @@ async function navigateToFolder(folder) {
 .actions {
   display: flex;
   gap: 1rem;
+}
+
+/* Add these to your existing styles */
+.filters-section {
+  background-color: #f5f7fa;
+  padding: 1.5rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+  .filter-form {
+    flex-direction: column;
+  }
+  
+  .filter-form :deep(.el-form-item) {
+    margin-right: 0;
+    width: 100%;
+  }
+  
+  .filter-form :deep(.el-input),
+  .filter-form :deep(.el-select) {
+    width: 100%;
+  }
 }
 </style>

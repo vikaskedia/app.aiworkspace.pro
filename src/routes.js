@@ -130,6 +130,12 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
+  // Clear matter context when navigating to all-matters routes
+  if (to.path.startsWith('/all-matters')) {
+    const matterStore = useMatterStore();
+    matterStore.setCurrentMatter(null);
+  }
+
   // Handle matter context
   if (session && to.params.matterId) {
     const matterStore = useMatterStore();

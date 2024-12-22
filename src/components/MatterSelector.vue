@@ -80,10 +80,12 @@ export default {
     };
 
     const handleMatterSelect = (matter) => {
-      selectedMatter.value = matter;
       if (matter === null) {
+        selectedMatter.value = null;
+        matterStore.setCurrentMatter(null);
         router.push('/all-matters');
       } else {
+        selectedMatter.value = matter;
         emit('matter-selected', matter);
       }
     };

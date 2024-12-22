@@ -112,7 +112,6 @@ export default {
   <div class="events-container">
     <div class="content">
       <div class="events-header">
-        <h2>Events</h2>
         <el-button 
           type="primary" 
           @click="dialogVisible = true"

@@ -192,7 +192,6 @@ export default {
 <template>
   <div class="goals-container">
     <div class="goals-header">
-      <h2>Goals</h2>
       <el-button 
         type="primary" 
         @click="dialogVisible = true"

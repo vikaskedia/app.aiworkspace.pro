@@ -176,7 +176,6 @@ export default {
 <template>
   <div class="manage-matter">
     <div class="content">
-      <h2>Manage Matter</h2>
 
       <!-- Matter Details Section -->
       <div class="section">
@@ -287,11 +286,6 @@ export default {
   margin-top: 2rem;
 }
 
-h2 {
-  margin-bottom: 2rem;
-  font-size: 1.8rem;
-  font-weight: 500;
-}
 
 h3 {
   margin-bottom: 1.5rem;

@@ -109,7 +109,6 @@ export default {
   <div class="manage-files">
     <div class="content">
       <div class="header">
-        <h2>Manage Files</h2>
         <el-button type="primary" @click="uploadDialogVisible = true" size="small" :icon="Plus">
           Upload Files
         </el-button>

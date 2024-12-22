@@ -1,7 +1,6 @@
 <template>
   <div>
     <div class="matters-header">
-      <h2>All Matters</h2>
       <div class="header-actions">
         <el-switch
           v-model="showDeleted"

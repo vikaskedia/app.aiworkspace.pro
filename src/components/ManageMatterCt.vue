@@ -38,7 +38,7 @@ export default {
       try {
         const { data: shares, error } = await supabase
           .from('matter_access')
-          .select('id, shared_with_user_id, access_type, created_at')
+          .select('matter_id, shared_with_user_id, access_type, created_at')
           .eq('matter_id', this.currentMatter.id);
 
         if (error) throw error;
@@ -54,8 +54,9 @@ export default {
             if (userError) throw userError;
 
             return {
-              ...share,
-              user: userData[0] // Note: The function returns a table, so we take the first row
+              id: share.shared_with_user_id,
+              email: userData[0].email,
+              access_type: share.access_type
             };
           })
         );
@@ -152,12 +153,13 @@ export default {
       }
     },
 
-    async removeShare(shareId) {
+    async removeShare(userId) {
       try {
         const { error } = await supabase
           .from('matter_access')
           .delete()
-          .eq('id', shareId);
+          .eq('matter_id', this.currentMatter.id)
+          .eq('shared_with_user_id', userId);
 
         if (error) throw error;
 

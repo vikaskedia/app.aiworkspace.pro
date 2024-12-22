@@ -32,7 +32,7 @@
                 clearable
                 style="width: 140px">
                 <el-option label="Not started" value="not_started" />
-                <el-option label="In Progress" value="in_progress" />
+                <el-option label="In progress" value="in_progress" />
                 <el-option label="Awaiting external factor" value="awaiting_external" />
                 <el-option label="Completed" value="completed" />
               </el-select>
@@ -353,6 +353,16 @@ export default {
       if (savedFilters) {
         this.filters = JSON.parse(savedFilters);
       }
+    },
+
+    formatStatus(status) {
+      const statusMap = {
+        'in_progress': 'In progress',
+        'not_started': 'Not started',
+        'completed': 'Completed',
+        'awaiting_external': 'Awaiting external factor'
+      };
+      return statusMap[status] || status;
     }
   },
   mounted() {

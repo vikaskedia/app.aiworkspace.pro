@@ -84,7 +84,7 @@
               scope.row.status === 'completed' ? 'success' :
               scope.row.status === 'in_progress' ? 'warning' : 'info'
             ">
-              {{ scope.row.status }}
+              {{ formatStatus(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -248,6 +248,16 @@ export default {
       } finally {
         this.loadingEvents = false;
       }
+    },
+
+    formatStatus(status) {
+      const statusMap = {
+        'in_progress': 'In progress',
+        'not_started': 'Not started',
+        'completed': 'Completed',
+        'awaiting_external': 'Awaiting external factor'
+      };
+      return statusMap[status] || status;
     }
   }
 };

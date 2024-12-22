@@ -190,6 +190,15 @@ export default {
       if (savedFilters) {
         this.filters = JSON.parse(savedFilters);
       }
+    },
+    formatStatus(status) {
+      const statusMap = {
+        'in_progress': 'In progress',
+        'not_started': 'Not started',
+        'completed': 'Completed',
+        'awaiting_external': 'Awaiting external factor'
+      };
+      return statusMap[status] || status;
     }
   },
   watch: {
@@ -300,10 +309,7 @@ export default {
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.status === 'not_started' ? 'Not started' : 
-                 scope.row.status === 'in_progress' ? 'In progress' : 
-                 scope.row.status === 'awaiting_external' ? 'Awaiting external factor' :
-                 scope.row.status }}
+              {{ formatStatus(scope.row.status) }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.deleted"

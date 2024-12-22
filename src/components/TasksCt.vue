@@ -471,6 +471,7 @@ export default {
           selectedTask = task;
           commentDialogVisible = true;
         }"
+        @archive="archiveTask"
       />
 
       <!-- Create Task Dialog -->

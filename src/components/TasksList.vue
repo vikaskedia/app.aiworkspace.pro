@@ -25,7 +25,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'archive'],
   data() {
     return {
       filters: {
@@ -255,7 +255,7 @@ export default {
       
       <el-table-column 
         label="Actions"
-        width="100"
+        width="200"
         align="center">
         <template #default="scope">
           <el-button
@@ -263,6 +263,12 @@ export default {
             link
             @click="$emit('edit', scope.row)">
             Edit
+          </el-button>
+          <el-button
+            type="danger"
+            link
+            @click="$emit('archive', scope.row)">
+            Archive
           </el-button>
         </template>
       </el-table-column>

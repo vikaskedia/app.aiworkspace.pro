@@ -58,7 +58,7 @@
                   {{ new Date(comment.created_at).toLocaleString() }}
                 </span>
               </div>
-              <div class="comment-text">{{ comment.content }}</div>
+              <div class="comment-text" v-html="formatCommentContent(comment.content)"></div>
             </div>
           </div>
         </div>
@@ -279,16 +279,111 @@ export default {
         this.loading = false;
       }
     },
-    // Reuse existing methods from TaskCommentDialog.vue
     async loadComments() {
-      // Reference TaskCommentDialog.vue for implementation
-      // Lines 51-60
+      try {
+        this.loading = true;
+        const { data: comments, error } = await supabase
+          .from('task_comments')
+          .select('*')
+          .eq('task_id', this.task.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Load user emails for each comment
+        for (const comment of comments) {
+          if (!this.userEmails[comment.user_id]) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: comment.user_id
+              });
+            if (userData?.[0]) {
+              this.userEmails[comment.user_id] = userData[0].email;
+            }
+          }
+        }
+
+        this.comments = comments;
+      } catch (error) {
+        ElMessage.error('Error loading comments: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     },
     async addComment() {
-      // Reference TaskCommentDialog.vue for implementation
+      if (!this.newComment.trim()) return;
+
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: this.newComment.trim()
+          });
+
+        if (error) throw error;
+
+        this.newComment = '';
+        await this.loadComments();
+        ElMessage.success('Comment added successfully');
+      } catch (error) {
+        ElMessage.error('Error adding comment: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     },
     setupRealtimeSubscription() {
-      // Reference TaskCommentDialog.vue for implementation
+      if (this.subscription) {
+        this.subscription.unsubscribe();
+      }
+      
+      this.subscription = supabase
+        .channel('task-comments-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*',
+            schema: 'public',
+            table: 'task_comments',
+            filter: `task_id=eq.${this.task.id}`
+          },
+          async (payload) => {
+            switch (payload.eventType) {
+              case 'INSERT':
+                // Load user email for new comment if not already cached
+                if (!this.userEmails[payload.new.user_id]) {
+                  const { data: userData } = await supabase
+                    .rpc('get_user_info_by_id', {
+                      user_id: payload.new.user_id
+                    });
+                  if (userData?.[0]) {
+                    this.userEmails[payload.new.user_id] = userData[0].email;
+                  }
+                }
+                // Add new comment to the beginning of the list
+                this.comments.unshift(payload.new);
+                break;
+              
+              case 'UPDATE':
+                const updateIndex = this.comments.findIndex(comment => comment.id === payload.new.id);
+                if (updateIndex !== -1) {
+                  this.comments[updateIndex] = payload.new;
+                }
+                break;
+              
+              case 'DELETE':
+                const deleteIndex = this.comments.findIndex(comment => comment.id === payload.old.id);
+                if (deleteIndex !== -1) {
+                  this.comments.splice(deleteIndex, 1);
+                }
+                break;
+            }
+          }
+        )
+        .subscribe();
     },
     async loadSharedUsers() {
       try {
@@ -386,6 +481,19 @@ export default {
       } finally {
         this.sending = false;
       }
+    },
+    formatCommentContent(content) {
+      if (!content) return '';
+      return content.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g, 
+        (match, text, url) => {
+          // Only allow gitea links
+          if (url.includes('/gitea/')) {
+            return `<a href="${url}" target="_blank" class="file-link">${text}</a>`;
+          }
+          return match;
+        }
+      );
     }
   },
   watch: {
@@ -479,5 +587,68 @@ h4 {
 .link-input {
   display: flex;
   gap: 12px;
+}
+
+.comment-item {
+  margin-bottom: 1rem;
+}
+
+.comment-content {
+  background-color: #f5f7fa;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.comment-content.activity {
+  background-color: #f0f9ff;
+  font-style: italic;
+  font-size: 0.95em;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #409EFF;
+}
+
+.comment-date {
+  color: #909399;
+}
+
+.comment-text {
+  color: #606266;
+  white-space: pre-wrap;
+}
+
+.comment-text :deep(a.file-link) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+.comment-text :deep(a.file-link:hover) {
+  text-decoration: underline;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Add responsive styles for comments */
+@media (max-width: 640px) {
+  .task-comments {
+    padding: 16px;
+  }
+  
+  .comment-content {
+    padding: 10px;
+  }
 }
 </style> 

@@ -4,10 +4,17 @@
     <div class="content">
       <div class="matters-header">
         <h2>All Matters</h2>
-        <el-button type="primary" @click="createMatterDialog = true">
-          <el-icon><Plus /></el-icon>
-          New Matter
-        </el-button>
+        <div class="header-actions">
+          <el-switch
+            v-model="showDeleted"
+            active-text="Show Deleted"
+            inactive-text="Show Active"
+          />
+          <el-button type="primary" @click="createMatterDialog = true">
+            <el-icon><Plus /></el-icon>
+            New Matter
+          </el-button>
+        </div>
       </div>
 
       <div class="matters-grid" v-loading="loading">
@@ -21,9 +28,14 @@
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
-                    <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>Delete</el-dropdown-item>
+                    <template v-if="!showDeleted">
+                      <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
+                      <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
+                      <el-dropdown-item command="delete" divided>Delete</el-dropdown-item>
+                    </template>
+                    <template v-else>
+                      <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
+                    </template>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -160,8 +172,14 @@ export default {
         id: null,
         title: '',
         description: ''
-      }
+      },
+      showDeleted: false,
     };
+  },
+  watch: {
+    showDeleted() {
+      this.loadMatters();
+    }
   },
   mounted() {
     this.loadMatters();
@@ -172,13 +190,13 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        // Get all matters the user has access to through matter_access
-        const { data: matters, error } = await supabase
+        const query = supabase
           .from('matters')
           .select('*')
-          .eq('deleted', false)
+          .eq('deleted', this.showDeleted)
           .order('created_at', { ascending: false });
 
+        const { data: matters, error } = await query;
         if (error) throw error;
 
         // Load statistics for each matter
@@ -330,6 +348,26 @@ export default {
       }
     },
 
+    async restoreMatter(matter) {
+      try {
+        const { error } = await supabase
+          .from('matters')
+          .update({ 
+            deleted: false,
+            deleted_at: null,
+            deleted_by: null
+          })
+          .eq('id', matter.id);
+
+        if (error) throw error;
+
+        this.matters = this.matters.filter(m => m.id !== matter.id);
+        ElMessage.success('Matter restored successfully');
+      } catch (error) {
+        ElMessage.error('Error restoring matter: ' + error.message);
+      }
+    },
+
     handleCommand(command, matter) {
       switch(command) {
         case 'view':
@@ -355,6 +393,19 @@ export default {
             }
           ).then(() => {
             this.deleteMatter(matter);
+          }).catch(() => {});
+          break;
+        case 'restore':
+          ElMessageBox.confirm(
+            'Are you sure you want to restore this matter?',
+            'Confirm',
+            {
+              confirmButtonText: 'Restore',
+              cancelButtonText: 'Cancel',
+              type: 'info'
+            }
+          ).then(() => {
+            this.restoreMatter(matter);
           }).catch(() => {});
           break;
       }
@@ -451,6 +502,16 @@ export default {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.matters-header :deep(.el-switch) {
+  margin-right: 1rem;
 }
 
 @media (max-width: 640px) {

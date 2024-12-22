@@ -4,153 +4,155 @@ All the files are stored in the Gitea server.
 The files are stored in the matter's repository.
 -->
 <script setup>
-import { Plus } from '@element-plus/icons-vue';
-</script>
-
-<script>
+import { ref, onMounted, watch } from 'vue';
+import { Plus, UploadFilled } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { useRoute } from 'vue-router';
 
-export default {
-  setup() {
-    const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
-  },
-  data: function () {
-    return {
-      files: [],
-      uploadDialogVisible: false,
-      fileList: [],
-      tags: [],
-      selectedTags: [],
-      tagInputVisible: false,
-      tagInputValue: '',
-      loading: false
-    };
-  },
-  watch: {
-    currentMatter: {
-      handler(newMatter) {
-        if (newMatter) {
-          this.loadFiles();
-        } else {
-          this.files = [];
-        }
-      },
-      immediate: true
-    }
-  },
-  methods: {
-    async loadFiles() {
-      if (!this.currentMatter) return;
+const route = useRoute();
+const matterStore = useMatterStore();
+const { currentMatter } = storeToRefs(matterStore);
+
+const files = ref([]);
+const loading = ref(false);
+const uploadDialogVisible = ref(false);
+const fileList = ref([]);
+const selectedTags = ref([]);
+const tagInputVisible = ref(false);
+const tagInputValue = ref('');
+
+// Load files when matter changes
+watch(currentMatter, async (newMatter) => {
+  if (newMatter?.id) {
+    await loadFiles();
+  } else {
+    files.value = [];
+  }
+}, { immediate: true });
+
+// Load matter if not already loaded
+onMounted(async () => {
+  if (route.params.matterId && !currentMatter.value) {
+    const { data, error } = await supabase
+      .from('matters')
+      .select('*')
+      .eq('id', route.params.matterId)
+      .single();
       
-      try {
-        this.loading = true;
-        
-        // Get Gitea configuration from environment variables
-        const giteaHost = import.meta.env.GITEA_HOST;
-        const giteaToken = import.meta.env.GITEA_TOKEN;
-
-        if (!giteaHost || !giteaToken) {
-          throw new Error('Gitea configuration is missing');
-        }
-
-        // Get repository contents from Gitea API
-        const giteaResponse = await fetch(`${giteaHost}/api/v1/repos/${this.currentMatter.git_repo}/contents`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `token ${giteaToken}`,
-            'Accept': 'application/json',
-          }
-        });
-
-        if (!giteaResponse.ok) {
-          throw new Error(`Gitea API error: ${giteaResponse.statusText}`);
-        }
-
-        const giteaFiles = await giteaResponse.json();
-
-        // Transform Gitea response to match our file format
-        const files = giteaFiles.map(file => ({
-          id: file.sha,
-          name: file.name,
-          type: file.type === 'file' ? this.getFileType(file.name) : 'directory',
-          size: file.size,
-          storage_path: file.path,
-          matter_id: this.currentMatter.id,
-          created_at: new Date().toISOString(), // Gitea doesn't provide creation date
-          tags: [], // You might want to store tags separately in your database
-          download_url: file.download_url
-        }));
-
-        this.files = files;
-      } catch (error) {
-        ElMessage.error('Error loading files: ' + error.message);
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    // Helper method to determine file type from extension
-    getFileType(filename) {
-      const ext = filename.split('.').pop()?.toLowerCase();
-      const mimeTypes = {
-        pdf: 'application/pdf',
-        doc: 'application/msword',
-        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        txt: 'text/plain',
-        // Add more mime types as needed
-      };
-      return mimeTypes[ext] || 'application/octet-stream';
-    },
-
-    async handleUpload(file) {
-      if (!this.currentMatter) {
-        ElMessage.warning('Please select a matter first');
-        return false;
-      }
-
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${this.currentMatter.id}/${user.id}/${Date.now()}.${fileExt}`;
-
-        // Upload file to storage
-        const { error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        // Create file record in database
-        const { data, error: dbError } = await supabase
-          .from('files')
-          .insert([{
-            name: file.name,
-            storage_path: filePath,
-            size: file.size,
-            type: file.type,
-            tags: this.selectedTags,
-            matter_id: this.currentMatter.id,
-            created_by: user.id
-          }])
-          .select()
-          .single();
-
-        if (dbError) throw dbError;
-
-        this.files.unshift(data);
-        ElMessage.success('File uploaded successfully');
-      } catch (error) {
-        ElMessage.error('Error uploading file: ' + error.message);
-        return false;
-      }
+    if (error) {
+      ElMessage.error('Error loading matter');
+      return;
+    }
+    
+    if (data) {
+      matterStore.setCurrentMatter(data);
     }
   }
-};
+});
+
+async function loadFiles() {
+  if (!currentMatter.value) return;
+  
+  loading.value = true;
+  
+  try {
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+
+    if (!giteaHost || !giteaToken) {
+      throw new Error('Gitea configuration is missing');
+    }
+
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/${currentMatter.value.git_repo}/contents`,
+      {
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch files');
+    }
+
+    const giteaFiles = await response.json();
+    
+    files.value = giteaFiles.map(file => ({
+      id: file.sha,
+      name: file.name,
+      type: getFileType(file.name),
+      size: file.size,
+      storage_path: file.path,
+      matter_id: currentMatter.value.id,
+      created_at: new Date().toISOString(),
+      tags: [],
+      download_url: file.download_url
+    }));
+
+  } catch (error) {
+    ElMessage.error('Error loading files: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function getFileType(filename) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const mimeTypes = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt: 'text/plain',
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+async function handleUpload(file) {
+  if (!currentMatter.value) {
+    ElMessage.warning('Please select a matter first');
+    return;
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${currentMatter.value.id}/${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('files')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data, error: dbError } = await supabase
+      .from('files')
+      .insert([{
+        name: file.name,
+        storage_path: filePath,
+        size: file.size,
+        type: file.type,
+        tags: selectedTags.value,
+        matter_id: currentMatter.value.id,
+        created_by: user.id
+      }])
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+
+    files.value.unshift(data);
+    uploadDialogVisible.value = false;
+    ElMessage.success('File uploaded successfully');
+    
+  } catch (error) {
+    ElMessage.error('Error uploading file: ' + error.message);
+  }
+}
 </script>
 
 <template>

@@ -346,13 +346,61 @@ async function createFolder() {
 }
 
 async function navigateToFolder(folder) {
-  currentFolder.value = folder;
-  if (folder) {
-    folderBreadcrumbs.value.push(folder);
-  } else {
+  try {
+    loading.value = true;
+    
+    if (!folder) {
+      // Reset to root
+      currentFolder.value = null;
+      folderBreadcrumbs.value = [];
+    } else if (folder.id === currentFolder.value?.id) {
+      // Clicking current folder - do nothing
+      return;
+    } else {
+      // Find if folder exists in current breadcrumbs
+      const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
+      
+      if (existingIndex >= 0) {
+        // Clicking a folder in breadcrumbs - truncate to that point
+        folderBreadcrumbs.value = folderBreadcrumbs.value.slice(0, existingIndex + 1);
+      } else {
+        // New folder - add to breadcrumbs
+        folderBreadcrumbs.value.push(folder);
+      }
+      currentFolder.value = folder;
+    }
+
+    // Load both folders and files, handle errors individually
+    const [foldersError, filesError] = await Promise.all([
+      loadFolders().catch(error => error),
+      loadFiles().catch(error => error)
+    ]);
+
+    // Handle errors
+    if (foldersError) {
+      ElMessage.warning('Could not load folders, but files are available');
+      console.error('Folder loading error:', foldersError);
+    }
+
+    if (filesError) {
+      ElMessage.error('Error loading files');
+      console.error('File loading error:', filesError);
+      // Revert navigation if both operations failed
+      if (foldersError) {
+        currentFolder.value = null;
+        folderBreadcrumbs.value = [];
+        throw new Error('Failed to navigate to folder');
+      }
+    }
+
+  } catch (error) {
+    ElMessage.error('Error navigating to folder: ' + error.message);
+    // Reset to previous state
+    currentFolder.value = null;
     folderBreadcrumbs.value = [];
+  } finally {
+    loading.value = false;
   }
-  await Promise.all([loadFolders(), loadFiles()]);
 }
 </script>
 

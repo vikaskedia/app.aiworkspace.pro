@@ -126,7 +126,7 @@ export default {
         
         switch(command) {
           case 'all_dashboard':
-            this.$router.push('/all-matters');
+            this.$router.push('/all-matters/dashboard');
             break;
           case 'all_tasks':
             this.$router.push('/all-matters/tasks');

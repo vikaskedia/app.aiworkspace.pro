@@ -12,10 +12,16 @@ import CallbackPage from './components/CallbackPage.vue';
 const routes = [
   {
     path: '/all-matters',
-    name: 'AllMattersPage',
+    name: 'AllMattersRoot',
+    redirect: '/all-matters/dashboard',
     component: () => import('./components/all-matters/AllMattersDashboardCt.vue'),
     meta: { requiresAuth: true },
     children: [
+      {
+        path: 'dashboard',
+        name: 'AllMattersDashboard',
+        component: () => import('./components/all-matters/AllMattersDashboardCt.vue')
+      },
       {
         path: 'tasks',
         name: 'AllTasksPage',

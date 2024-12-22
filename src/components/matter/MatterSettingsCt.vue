@@ -15,8 +15,8 @@ export default {
     return {
       loading: false,
       editingMatter: {
-        title: '',
-        description: ''
+        title: this.currentMatter?.title || '',
+        description: this.currentMatter?.description || ''
       },
       newShare: {
         email: '',
@@ -28,7 +28,7 @@ export default {
   mounted() {
     if (this.currentMatter) {
       this.editingMatter = {
-        title: this.currentMatter.title,
+        title: this.currentMatter.title || '',
         description: this.currentMatter.description || ''
       };
       this.loadSharedUsers();

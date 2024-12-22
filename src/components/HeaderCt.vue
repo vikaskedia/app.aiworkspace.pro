@@ -90,27 +90,46 @@ export default {
       }
     },
     handleMatterCommand(command) {
-      if (!this.currentMatter?.id) return;
-      
-      switch(command) {
-        case 'dashboard':
-          this.$router.push(`/matter/${this.currentMatter.id}`);
-          break;
-        case 'goals':
-          this.$router.push(`/matter/${this.currentMatter.id}/goals`);
-          break;
-        case 'tasks':
-          this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
-          break;
-        case 'events':
-          this.$router.push(`/matter/${this.currentMatter.id}/events`);
-          break;
-        case 'files':
-          this.$router.push(`/matter/${this.currentMatter.id}/files`);
-          break;
-        case 'manage':
-          this.$router.push(`/matter/${this.currentMatter.id}/manage`);
-          break;
+      if (this.currentMatter?.id) {
+        switch(command) {
+          case 'dashboard':
+            this.$router.push(`/matter/${this.currentMatter.id}`);
+            break;
+          case 'goals':
+            this.$router.push(`/matter/${this.currentMatter.id}/goals`);
+            break;
+          case 'tasks':
+            this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
+            break;
+          case 'events':
+            this.$router.push(`/matter/${this.currentMatter.id}/events`);
+            break;
+          case 'files':
+            this.$router.push(`/matter/${this.currentMatter.id}/files`);
+            break;
+          case 'manage':
+            this.$router.push(`/matter/${this.currentMatter.id}/manage`);
+            break;
+        }
+      } else {
+        // Handle "All Matters" navigation
+        switch(command) {
+          case 'all_dashboard':
+            this.$router.push('/all-matters');
+            break;
+          case 'all_tasks':
+            this.$router.push('/all-tasks');
+            break;
+          case 'all_goals':
+            this.$router.push('/all-goals');
+            break;
+          case 'all_events':
+            this.$router.push('/all-events');
+            break;
+          case 'all_files':
+            this.$router.push('/all-files');
+            break;
+        }
       }
     }
   }
@@ -134,12 +153,23 @@ export default {
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
-            <el-dropdown-item command="goals">Goals</el-dropdown-item>
-            <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
-            <el-dropdown-item command="events">Events</el-dropdown-item>
-            <el-dropdown-item command="files">Manage Files</el-dropdown-item>
-            <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
+            <!-- Show these options when a specific matter is selected -->
+            <template v-if="currentMatter">
+              <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
+              <el-dropdown-item command="goals">Goals</el-dropdown-item>
+              <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
+              <el-dropdown-item command="events">Events</el-dropdown-item>
+              <el-dropdown-item command="files">Manage Files</el-dropdown-item>
+              <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
+            </template>
+            <!-- Show these options when "All Matters" is selected -->
+            <template v-else>
+              <el-dropdown-item command="all_dashboard">All Matters Dashboard</el-dropdown-item>
+              <el-dropdown-item command="all_tasks">All Tasks</el-dropdown-item>
+              <el-dropdown-item command="all_goals">All Goals</el-dropdown-item>
+              <el-dropdown-item command="all_events">All Events</el-dropdown-item>
+              <el-dropdown-item command="all_files">All Files</el-dropdown-item>
+            </template>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

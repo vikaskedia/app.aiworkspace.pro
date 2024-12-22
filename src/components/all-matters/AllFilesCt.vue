@@ -1,15 +1,15 @@
 <template>
   <ComingSoonCt 
-    title="All Goals" 
-    feature="goals" 
+    title="All Files" 
+    feature="files" 
   />
 </template>
 
 <script>
-import ComingSoonCt from './ComingSoonCt.vue';
+import ComingSoonCt from '../ComingSoonCt.vue';
 
 export default {
-  name: 'AllGoalsCt',
+  name: 'AllFilesCt',
   components: {
     ComingSoonCt
   }

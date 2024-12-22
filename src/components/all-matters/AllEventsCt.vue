@@ -1,15 +1,15 @@
 <template>
   <ComingSoonCt 
-    title="All Tasks" 
-    feature="tasks" 
+    title="All Events" 
+    feature="events" 
   />
 </template>
 
 <script>
-import ComingSoonCt from './ComingSoonCt.vue';
+import ComingSoonCt from '../ComingSoonCt.vue';
 
 export default {
-  name: 'AllTasksCt',
+  name: 'AllEventsCt',
   components: {
     ComingSoonCt
   }

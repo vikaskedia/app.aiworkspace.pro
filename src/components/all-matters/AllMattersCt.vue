@@ -139,12 +139,12 @@
 </template>
 
 <script>
-import HeaderCt from './HeaderCt.vue';
+import HeaderCt from '../HeaderCt.vue';
 import { Plus, More } from '@element-plus/icons-vue';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../../store/matter';
 
 export default {
   name: 'AllMattersCt',

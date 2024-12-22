@@ -13,28 +13,28 @@ const routes = [
   {
     path: '/all-matters',
     name: 'AllMattersPage',
-    component: () => import('./components/AllMattersCt.vue'),
+    component: () => import('./components/all-matters/AllMattersCt.vue'),
     meta: { requiresAuth: true },
     children: [
       {
         path: 'tasks',
         name: 'AllTasksPage',
-        component: () => import('./components/AllTasksCt.vue')
+        component: () => import('./components/all-matters/AllTasksCt.vue')
       },
       {
         path: 'goals',
         name: 'AllGoalsPage',
-        component: () => import('./components/AllGoalsCt.vue')
+        component: () => import('./components/all-matters/AllGoalsCt.vue')
       },
       {
         path: 'events',
         name: 'AllEventsPage',
-        component: () => import('./components/AllEventsCt.vue')
+        component: () => import('./components/all-matters/AllEventsCt.vue')
       },
       {
         path: 'files',
         name: 'AllFilesPage',
-        component: () => import('./components/AllFilesCt.vue')
+        component: () => import('./components/all-matters/AllFilesCt.vue')
       }
     ]
   },

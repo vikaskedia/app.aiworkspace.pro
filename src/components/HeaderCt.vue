@@ -41,6 +41,10 @@ export default {
       if (path.includes('/matter/') && !path.includes('/all-matters')) return 'Dashboard';
       if (path.includes('/all-matters')) return 'All Matters';
       return 'Dashboard';
+    },
+    currentMatter() {
+      const matterStore = useMatterStore();
+      return matterStore.currentMatter;
     }
   },
   async mounted() {
@@ -84,6 +88,30 @@ export default {
       } else {
         this.$router.push(`/matter/${matter.id}`);
       }
+    },
+    handleMatterCommand(command) {
+      if (!this.currentMatter?.id) return;
+      
+      switch(command) {
+        case 'dashboard':
+          this.$router.push(`/matter/${this.currentMatter.id}`);
+          break;
+        case 'goals':
+          this.$router.push(`/matter/${this.currentMatter.id}/goals`);
+          break;
+        case 'tasks':
+          this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
+          break;
+        case 'events':
+          this.$router.push(`/matter/${this.currentMatter.id}/events`);
+          break;
+        case 'files':
+          this.$router.push(`/matter/${this.currentMatter.id}/files`);
+          break;
+        case 'manage':
+          this.$router.push(`/matter/${this.currentMatter.id}/manage`);
+          break;
+      }
     }
   }
 };
@@ -99,7 +127,22 @@ export default {
     <div class="header-center">
       <MatterSelector @matter-selected="handleMatterSelect" />
       <span class="section-divider">/</span>
-      <span class="current-section">{{ currentSection }}</span>
+      <el-dropdown trigger="click" @command="handleMatterCommand">
+        <span class="current-section clickable">
+          {{ currentSection }}
+          <el-icon class="dropdown-icon"><caret-bottom /></el-icon>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
+            <el-dropdown-item command="goals">Goals</el-dropdown-item>
+            <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
+            <el-dropdown-item command="events">Events</el-dropdown-item>
+            <el-dropdown-item command="files">Manage Files</el-dropdown-item>
+            <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
     
     <div class="header-right" v-if="user">
@@ -281,5 +324,24 @@ export default {
   .current-section {
     display: none;
   }
+}
+
+.current-section.clickable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.current-section.clickable:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.current-section .dropdown-icon {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

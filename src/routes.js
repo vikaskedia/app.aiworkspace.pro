@@ -14,31 +14,29 @@ const routes = [
     path: '/all-matters',
     name: 'AllMattersPage',
     component: () => import('./components/AllMattersCt.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/all-tasks',
-    name: 'AllTasksPage',
-    component: () => import('./components/AllTasksCt.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/all-goals',
-    name: 'AllGoalsPage',
-    component: () => import('./components/AllGoalsCt.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/all-events',
-    name: 'AllEventsPage',
-    component: () => import('./components/AllEventsCt.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/all-files',
-    name: 'AllFilesPage',
-    component: () => import('./components/AllFilesCt.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'tasks',
+        name: 'AllTasksPage',
+        component: () => import('./components/AllTasksCt.vue')
+      },
+      {
+        path: 'goals',
+        name: 'AllGoalsPage',
+        component: () => import('./components/AllGoalsCt.vue')
+      },
+      {
+        path: 'events',
+        name: 'AllEventsPage',
+        component: () => import('./components/AllEventsCt.vue')
+      },
+      {
+        path: 'files',
+        name: 'AllFilesPage',
+        component: () => import('./components/AllFilesCt.vue')
+      }
+    ]
   },
   { 
     path: '/matter/:matterId?', 

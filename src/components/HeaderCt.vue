@@ -39,7 +39,13 @@ export default {
       if (path.includes('/files')) return 'Files';
       if (path.includes('/manage')) return 'Manage Matter';
       if (path.includes('/matter/') && !path.includes('/all-matters')) return 'Dashboard';
-      if (path.includes('/all-matters')) return 'All Matters';
+      if (path.includes('/all-matters')) {
+        if (path.endsWith('/tasks')) return 'All Tasks';
+        if (path.endsWith('/goals')) return 'All Goals';
+        if (path.endsWith('/events')) return 'All Events';
+        if (path.endsWith('/files')) return 'All Files';
+        return 'All Matters';
+      }
       return 'Dashboard';
     },
     currentMatter() {
@@ -122,16 +128,16 @@ export default {
             this.$router.push('/all-matters');
             break;
           case 'all_tasks':
-            this.$router.push('/all-tasks');
+            this.$router.push('/all-matters/tasks');
             break;
           case 'all_goals':
-            this.$router.push('/all-goals');
+            this.$router.push('/all-matters/goals');
             break;
           case 'all_events':
-            this.$router.push('/all-events');
+            this.$router.push('/all-matters/events');
             break;
           case 'all_files':
-            this.$router.push('/all-files');
+            this.$router.push('/all-matters/files');
             break;
         }
       }

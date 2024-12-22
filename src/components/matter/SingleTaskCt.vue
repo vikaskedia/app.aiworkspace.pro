@@ -68,8 +68,9 @@
             v-model="newComment"
             type="textarea"
             :rows="3"
-            placeholder="Write a comment..."
-            @keyup.ctrl.enter="addComment" />
+            placeholder="Write a comment... (Type @files to mention a file)"
+            @keyup.ctrl.enter="addComment"
+            @input="handleInput" />
           <el-button
             type="primary"
             :disabled="!newComment.trim()"
@@ -200,6 +201,30 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- File Selector Dialog -->
+    <el-dialog
+      v-model="showFileSelector"
+      title="Select File"
+      width="500px">
+      <el-input
+        v-model="fileSearchQuery"
+        placeholder="Search files..."
+        clearable
+        style="margin-bottom: 1rem;" />
+      
+      <el-scrollbar height="300px">
+        <div class="file-list">
+          <div
+            v-for="file in filteredFiles"
+            :key="file.id"
+            class="file-item"
+            @click="selectFile(file)">
+            {{ file.name }}
+          </div>
+        </div>
+      </el-scrollbar>
+    </el-dialog>
   </div>
 </template>
 
@@ -238,7 +263,11 @@ export default {
         recipients: [],
         message: ''
       },
-      sending: false
+      sending: false,
+      files: [],
+      showFileSelector: false,
+      mentionIndex: -1,
+      fileSearchQuery: ''
     };
   },
   async created() {
@@ -494,6 +523,79 @@ export default {
           return match;
         }
       );
+    },
+    async loadFiles() {
+      try {
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        
+        // First get the matter's git repo
+        const { data: matter, error: matterError } = await supabase
+          .from('matters')
+          .select('git_repo')
+          .eq('id', this.currentMatter.id)
+          .single();
+
+        if (matterError) {
+          throw new Error('Failed to fetch matter details');
+        }
+
+        if (!matter?.git_repo) {
+          throw new Error('No git repository found for this matter');
+        }
+
+        const response = await fetch(
+          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/`,
+          {
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch files');
+        }
+
+        const contents = await response.json();
+        
+        this.files = contents
+          .filter(item => item.type === 'file' && item.name !== '.gitkeep')
+          .map(file => ({
+            id: file.sha,
+            name: file.name,
+            path: file.path,
+            download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+          }));
+
+      } catch (error) {
+        ElMessage.error('Error loading files: ' + error.message);
+        this.files = [];
+      }
+    },
+
+    handleInput(event) {
+      const text = typeof event === 'string' ? event : event?.target?.value || '';
+      
+      const textarea = document.querySelector('.comment-input textarea');
+      const selectionStart = textarea?.selectionStart || 0;
+      
+      const lastWord = text.slice(0, selectionStart).split(' ').pop();
+      
+      if (lastWord === '@files') {
+        this.showFileSelector = true;
+        this.mentionIndex = selectionStart;
+        this.loadFiles();
+      }
+    },
+
+    selectFile(file) {
+      const beforeMention = this.newComment.slice(0, this.mentionIndex - 6); // Remove '@files'
+      const afterMention = this.newComment.slice(this.mentionIndex);
+      
+      this.newComment = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
+      this.showFileSelector = false;
+      this.fileSearchQuery = '';
     }
   },
   watch: {
@@ -501,6 +603,15 @@ export default {
       if (newVal) {
         this.generateShareLink();
       }
+    }
+  },
+  computed: {
+    filteredFiles() {
+      if (!this.fileSearchQuery) return this.files;
+      const query = this.fileSearchQuery.toLowerCase();
+      return this.files.filter(file => 
+        file.name.toLowerCase().includes(query)
+      );
     }
   }
 };
@@ -650,5 +761,22 @@ h4 {
   .comment-content {
     padding: 10px;
   }
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #f5f7fa;
 }
 </style> 

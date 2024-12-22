@@ -1,8 +1,13 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
+import { FullScreen, Close } from '@element-plus/icons-vue';
 
 export default {
+  components: {
+    FullScreen,
+    Close
+  },
   props: {
     task: {
       type: Object,
@@ -172,6 +177,21 @@ export default {
     :title="`Comments - ${task.title}`"
     direction="rtl"
     size="35%">
+    <template #header>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>Comments - {{ task.title }}</span>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <el-button
+            type="primary"
+            link
+            @click="$router.push(`/matter/${task.matter_id}/tasks/${task.id}`)"
+            style="padding: 0">
+            <el-icon><FullScreen /></el-icon>
+          </el-button>
+
+        </div>
+      </div>
+    </template>
     <div class="comments-container">
       <div class="comment-list">
         <div v-for="comment in comments" :key="comment.id" class="comment-item">

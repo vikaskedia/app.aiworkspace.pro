@@ -5,8 +5,7 @@ The files are stored in the matter's repository.
 -->
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { Plus, UploadFilled } from '@element-plus/icons-vue';
-import { supabase } from '../../supabase';
+import { Plus, UploadFilled, Folder, FolderAdd } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -25,13 +24,19 @@ const selectedTags = ref([]);
 const tagInputVisible = ref(false);
 const tagInputValue = ref('');
 const selectedFile = ref(null);
+const currentFolder = ref(null);
+const folders = ref([]);
+const newFolderDialogVisible = ref(false);
+const newFolderName = ref('');
+const folderBreadcrumbs = ref([]);
 
 // Load files when matter changes
 watch(currentMatter, async (newMatter) => {
   if (newMatter?.id) {
-    await loadFiles();
+    await Promise.all([loadFolders(), loadFiles()]);
   } else {
     files.value = [];
+    folders.value = [];
   }
 }, { immediate: true });
 
@@ -62,13 +67,10 @@ async function loadFiles() {
   
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
-
-    if (!giteaToken) {
-      throw new Error('Gitea configuration is missing');
-    }
+    const path = currentFolder.value?.path || '';
 
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents`,
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}`,
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
@@ -81,20 +83,21 @@ async function loadFiles() {
       throw new Error('Failed to fetch files');
     }
 
-    const giteaFiles = await response.json();
-    
-    files.value = giteaFiles.map(file => ({
-      id: file.sha,
-      name: file.name,
-      type: getFileType(file.name),
-      size: file.size,
-      storage_path: file.path,
-      matter_id: currentMatter.value.id,
-      git_repo: currentMatter.value.git_repo,
-      created_at: new Date().toISOString(),
-      tags: [],
-      download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
-    }));
+    const contents = await response.json();
+    files.value = contents
+      .filter(item => item.type === 'file' && item.name !== '.gitkeep')
+      .map(file => ({
+        id: file.sha,
+        name: file.name,
+        type: getFileType(file.name),
+        size: file.size,
+        storage_path: file.path,
+        matter_id: currentMatter.value.id,
+        git_repo: currentMatter.value.git_repo,
+        created_at: new Date().toISOString(),
+        tags: [],
+        download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+      }));
 
   } catch (error) {
     ElMessage.error('Error loading files: ' + error.message);
@@ -257,6 +260,100 @@ function handleFileUpdate(updatedFile) {
     files.value[index] = updatedFile;
   }
 }
+
+async function loadFolders() {
+  if (!currentMatter.value) return;
+  
+  loading.value = true;
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    
+    const response = await fetch(
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents${currentFolder.value?.path || ''}`,
+      {
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch folders');
+    }
+
+    const contents = await response.json();
+    folders.value = contents
+      .filter(item => item.type === 'dir')
+      .map(folder => ({
+        id: folder.sha,
+        name: folder.name,
+        path: folder.path,
+        type: 'dir'
+      }));
+
+  } catch (error) {
+    ElMessage.error('Error loading folders: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function createFolder() {
+  if (!currentMatter.value || !newFolderName.value.trim()) return;
+  
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const path = currentFolder.value ? 
+      `${currentFolder.value.path}/${newFolderName.value}` : 
+      newFolderName.value;
+
+    // Create an empty file as .gitkeep to create the folder
+    const response = await fetch(
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Create folder ${newFolderName.value}`,
+          content: '', // Empty file
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to create folder');
+    }
+
+    const newFolder = {
+      id: Date.now().toString(), // Temporary ID
+      name: newFolderName.value,
+      path: path,
+      type: 'dir'
+    };
+    
+    folders.value.push(newFolder);
+    newFolderDialogVisible.value = false;
+    newFolderName.value = '';
+    ElMessage.success('Folder created successfully');
+  } catch (error) {
+    ElMessage.error('Error creating folder: ' + error.message);
+  }
+}
+
+async function navigateToFolder(folder) {
+  currentFolder.value = folder;
+  if (folder) {
+    folderBreadcrumbs.value.push(folder);
+  } else {
+    folderBreadcrumbs.value = [];
+  }
+  await Promise.all([loadFolders(), loadFiles()]);
+}
 </script>
 
 <template>
@@ -264,11 +361,53 @@ function handleFileUpdate(updatedFile) {
     <div class="content" :class="{ 'with-preview': selectedFile }">
       <div class="files-section">
         <div class="header">
-          <el-button type="primary" @click="uploadDialogVisible = true" size="small" :icon="Plus">
-            Upload Files
-          </el-button>
+          <div class="breadcrumbs">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item 
+                @click="navigateToFolder(null)"
+                :class="{ clickable: currentFolder }">
+                Root
+              </el-breadcrumb-item>
+              <el-breadcrumb-item 
+                v-for="folder in folderBreadcrumbs" 
+                :key="folder.id"
+                @click="navigateToFolder(folder)"
+                :class="{ clickable: folder.id !== currentFolder?.id }">
+                {{ folder.name }}
+              </el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="actions">
+            <el-button 
+              type="primary" 
+              @click="newFolderDialogVisible = true" 
+              size="small" 
+              :icon="FolderAdd">
+              New Folder
+            </el-button>
+            <el-button 
+              type="primary" 
+              @click="uploadDialogVisible = true" 
+              size="small" 
+              :icon="Plus">
+              Upload Files
+            </el-button>
+          </div>
         </div>
 
+        <!-- Folders Grid -->
+        <div class="folders-grid" v-if="folders.length">
+          <div 
+            v-for="folder in folders" 
+            :key="folder.id"
+            class="folder-item"
+            @click="navigateToFolder(folder)">
+            <el-icon><Folder /></el-icon>
+            <span>{{ folder.name }}</span>
+          </div>
+        </div>
+
+        <!-- Existing Files Table -->
         <el-table
           v-loading="loading"
           :data="files"
@@ -394,6 +533,32 @@ function handleFileUpdate(updatedFile) {
             @click="handleFileUpload(fileList[0])"
             :disabled="!fileList.length">
             Upload
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- New Folder Dialog -->
+    <el-dialog
+      v-model="newFolderDialogVisible"
+      title="Create New Folder"
+      width="400px">
+      <el-form>
+        <el-form-item label="Folder Name" required>
+          <el-input 
+            v-model="newFolderName"
+            placeholder="Enter folder name"
+            @keyup.enter="createFolder" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="newFolderDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="createFolder"
+            :disabled="!newFolderName.trim()">
+            Create
           </el-button>
         </span>
       </template>
@@ -534,5 +699,47 @@ function handleFileUpdate(updatedFile) {
   .content.with-preview {
     padding: 1rem;
   }
+}
+
+/* Add these styles to the existing styles */
+.breadcrumbs {
+  margin-bottom: 1rem;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.folders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.folder-item:hover {
+  background-color: #e4e7ed;
+}
+
+.folder-item .el-icon {
+  font-size: 1.2rem;
+  color: #909399;
 }
 </style>

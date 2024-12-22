@@ -35,6 +35,14 @@ const filters = ref({
   showFilters: false
 });
 
+const FILE_TYPES = {
+  FOLDER: 'dir',
+  PDF: 'application/pdf',
+  WORD: 'application/msword',
+  TEXT: 'text/plain',
+  IMAGE: ['image/jpeg', 'image/png', 'image/gif']
+};
+
 const activeFiltersCount = computed(() => {
   let count = 0;
   if (filters.value.search) count++;
@@ -53,9 +61,14 @@ const filteredItems = computed(() => {
   }
   
   if (filters.value.type) {
+    console.log('Filter type:', filters.value.type);
     result = result.filter(item => {
-      if (filters.value.type === 'folder') {
+      console.log('Item type:', item.type);
+      if (filters.value.type === FILE_TYPES.FOLDER) {
         return item.type === 'dir';
+      }
+      if (Array.isArray(filters.value.type)) {
+        return filters.value.type.includes(item.type);
       }
       return item.type === filters.value.type;
     });
@@ -532,11 +545,11 @@ function handleSort({ prop, order }) {
                   v-model="filters.type"
                   placeholder="All types"
                   clearable>
-                  <el-option label="Folders" value="folder" />
-                  <el-option label="PDF" value="application/pdf" />
-                  <el-option label="Word" value="application/msword" />
-                  <el-option label="Text" value="text/plain" />
-                  <el-option label="Image" value="image/jpeg" />
+                  <el-option label="Folders" :value="FILE_TYPES.FOLDER" />
+                  <el-option label="PDF" :value="FILE_TYPES.PDF" />
+                  <el-option label="Word" :value="FILE_TYPES.WORD" />
+                  <el-option label="Text" :value="FILE_TYPES.TEXT" />
+                  <el-option label="Images" :value="FILE_TYPES.IMAGE" />
                 </el-select>
               </el-form-item>
               <el-form-item>

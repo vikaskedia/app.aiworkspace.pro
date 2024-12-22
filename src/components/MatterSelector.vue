@@ -83,9 +83,38 @@ export default {
       if (matter === null) {
         selectedMatter.value = null;
         matterStore.setCurrentMatter(null);
-        router.push('/all-matters');
+        router.push('/all-matters/tasks');
       } else {
         selectedMatter.value = matter;
+        matterStore.setCurrentMatter(matter);
+        
+        // Get the current route path segments
+        const currentPath = route.path;
+        
+        // If we're in all-matters/tasks or any tasks view, always go to tasks
+        if (currentPath.includes('/tasks')) {
+          router.push(`/matter/${matter.id}/tasks`);
+          return;
+        }
+        
+        // For other routes, preserve the current section
+        const segments = currentPath.split('/');
+        const lastSegment = segments[segments.length - 1];
+        
+        switch(lastSegment) {
+          case 'goals':
+            router.push(`/matter/${matter.id}/goals`);
+            break;
+          case 'events':
+            router.push(`/matter/${matter.id}/events`);
+            break;
+          case 'files':
+            router.push(`/matter/${matter.id}/files`);
+            break;
+          default:
+            router.push(`/matter/${matter.id}/tasks`); // Default to tasks instead of dashboard
+        }
+        
         emit('matter-selected', matter);
       }
     };
@@ -126,7 +155,8 @@ export default {
       newMatter,
       createMatter,
       handleMatterSelect,
-      handleMatterCommand
+      handleMatterCommand,
+      route
     };
   }
 };

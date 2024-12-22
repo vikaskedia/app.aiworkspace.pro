@@ -30,7 +30,8 @@ export default {
         status: 'pending',
         priority: 'medium',
         due_date: null,
-        assignee: null
+        assignee: null,
+        parent_task_id: null
       },
       sharedUsers: [],
       editingTask: null,
@@ -173,7 +174,8 @@ export default {
         status: 'pending',
         priority: 'medium',
         due_date: null,
-        assignee: null
+        assignee: null,
+        parent_task_id: null
       };
       this.loadSharedUsers();
     },
@@ -220,7 +222,8 @@ export default {
             title: task.title,
             assignee: task.assignee,
             status: task.status,
-            due_date: task.due_date
+            due_date: task.due_date,
+            parent_task_id: task.parent_task_id
           })
           .eq('id', task.id)
           .select();
@@ -274,6 +277,11 @@ export default {
           const newDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'none';
           changes.push(`due date from ${oldDate} to ${newDate}`);
         }
+        if (originalTask.parent_task_id !== task.parent_task_id) {
+          const oldParent = this.flattenedTasks.find(t => t.id === originalTask.parent_task_id)?.title || 'no parent';
+          const newParent = this.flattenedTasks.find(t => t.id === task.parent_task_id)?.title || 'no parent';
+          changes.push(`parent task from "${oldParent}" to "${newParent}"`);
+        }
 
         if (changes.length > 0) {
           await supabase
@@ -301,6 +309,10 @@ export default {
                   due_date: task.due_date !== originalTask.due_date ? {
                     from: originalTask.due_date,
                     to: task.due_date
+                  } : null,
+                  parent_task_id: task.parent_task_id !== originalTask.parent_task_id ? {
+                    from: originalTask.parent_task_id,
+                    to: task.parent_task_id
                   } : null
                 }
               }
@@ -376,6 +388,25 @@ export default {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
+  },
+
+  computed: {
+    flattenedTasks() {
+      const flattened = [];
+      const flatten = (tasks, depth = 0) => {
+        for (const task of tasks) {
+          flattened.push({
+            id: task.id,
+            title: '  '.repeat(depth) + task.title // Add indentation to show hierarchy
+          });
+          if (task.children?.length) {
+            flatten(task.children, depth + 1);
+          }
+        }
+      };
+      flatten(this.tasks);
+      return flattened;
+    }
   }
 };
 </script>
@@ -423,6 +454,20 @@ export default {
               type="textarea"
               :rows="3" />
           </el-form-item>
+          <el-form-item label="Parent Task">
+            <el-select 
+              v-model="newTask.parent_task_id" 
+              style="width: 100%"
+              clearable
+              placeholder="Select parent task (optional)">
+              <el-option
+                v-for="task in flattenedTasks"
+                :key="task.id"
+                :label="task.title"
+                :value="task.id"
+                :disabled="task.id === editingTask?.id" />
+            </el-select>
+          </el-form-item>
           <el-form-item label="Priority">
             <el-select v-model="newTask.priority" style="width: 100%">
               <el-option label="High" value="high" />
@@ -467,6 +512,20 @@ export default {
         <el-form v-if="editingTask" :model="editingTask" label-position="top">
           <el-form-item label="Title" required>
             <el-input v-model="editingTask.title" />
+          </el-form-item>
+          <el-form-item label="Parent Task">
+            <el-select 
+              v-model="editingTask.parent_task_id" 
+              style="width: 100%"
+              clearable
+              placeholder="Select parent task (optional)">
+              <el-option
+                v-for="task in flattenedTasks"
+                :key="task.id"
+                :label="task.title"
+                :value="task.id"
+                :disabled="task.id === editingTask.id" />
+            </el-select>
           </el-form-item>
           <el-form-item label="Status">
             <el-select v-model="editingTask.status" style="width: 100%">

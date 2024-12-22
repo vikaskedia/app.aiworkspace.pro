@@ -4,6 +4,7 @@ import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar } from 'element-pl
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
+import { useCacheStore } from '../store/cache';
 import { ElMessage } from 'element-plus';
 import NotificationsCt from './NotificationsCt.vue';
 import { ref } from 'vue';

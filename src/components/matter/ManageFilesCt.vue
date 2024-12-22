@@ -3,9 +3,9 @@ import { Plus } from '@element-plus/icons-vue';
 </script>
 
 <script>
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 
 export default {

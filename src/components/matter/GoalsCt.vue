@@ -1,10 +1,10 @@
 <script>
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
-import { useCacheStore } from '../store/cache';
+import { useCacheStore } from '../../store/cache';
 
 export default {
   components: { 

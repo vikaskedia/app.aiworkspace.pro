@@ -1,11 +1,11 @@
 <script>
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import TaskCommentDialog from './TaskCommentDialog.vue';
-import { useCacheStore } from '../store/cache';
-import TasksList from './matter/TasksList.vue'
+import { useCacheStore } from '../../store/cache';
+import TasksList from './TasksList.vue'
 
 export default {
   setup() {

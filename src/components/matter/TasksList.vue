@@ -1,7 +1,7 @@
 <!-- src/components/TasksList.vue -->
 <script>
 import { ArrowUp, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
-import { supabase } from '../supabase'
+import { supabase } from '../../supabase'
 
 export default {
   components: {

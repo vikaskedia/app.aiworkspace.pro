@@ -153,9 +153,9 @@
 </template>
 
 <script>
-import HeaderCt from './HeaderCt.vue';
-import { supabase } from '../supabase';
-import { useMatterStore } from '../store/matter';
+import HeaderCt from '../HeaderCt.vue';
+import { supabase } from '../../supabase';
+import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 

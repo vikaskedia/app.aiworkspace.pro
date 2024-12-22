@@ -1,13 +1,13 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
 import { useMatterStore } from './store/matter';
-import DashboardCt from './components/DashboardCt.vue';
-import ManageFilesCt from './components/ManageFilesCt.vue';
+import DashboardCt from './components/matter/DashboardCt.vue';
+import ManageFilesCt from './components/matter/ManageFilesCt.vue';
+import GoalsCt from './components/matter/GoalsCt.vue';
+import TasksCt from './components/matter/TasksCt.vue';
+import EventsCt from './components/matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
-import GoalsCt from './components/GoalsCt.vue';
-import TasksCt from './components/TasksCt.vue';
-import EventsCt from './components/EventsCt.vue';
 
 const routes = [
   {
@@ -67,7 +67,7 @@ const routes = [
       {
         path: 'manage',
         name: 'ManageMatterPage',
-        component: () => import('./components/ManageMatterCt.vue')
+        component: () => import('./components/matter/ManageMatterCt.vue')
       }
     ]
   },

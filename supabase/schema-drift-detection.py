@@ -5,9 +5,10 @@
 
 import psycopg2
 import os
+import sys
 from dotenv import load_dotenv
 
-def get_matters_schema():
+def get_table_schema(table_name):
     load_dotenv()
     
     conn = psycopg2.connect(
@@ -29,9 +30,9 @@ def get_matters_schema():
             column_default
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
-        AND table_name = 'matters'
+        AND table_name = %s
         ORDER BY ordinal_position;
-    """)
+    """, (table_name,))
     
     columns = cur.fetchall()
     
@@ -42,8 +43,8 @@ def get_matters_schema():
             polcmd,
             polqual
         FROM pg_policy
-        WHERE polrelid = 'matters'::regclass;
-    """)
+        WHERE polrelid = %s::regclass;
+    """, (table_name,))
     
     policies = cur.fetchall()
     
@@ -53,9 +54,9 @@ def get_matters_schema():
             indexname,
             indexdef
         FROM pg_indexes
-        WHERE tablename = 'matters'
+        WHERE tablename = %s
         AND schemaname = 'public';
-    """)
+    """, (table_name,))
     
     indexes = cur.fetchall()
     
@@ -68,16 +69,21 @@ def get_matters_schema():
         'indexes': indexes
     }
 
-def compare_with_file():
+def compare_with_file(table_name):
     # Get actual schema from database
-    db_schema = get_matters_schema()
+    db_schema = get_table_schema(table_name)
     
     # Read your schema file
-    with open('current-schema/tables/matters.sql', 'r') as f:
-        file_content = f.read()
+    schema_file_path = f'current-schema/tables/{table_name}.sql'
+    try:
+        with open(schema_file_path, 'r') as f:
+            file_content = f.read()
+    except FileNotFoundError:
+        print(f"Error: Schema file not found at {schema_file_path}")
+        return
     
     # Compare and print differences
-    print("=== Schema Comparison Report ===\n")
+    print(f"=== Schema Comparison Report for table '{table_name}' ===\n")
     
     # Print database columns
     print("Database Columns:")
@@ -96,4 +102,9 @@ def compare_with_file():
     print(file_content)
 
 if __name__ == "__main__":
-    compare_with_file()
+    if len(sys.argv) != 2:
+        print("Usage: python schema-drift-detection.py <table_name>")
+        sys.exit(1)
+        
+    table_name = sys.argv[1]
+    compare_with_file(table_name)

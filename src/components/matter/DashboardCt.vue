@@ -69,7 +69,15 @@
         <el-table-column 
           prop="title" 
           label="Title"
-          min-width="200" />
+          min-width="200">
+          <template #default="scope">
+            <span 
+              class="clickable-title"
+              @click="navigateToTask(scope.row)">
+              {{ scope.row.title }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column 
           v-if="!currentMatter"
           prop="matter_title" 
@@ -258,6 +266,10 @@ export default {
         'awaiting_external': 'Awaiting external factor'
       };
       return statusMap[status] || status;
+    },
+
+    navigateToTask(task) {
+      this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
     }
   }
 };
@@ -307,5 +319,14 @@ export default {
   .dashboard-title {
     font-size: 1.5rem;
   }
+}
+
+.clickable-title {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable-title:hover {
+  text-decoration: underline;
 }
 </style>

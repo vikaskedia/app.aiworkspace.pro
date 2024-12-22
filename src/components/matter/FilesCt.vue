@@ -11,6 +11,7 @@ import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
+import FilePreviewPane from './FilePreviewPane.vue';
 
 const route = useRoute();
 const matterStore = useMatterStore();
@@ -23,6 +24,7 @@ const fileList = ref([]);
 const selectedTags = ref([]);
 const tagInputVisible = ref(false);
 const tagInputValue = ref('');
+const selectedFile = ref(null);
 
 // Load files when matter changes
 watch(currentMatter, async (newMatter) => {
@@ -242,69 +244,85 @@ function handleTagInputConfirm() {
 
 <template>
   <div class="manage-files">
-    <div class="content">
-      <div class="header">
-        <el-button type="primary" @click="uploadDialogVisible = true" size="small" :icon="Plus">
-          Upload Files
-        </el-button>
-      </div>
+    <div class="content" :class="{ 'with-preview': selectedFile }">
+      <div class="files-section">
+        <div class="header">
+          <el-button type="primary" @click="uploadDialogVisible = true" size="small" :icon="Plus">
+            Upload Files
+          </el-button>
+        </div>
 
-      <el-table
-        v-loading="loading"
-        :data="files"
-        style="width: 100%"
-        :default-sort="{ prop: 'created_at', order: 'descending' }">
-        
-        <el-table-column 
-          prop="name" 
-          label="File Name"
-          min-width="120" />
+        <el-table
+          v-loading="loading"
+          :data="files"
+          style="width: 100%"
+          :default-sort="{ prop: 'created_at', order: 'descending' }">
           
-        <el-table-column 
-          prop="type" 
-          label="Type" 
-          width="120"
-          :show-overflow-tooltip="true" />
+          <el-table-column 
+            prop="name" 
+            label="File Name"
+            min-width="120">
+            <template #default="scope">
+              <span 
+                class="clickable-filename"
+                @click="selectedFile = scope.row">
+                {{ scope.row.name }}
+              </span>
+            </template>
+          </el-table-column>
           
-        <el-table-column 
-          prop="size" 
-          label="Size" 
-          width="90">
-          <template #default="scope">
-            {{ Math.round(scope.row.size / 1024) }} KB
-          </template>
-        </el-table-column>
-        
-        <el-table-column 
-          prop="tags" 
-          label="Tags" 
-          width="200"
-          :show-overflow-tooltip="true">
-          <template #default="scope">
-            <el-tag
-              v-for="tag in scope.row.tags"
-              :key="tag"
-              size="small"
-              style="margin: 2px">
-              {{ tag }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column 
-          label="Actions" 
-          width="90"
-          fixed="right">
-          <template #default="scope">
-            <el-button
-              type="danger"
-              size="small"
-              @click="deleteFile(scope.row)">
-              Delete
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          <el-table-column 
+            prop="type" 
+            label="Type" 
+            width="120"
+            :show-overflow-tooltip="true" />
+          
+          <el-table-column 
+            prop="size" 
+            label="Size" 
+            width="90">
+            <template #default="scope">
+              {{ Math.round(scope.row.size / 1024) }} KB
+            </template>
+          </el-table-column>
+          
+          <el-table-column 
+            prop="tags" 
+            label="Tags" 
+            width="200"
+            :show-overflow-tooltip="true">
+            <template #default="scope">
+              <el-tag
+                v-for="tag in scope.row.tags"
+                :key="tag"
+                size="small"
+                style="margin: 2px">
+                {{ tag }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          
+          <el-table-column 
+            label="Actions" 
+            width="90"
+            fixed="right">
+            <template #default="scope">
+              <el-button
+                type="danger"
+                size="small"
+                @click="deleteFile(scope.row)">
+                Delete
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <FilePreviewPane
+        v-if="selectedFile"
+        :file="selectedFile"
+        @close="selectedFile = null"
+      />
     </div>
 
     <!-- Upload Dialog -->
@@ -376,6 +394,27 @@ function handleTagInputConfirm() {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  gap: 2rem;
+}
+
+.content.with-preview {
+  max-width: none;
+  margin: 0;
+}
+
+.files-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.clickable-filename {
+  color: #409EFF;
+  cursor: pointer;
+}
+
+.clickable-filename:hover {
+  text-decoration: underline;
 }
 
 .header {
@@ -465,6 +504,17 @@ function handleTagInputConfirm() {
   /* Ensure minimum width for action buttons */
   :deep(.el-button--small) {
     min-width: 60px;
+  }
+}
+
+/* Add responsive styles for the preview pane */
+@media (max-width: 1024px) {
+  .content {
+    flex-direction: column;
+  }
+  
+  .content.with-preview {
+    padding: 1rem;
   }
 }
 </style>

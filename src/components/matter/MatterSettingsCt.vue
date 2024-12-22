@@ -309,10 +309,18 @@ export default {
             label="Repository Name" 
             required
             :rules="[{ required: true, message: 'Repository name is required' }]">
-            <el-input 
-              v-model="gitSettings.repoName" 
-              placeholder="Enter Git repository name"
-              @change="updateGitSettings" />
+            <div class="horizontal-form-layout">
+              <el-input 
+                v-model="gitSettings.repoName" 
+                placeholder="Enter Git repository name"
+                maxlength="50" />
+              <el-button 
+                type="primary"
+                @click="updateGitSettings"
+                :disabled="!gitSettings.repoName">
+                Save Changes
+              </el-button>
+            </div>
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
@@ -333,10 +341,18 @@ export default {
               { required: true, message: 'Email address is required' },
               { type: 'email', message: 'Please enter a valid email address' }
             ]">
-            <el-input 
-              v-model="emailSettings.address" 
-              placeholder="Enter email address for matter storage"
-              @change="updateEmailSettings" />
+            <div class="horizontal-form-layout">
+              <el-input 
+                v-model="emailSettings.address" 
+                placeholder="Enter email address for matter storage"
+                maxlength="50" />
+              <el-button 
+                type="primary"
+                @click="updateEmailSettings"
+                :disabled="!emailSettings.address">
+                Save Changes
+              </el-button>
+            </div>
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
@@ -391,6 +407,21 @@ h4 {
   font-weight: 500;
 }
 
+.horizontal-form-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.horizontal-form-layout .el-input {
+  flex: 1;
+}
+
+.horizontal-form-layout .el-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .manage-matter {
     padding: 1rem;
@@ -398,6 +429,15 @@ h4 {
 
   .share-inputs {
     grid-template-columns: 1fr;
+  }
+
+  .horizontal-form-layout {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .horizontal-form-layout .el-button {
+    width: 100%;
   }
 }
 </style> 

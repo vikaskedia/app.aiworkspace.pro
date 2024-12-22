@@ -165,7 +165,7 @@ export default {
       try {
         const { data: shares, error } = await supabase
           .from('matter_access')
-          .select('id, shared_with_user_id, access_type')
+          .select('shared_with_user_id, access_type')
           .eq('matter_id', this.currentMatter.id);
 
         if (error) throw error;

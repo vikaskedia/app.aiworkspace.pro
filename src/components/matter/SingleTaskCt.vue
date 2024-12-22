@@ -16,6 +16,11 @@
           @click="editDialogVisible = true">
           Edit Task
         </el-button>
+        <el-button 
+          type="info"
+          @click="shareDialogVisible = true">
+          Share Task
+        </el-button>
       </div>
     </div>
 
@@ -137,11 +142,69 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Add this new Share Task Dialog after the Edit Task Dialog -->
+    <el-dialog
+      v-model="shareDialogVisible"
+      title="Share Task"
+      width="500px">
+      <div class="share-options">
+        <div class="share-link-section">
+          <h4>Share via Link</h4>
+          <div class="link-input">
+            <el-input
+              v-model="shareLink"
+              readonly>
+              <template #append>
+                <el-button @click="copyLink">
+                  <el-icon><DocumentCopy /></el-icon>
+                  Copy
+                </el-button>
+              </template>
+            </el-input>
+          </div>
+        </div>
+
+        <div class="share-email-section">
+          <h4>Share via Email</h4>
+          <el-form :model="emailShare">
+            <el-form-item>
+              <el-select
+                v-model="emailShare.recipients"
+                multiple
+                filterable
+                placeholder="Select recipients"
+                style="width: 100%">
+                <el-option
+                  v-for="user in sharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.email" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-input
+                v-model="emailShare.message"
+                type="textarea"
+                :rows="3"
+                placeholder="Add a message (optional)" />
+            </el-form-item>
+          </el-form>
+          <el-button
+            type="primary"
+            :disabled="!emailShare.recipients.length"
+            :loading="sending"
+            @click="shareViaEmail">
+            Send Email
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { ArrowLeft } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -149,7 +212,8 @@ import { ElMessage } from 'element-plus';
 
 export default {
   components: {
-    ArrowLeft
+    ArrowLeft,
+    DocumentCopy
   },
   setup() {
     const matterStore = useMatterStore();
@@ -167,7 +231,14 @@ export default {
       editingTask: null,
       sharedUsers: [],
       assigneeEmail: null,
-      subscription: null
+      subscription: null,
+      shareDialogVisible: false,
+      shareLink: '',
+      emailShare: {
+        recipients: [],
+        message: ''
+      },
+      sending: false
     };
   },
   async created() {
@@ -255,6 +326,60 @@ export default {
         'awaiting_external': 'Awaiting external factor'
       };
       return statusMap[status] || status;
+    },
+    generateShareLink() {
+      const baseUrl = window.location.origin;
+      this.shareLink = `${baseUrl}/matter/${this.currentMatter.id}/tasks/${this.task.id}`;
+    },
+    async copyLink() {
+      try {
+        await navigator.clipboard.writeText(this.shareLink);
+        ElMessage.success('Link copied to clipboard');
+      } catch (error) {
+        ElMessage.error('Failed to copy link');
+      }
+    },
+    async shareViaEmail() {
+      if (!this.emailShare.recipients.length) return;
+
+      try {
+        this.sending = true;
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Send email through your backend service
+        const response = await fetch('/api/share-task', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskId: this.task.id,
+            recipients: this.emailShare.recipients,
+            message: this.emailShare.message,
+            sender: user.email,
+            taskTitle: this.task.title,
+            taskLink: this.shareLink
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to send email');
+
+        ElMessage.success('Task shared successfully');
+        this.shareDialogVisible = false;
+        this.emailShare.recipients = [];
+        this.emailShare.message = '';
+      } catch (error) {
+        ElMessage.error('Error sharing task: ' + error.message);
+      } finally {
+        this.sending = false;
+      }
+    }
+  },
+  watch: {
+    shareDialogVisible(newVal) {
+      if (newVal) {
+        this.generateShareLink();
+      }
     }
   }
 };
@@ -314,4 +439,32 @@ export default {
 
 /* Reuse comment styles from TaskCommentDialog.vue */
 /* Lines 209-256 */
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.share-options {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.share-link-section,
+.share-email-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h4 {
+  margin: 0;
+  color: #606266;
+}
+
+.link-input {
+  display: flex;
+  gap: 12px;
+}
 </style> 

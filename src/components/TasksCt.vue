@@ -238,6 +238,18 @@ export default {
 
         if (error) throw error;
 
+        // Get all cached tasks and update the modified task
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedCachedTasks = cachedTasks.map(t => 
+          t.id === task.id ? data[0] : t
+        );
+        
+        // Update cache with flat array
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        
+        // Update UI with hierarchical structure
+        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+
         // Create notifications for changes
         if (originalTask.assignee !== task.assignee && task.assignee) {
           await this.createNotification(
@@ -325,11 +337,6 @@ export default {
                 }
               }
             });
-        }
-        
-        const index = this.tasks.findIndex(t => t.id === task.id);
-        if (index !== -1) {
-          this.tasks[index] = data[0];
         }
         
         this.editDialogVisible = false;

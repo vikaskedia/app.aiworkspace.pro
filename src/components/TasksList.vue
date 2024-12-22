@@ -27,7 +27,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'archive', 'show-archived-changed'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'archive', 'unarchive', 'show-archived-changed'],
   data() {
     return {
       filters: {
@@ -157,7 +157,6 @@ export default {
       }
     },
     getStatusType(task) {
-      if (task.archived) return 'info';
       switch (task.status) {
         case 'completed': return 'success';
         case 'in_progress': return 'warning';
@@ -265,7 +264,7 @@ export default {
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.archived ? 'Archived' : scope.row.status }}
+              {{ scope.row.status }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.archived"
@@ -321,10 +320,10 @@ export default {
             Edit
           </el-button>
           <el-button
-            type="danger"
+            :type="scope.row.archived ? 'success' : 'danger'"
             link
-            @click="$emit('archive', scope.row)">
-            Archive
+            @click="$emit(scope.row.archived ? 'unarchive' : 'archive', scope.row)">
+            {{ scope.row.archived ? 'Unarchive' : 'Archive' }}
           </el-button>
         </template>
       </el-table-column>

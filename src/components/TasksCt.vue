@@ -449,6 +449,39 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    async unarchiveTask(task) {
+      try {
+        this.loading = true;
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            archived: false,
+            archived_by: null,
+            archived_at: null
+          })
+          .eq('id', task.id);
+
+        if (error) throw error;
+
+        // Update cache
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedCachedTasks = [...cachedTasks, task].map(t => 
+          t.id === task.id ? { ...t, archived: false, archived_by: null, archived_at: null } : t
+        );
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        
+        // Update UI
+        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+        
+        ElMessage.success('Task unarchived successfully');
+      } catch (error) {
+        ElMessage.error('Error unarchiving task: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     }
   },
 
@@ -525,6 +558,7 @@ export default {
           commentDialogVisible = true;
         }"
         @archive="archiveTask"
+        @unarchive="unarchiveTask"
       />
 
       <!-- Create Task Dialog -->

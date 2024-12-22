@@ -49,19 +49,62 @@ export default {
       
       try {
         this.loading = true;
-        const { data: files, error } = await supabase
-          .from('files')
-          .select('*')
-          .eq('matter_id', this.currentMatter.id)
-          .order('created_at', { ascending: false });
+        
+        // Get Gitea configuration from environment variables
+        const giteaHost = import.meta.env.GITEA_HOST;
+        const giteaToken = import.meta.env.GITEA_TOKEN;
 
-        if (error) throw error;
+        if (!giteaHost || !giteaToken) {
+          throw new Error('Gitea configuration is missing');
+        }
+
+        // Get repository contents from Gitea API
+        const giteaResponse = await fetch(`${giteaHost}/api/v1/repos/${this.currentMatter.git_repo}/contents`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `token ${giteaToken}`,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!giteaResponse.ok) {
+          throw new Error(`Gitea API error: ${giteaResponse.statusText}`);
+        }
+
+        const giteaFiles = await giteaResponse.json();
+
+        // Transform Gitea response to match our file format
+        const files = giteaFiles.map(file => ({
+          id: file.sha,
+          name: file.name,
+          type: file.type === 'file' ? this.getFileType(file.name) : 'directory',
+          size: file.size,
+          storage_path: file.path,
+          matter_id: this.currentMatter.id,
+          created_at: new Date().toISOString(), // Gitea doesn't provide creation date
+          tags: [], // You might want to store tags separately in your database
+          download_url: file.download_url
+        }));
+
         this.files = files;
       } catch (error) {
         ElMessage.error('Error loading files: ' + error.message);
       } finally {
         this.loading = false;
       }
+    },
+
+    // Helper method to determine file type from extension
+    getFileType(filename) {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const mimeTypes = {
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        txt: 'text/plain',
+        // Add more mime types as needed
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
     },
 
     async handleUpload(file) {

@@ -254,24 +254,27 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
+console.log('user', user);
+const matterData = {
+  title: this.newMatter.title,
+  description: this.newMatter.description,
+  created_by: user.id
+};
+console.log('Attempting to create matter with:', matterData);
+
         const { data, error } = await supabase
           .from('matters')
           .insert([{
             title: this.newMatter.title,
             description: this.newMatter.description,
-            created_by: user.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            created_by: user.id
           }])
           .select()
-          .single()
-          .then(result => {
-                console.log('SQL Query:', result.query); // If available
-                return result;
-          });
+          .single();
 
-        if (error) throw error;
-        
+          console.log('Matter creation result:', data);
+          if (error) console.error('Matter creation error:', error);
+                  
         this.matters.unshift({ ...data, stats: { goals_total: 0, goals_completed: 0, tasks_total: 0, tasks_completed: 0, upcoming_events: 0 } });
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };

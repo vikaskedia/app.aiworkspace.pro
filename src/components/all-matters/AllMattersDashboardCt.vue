@@ -147,7 +147,7 @@ import { useRouter } from 'vue-router';
 import { useMatterStore } from '../../store/matter';
 
 export default {
-  name: 'AllMattersCt',
+  name: 'AllMattersDashboardCt',
   components: {
     HeaderCt,
     Plus,

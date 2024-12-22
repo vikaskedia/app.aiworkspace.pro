@@ -13,7 +13,7 @@ const routes = [
   {
     path: '/all-matters',
     name: 'AllMattersPage',
-    component: () => import('./components/all-matters/AllMattersCt.vue'),
+    component: () => import('./components/all-matters/AllMattersDashboardCt.vue'),
     meta: { requiresAuth: true },
     children: [
       {

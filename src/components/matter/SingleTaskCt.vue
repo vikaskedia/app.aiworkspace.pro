@@ -293,8 +293,8 @@ export default {
     async loadSharedUsers() {
       try {
         const { data: users, error } = await supabase
-          .from('matter_users')
-          .select('user_id, users:user_id (id, email)')
+          .from('matter_access')
+          .select('shared_with_user_id, users:shared_with_user_id (id, email)')
           .eq('matter_id', this.currentMatter.id);
 
         if (error) throw error;

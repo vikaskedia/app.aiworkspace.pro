@@ -25,8 +25,10 @@
         v-else-if="file.type === 'application/pdf'"
         :src="file.download_url"
         class="pdf-viewer"
-        @load="loading = false"
+        @load="handlePdfLoad"
         @error="handleError"
+        sandbox="allow-same-origin allow-scripts allow-forms"
+        type="application/pdf"
       ></iframe>
       
       <!-- Image Preview -->
@@ -125,6 +127,11 @@ function handleImageError(e) {
   error.value = 'Failed to load image';
 }
 
+function handlePdfLoad() {
+  loading.value = false;
+  error.value = null;
+}
+
 watch(() => props.file, async (newFile) => {
   if (newFile) {
     loading.value = true;
@@ -180,6 +187,7 @@ watch(() => props.file, async (newFile) => {
   width: 100%;
   height: 100%;
   border: none;
+  display: block;
 }
 
 .image-preview {

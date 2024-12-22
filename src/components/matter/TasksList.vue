@@ -27,7 +27,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count'],
   data() {
     return {
       filters: {
@@ -118,6 +118,15 @@ export default {
         this.filters.priority ||
         this.filters.assignee ||
         this.filters.dueDate
+    },
+    activeFiltersCount() {
+      let count = 0;
+      if (this.filters.search) count++;
+      if (this.filters.status) count++;
+      if (this.filters.priority) count++;
+      if (this.filters.assignee) count++;
+      if (this.filters.dueDate) count++;
+      return count;
     }
   },
   methods: {
@@ -171,6 +180,14 @@ export default {
         this.deletedTooltips[task.id] = `Deleted by ${deletedByEmail} on ${date}`;
       }
       return this.deletedTooltips[task.id];
+    }
+  },
+  watch: {
+    filters: {
+      deep: true,
+      handler() {
+        this.$emit('update:active-filters-count', this.activeFiltersCount);
+      }
     }
   }
 }

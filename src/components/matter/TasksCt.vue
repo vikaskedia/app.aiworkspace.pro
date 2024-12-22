@@ -38,7 +38,8 @@ export default {
       editingTask: null,
       editDialogVisible: false,
       commentDialogVisible: false,
-      selectedTask: null
+      selectedTask: null,
+      activeFiltersCount: 0
     };
   },
   watch: {
@@ -536,7 +537,7 @@ export default {
             :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
             type="info"
             plain>
-            {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+            {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
           </el-button>
         </div>
       </div>
@@ -546,6 +547,7 @@ export default {
         :loading="loading"
         :shared-users="sharedUsers"
         v-model:show-filters="showFilters"
+        v-model:active-filters-count="activeFiltersCount"
         @load-tasks="loadTasks"
         @show-deleted-changed="loadTasks"
         @edit="async (task) => {

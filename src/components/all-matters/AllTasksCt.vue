@@ -86,7 +86,6 @@
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="loadTasks">Apply</el-button>
               <el-button @click="clearFilters">Clear</el-button>
             </el-form-item>
           </el-form>
@@ -126,7 +125,7 @@
           width="120">
           <template #default="scope">
             <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.status }}
+              {{ formatStatus(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -376,6 +375,7 @@ export default {
       deep: true,
       handler() {
         this.saveFilters();
+        this.loadTasks();
       }
     }
   }

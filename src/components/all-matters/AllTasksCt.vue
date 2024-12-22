@@ -56,6 +56,34 @@
                 style="width: 160px"
               />
             </el-form-item>
+            <el-form-item label="Matter">
+              <el-select
+                v-model="filters.matter"
+                placeholder="All matters"
+                clearable
+                style="width: 200px">
+                <el-option 
+                  v-for="matter in matters"
+                  :key="matter.id"
+                  :label="matter.title"
+                  :value="matter.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Assignee">
+              <el-select
+                v-model="filters.assignee"
+                placeholder="All assignees"
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="user in assignees"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="loadTasks">Apply</el-button>
               <el-button @click="clearFilters">Clear</el-button>
@@ -156,11 +184,15 @@ export default {
       tasks: [],
       loading: false,
       showFilters: false,
+      matters: [],
+      assignees: [],
       filters: {
         search: '',
         status: null,
         priority: null,
-        dueDate: null
+        dueDate: null,
+        matter: null,
+        assignee: null
       }
     };
   },
@@ -196,6 +228,12 @@ export default {
           date.setHours(0, 0, 0, 0);
           query = query.gte('due_date', date.toISOString())
             .lt('due_date', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString());
+        }
+        if (this.filters.matter) {
+          query = query.eq('matter_id', this.filters.matter);
+        }
+        if (this.filters.assignee) {
+          query = query.eq('assignee', this.filters.assignee);
         }
 
         const { data: tasks, error } = await query;
@@ -242,8 +280,11 @@ export default {
         search: '',
         status: null,
         priority: null,
-        dueDate: null
+        dueDate: null,
+        matter: null,
+        assignee: null
       };
+      this.saveFilters();
       this.loadTasks();
     },
 
@@ -261,10 +302,57 @@ export default {
 
     navigateToMatter(matterId) {
       this.router.push(`/matter/${matterId}`);
+    },
+
+    async loadMatters() {
+      try {
+        const { data: matters, error } = await supabase
+          .from('matters')
+          .select('id, title')
+          .eq('deleted', false)
+          .order('title');
+        
+        if (error) throw error;
+        this.matters = matters;
+      } catch (error) {
+        console.error('Error loading matters:', error);
+      }
+    },
+
+    async loadAssignees() {
+      try {
+        const { data: users, error } = await supabase
+          .rpc('get_all_users');
+          
+        if (error) throw error;
+        this.assignees = users;
+      } catch (error) {
+        console.error('Error loading assignees:', error);
+      }
+    },
+
+    saveFilters() {
+      localStorage.setItem('allTasksFilters', JSON.stringify(this.filters));
+    },
+
+    loadSavedFilters() {
+      const savedFilters = localStorage.getItem('allTasksFilters');
+      if (savedFilters) {
+        this.filters = JSON.parse(savedFilters);
+      }
     }
   },
   mounted() {
+    this.loadSavedFilters();
     this.loadTasks();
+  },
+  watch: {
+    filters: {
+      deep: true,
+      handler() {
+        this.saveFilters();
+      }
+    }
   }
 };
 </script>

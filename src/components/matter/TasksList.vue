@@ -195,7 +195,8 @@ export default {
             clearable
             class="filter-item">
             <el-option label="Not started" value="not_started" />
-            <el-option label="In Progress" value="in_progress" />
+            <el-option label="In progress" value="in_progress" />
+            <el-option label="Awaiting external factor" value="awaiting_external" />
             <el-option label="Completed" value="completed" />
           </el-select>
 
@@ -268,7 +269,10 @@ export default {
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.status === 'not_started' ? 'Not started' : scope.row.status }}
+              {{ scope.row.status === 'not_started' ? 'Not started' : 
+                 scope.row.status === 'in_progress' ? 'In progress' : 
+                 scope.row.status === 'awaiting_external' ? 'Awaiting external factor' :
+                 scope.row.status }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.deleted"

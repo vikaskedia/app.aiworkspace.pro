@@ -357,4 +357,22 @@ watch(() => props.file, async (newFile) => {
   gap: 8px;
   align-items: center;
 }
+
+.folder-navigation {
+  padding: 8px 16px;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+.folder-navigation :deep(.el-breadcrumb) {
+  line-height: 32px;
+}
+
+.folder-navigation .clickable {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.folder-navigation .clickable:hover {
+  text-decoration: underline;
+}
 </style> 

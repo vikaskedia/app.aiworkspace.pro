@@ -443,35 +443,26 @@ async function navigateToFolder(folder) {
           </div>
         </div>
 
-        <!-- Folders Grid -->
-        <div class="folders-grid" v-if="folders.length">
-          <div 
-            v-for="folder in folders" 
-            :key="folder.id"
-            class="folder-item"
-            @click="navigateToFolder(folder)">
-            <el-icon><Folder /></el-icon>
-            <span>{{ folder.name }}</span>
-          </div>
-        </div>
-
         <!-- Existing Files Table -->
         <el-table
           v-loading="loading"
-          :data="files"
+          :data="[...folders, ...files]"
           style="width: 100%"
-          :default-sort="{ prop: 'created_at', order: 'descending' }">
+          :default-sort="{ prop: 'name', order: 'ascending' }">
           
           <el-table-column 
             prop="name" 
-            label="File Name"
-            min-width="120">
+            label="Name"
+            min-width="200">
             <template #default="scope">
-              <span 
-                class="clickable-filename"
-                @click="selectedFile = scope.row">
-                {{ scope.row.name }}
-              </span>
+              <div class="name-cell">
+                <el-icon v-if="scope.row.type === 'dir'"><Folder /></el-icon>
+                <span 
+                  class="clickable-filename"
+                  @click="scope.row.type === 'dir' ? navigateToFolder(scope.row) : selectedFile = scope.row">
+                  {{ scope.row.name }}
+                </span>
+              </div>
             </template>
           </el-table-column>
           
@@ -479,44 +470,18 @@ async function navigateToFolder(folder) {
             prop="type" 
             label="Type" 
             width="120"
-            :show-overflow-tooltip="true" />
+            :show-overflow-tooltip="true">
+            <template #default="scope">
+              {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
+            </template>
+          </el-table-column>
           
           <el-table-column 
             prop="size" 
             label="Size" 
             width="90">
             <template #default="scope">
-              {{ Math.round(scope.row.size / 1024) }} KB
-            </template>
-          </el-table-column>
-          
-          <el-table-column 
-            prop="tags" 
-            label="Tags" 
-            width="200"
-            :show-overflow-tooltip="true">
-            <template #default="scope">
-              <el-tag
-                v-for="tag in scope.row.tags"
-                :key="tag"
-                size="small"
-                style="margin: 2px">
-                {{ tag }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          
-          <el-table-column 
-            label="Actions" 
-            width="90"
-            fixed="right">
-            <template #default="scope">
-              <el-button
-                type="danger"
-                size="small"
-                @click="deleteFile(scope.row)">
-                Delete
-              </el-button>
+              {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
             </template>
           </el-table-column>
         </el-table>
@@ -637,6 +602,17 @@ async function navigateToFolder(folder) {
 .files-section {
   flex: 1;
   min-width: 0;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-cell .el-icon {
+  color: #909399;
+  font-size: 16px;
 }
 
 .clickable-filename {
@@ -762,32 +738,5 @@ async function navigateToFolder(folder) {
 .actions {
   display: flex;
   gap: 1rem;
-}
-
-.folders-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.folder-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.folder-item:hover {
-  background-color: #e4e7ed;
-}
-
-.folder-item .el-icon {
-  font-size: 1.2rem;
-  color: #909399;
 }
 </style>

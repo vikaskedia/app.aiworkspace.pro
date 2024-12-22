@@ -67,12 +67,14 @@ async function loadFiles() {
     }
 
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/${currentMatter.value.git_repo}/contents`,
+      `${giteaHost}/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents`,
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Accept': 'application/json',
-        }
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        mode: 'cors'
       }
     );
 

@@ -1,6 +1,5 @@
 <template>
   <div class="dashboard-overview">
-    <h2 class="dashboard-title">Dashboard Overview</h2>
     <!-- Goals Section -->
     <div class="dashboard-section">
       <div class="section-header">

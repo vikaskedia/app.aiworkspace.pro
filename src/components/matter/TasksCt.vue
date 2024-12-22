@@ -524,7 +524,6 @@ export default {
   <div class="tasks-container">
     <div class="content">
       <div class="tasks-header">
-        <h2>Tasks</h2>
         <div class="header-buttons">
           <el-button 
             @click="dialogVisible = true"
@@ -707,11 +706,6 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-}
-
-h2 {
-  color: #303133;
-  margin: 0;
 }
 
 .dialog-footer {

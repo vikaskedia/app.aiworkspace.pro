@@ -111,46 +111,132 @@ function getFileType(filename) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-async function handleUpload(file) {
+async function handleFileUpload(file) {
   if (!currentMatter.value) {
     ElMessage.warning('Please select a matter first');
     return;
   }
 
+  if (!file) {
+    ElMessage.warning('Please select a file to upload');
+    return;
+  }
+
+  loading.value = true;
+
   try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const { data: { user } } = await supabase.auth.getUser();
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${currentMatter.value.id}/${user.id}/${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('files')
-      .upload(filePath, file);
+    // Convert file to base64
+    const base64Content = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.readAsDataURL(file.raw);
+    });
 
-    if (uploadError) throw uploadError;
+    // Upload to Gitea
+    const response = await fetch(
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${file.name}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Upload ${file.name}`,
+          content: base64Content,
+          branch: 'main'
+        })
+      }
+    );
 
-    const { data, error: dbError } = await supabase
-      .from('files')
-      .insert([{
-        name: file.name,
-        storage_path: filePath,
-        size: file.size,
-        type: file.type,
-        tags: selectedTags.value,
-        matter_id: currentMatter.value.id,
-        created_by: user.id
-      }])
-      .select()
-      .single();
+    if (!response.ok) {
+      throw new Error('Failed to upload file to Gitea');
+    }
 
-    if (dbError) throw dbError;
+    const giteaData = await response.json();
 
-    files.value.unshift(data);
+    // Add file to local state
+    files.value.unshift({
+      id: giteaData.content.sha,
+      name: file.name,
+      type: getFileType(file.name),
+      size: file.size,
+      storage_path: giteaData.content.path,
+      matter_id: currentMatter.value.id,
+      created_at: new Date().toISOString(),
+      tags: selectedTags.value,
+      download_url: giteaData.content.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+    });
+
     uploadDialogVisible.value = false;
+    fileList.value = [];
+    selectedTags.value = [];
     ElMessage.success('File uploaded successfully');
-    
+
   } catch (error) {
     ElMessage.error('Error uploading file: ' + error.message);
+  } finally {
+    loading.value = false;
   }
+}
+
+async function deleteFile(file) {
+  try {
+    loading.value = true;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+
+    // Delete from Gitea
+    const response = await fetch(
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Delete ${file.name}`,
+          sha: file.id,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to delete file from Gitea');
+    }
+
+    // Remove from local state
+    files.value = files.value.filter(f => f.id !== file.id);
+    ElMessage.success('File deleted successfully');
+
+  } catch (error) {
+    ElMessage.error('Error deleting file: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function showTagInput() {
+  tagInputVisible.value = true;
+  nextTick(() => {
+    document.querySelector('.tags-input input')?.focus();
+  });
+}
+
+function handleTagInputConfirm() {
+  const inputValue = tagInputValue.value;
+  if (inputValue && !selectedTags.value.includes(inputValue)) {
+    selectedTags.value.push(inputValue);
+  }
+  tagInputVisible.value = false;
+  tagInputValue.value = '';
 }
 </script>
 
@@ -269,7 +355,7 @@ async function handleUpload(file) {
           <el-button @click="uploadDialogVisible = false">Cancel</el-button>
           <el-button
             type="primary"
-            @click="handleFileUpload(fileList[0].raw)"
+            @click="handleFileUpload(fileList[0])"
             :disabled="!fileList.length">
             Upload
           </el-button>

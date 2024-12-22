@@ -2,6 +2,7 @@
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { FullScreen, Close } from '@element-plus/icons-vue';
+import { ref } from 'vue';
 
 export default {
   components: {
@@ -25,8 +26,21 @@ export default {
       newComment: '',
       loading: false,
       userEmails: {},
-      subscription: null
+      subscription: null,
+      files: [],
+      showFileSelector: false,
+      mentionIndex: -1,
+      fileSearchQuery: ''
     };
+  },
+  computed: {
+    filteredFiles() {
+      if (!this.fileSearchQuery) return this.files;
+      const query = this.fileSearchQuery.toLowerCase();
+      return this.files.filter(file => 
+        file.name.toLowerCase().includes(query)
+      );
+    }
   },
   watch: {
     visible: {
@@ -160,6 +174,59 @@ export default {
           }
         )
         .subscribe();
+    },
+
+    async loadFiles() {
+      try {
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const response = await fetch(
+          `/gitea/api/v1/repos/vikas/${this.task.git_repo}/contents/`,
+          {
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) throw new Error('Failed to fetch files');
+        const contents = await response.json();
+        
+        this.files = contents
+          .filter(item => item.type === 'file' && item.name !== '.gitkeep')
+          .map(file => ({
+            id: file.sha,
+            name: file.name,
+            path: file.path,
+            download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+          }));
+      } catch (error) {
+        ElMessage.error('Error loading files: ' + error.message);
+      }
+    },
+
+    handleInput(event) {
+      const text = event.target.value;
+      const lastWord = text.slice(0, event.target.selectionStart).split(' ').pop();
+      
+      if (lastWord === '@files') {
+        this.showFileSelector = true;
+        this.mentionIndex = event.target.selectionStart;
+        this.loadFiles();
+      }
+    },
+
+    selectFile(file) {
+      const beforeMention = this.newComment.slice(0, this.mentionIndex - 6); // Remove '@files'
+      const afterMention = this.newComment.slice(this.mentionIndex);
+      this.newComment = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
+      this.showFileSelector = false;
+      this.fileSearchQuery = '';
+    },
+
+    formatCommentText(text) {
+      // Convert markdown-style links to HTML links
+      return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="file-link">$1</a>');
     }
   },
   beforeUnmount() {
@@ -202,18 +269,42 @@ export default {
                 {{ new Date(comment.created_at).toLocaleString() }}
               </span>
             </div>
-            <div class="comment-text">{{ comment.content }}</div>
+            <div class="comment-text" v-html="formatCommentText(comment.content)"></div>
           </div>
         </div>
       </div>
+
+      <el-dialog
+        v-model="showFileSelector"
+        title="Select File"
+        width="500px">
+        <el-input
+          v-model="fileSearchQuery"
+          placeholder="Search files..."
+          clearable
+          style="margin-bottom: 1rem;" />
+        
+        <el-scrollbar height="300px">
+          <div class="file-list">
+            <div
+              v-for="file in filteredFiles"
+              :key="file.id"
+              class="file-item"
+              @click="selectFile(file)">
+              {{ file.name }}
+            </div>
+          </div>
+        </el-scrollbar>
+      </el-dialog>
 
       <div class="comment-input">
         <el-input
           v-model="newComment"
           type="textarea"
           :rows="3"
-          placeholder="Write a comment..."
-          @keyup.ctrl.enter="addComment" />
+          placeholder="Write a comment... (Type @files to mention a file)"
+          @keyup.ctrl.enter="addComment"
+          @input="handleInput" />
         <el-button
           type="primary"
           :disabled="!newComment.trim()"
@@ -286,6 +377,23 @@ export default {
   border-top: 1px solid #eee;
 }
 
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #f5f7fa;
+}
+
 @media (max-width: 1024px) {
   :deep(.el-drawer) {
     width: 50% !important;
@@ -296,5 +404,14 @@ export default {
   :deep(.el-drawer) {
     width: 90% !important;
   }
+}
+
+:deep(.file-link) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+:deep(.file-link:hover) {
+  text-decoration: underline;
 }
 </style>

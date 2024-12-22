@@ -8,6 +8,8 @@ CREATE TABLE matters (
     deleted_at timestamp with time zone NULL,
     created_by uuid REFERENCES auth.users(id) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    git_repo character varying NOT NULL,
+    email_storage character varying NOT NULL,
     CONSTRAINT delete_consistency CHECK (
         (deleted = false AND deleted_by IS NULL AND deleted_at IS NULL) OR
         (deleted = true AND deleted_by IS NOT NULL AND deleted_at IS NOT NULL)
@@ -28,6 +30,11 @@ Each matter has:
 7A. Automatically given edit rights
 7B. Can later give up his edit rights
 7C. The user who created the matter is not treated special than anyone else who has edit rights to the matter';
+
+-- Add comments for the new columns
+COMMENT ON COLUMN matters.git_repo IS 'Repository name in Gitea where all files for this matter are stored. Files are managed through the Gitea server as described in FilesCt.vue';
+
+COMMENT ON COLUMN matters.email_storage IS 'Email address where communications for this matter are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this matter''s address as described in EmailsCt.vue';
 
 -- Automatically add creator to matter_access on matter creation
 CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$

@@ -22,7 +22,13 @@ export default {
         email: '',
         access_type: 'view'
       },
-      sharedUsers: []
+      sharedUsers: [],
+      gitSettings: {
+        repoName: this.currentMatter?.git_repo || ''
+      },
+      emailSettings: {
+        address: this.currentMatter?.email_storage || ''
+      }
     };
   },
   watch: {
@@ -33,6 +39,8 @@ export default {
             title: newMatter.title || '',
             description: newMatter.description || ''
           };
+          this.gitSettings.repoName = newMatter.git_repo || '';
+          this.emailSettings.address = newMatter.email_storage || '';
           this.loadSharedUsers();
         }
       },
@@ -175,6 +183,38 @@ export default {
       } catch (error) {
         ElMessage.error('Error removing access: ' + error.message);
       }
+    },
+
+    async updateGitSettings() {
+      try {
+        const { error } = await supabase
+          .from('matters')
+          .update({
+            git_repo: this.gitSettings.repoName
+          })
+          .eq('id', this.currentMatter.id);
+
+        if (error) throw error;
+        ElMessage.success('Git repository settings updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating Git settings: ' + error.message);
+      }
+    },
+
+    async updateEmailSettings() {
+      try {
+        const { error } = await supabase
+          .from('matters')
+          .update({
+            email_storage: this.emailSettings.address
+          })
+          .eq('id', this.currentMatter.id);
+
+        if (error) throw error;
+        ElMessage.success('Email storage settings updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating email settings: ' + error.message);
+      }
     }
   }
 };
@@ -259,6 +299,51 @@ export default {
             </el-table-column>
           </el-table>
         </div>
+      </div>
+
+      <!-- Git Repository Section -->
+      <div class="section">
+        <h3>Git Repository Settings</h3>
+        <el-form label-position="top">
+          <el-form-item 
+            label="Repository Name" 
+            required
+            :rules="[{ required: true, message: 'Repository name is required' }]">
+            <el-input 
+              v-model="gitSettings.repoName" 
+              placeholder="Enter Git repository name"
+              @change="updateGitSettings" />
+          </el-form-item>
+          <el-form-item>
+            <el-text class="text-sm text-gray-500">
+              This repository will be used to store all files related to this matter
+            </el-text>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Email Storage Section -->
+      <div class="section">
+        <h3>Email Storage Settings</h3>
+        <el-form label-position="top">
+          <el-form-item 
+            label="Email Address" 
+            required
+            :rules="[
+              { required: true, message: 'Email address is required' },
+              { type: 'email', message: 'Please enter a valid email address' }
+            ]">
+            <el-input 
+              v-model="emailSettings.address" 
+              placeholder="Enter email address for matter storage"
+              @change="updateEmailSettings" />
+          </el-form-item>
+          <el-form-item>
+            <el-text class="text-sm text-gray-500">
+              All emails related to this matter will be stored at this address
+            </el-text>
+          </el-form-item>
+        </el-form>
       </div>
     </div>
   </div>

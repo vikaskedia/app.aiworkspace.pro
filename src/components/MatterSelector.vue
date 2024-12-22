@@ -156,23 +156,6 @@ export default {
         </el-dropdown-menu>
       </template>
     </el-dropdown>
-
-    <!-- Matter Context Menu -->
-    <el-dropdown v-if="selectedMatter" trigger="click" @command="handleMatterCommand">
-      <el-button type="primary" link>
-        <el-icon><More /></el-icon>
-      </el-button>
-      <template #dropdown>
-        <el-dropdown-menu>
-          <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
-          <el-dropdown-item command="goals">Goals</el-dropdown-item>
-          <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
-          <el-dropdown-item command="events">Events</el-dropdown-item>
-          <el-dropdown-item command="files">Manage Files</el-dropdown-item>
-          <el-dropdown-item command="manage">Manage Matter</el-dropdown-item>
-        </el-dropdown-menu>
-      </template>
-    </el-dropdown>
   </div>
 </template>
 

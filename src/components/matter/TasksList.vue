@@ -180,6 +180,16 @@ export default {
         this.deletedTooltips[task.id] = `Deleted by ${deletedByEmail} on ${date}`;
       }
       return this.deletedTooltips[task.id];
+    },
+    saveFilters() {
+      localStorage.setItem('taskListFilters', JSON.stringify(this.filters));
+    },
+
+    loadSavedFilters() {
+      const savedFilters = localStorage.getItem('taskListFilters');
+      if (savedFilters) {
+        this.filters = JSON.parse(savedFilters);
+      }
     }
   },
   watch: {
@@ -187,8 +197,12 @@ export default {
       deep: true,
       handler() {
         this.$emit('update:active-filters-count', this.activeFiltersCount);
+        this.saveFilters();
       }
     }
+  },
+  mounted() {
+    this.loadSavedFilters();
   }
 }
 </script>

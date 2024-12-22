@@ -1,11 +1,12 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
 
 export default {
   components: {
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    InfoFilled
   },
   props: {
     tasks: {
@@ -33,7 +34,8 @@ export default {
         status: null,
         priority: null,
         assignee: null,
-        dueDate: null
+        dueDate: null,
+        showArchived: false
       }
     }
   },
@@ -122,7 +124,8 @@ export default {
         status: null,
         priority: null,
         assignee: null,
-        dueDate: null
+        dueDate: null,
+        showArchived: false
       }
     }
   }
@@ -184,6 +187,12 @@ export default {
             <el-option label="Due Today" value="today" />
             <el-option label="Due This Week" value="week" />
           </el-select>
+
+          <el-switch
+            v-model="filters.showArchived"
+            class="filter-item"
+            active-text="Show Archived Tasks"
+          />
         </div>
       </div>
     </el-collapse-transition>
@@ -209,16 +218,25 @@ export default {
       </el-table-column>
       
       <el-table-column 
-        prop="status" 
         label="Status"
         width="120">
         <template #default="scope">
-          <el-tag :type="
-            scope.row.status === 'completed' ? 'success' :
-            scope.row.status === 'in_progress' ? 'warning' : 'info'
-          ">
-            {{ scope.row.status }}
-          </el-tag>
+          <div class="status-container">
+            <el-tag :type="
+              scope.row.archived ? 'info' :
+              scope.row.status === 'completed' ? 'success' :
+              scope.row.status === 'in_progress' ? 'warning' : 'info'
+            ">
+              {{ scope.row.archived ? 'Archived' : scope.row.status }}
+            </el-tag>
+            <el-tooltip 
+              v-if="scope.row.archived"
+              effect="dark"
+              :content="`Archived by ${userEmails[scope.row.archived_by]} on ${new Date(scope.row.archived_at).toLocaleDateString()}`"
+              placement="top">
+              <el-icon class="archived-icon"><InfoFilled /></el-icon>
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
       
@@ -322,5 +340,16 @@ export default {
 
 .clickable-title:hover {
   text-decoration: underline;
+}
+
+.status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.archived-icon {
+  color: #909399;
+  cursor: help;
 }
 </style>

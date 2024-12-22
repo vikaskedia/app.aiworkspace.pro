@@ -64,7 +64,7 @@ export default {
     }
   },
   methods: {
-    async loadTasks() {
+    async loadTasks(showArchived = false) {
       if (!this.currentMatter) return;
       
       try {
@@ -73,16 +73,23 @@ export default {
         // Check cache first
         const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
         if (cachedTasks) {
-          this.tasks = this.organizeTasksHierarchy(cachedTasks);
+          const filteredTasks = showArchived ? cachedTasks : cachedTasks.filter(t => !t.archived);
+          this.tasks = this.organizeTasksHierarchy(filteredTasks);
           this.loading = false;
           return;
         }
 
-        const { data: tasks, error } = await supabase
+        let query = supabase
           .from('tasks')
           .select('*')
           .eq('matter_id', this.currentMatter.id)
           .order('created_at', { ascending: false });
+
+        if (!showArchived) {
+          query = query.eq('archived', false);
+        }
+
+        const { data: tasks, error } = await query;
 
         if (error) throw error;
         this.tasks = this.organizeTasksHierarchy(tasks);
@@ -503,6 +510,7 @@ export default {
         :loading="loading"
         :shared-users="sharedUsers"
         v-model:show-filters="showFilters"
+        @load-tasks="loadTasks"
         @edit="async (task) => {
           editingTask = {...task};
           await loadSharedUsers();

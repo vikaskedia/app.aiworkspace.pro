@@ -344,6 +344,8 @@ export default {
   },
   mounted() {
     this.loadSavedFilters();
+    this.loadMatters();
+    this.loadAssignees();
     this.loadTasks();
   },
   watch: {

@@ -13,11 +13,12 @@ import MatterLayout from './components/matter/MatterLayout.vue';
 const routes = [
   {
     path: '/all-matters',
-    name: 'AllMattersRoot',
-    redirect: '/all-matters/dashboard',
-    component: () => import('./components/all-matters/AllMattersDashboardCt.vue'),
-    meta: { requiresAuth: true },
+    component: () => import('./components/all-matters/AllMatterLayout.vue'),
     children: [
+      {
+        path: '',
+        redirect: 'dashboard'
+      },
       {
         path: 'dashboard',
         name: 'AllMattersDashboard',

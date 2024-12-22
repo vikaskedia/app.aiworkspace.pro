@@ -1,73 +1,70 @@
 <template>
-  <div class="all-matters">
-    <HeaderCt />
-    <div class="content">
-      <div class="matters-header">
-        <h2>All Matters</h2>
-        <div class="header-actions">
-          <el-switch
-            v-model="showDeleted"
-            active-text="Show Deleted"
-            inactive-text="Show Active"
-          />
-          <el-button type="primary" @click="createMatterDialog = true">
-            <el-icon><Plus /></el-icon>
-            New Matter
-          </el-button>
+  <div>
+    <div class="matters-header">
+      <h2>All Matters</h2>
+      <div class="header-actions">
+        <el-switch
+          v-model="showDeleted"
+          active-text="Show Deleted"
+          inactive-text="Show Active"
+        />
+        <el-button type="primary" @click="createMatterDialog = true">
+          <el-icon><Plus /></el-icon>
+          New Matter
+        </el-button>
+      </div>
+    </div>
+
+    <div class="matters-grid" v-loading="loading">
+      <el-card v-for="matter in matters" :key="matter.id" class="matter-card">
+        <template #header>
+          <div class="matter-header">
+            <h3>{{ matter.title }}</h3>
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
+              <el-button type="primary" link>
+                <el-icon><More /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <template v-if="!showDeleted">
+                    <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
+                    <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
+                    <el-dropdown-item command="delete" divided>Delete</el-dropdown-item>
+                  </template>
+                  <template v-else>
+                    <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
+                  </template>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+
+        <div class="matter-stats">
+          <div class="stat-item">
+            <h4>Goals</h4>
+            <div class="stat-numbers">
+              <span>{{ matter.stats?.goals_total || 0 }} Total</span>
+              <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <h4>Tasks</h4>
+            <div class="stat-numbers">
+              <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
+              <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <h4>Upcoming Events</h4>
+            <span>{{ matter.stats?.upcoming_events || 0 }}</span>
+          </div>
         </div>
-      </div>
 
-      <div class="matters-grid" v-loading="loading">
-        <el-card v-for="matter in matters" :key="matter.id" class="matter-card">
-          <template #header>
-            <div class="matter-header">
-              <h3>{{ matter.title }}</h3>
-              <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
-                <el-button type="primary" link>
-                  <el-icon><More /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <template v-if="!showDeleted">
-                      <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
-                      <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
-                      <el-dropdown-item command="delete" divided>Delete</el-dropdown-item>
-                    </template>
-                    <template v-else>
-                      <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
-                    </template>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-
-          <div class="matter-stats">
-            <div class="stat-item">
-              <h4>Goals</h4>
-              <div class="stat-numbers">
-                <span>{{ matter.stats?.goals_total || 0 }} Total</span>
-                <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
-              </div>
-            </div>
-            <div class="stat-item">
-              <h4>Tasks</h4>
-              <div class="stat-numbers">
-                <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
-                <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
-              </div>
-            </div>
-            <div class="stat-item">
-              <h4>Upcoming Events</h4>
-              <span>{{ matter.stats?.upcoming_events || 0 }}</span>
-            </div>
-          </div>
-
-          <div class="matter-description" v-if="matter.description">
-            <p>{{ matter.description }}</p>
-          </div>
-        </el-card>
-      </div>
+        <div class="matter-description" v-if="matter.description">
+          <p>{{ matter.description }}</p>
+        </div>
+      </el-card>
     </div>
 
     <!-- Create Matter Dialog -->
@@ -139,7 +136,6 @@
 </template>
 
 <script>
-import HeaderCt from '../HeaderCt.vue';
 import { Plus, More } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -149,7 +145,6 @@ import { useMatterStore } from '../../store/matter';
 export default {
   name: 'AllMattersDashboardCt',
   components: {
-    HeaderCt,
     Plus,
     More
   },
@@ -415,17 +410,6 @@ export default {
 </script>
 
 <style scoped>
-.all-matters {
-  min-height: 100vh;
-  background-color: #f5f7fa;
-}
-
-.content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .matters-header {
   display: flex;
   justify-content: space-between;
@@ -515,10 +499,6 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .content {
-    padding: 1rem;
-  }
-
   .matters-header h2 {
     font-size: 1.5rem;
   }

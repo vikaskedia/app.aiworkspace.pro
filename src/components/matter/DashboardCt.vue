@@ -269,7 +269,7 @@ export default {
     },
 
     navigateToTask(task) {
-      this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
+      this.$router.push(`/matter/${this.currentMatter.id}/tasks/${task.id}`);
     }
   }
 };

@@ -71,6 +71,11 @@ const routes = [
         component: TasksCt
       },
       {
+        path: 'tasks/:taskId',
+        name: 'SingleTaskPage',
+        component: () => import('./components/matter/SingleTaskCt.vue')
+      },
+      {
         path: 'events',
         name: 'EventsPage',
         component: EventsCt

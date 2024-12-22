@@ -38,7 +38,8 @@ export default {
         dueDate: null,
         showDeleted: false
       },
-      userEmails: {}
+      userEmails: {},
+      deletedTooltips: {}
     }
   },
   computed: {
@@ -163,10 +164,13 @@ export default {
         default: return 'info';
       }
     },
-    async getDeletedTooltip(task) {
-      const deletedByEmail = await this.loadUserEmail(task.deleted_by);
-      const date = new Date(task.deleted_at).toLocaleDateString();
-      return `Deleted by ${deletedByEmail} on ${date}`;
+    async loadDeletedTooltip(task) {
+      if (!this.deletedTooltips[task.id]) {
+        const deletedByEmail = await this.loadUserEmail(task.deleted_by);
+        const date = new Date(task.deleted_at).toLocaleDateString();
+        this.deletedTooltips[task.id] = `Deleted by ${deletedByEmail} on ${date}`;
+      }
+      return this.deletedTooltips[task.id];
     }
   }
 }
@@ -269,9 +273,11 @@ export default {
             <el-tooltip 
               v-if="scope.row.deleted"
               effect="dark"
-              :content="getDeletedTooltip(scope.row)"
+              :content="deletedTooltips[scope.row.id] || 'Loading...'"
               placement="top">
-              <el-icon class="deleted-icon"><InfoFilled /></el-icon>
+              <el-icon class="deleted-icon" @mouseenter="loadDeletedTooltip(scope.row)">
+                <InfoFilled />
+              </el-icon>
             </el-tooltip>
           </div>
         </template>

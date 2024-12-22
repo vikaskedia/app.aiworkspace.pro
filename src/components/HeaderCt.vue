@@ -90,6 +90,8 @@ export default {
       }
     },
     handleMatterCommand(command) {
+      const matterStore = useMatterStore();
+      
       if (this.currentMatter?.id) {
         switch(command) {
           case 'dashboard':
@@ -112,7 +114,9 @@ export default {
             break;
         }
       } else {
-        // Handle "All Matters" navigation
+        // Clear current matter when navigating to "All" views
+        matterStore.setCurrentMatter(null);
+        
         switch(command) {
           case 'all_dashboard':
             this.$router.push('/all-matters');

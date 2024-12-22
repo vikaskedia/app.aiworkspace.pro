@@ -194,7 +194,7 @@ export default {
             placeholder="Status" 
             clearable
             class="filter-item">
-            <el-option label="Pending" value="pending" />
+            <el-option label="Not started" value="not_started" />
             <el-option label="In Progress" value="in_progress" />
             <el-option label="Completed" value="completed" />
           </el-select>
@@ -268,7 +268,7 @@ export default {
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.status }}
+              {{ scope.row.status === 'not_started' ? 'Not started' : scope.row.status }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.deleted"

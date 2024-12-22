@@ -3,19 +3,19 @@ CREATE TABLE matters (
     title character varying NOT NULL,
     description text NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    archived boolean DEFAULT false NOT NULL,
-    archived_by uuid REFERENCES auth.users(id) NULL,
-    archived_at timestamp with time zone NULL,
+    deleted boolean DEFAULT false NOT NULL,
+    deleted_by uuid REFERENCES auth.users(id) NULL,
+    deleted_at timestamp with time zone NULL,
     created_by uuid REFERENCES auth.users(id) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT archive_consistency CHECK (
-        (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
-        (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
+    CONSTRAINT delete_consistency CHECK (
+        (deleted = false AND deleted_by IS NULL AND deleted_at IS NULL) OR
+        (deleted = true AND deleted_by IS NOT NULL AND deleted_at IS NOT NULL)
     )
 );
 
-COMMENT ON TABLE matters IS 'Matters can be archived but not deleted. 
-Archiving requires both archived_by and archived_at to be set.
+COMMENT ON TABLE matters IS 'Matters can be soft deleted but not permanently deleted. 
+Soft delete requires both deleted_by and deleted_at to be set.
 Each matter has:
 1. A matter has a name and description which can be edited by anyone with edit rights.
 2. An associated email address for communication. 
@@ -60,8 +60,8 @@ CREATE TRIGGER on_matter_created
 
 -- Create indexes
 CREATE INDEX matters_created_by_idx ON matters USING btree (created_by);
-CREATE INDEX matters_archived_idx ON matters USING btree (archived);
-CREATE INDEX matters_archived_by_idx ON matters USING btree (archived_by);
+CREATE INDEX matters_deleted_idx ON matters USING btree (deleted);
+CREATE INDEX matters_deleted_by_idx ON matters USING btree (deleted_by);
 
 -- Enable Row Level Security
 ALTER TABLE matters ENABLE ROW LEVEL SECURITY;
@@ -88,7 +88,7 @@ CREATE POLICY "Users can update matters"
         AND access_type = 'edit'
     ));
 
-CREATE POLICY "Users can archive matters" 
+CREATE POLICY "Users can soft delete matters" 
     ON matters FOR UPDATE 
     USING (
         id IN (
@@ -98,4 +98,4 @@ CREATE POLICY "Users can archive matters"
             AND access_type = 'edit'
         )
     )
-    WITH CHECK (archived = true);
+    WITH CHECK (deleted = true);

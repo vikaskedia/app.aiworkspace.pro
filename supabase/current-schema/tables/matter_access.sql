@@ -17,8 +17,8 @@ COMMENT ON TABLE matter_access IS 'Manages access control for matters.
 2. Users with edit rights can:
 2A. Give View rights or edit rights to other users.
 2B. Edit the matter name or description.
-2C. Archive the matter.
-2D. Add, Edit or Archivegoals, tasks, events, and files.
+2C. Soft delete the matter.
+2D. Add, Edit or Soft delete -> goals, tasks, events, and files.
 
 3. Users with View rights can only view:
 3A. The matter name and description.

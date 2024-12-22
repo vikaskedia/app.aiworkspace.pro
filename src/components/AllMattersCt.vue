@@ -176,7 +176,7 @@ export default {
         const { data: matters, error } = await supabase
           .from('matters')
           .select('*')
-          .eq('archived', false)
+          .eq('deleted', false)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -308,25 +308,25 @@ export default {
       }
     },
 
-    async archiveMatter(matter) {
+    async deleteMatter(matter) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
           .from('matters')
           .update({ 
-            archived: true,
-            archived_at: new Date().toISOString(),
-            archived_by: user.id
+            deleted: true,
+            deleted_at: new Date().toISOString(),
+            deleted_by: user.id
           })
           .eq('id', matter.id);
 
         if (error) throw error;
 
         this.matters = this.matters.filter(m => m.id !== matter.id);
-        ElMessage.success('Matter archived successfully');
+        ElMessage.success('Matter deleted successfully');
       } catch (error) {
-        ElMessage.error('Error archiving matter: ' + error.message);
+        ElMessage.error('Error deleting matter: ' + error.message);
       }
     },
 
@@ -346,15 +346,15 @@ export default {
           break;
         case 'delete':
           ElMessageBox.confirm(
-            'Are you sure you want to archive this matter? You can restore it later from the archived matters section.',
+            'Are you sure you want to delete this matter? You can restore it later from the deleted matters section.',
             'Warning',
             {
-              confirmButtonText: 'Archive',
+              confirmButtonText: 'Delete',
               cancelButtonText: 'Cancel',
               type: 'warning'
             }
           ).then(() => {
-            this.archiveMatter(matter);
+            this.deleteMatter(matter);
           }).catch(() => {});
           break;
       }

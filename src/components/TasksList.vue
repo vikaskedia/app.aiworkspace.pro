@@ -27,7 +27,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'archive', 'unarchive', 'show-archived-changed'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed'],
   data() {
     return {
       filters: {
@@ -36,7 +36,7 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null,
-        showArchived: false
+        showDeleted: false
       },
       userEmails: {}
     }
@@ -127,7 +127,7 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null,
-        showArchived: false
+        showDeleted: false
       }
     },
     async loadUserEmail(userId) {
@@ -163,10 +163,10 @@ export default {
         default: return 'info';
       }
     },
-    async getArchivedTooltip(task) {
-      const archivedByEmail = await this.loadUserEmail(task.archived_by);
-      const date = new Date(task.archived_at).toLocaleDateString();
-      return `Archived by ${archivedByEmail} on ${date}`;
+    async getDeletedTooltip(task) {
+      const deletedByEmail = await this.loadUserEmail(task.deleted_by);
+      const date = new Date(task.deleted_at).toLocaleDateString();
+      return `Deleted by ${deletedByEmail} on ${date}`;
     }
   }
 }
@@ -229,10 +229,10 @@ export default {
           </el-select>
 
           <el-switch
-            v-model="filters.showArchived"
+            v-model="filters.showDeleted"
             class="filter-item"
-            active-text="Show Archived Tasks"
-            @change="$emit('show-archived-changed', $event)"
+            active-text="Show Deleted Tasks"
+            @change="$emit('show-deleted-changed', $event)"
           />
         </div>
       </div>
@@ -267,11 +267,11 @@ export default {
               {{ scope.row.status }}
             </el-tag>
             <el-tooltip 
-              v-if="scope.row.archived"
+              v-if="scope.row.deleted"
               effect="dark"
-              :content="getArchivedTooltip(scope.row)"
+              :content="getDeletedTooltip(scope.row)"
               placement="top">
-              <el-icon class="archived-icon"><InfoFilled /></el-icon>
+              <el-icon class="deleted-icon"><InfoFilled /></el-icon>
             </el-tooltip>
           </div>
         </template>
@@ -320,10 +320,10 @@ export default {
             Edit
           </el-button>
           <el-button
-            :type="scope.row.archived ? 'success' : 'danger'"
+            :type="scope.row.deleted ? 'success' : 'danger'"
             link
-            @click="$emit(scope.row.archived ? 'unarchive' : 'archive', scope.row)">
-            {{ scope.row.archived ? 'Unarchive' : 'Archive' }}
+            @click="$emit(scope.row.deleted ? 'restore' : 'delete', scope.row)">
+            {{ scope.row.deleted ? 'Restore' : 'Delete' }}
           </el-button>
         </template>
       </el-table-column>
@@ -385,7 +385,7 @@ export default {
   gap: 8px;
 }
 
-.archived-icon {
+.deleted-icon {
   color: #909399;
   cursor: help;
 }

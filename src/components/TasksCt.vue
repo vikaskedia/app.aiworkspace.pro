@@ -64,26 +64,26 @@ export default {
     }
   },
   methods: {
-    async loadTasks(showArchived = false) {
+    async loadTasks(showDeleted = false) {
       if (!this.currentMatter) return;
       
       try {
         this.loading = true;
         
-        // Always fetch from database when showing archived tasks
+        // Always fetch from database when showing deleted tasks
         let query = supabase
           .from('tasks')
           .select('*')
           .eq('matter_id', this.currentMatter.id)
           .order('created_at', { ascending: false });
 
-        if (!showArchived) {
-          query = query.eq('archived', false);
+        if (!showDeleted) {
+          query = query.eq('deleted', false);
           
-          // Check cache only for non-archived tasks
+          // Check cache only for non-deleted tasks
           const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
           if (cachedTasks) {
-            this.tasks = this.organizeTasksHierarchy(cachedTasks.filter(t => !t.archived));
+            this.tasks = this.organizeTasksHierarchy(cachedTasks.filter(t => !t.deleted));
             this.loading = false;
             return;
           }
@@ -94,8 +94,8 @@ export default {
         if (error) throw error;
         this.tasks = this.organizeTasksHierarchy(tasks);
         
-        // Only cache non-archived tasks
-        if (!showArchived) {
+        // Only cache non-deleted tasks
+        if (!showDeleted) {
           this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
         }
       } catch (error) {
@@ -410,7 +410,7 @@ export default {
       }
     },
 
-    async archiveTask(task) {
+    async deleteTask(task) {
       try {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
@@ -418,15 +418,15 @@ export default {
         const { error } = await supabase
           .from('tasks')
           .update({
-            archived: true,
-            archived_by: user.id,
-            archived_at: new Date().toISOString()
+            deleted: true,
+            deleted_by: user.id,
+            deleted_at: new Date().toISOString()
           })
           .eq('id', task.id);
 
         if (error) throw error;
 
-        // Remove the archived task from the local state
+        // Remove the deleted task from the local state
         const removeTaskRecursively = (tasks, taskId) => {
           return tasks.filter(t => {
             if (t.children?.length) {
@@ -443,24 +443,24 @@ export default {
         const updatedCachedTasks = cachedTasks.filter(t => t.id !== task.id);
         this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
 
-        ElMessage.success('Task archived successfully');
+        ElMessage.success('Task deleted successfully');
       } catch (error) {
-        ElMessage.error('Error archiving task: ' + error.message);
+        ElMessage.error('Error deleting task: ' + error.message);
       } finally {
         this.loading = false;
       }
     },
 
-    async unarchiveTask(task) {
+    async restoreTask(task) {
       try {
         this.loading = true;
         
         const { error } = await supabase
           .from('tasks')
           .update({
-            archived: false,
-            archived_by: null,
-            archived_at: null
+            deleted: false,
+            deleted_by: null,
+            deleted_at: null
           })
           .eq('id', task.id);
 
@@ -469,16 +469,16 @@ export default {
         // Update cache
         const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
         const updatedCachedTasks = [...cachedTasks, task].map(t => 
-          t.id === task.id ? { ...t, archived: false, archived_by: null, archived_at: null } : t
+          t.id === task.id ? { ...t, deleted: false, deleted_by: null, deleted_at: null } : t
         );
         this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
         
         // Update UI
         this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
         
-        ElMessage.success('Task unarchived successfully');
+        ElMessage.success('Task restored successfully');
       } catch (error) {
-        ElMessage.error('Error unarchiving task: ' + error.message);
+        ElMessage.error('Error restoring task: ' + error.message);
       } finally {
         this.loading = false;
       }
@@ -547,7 +547,7 @@ export default {
         :shared-users="sharedUsers"
         v-model:show-filters="showFilters"
         @load-tasks="loadTasks"
-        @show-archived-changed="loadTasks"
+        @show-deleted-changed="loadTasks"
         @edit="async (task) => {
           editingTask = {...task};
           await loadSharedUsers();
@@ -557,8 +557,8 @@ export default {
           selectedTask = task;
           commentDialogVisible = true;
         }"
-        @archive="archiveTask"
-        @unarchive="unarchiveTask"
+        @delete="deleteTask"
+        @restore="restoreTask"
       />
 
       <!-- Create Task Dialog -->

@@ -11,12 +11,12 @@ CREATE TABLE tasks (
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
   parent_task_id bigint REFERENCES tasks(id) ON DELETE CASCADE NULL,
-  archived boolean DEFAULT false NOT NULL,
-  archived_by uuid REFERENCES auth.users(id) NULL,
-  archived_at timestamp with time zone NULL,
-  CONSTRAINT archive_consistency CHECK (
-    (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
-    (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
+  deleted boolean DEFAULT false NOT NULL,
+  deleted_by uuid REFERENCES auth.users(id) NULL,
+  deleted_at timestamp with time zone NULL,
+  CONSTRAINT delete_consistency CHECK (
+    (deleted = false AND deleted_by IS NULL AND deleted_at IS NULL) OR
+    (deleted = true AND deleted_by IS NOT NULL AND deleted_at IS NOT NULL)
   )
 );
 

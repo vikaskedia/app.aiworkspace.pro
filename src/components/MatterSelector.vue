@@ -31,7 +31,7 @@ export default {
         const { data: mattersData, error } = await supabase
           .from('matters')
           .select('*')
-          .eq('archived', false)
+          .eq('deleted', false)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

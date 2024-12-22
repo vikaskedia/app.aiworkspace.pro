@@ -39,7 +39,7 @@ export default {
       if (path.includes('/events')) return 'Events';
       if (path.includes('/files')) return 'Files';
       if (path.includes('/manage')) return 'Manage Matter';
-      if (path.includes('/matter/') && !path.includes('/all-matters')) return 'Dashboard';
+      if (path.includes('/dashboard')) return 'Dashboard';
       if (path.includes('/all-matters')) {
         if (path.endsWith('/tasks')) return 'All Tasks';
         if (path.endsWith('/goals')) return 'All Goals';
@@ -102,7 +102,7 @@ export default {
       if (this.currentMatter?.id) {
         switch(command) {
           case 'dashboard':
-            this.$router.push(`/matter/${this.currentMatter.id}`);
+            this.$router.push(`/matter/${this.currentMatter.id}/dashboard`);
             break;
           case 'goals':
             this.$router.push(`/matter/${this.currentMatter.id}/goals`);

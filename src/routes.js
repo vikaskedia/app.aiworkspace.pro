@@ -46,10 +46,19 @@ const routes = [
   },
   { 
     path: '/matter/:matterId?', 
-    name: 'DashboardPage',
+    name: 'MatterRoot',
     component: DashboardCt,
     meta: { requiresAuth: true },
     children: [
+      {
+        path: '',
+        redirect: to => `/matter/${to.params.matterId}/dashboard`
+      },
+      {
+        path: 'dashboard',
+        name: 'DashboardPage',
+        component: DashboardCt
+      },
       {
         path: 'goals',
         name: 'GoalsPage',

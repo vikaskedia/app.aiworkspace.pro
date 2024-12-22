@@ -249,18 +249,29 @@ export default {
       }
     },
 
+    async ensureValidSession() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!session) {
+        // Redirect to login or handle re-authentication
+        throw new Error('No valid session');
+      }
+      console.log('session', session);
+      return session;
+    },
+
     async createMatter() {
       try {
+        await this.ensureValidSession();
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
-console.log('user', user);
-const matterData = {
-  title: this.newMatter.title,
-  description: this.newMatter.description,
-  created_by: user.id
-};
-console.log('Attempting to create matter with:', matterData);
+        console.log('user', user);
+        const matterData = {
+          title: this.newMatter.title,
+          description: this.newMatter.description,
+          created_by: user.id
+        };
+        console.log('Attempting to create matter with:', matterData);
 
         const { data, error } = await supabase
           .from('matters')
@@ -274,13 +285,18 @@ console.log('Attempting to create matter with:', matterData);
 
           console.log('Matter creation result:', data);
           if (error) console.error('Matter creation error:', error);
-                  
+
         this.matters.unshift({ ...data, stats: { goals_total: 0, goals_completed: 0, tasks_total: 0, tasks_completed: 0, upcoming_events: 0 } });
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };
         ElMessage.success('Matter created successfully');
       } catch (error) {
-        ElMessage.error('Error creating matter: ' + error.message);
+        if (error.message.includes('JWT')) {
+          ElMessage.error('Your session has expired. Please log in again.');
+          // Redirect to login page or handle re-authentication
+        } else {
+          ElMessage.error('Error creating matter: ' + error.message);
+        }
       } finally {
         this.loading = false;
       }

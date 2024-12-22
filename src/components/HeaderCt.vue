@@ -30,6 +30,17 @@ export default {
              this.user.user_metadata?.user_name || 
              this.user.user_metadata?.full_name ||
              this.user.email;
+    },
+    currentSection() {
+      const path = this.$route.path;
+      if (path.includes('/goals')) return 'Goals';
+      if (path.includes('/tasks')) return 'Tasks';
+      if (path.includes('/events')) return 'Events';
+      if (path.includes('/files')) return 'Files';
+      if (path.includes('/manage')) return 'Manage Matter';
+      if (path.includes('/matter/') && !path.includes('/all-matters')) return 'Dashboard';
+      if (path.includes('/all-matters')) return 'All Matters';
+      return 'Dashboard';
     }
   },
   async mounted() {
@@ -87,6 +98,8 @@ export default {
     
     <div class="header-center">
       <MatterSelector @matter-selected="handleMatterSelect" />
+      <span class="section-divider">/</span>
+      <span class="current-section">{{ currentSection }}</span>
     </div>
     
     <div class="header-right" v-if="user">
@@ -242,6 +255,31 @@ export default {
   
   .dialog-footer .el-button {
     width: 100%;
+  }
+}
+
+/* Add these styles */
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-divider {
+  color: #909399;
+  font-size: 16px;
+}
+
+.current-section {
+  color: #606266;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .section-divider,
+  .current-section {
+    display: none;
   }
 }
 </style>

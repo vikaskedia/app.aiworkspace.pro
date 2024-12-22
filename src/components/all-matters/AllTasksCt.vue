@@ -9,7 +9,7 @@
             :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
             type="info"
             plain>
-            {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+            {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
           </el-button>
         </div>
       </div>
@@ -195,6 +195,18 @@ export default {
         assignee: null
       }
     };
+  },
+  computed: {
+    activeFiltersCount() {
+      let count = 0;
+      if (this.filters.search) count++;
+      if (this.filters.status) count++;
+      if (this.filters.priority) count++;
+      if (this.filters.dueDate) count++;
+      if (this.filters.matter) count++;
+      if (this.filters.assignee) count++;
+      return count;
+    }
   },
   methods: {
     async loadTasks() {

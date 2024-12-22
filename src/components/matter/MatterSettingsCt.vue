@@ -25,13 +25,18 @@ export default {
       sharedUsers: []
     };
   },
-  mounted() {
-    if (this.currentMatter) {
-      this.editingMatter = {
-        title: this.currentMatter.title || '',
-        description: this.currentMatter.description || ''
-      };
-      this.loadSharedUsers();
+  watch: {
+    currentMatter: {
+      handler(newMatter) {
+        if (newMatter) {
+          this.editingMatter = {
+            title: newMatter.title || '',
+            description: newMatter.description || ''
+          };
+          this.loadSharedUsers();
+        }
+      },
+      immediate: true
     }
   },
   methods: {
@@ -82,7 +87,8 @@ export default {
 
         if (error) throw error;
 
-        this.$store.commit('setCurrentMatter', data);
+        // Update the Pinia store instead of using Vuex
+        this.currentMatter = data;
         ElMessage.success('Matter updated successfully');
       } catch (error) {
         ElMessage.error('Error updating matter: ' + error.message);

@@ -28,7 +28,7 @@ export default {
       newTask: {
         title: '',
         description: '',
-        status: 'pending',
+        status: 'not_started',
         priority: 'medium',
         due_date: null,
         assignee: null,
@@ -190,7 +190,7 @@ export default {
       this.newTask = {
         title: '',
         description: '',
-        status: 'pending',
+        status: 'not_started',
         priority: 'medium',
         due_date: null,
         assignee: null,
@@ -651,8 +651,9 @@ export default {
           </el-form-item>
           <el-form-item label="Status">
             <el-select v-model="editingTask.status" style="width: 100%">
-              <el-option label="Pending" value="pending" />
+              <el-option label="Not started" value="not_started" />
               <el-option label="In Progress" value="in_progress" />
+              <el-option label="Awaiting external factor" value="awaiting_external" />
               <el-option label="Completed" value="completed" />
             </el-select>
           </el-form-item>

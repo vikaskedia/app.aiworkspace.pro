@@ -31,8 +31,9 @@
                 placeholder="All statuses"
                 clearable
                 style="width: 140px">
-                <el-option label="Pending" value="pending" />
+                <el-option label="Not started" value="not_started" />
                 <el-option label="In Progress" value="in_progress" />
+                <el-option label="Awaiting external factor" value="awaiting_external" />
                 <el-option label="Completed" value="completed" />
               </el-select>
             </el-form-item>

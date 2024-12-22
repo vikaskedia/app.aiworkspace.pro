@@ -235,7 +235,7 @@ export default {
           <el-table :data="sharedUsers">
             <el-table-column label="User" min-width="200">
               <template #default="{ row }">
-                {{ row.user.email }}
+                {{ row.email }}
               </template>
             </el-table-column>
             

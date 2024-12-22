@@ -2,10 +2,45 @@
   <div class="file-preview-pane" v-if="file">
     <div class="preview-header">
       <h3>{{ file.name }}</h3>
-      <el-button type="primary" link @click="$emit('close')">
-        <el-icon><Close /></el-icon>
-      </el-button>
+      <div class="header-actions">
+        <el-button 
+          type="primary" 
+          link 
+          @click="showRenameDialog"
+          @click.native="console.log('Rename button clicked')">
+          <el-icon><Edit /></el-icon>
+        </el-button>
+        <el-button type="primary" link @click="$emit('close')">
+          <el-icon><Close /></el-icon>
+        </el-button>
+      </div>
     </div>
+    
+    <el-dialog
+      v-model="renameDialogVisible"
+      title="Rename File"
+      width="400px">
+      <el-form :model="renameForm" label-position="top">
+        <el-form-item 
+          label="New File Name" 
+          required
+          :rules="[{ required: true, message: 'File name is required' }]">
+          <el-input v-model="renameForm.newName" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="renameDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="handleRename"
+            :loading="renaming"
+            :disabled="!renameForm.newName || renameForm.newName === file.name">
+            Rename
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
     
     <div class="preview-content">
       <!-- Loading State -->
@@ -70,7 +105,8 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { Close, Document, Warning } from '@element-plus/icons-vue';
+import { Close, Edit, Document, Warning } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
 
 const props = defineProps({
   file: {
@@ -83,6 +119,10 @@ const textContent = ref('');
 const loading = ref(true);
 const error = ref(null);
 const debug = ref(true);
+const renameDialogVisible = ref(false);
+const renameForm = ref({ newName: '' });
+const renaming = ref(false);
+const emit = defineEmits(['close', 'update:file']);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -130,6 +170,97 @@ function handleImageError(e) {
 function handlePdfLoad() {
   loading.value = false;
   error.value = null;
+}
+
+function showRenameDialog() {
+  console.log('showRenameDialog called');
+  renameForm.value.newName = props.file.name;
+  renameDialogVisible.value = true;
+  console.log('Dialog visible:', renameDialogVisible.value);
+}
+
+async function handleRename() {
+  if (!renameForm.value.newName || renameForm.value.newName === props.file.name) {
+    return;
+  }
+
+  try {
+    renaming.value = true;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    
+    // Get the current file content
+    const getResponse = await fetch(props.file.download_url, {
+      headers: {
+        'Authorization': `token ${giteaToken}`
+      }
+    });
+    
+    if (!getResponse.ok) throw new Error('Failed to get file content');
+    
+    // Get the file content as base64
+    const content = await getResponse.text();
+    const base64Content = btoa(content);
+
+    // Delete the old file - Fix the repository path
+    const deleteResponse = await fetch(
+      `/gitea/api/v1/repos/vikas/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Delete ${props.file.name} for rename`,
+          sha: props.file.id,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!deleteResponse.ok) throw new Error('Failed to delete old file');
+
+    // Create the new file - Fix the repository path here too
+    const createResponse = await fetch(
+      `/gitea/api/v1/repos/vikas/${props.file.git_repo}/contents/${renameForm.value.newName}`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Rename ${props.file.name} to ${renameForm.value.newName}`,
+          content: base64Content,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!createResponse.ok) throw new Error('Failed to create new file');
+
+    const newFileData = await createResponse.json();
+
+    // Update the file object
+    const updatedFile = {
+      ...props.file,
+      id: newFileData.content.sha,
+      name: renameForm.value.newName,
+      storage_path: newFileData.content.path,
+      download_url: newFileData.content.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+    };
+
+    // Emit the updated file
+    emit('update:file', updatedFile);
+    
+    renameDialogVisible.value = false;
+    ElMessage.success('File renamed successfully');
+  } catch (error) {
+    console.error('Error renaming file:', error);
+    ElMessage.error('Failed to rename file: ' + error.message);
+  } finally {
+    renaming.value = false;
+  }
 }
 
 watch(() => props.file, async (newFile) => {
@@ -219,5 +350,11 @@ watch(() => props.file, async (newFile) => {
 .no-preview-icon {
   font-size: 48px;
   margin-bottom: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 </style> 

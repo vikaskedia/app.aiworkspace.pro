@@ -90,6 +90,7 @@ async function loadFiles() {
       size: file.size,
       storage_path: file.path,
       matter_id: currentMatter.value.id,
+      git_repo: currentMatter.value.git_repo,
       created_at: new Date().toISOString(),
       tags: [],
       download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
@@ -175,6 +176,7 @@ async function handleFileUpload(file) {
       size: file.size,
       storage_path: giteaData.content.path,
       matter_id: currentMatter.value.id,
+      git_repo: currentMatter.value.git_repo,
       created_at: new Date().toISOString(),
       tags: selectedTags.value,
       download_url: giteaData.content.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
@@ -324,7 +326,7 @@ function handleTagInputConfirm() {
       
       <FilePreviewPane
         v-if="selectedFile"
-        :file="selectedFile"
+        v-model:file="selectedFile"
         @close="selectedFile = null"
       />
     </div>

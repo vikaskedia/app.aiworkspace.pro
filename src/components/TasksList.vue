@@ -26,7 +26,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'archive'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'archive', 'show-archived-changed'],
   data() {
     return {
       filters: {
@@ -36,7 +36,8 @@ export default {
         assignee: null,
         dueDate: null,
         showArchived: false
-      }
+      },
+      userEmails: {}
     }
   },
   computed: {
@@ -127,6 +128,35 @@ export default {
         dueDate: null,
         showArchived: false
       }
+    },
+    async loadUserEmail(userId) {
+      if (!this.userEmails[userId]) {
+        try {
+          const { data: userData } = await supabase
+            .rpc('get_user_info_by_id', {
+              user_id: userId
+            });
+          if (userData?.[0]) {
+            this.userEmails[userId] = userData[0].email;
+          }
+        } catch (error) {
+          console.error('Error loading user email:', error);
+        }
+      }
+      return this.userEmails[userId] || 'Unknown User';
+    },
+    getStatusType(task) {
+      if (task.archived) return 'info';
+      switch (task.status) {
+        case 'completed': return 'success';
+        case 'in_progress': return 'warning';
+        default: return 'info';
+      }
+    },
+    async getArchivedTooltip(task) {
+      const archivedByEmail = await this.loadUserEmail(task.archived_by);
+      const date = new Date(task.archived_at).toLocaleDateString();
+      return `Archived by ${archivedByEmail} on ${date}`;
     }
   }
 }
@@ -192,6 +222,7 @@ export default {
             v-model="filters.showArchived"
             class="filter-item"
             active-text="Show Archived Tasks"
+            @change="$emit('show-archived-changed', $event)"
           />
         </div>
       </div>
@@ -222,17 +253,13 @@ export default {
         width="120">
         <template #default="scope">
           <div class="status-container">
-            <el-tag :type="
-              scope.row.archived ? 'info' :
-              scope.row.status === 'completed' ? 'success' :
-              scope.row.status === 'in_progress' ? 'warning' : 'info'
-            ">
+            <el-tag :type="getStatusType(scope.row)">
               {{ scope.row.archived ? 'Archived' : scope.row.status }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.archived"
               effect="dark"
-              :content="`Archived by ${userEmails[scope.row.archived_by]} on ${new Date(scope.row.archived_at).toLocaleDateString()}`"
+              :content="getArchivedTooltip(scope.row)"
               placement="top">
               <el-icon class="archived-icon"><InfoFilled /></el-icon>
             </el-tooltip>

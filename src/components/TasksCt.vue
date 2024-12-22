@@ -70,15 +70,7 @@ export default {
       try {
         this.loading = true;
         
-        // Check cache first
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
-        if (cachedTasks) {
-          const filteredTasks = showArchived ? cachedTasks : cachedTasks.filter(t => !t.archived);
-          this.tasks = this.organizeTasksHierarchy(filteredTasks);
-          this.loading = false;
-          return;
-        }
-
+        // Always fetch from database when showing archived tasks
         let query = supabase
           .from('tasks')
           .select('*')
@@ -87,14 +79,25 @@ export default {
 
         if (!showArchived) {
           query = query.eq('archived', false);
+          
+          // Check cache only for non-archived tasks
+          const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
+          if (cachedTasks) {
+            this.tasks = this.organizeTasksHierarchy(cachedTasks.filter(t => !t.archived));
+            this.loading = false;
+            return;
+          }
         }
 
         const { data: tasks, error } = await query;
 
         if (error) throw error;
         this.tasks = this.organizeTasksHierarchy(tasks);
-        // Store in cache
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
+        
+        // Only cache non-archived tasks
+        if (!showArchived) {
+          this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
+        }
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);
       } finally {
@@ -511,6 +514,7 @@ export default {
         :shared-users="sharedUsers"
         v-model:show-filters="showFilters"
         @load-tasks="loadTasks"
+        @show-archived-changed="loadTasks"
         @edit="async (task) => {
           editingTask = {...task};
           await loadSharedUsers();

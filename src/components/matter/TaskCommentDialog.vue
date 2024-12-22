@@ -227,20 +227,16 @@ export default {
     },
 
     handleInput(event) {
-      // For v-model, the value is directly in event
-      const text = event.target.value || '';
-      const selectionStart = event.target.selectionStart || 0;
+      // For Element Plus input events, the value is passed directly
+      const text = typeof event === 'string' ? event : event?.target?.value || '';
+      
+      // Get the current cursor position from the textarea element
+      const textarea = document.querySelector('.comment-input textarea');
+      const selectionStart = textarea?.selectionStart || 0;
+      
       const lastWord = text.slice(0, selectionStart).split(' ').pop();
       
-      console.log('Input event:', {
-        text,
-        selectionStart,
-        lastWord,
-        showFileSelector: this.showFileSelector
-      });
-      
       if (lastWord === '@files') {
-        console.log('Showing file selector');
         this.showFileSelector = true;
         this.mentionIndex = selectionStart;
         this.loadFiles();
@@ -335,8 +331,7 @@ export default {
           :rows="3"
           placeholder="Write a comment... (Type @files to mention a file)"
           @keyup.ctrl.enter="addComment"
-          @input="handleInput"
-          @keyup="handleInput" />
+          @input="handleInput" />
         <el-button
           type="primary"
           :disabled="!newComment.trim()"

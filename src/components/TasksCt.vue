@@ -224,6 +224,11 @@ export default {
         const originalTask = this.tasks.find(t => t.id === task.id);
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Convert undefined to null for parent_task_id
+        const parent_task_id = task.parent_task_id === undefined ? null : task.parent_task_id;
+        
+        console.log('Updating task with parent_task_id:', parent_task_id);
+        
         const { data, error } = await supabase
           .from('tasks')
           .update({
@@ -231,12 +236,15 @@ export default {
             assignee: task.assignee,
             status: task.status,
             due_date: task.due_date,
-            parent_task_id: task.parent_task_id
+            parent_task_id: parent_task_id  // Use the converted value
           })
           .eq('id', task.id)
           .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase update error:', error);
+          throw error;
+        }
 
         // Get all cached tasks and update the modified task
         const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];

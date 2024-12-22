@@ -170,7 +170,7 @@ export default {
               <el-dropdown-item command="goals">Goals</el-dropdown-item>
               <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
               <el-dropdown-item command="events">Events</el-dropdown-item>
-              <el-dropdown-item command="files">Manage Files</el-dropdown-item>
+              <el-dropdown-item command="files">Files</el-dropdown-item>
               <el-dropdown-item command="settings">Settings</el-dropdown-item>
             </template>
             <!-- Show these options when "All Matters" is selected -->

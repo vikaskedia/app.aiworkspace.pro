@@ -30,13 +30,21 @@
       ></iframe>
       
       <!-- Image Preview -->
-      <img
-        v-else-if="file.type.startsWith('image/')"
-        :src="file.download_url"
-        class="image-preview"
-        @load="loading = false"
-        @error="handleError"
-      />
+      <template v-if="file.type.startsWith('image/')">
+        <div class="image-container">
+          <img
+            :src="file.download_url"
+            class="image-preview"
+            @load="handleImageLoad"
+            @error="handleImageError"
+            :alt="file.name"
+          />
+          <div v-if="debug" class="debug-info">
+            <p>Image URL: {{ file.download_url }}</p>
+            <p>Image Type: {{ file.type }}</p>
+          </div>
+        </div>
+      </template>
       
       <!-- Text Preview -->
       <div
@@ -72,6 +80,7 @@ const props = defineProps({
 const textContent = ref('');
 const loading = ref(true);
 const error = ref(null);
+const debug = ref(true);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -105,11 +114,30 @@ function downloadFile() {
   window.open(props.file.download_url, '_blank');
 }
 
+function handleImageLoad() {
+  loading.value = false;
+  error.value = null;
+}
+
+function handleImageError(e) {
+  console.error('Image load error:', e);
+  loading.value = false;
+  error.value = 'Failed to load image';
+}
+
 watch(() => props.file, async (newFile) => {
   if (newFile) {
     loading.value = true;
     error.value = null;
-    await loadTextContent();
+    
+    // Only fetch content for text files
+    if (newFile.type === 'text/plain') {
+      await loadTextContent();
+    }
+    // For images and PDFs, loading state will be managed by their respective @load events
+    else if (!newFile.type.startsWith('image/') && newFile.type !== 'application/pdf') {
+      loading.value = false;
+    }
   }
 }, { immediate: true });
 </script>

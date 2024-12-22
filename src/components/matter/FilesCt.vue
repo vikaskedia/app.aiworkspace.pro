@@ -109,6 +109,10 @@ function getFileType(filename) {
     doc: 'application/msword',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     txt: 'text/plain',
+    png: 'image/png',  
+    jpg: 'image/jpeg', 
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',  
   };
   return mimeTypes[ext] || 'application/octet-stream';
 }

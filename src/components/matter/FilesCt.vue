@@ -59,22 +59,19 @@ async function loadFiles() {
   loading.value = true;
   
   try {
-    const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
 
-    if (!giteaHost || !giteaToken) {
+    if (!giteaToken) {
       throw new Error('Gitea configuration is missing');
     }
 
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents`,
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents`,
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        mode: 'cors'
+          'Accept': 'application/json'
+        }
       }
     );
 
@@ -93,7 +90,7 @@ async function loadFiles() {
       matter_id: currentMatter.value.id,
       created_at: new Date().toISOString(),
       tags: [],
-      download_url: file.download_url
+      download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
     }));
 
   } catch (error) {

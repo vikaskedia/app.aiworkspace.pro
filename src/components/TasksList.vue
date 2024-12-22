@@ -38,10 +38,21 @@ export default {
     filteredTasks() {
       let result = [...this.tasks]
       
+      const filterTasksRecursively = (tasks, filterFn) => {
+        return tasks.filter(task => {
+          const matchesFilter = filterFn(task)
+          if (task.children?.length) {
+            task.children = filterTasksRecursively(task.children, filterFn)
+            return matchesFilter || task.children.length > 0
+          }
+          return matchesFilter
+        })
+      }
+
       // Search filter
       if (this.filters.search) {
         const query = this.filters.search.toLowerCase()
-        result = result.filter(task => 
+        result = filterTasksRecursively(result, task => 
           task.title.toLowerCase().includes(query) ||
           task.description?.toLowerCase().includes(query)
         )
@@ -49,17 +60,23 @@ export default {
 
       // Status filter
       if (this.filters.status) {
-        result = result.filter(task => task.status === this.filters.status)
+        result = filterTasksRecursively(result, task => 
+          task.status === this.filters.status
+        )
       }
 
       // Priority filter
       if (this.filters.priority) {
-        result = result.filter(task => task.priority === this.filters.priority)
+        result = filterTasksRecursively(result, task => 
+          task.priority === this.filters.priority
+        )
       }
 
       // Assignee filter
       if (this.filters.assignee) {
-        result = result.filter(task => task.assignee === this.filters.assignee)
+        result = filterTasksRecursively(result, task => 
+          task.assignee === this.filters.assignee
+        )
       }
 
       // Due date filter
@@ -67,27 +84,22 @@ export default {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         
-        switch (this.filters.dueDate) {
-          case 'overdue':
-            result = result.filter(task => 
-              task.due_date && new Date(task.due_date) < today && task.status !== 'completed'
-            )
-            break
-          case 'today':
-            result = result.filter(task => {
+        result = filterTasksRecursively(result, task => {
+          switch (this.filters.dueDate) {
+            case 'overdue':
+              return task.due_date && new Date(task.due_date) < today && task.status !== 'completed'
+            case 'today':
               const dueDate = new Date(task.due_date)
               dueDate.setHours(0, 0, 0, 0)
               return dueDate.getTime() === today.getTime()
-            })
-            break
-          case 'week':
-            const nextWeek = new Date(today)
-            nextWeek.setDate(today.getDate() + 7)
-            result = result.filter(task => 
-              task.due_date && new Date(task.due_date) <= nextWeek
-            )
-            break
-        }
+            case 'week':
+              const nextWeek = new Date(today)
+              nextWeek.setDate(today.getDate() + 7)
+              return task.due_date && new Date(task.due_date) <= nextWeek
+            default:
+              return false
+          }
+        })
       }
 
       return result
@@ -194,6 +206,8 @@ export default {
     <el-table
       v-loading="loading"
       :data="filteredTasks"
+      row-key="id"
+      :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
       style="width: 100%">
       <el-table-column 
         prop="title" 

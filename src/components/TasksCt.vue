@@ -71,7 +71,7 @@ export default {
         // Check cache first
         const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
         if (cachedTasks) {
-          this.tasks = cachedTasks;
+          this.tasks = this.organizeTasksHierarchy(cachedTasks);
           this.loading = false;
           return;
         }
@@ -83,7 +83,7 @@ export default {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        this.tasks = tasks;
+        this.tasks = this.organizeTasksHierarchy(tasks);
         // Store in cache
         this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
       } catch (error) {
@@ -91,6 +91,23 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    organizeTasksHierarchy(tasks) {
+      // Create a map of all tasks
+      const taskMap = new Map(tasks.map(task => [task.id, { ...task, children: [] }]));
+      const rootTasks = [];
+
+      // Organize tasks into hierarchy
+      for (const task of taskMap.values()) {
+        if (task.parent_task_id && taskMap.has(task.parent_task_id)) {
+          taskMap.get(task.parent_task_id).children.push(task);
+        } else {
+          rootTasks.push(task);
+        }
+      }
+
+      return rootTasks;
     },
 
     async createTask() {
@@ -319,29 +336,9 @@ export default {
             table: 'tasks',
             filter: `matter_id=eq.${this.currentMatter.id}`
           },
-          (payload) => {
-            switch (payload.eventType) {
-              case 'INSERT':
-                // Add new task to the beginning of the list
-                this.tasks.unshift(payload.new);
-                break;
-              
-              case 'UPDATE':
-                // Update existing task
-                const updateIndex = this.tasks.findIndex(task => task.id === payload.new.id);
-                if (updateIndex !== -1) {
-                  this.tasks[updateIndex] = payload.new;
-                }
-                break;
-              
-              case 'DELETE':
-                // Remove deleted task
-                const deleteIndex = this.tasks.findIndex(task => task.id === payload.old.id);
-                if (deleteIndex !== -1) {
-                  this.tasks.splice(deleteIndex, 1);
-                }
-                break;
-            }
+          async (payload) => {
+            // Reload all tasks to maintain proper hierarchy
+            await this.loadTasks();
           }
         )
         .subscribe();

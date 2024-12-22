@@ -28,32 +28,18 @@ export default {
 
     const loadMatters = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        // Get matters created by the user
-        const { data: ownedMatters, error: ownedError } = await supabase
+
+        // The RLS policies in the database will automatically handle the access control, 
+        // so there's no need to explicitly check for ownership or shared access in the application code. 
+        //This will also prevent any potential duplicate matters from appearing in the lists.
+        const { data: matters, error } = await supabase
           .from('matters')
           .select('*')
-          .eq('created_by', user.id)
+          .eq('archived', false)
           .order('created_at', { ascending: false });
 
-        if (ownedError) throw ownedError;
-
-        // Get matters shared with the user
-        const { data: sharedMatters, error: sharedError } = await supabase
-          .from('matters')
-          .select('*')
-          .in('id', (
-            await supabase
-              .from('matter_access')
-              .select('matter_id')
-              .eq('shared_with_user_id', user.id)
-          ).data?.map(share => share.matter_id) || [])
-          .order('created_at', { ascending: false });
-
-        if (sharedError) throw sharedError;
-
-        matters.value = [...ownedMatters, ...sharedMatters];
+        if (error) throw error;
+        matters.value = matters;
 
         // After loading matters, check URL for matter ID
         const matterId = route.params.matterId;

@@ -175,11 +175,11 @@ export default {
             </template>
             <!-- Show these options when "All Matters" is selected -->
             <template v-else>
-              <el-dropdown-item command="all_dashboard">All Matters Dashboard</el-dropdown-item>
-              <el-dropdown-item command="all_tasks">All Tasks</el-dropdown-item>
-              <el-dropdown-item command="all_goals">All Goals</el-dropdown-item>
-              <el-dropdown-item command="all_events">All Events</el-dropdown-item>
-              <el-dropdown-item command="all_files">All Files</el-dropdown-item>
+              <el-dropdown-item command="all_dashboard">Dashboard</el-dropdown-item>
+              <el-dropdown-item command="all_tasks">Tasks</el-dropdown-item>
+              <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
+              <el-dropdown-item command="all_events">Events</el-dropdown-item>
+              <el-dropdown-item command="all_files">Files</el-dropdown-item>
             </template>
           </el-dropdown-menu>
         </template>

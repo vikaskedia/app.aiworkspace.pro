@@ -1,13 +1,9 @@
-<script setup>
-import DashboardCt from './components/DashboardCt.vue'
-</script>
-
 <template>
-  <div>
-    <DashboardCt />
-  </div>
+  <router-view></router-view>
 </template>
 
-<style>
+<script setup>
+</script>
 
+<style>
 </style>

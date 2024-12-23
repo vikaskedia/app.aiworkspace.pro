@@ -54,11 +54,76 @@
             <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
               <div class="comment-header">
                 <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
-                <span class="comment-date">
-                  {{ new Date(comment.created_at).toLocaleString() }}
-                </span>
+                <div class="comment-actions">
+                  <span class="comment-date">
+                    {{ comment.updated_at 
+                      ? new Date(comment.updated_at).toLocaleString(undefined, { 
+                          year: 'numeric', 
+                          month: 'numeric', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : new Date(comment.created_at).toLocaleString(undefined, {
+                          year: 'numeric',
+                          month: 'numeric',
+                          day: 'numeric', 
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                    }}
+                    <span 
+                      v-if="comment.comment_edit_history?.length" 
+                      class="edited-marker"
+                      :data-comment-id="comment.id"
+                      @click="toggleHistory(comment.id)"
+                    >(edited {{ comment.comment_edit_history.length }} times)</span>
+                  </span>
+                  <el-button 
+                    v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
+                    type="text"
+                    @click="startEditing(comment)"
+                  >
+                    Edit
+                  </el-button>
+                </div>
               </div>
-              <div class="comment-text" v-html="formatCommentContent(comment.content)"></div>
+              <div v-if="editingCommentId === comment.id">
+                <el-input
+                  v-model="editingCommentText"
+                  type="textarea"
+                  :rows="3"
+                />
+                <div class="edit-actions">
+                  <el-button @click="cancelEdit">Cancel</el-button>
+                  <el-button 
+                    type="primary"
+                    @click="saveEdit(comment)"
+                    :disabled="!editingCommentText.trim()"
+                  >
+                    Save
+                  </el-button>
+                </div>
+              </div>
+              <div v-else class="comment-text">
+                <span v-html="formatCommentContent(comment.content)"></span>
+                <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
+                  <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
+                    <div class="edit-history-header">Version {{ comment.comment_edit_history.length - index }}:</div>
+                    <div class="previous-content" v-html="formatCommentContent(historyEntry.previous_content)"></div>
+                    <div class="edit-metadata">
+                      Edited by {{ userEmails[historyEntry.edited_by] }}
+                      on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -267,11 +332,17 @@ export default {
       files: [],
       showFileSelector: false,
       mentionIndex: -1,
-      fileSearchQuery: ''
+      fileSearchQuery: '',
+      editingCommentId: null,
+      editingCommentText: '',
+      currentUser: null,
+      expandedCommentHistories: new Set(),
     };
   },
   async created() {
     const taskId = this.$route.params.taskId;
+    const { data: { user } } = await supabase.auth.getUser();
+    this.currentUser = user;
     await this.loadTask(taskId);
     await this.loadSharedUsers();
     this.setupRealtimeSubscription();
@@ -596,6 +667,68 @@ export default {
       this.newComment = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
       this.showFileSelector = false;
       this.fileSearchQuery = '';
+    },
+
+    startEditing(comment) {
+      // Only allow editing if this is the latest comment
+      const isLatestComment = this.comments[0].id === comment.id;
+      if (!isLatestComment) {
+        ElMessage.warning('Only the most recent comment can be edited');
+        return;
+      }
+      
+      this.editingCommentId = comment.id;
+      this.editingCommentText = comment.content;
+    },
+
+    async saveEdit(comment) {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Prepare edit history entry
+        const historyEntry = {
+          previous_content: comment.content,
+          edited_at: new Date().toISOString(),
+          edited_by: user.id
+        };
+
+        // Update comment with new content and history
+        const { error } = await supabase
+          .from('task_comments')
+          .update({
+            content: this.editingCommentText.trim(),
+            comment_edit_history: comment.comment_edit_history 
+              ? [...comment.comment_edit_history, historyEntry]
+              : [historyEntry],
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', comment.id);
+
+        if (error) throw error;
+
+        this.editingCommentId = null;
+        this.editingCommentText = '';
+        await this.loadComments();
+        ElMessage.success('Comment updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating comment: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    cancelEdit() {
+      this.editingCommentId = null;
+      this.editingCommentText = '';
+    },
+
+    toggleHistory(commentId) {
+      if (this.expandedCommentHistories.has(commentId)) {
+        this.expandedCommentHistories.delete(commentId);
+      } else {
+        this.expandedCommentHistories.add(commentId);
+      }
     }
   },
   watch: {
@@ -778,5 +911,66 @@ h4 {
 
 .file-item:hover {
   background-color: #f5f7fa;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edited-marker {
+  font-size: 0.9em;
+  color: #909399;
+  cursor: pointer;
+}
+
+.edited-marker:hover {
+  text-decoration: underline;
+}
+
+.edit-history {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.edit-history-entry {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-history-entry:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.edit-history-header {
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #606266;
+}
+
+.previous-content {
+  background: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.edit-metadata {
+  font-size: 0.8em;
+  color: #909399;
 }
 </style> 

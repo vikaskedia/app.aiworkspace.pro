@@ -186,8 +186,15 @@ export default {
 
         const query = supabase
           .from('matters')
-          .select('*')
+          .select(`
+            *,
+            matter_access!inner (
+              access_type,
+              shared_with_user_id
+            )
+          `)
           .eq('deleted', this.showDeleted)
+          .eq('matter_access.shared_with_user_id', user.id)
           .order('created_at', { ascending: false });
 
         const { data: matters, error } = await query;

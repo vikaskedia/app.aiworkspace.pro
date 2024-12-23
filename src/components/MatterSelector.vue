@@ -33,10 +33,21 @@ export default {
 
     const loadMatters = async () => {
       try {
+        // Get the current user first
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Get all matters that the user has access to
         const { data: mattersData, error } = await supabase
           .from('matters')
-          .select('*')
+          .select(`
+            *,
+            matter_access!inner (
+              access_type,
+              shared_with_user_id
+            )
+          `)
           .eq('deleted', false)
+          .eq('matter_access.shared_with_user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

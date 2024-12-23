@@ -50,16 +50,6 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "Users can delete tasks" ON tasks
-FOR DELETE USING (
-  matter_id IN (
-    SELECT matter_id 
-    FROM matter_access 
-    WHERE shared_with_user_id = auth.uid() 
-    AND access_type = 'edit'
-  )
-);
-
 CREATE POLICY "Users can create tasks" ON tasks
 FOR INSERT WITH CHECK (
   matter_id IN (

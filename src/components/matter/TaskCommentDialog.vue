@@ -379,7 +379,22 @@ export default {
               <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
               <div class="comment-actions">
                 <span class="comment-date">
-                  {{ comment.updated_at ? new Date(comment.updated_at).toLocaleString() : new Date(comment.created_at).toLocaleString() }}
+                  {{ comment.updated_at 
+                    ? new Date(comment.updated_at).toLocaleString(undefined, { 
+                        year: 'numeric', 
+                        month: 'numeric', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : new Date(comment.created_at).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric', 
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                  }}
                   <span 
                     v-if="comment.comment_edit_history?.length" 
                     class="edited-marker"
@@ -420,8 +435,14 @@ export default {
                   <div class="edit-history-header">Version {{ comment.comment_edit_history.length - index }}:</div>
                   <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
                   <div class="edit-metadata">
-                    Edited by {{ userEmails[historyEntry.edited_by] }} 
-                    on {{ new Date(historyEntry.edited_at).toLocaleString() }}
+                    Edited by {{ userEmails[historyEntry.edited_by] }}
+                    on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) }}
                   </div>
                 </div>
               </div>

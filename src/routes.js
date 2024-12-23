@@ -9,6 +9,7 @@ import EventsCt from './components/matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/matter/MatterLayout.vue';
+import SingleTaskCt from './components/matter/SingleTaskCt.vue';
 
 const routes = [
   {
@@ -110,6 +111,11 @@ const routes = [
   {
     path: '/',
     redirect: '/login'
+  },
+  {
+    path: '/matter/:matterId/tasks/:taskId',
+    name: 'single-task',
+    component: SingleTaskCt
   }
 ];
 

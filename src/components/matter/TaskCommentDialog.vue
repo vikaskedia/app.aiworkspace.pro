@@ -363,7 +363,13 @@ export default {
           <el-button
             type="primary"
             link
-            @click="$router.push(`/matter/${task.matter_id}/tasks/${task.id}`)"
+            @click="$router.push({
+              name: 'single-task',
+              params: {
+                matterId: task.matter_id,
+                taskId: task.id
+              }
+            })"
             style="padding: 0">
             <el-icon><FullScreen /></el-icon>
           </el-button>

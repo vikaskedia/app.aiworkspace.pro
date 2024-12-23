@@ -32,7 +32,8 @@ export default {
       mentionIndex: -1,
       fileSearchQuery: '',
       editingCommentId: null,
-      editingCommentText: ''
+      editingCommentText: '',
+      currentUser: null
     };
   },
   computed: {
@@ -347,6 +348,10 @@ export default {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
+  },
+  async created() {
+    const { data: { user } } = await supabase.auth.getUser();
+    this.currentUser = user;
   }
 };
 </script>

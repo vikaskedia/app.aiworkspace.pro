@@ -515,8 +515,106 @@ export default {
       }
     },
     async updateTask() {
-      // Reference TasksCt.vue for implementation
-      // Lines 260-271
+      try {
+        this.loading = true;
+        const originalTask = { ...this.task };
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({
+            title: this.editingTask.title,
+            description: this.editingTask.description,
+            status: this.editingTask.status,
+            priority: this.editingTask.priority,
+            due_date: this.editingTask.due_date,
+            assignee: this.editingTask.assignee
+          })
+          .eq('id', this.task.id)
+          .select();
+
+        if (error) throw error;
+
+        // Update local task data
+        this.task = data[0];
+        
+        // Create notifications for changes
+        if (originalTask.assignee !== this.editingTask.assignee && this.editingTask.assignee) {
+          await this.createNotification(
+            this.editingTask.assignee,
+            'task_assigned',
+            { task_id: this.task.id, task_title: this.task.title }
+          );
+        }
+
+        // Log changes as activity
+        const changes = [];
+        if (originalTask.title !== this.editingTask.title) {
+          changes.push(`title from "${originalTask.title}" to "${this.editingTask.title}"`);
+        }
+        if (originalTask.status !== this.editingTask.status) {
+          changes.push(`status from "${originalTask.status}" to "${this.editingTask.status}"`);
+        }
+        if (originalTask.priority !== this.editingTask.priority) {
+          changes.push(`priority from "${originalTask.priority}" to "${this.editingTask.priority}"`);
+        }
+        if (originalTask.assignee !== this.editingTask.assignee) {
+          const oldAssignee = this.sharedUsers.find(u => u.id === originalTask.assignee)?.email || 'unassigned';
+          const newAssignee = this.sharedUsers.find(u => u.id === this.editingTask.assignee)?.email || 'unassigned';
+          changes.push(`assignee from ${oldAssignee} to ${newAssignee}`);
+        }
+        if (originalTask.due_date !== this.editingTask.due_date) {
+          const oldDate = originalTask.due_date ? new Date(originalTask.due_date).toLocaleDateString() : 'none';
+          const newDate = this.editingTask.due_date ? new Date(this.editingTask.due_date).toLocaleDateString() : 'none';
+          changes.push(`due date from ${oldDate} to ${newDate}`);
+        }
+
+        if (changes.length > 0) {
+          await supabase
+            .from('task_comments')
+            .insert({
+              task_id: this.task.id,
+              user_id: user.id,
+              content: `Updated ${changes.join(' and ')}`,
+              type: 'activity',
+              metadata: {
+                action: 'update',
+                changes: {
+                  title: this.editingTask.title !== originalTask.title ? {
+                    from: originalTask.title,
+                    to: this.editingTask.title
+                  } : null,
+                  status: this.editingTask.status !== originalTask.status ? {
+                    from: originalTask.status,
+                    to: this.editingTask.status
+                  } : null,
+                  priority: this.editingTask.priority !== originalTask.priority ? {
+                    from: originalTask.priority,
+                    to: this.editingTask.priority
+                  } : null,
+                  assignee: this.editingTask.assignee !== originalTask.assignee ? {
+                    from: originalTask.assignee,
+                    to: this.editingTask.assignee
+                  } : null,
+                  due_date: this.editingTask.due_date !== originalTask.due_date ? {
+                    from: originalTask.due_date,
+                    to: this.editingTask.due_date
+                  } : null
+                }
+              }
+            });
+        }
+
+        this.editDialogVisible = false;
+        ElMessage.success('Task updated successfully');
+        
+        // Reload task to get fresh data
+        await this.loadTask(this.task.id);
+      } catch (error) {
+        ElMessage.error('Error updating task: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     },
     getStatusType(task) {
       if (!task) return 'info';

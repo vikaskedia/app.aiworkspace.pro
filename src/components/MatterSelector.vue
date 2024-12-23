@@ -200,6 +200,36 @@ export default {
       </template>
     </el-dropdown>
   </div>
+  <el-dialog
+    v-model="dialogVisible"
+    title="Create New Matter"
+    width="500px">
+    <el-form :model="newMatter" label-position="top">
+      <el-form-item label="Title" required>
+        <el-input v-model="newMatter.title" placeholder="Enter matter title" />
+      </el-form-item>
+      
+      <el-form-item label="Description">
+        <el-input
+          v-model="newMatter.description"
+          type="textarea"
+          rows="3"
+          placeholder="Enter matter description" />
+      </el-form-item>
+    </el-form>
+    
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogVisible = false">Cancel</el-button>
+        <el-button
+          type="primary"
+          :disabled="!newMatter.title"
+          @click="createMatter">
+          Create Matter
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>

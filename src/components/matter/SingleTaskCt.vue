@@ -81,7 +81,7 @@
                   </span>
                   <el-button 
                     v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
-                    type="text"
+                    link
                     @click="startEditing(comment)"
                   >
                     Edit

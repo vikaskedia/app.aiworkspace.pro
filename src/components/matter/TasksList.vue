@@ -309,7 +309,10 @@ export default {
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
-              {{ formatStatus(scope.row.status) }}
+              {{ scope.row.status === 'not_started' ? 'Not started' : 
+                 scope.row.status === 'in_progress' ? 'In progress' : 
+                 scope.row.status === 'awaiting_external' ? 'Awaiting external factor' :
+                 scope.row.status }}
             </el-tag>
             <el-tooltip 
               v-if="scope.row.deleted"

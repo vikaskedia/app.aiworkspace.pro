@@ -410,7 +410,7 @@ export default {
                 </span>
                 <el-button 
                   v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
-                  type="text"
+                  link
                   @click="startEditing(comment)"
                 >
                   Edit
@@ -465,6 +465,7 @@ export default {
           v-model="fileSearchQuery"
           placeholder="Search files..."
           clearable
+          :type="'string'"
           style="margin-bottom: 1rem;" />
         
         <el-scrollbar height="300px">

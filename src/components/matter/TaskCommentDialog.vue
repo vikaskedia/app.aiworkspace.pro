@@ -33,7 +33,8 @@ export default {
       fileSearchQuery: '',
       editingCommentId: null,
       editingCommentText: '',
-      currentUser: null
+      currentUser: null,
+      expandedCommentHistories: new Set(),
     };
   },
   computed: {
@@ -254,38 +255,6 @@ export default {
       this.fileSearchQuery = '';
     },
 
-    formatCommentText(comment) {
-      let html = this.formatMarkdownLinks(comment.content);
-      
-      if (comment.comment_edit_history?.length) {
-        const lastEdit = comment.comment_edit_history[comment.comment_edit_history.length - 1];
-        const editorEmail = this.userEmails[lastEdit.edited_by] || 'Unknown user';
-        const editDate = new Date(lastEdit.edited_at).toLocaleString();
-        
-        html += `
-          <div class="edit-info">
-            <el-popover
-              placement="top"
-              trigger="hover"
-              width="300"
-            >
-              <template #reference>
-                <span class="edited-marker">(edited)</span>
-              </template>
-              <div class="edit-history">
-                <div class="edit-history-header">Previous version:</div>
-                <div class="previous-content">${this.formatMarkdownLinks(lastEdit.previous_content)}</div>
-                <div class="edit-metadata">
-                  Edited by ${editorEmail} on ${editDate}
-                </div>
-              </div>
-            </el-popover>
-          </div>`;
-      }
-      
-      return html;
-    },
-
     formatMarkdownLinks(text) {
       return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="file-link">$1</a>');
     },
@@ -342,16 +311,40 @@ export default {
     cancelEdit() {
       this.editingCommentId = null;
       this.editingCommentText = '';
+    },
+
+    toggleHistory(commentId) {
+      if (this.expandedCommentHistories.has(commentId)) {
+        this.expandedCommentHistories.delete(commentId);
+      } else {
+        this.expandedCommentHistories.add(commentId);
+      }
     }
   },
   beforeUnmount() {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
+    document.removeEventListener('click');
   },
   async created() {
     const { data: { user } } = await supabase.auth.getUser();
     this.currentUser = user;
+  },
+  mounted() {
+    // Add click handler for edited markers
+    document.addEventListener('click', (event) => {
+      if (event.target.classList.contains('edited-marker')) {
+        const commentId = event.target.dataset.commentId;
+        if (this.expandedCommentHistories.has(commentId)) {
+          this.expandedCommentHistories.delete(commentId);
+        } else {
+          this.expandedCommentHistories.add(commentId);
+        }
+        // Force update
+        this.$forceUpdate();
+      }
+    });
   }
 };
 </script>
@@ -387,6 +380,11 @@ export default {
               <div class="comment-actions">
                 <span class="comment-date">
                   {{ new Date(comment.created_at).toLocaleString() }}
+                  <span 
+                    v-if="comment.comment_edit_history?.length" 
+                    class="edited-marker"
+                    @click="toggleHistory(comment.id)"
+                  >(edited)</span>
                 </span>
                 <el-button 
                   v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
@@ -414,7 +412,17 @@ export default {
                 </el-button>
               </div>
             </div>
-            <div v-else class="comment-text" v-html="formatCommentText(comment)"></div>
+            <div v-else class="comment-text">
+              <span v-html="formatMarkdownLinks(comment.content)"></span>
+              <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
+                <div class="edit-history-header">Previous version:</div>
+                <div class="previous-content" v-html="formatMarkdownLinks(comment.comment_edit_history[comment.comment_edit_history.length - 1].previous_content)"></div>
+                <div class="edit-metadata">
+                  Edited by {{ userEmails[comment.comment_edit_history[comment.comment_edit_history.length - 1].edited_by] }} 
+                  on {{ new Date(comment.comment_edit_history[comment.comment_edit_history.length - 1].edited_at).toLocaleString() }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -509,6 +517,9 @@ export default {
 
 .comment-date {
   color: #909399;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .comment-text {
@@ -578,13 +589,20 @@ export default {
 }
 
 .edited-marker {
-  font-size: 0.8em;
+  font-size: 0.9em;
   color: #909399;
   cursor: pointer;
 }
 
+.edited-marker:hover {
+  text-decoration: underline;
+}
+
 .edit-history {
+  margin-top: 8px;
   padding: 8px;
+  background: #f9f9f9;
+  border-radius: 4px;
 }
 
 .edit-history-header {

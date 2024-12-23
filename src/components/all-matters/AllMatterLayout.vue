@@ -14,6 +14,12 @@ export default {
   name: 'AllMatterLayout',
   components: {
     HeaderCt
+  },
+  async mounted() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      this.$router.push('/login');
+    }
   }
 }
 </script>

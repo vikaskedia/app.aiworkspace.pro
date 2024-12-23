@@ -14,10 +14,13 @@ const routes = [
   {
     path: '/all-matters',
     component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: 'dashboard'
+        name: 'AllMattersRoot',
+        meta: { requiresAuth: true },
+        redirect: '/all-matters/dashboard'
       },
       {
         path: 'dashboard',
@@ -106,7 +109,7 @@ const routes = [
   },
   {
     path: '/',
-    redirect: '/all-matters'
+    redirect: '/login'
   }
 ];
 
@@ -117,14 +120,23 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
+  // Get session status first
   const { data: { session } } = await supabase.auth.getSession();
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
 
+  // If no session and route requires auth, redirect to login
   if (requiresAuth && !session) {
     next('/login');
     return;
   }
 
+  // Handle root path
+  if (to.path === '/') {
+    next(session ? '/all-matters' : '/login');
+    return;
+  }
+
+  // Redirect from login if already authenticated
   if (to.path === '/login' && session) {
     next('/all-matters');
     return;

@@ -30,7 +30,9 @@ export default {
       files: [],
       showFileSelector: false,
       mentionIndex: -1,
-      fileSearchQuery: ''
+      fileSearchQuery: '',
+      editingCommentId: null,
+      editingCommentText: ''
     };
   },
   computed: {
@@ -251,9 +253,94 @@ export default {
       this.fileSearchQuery = '';
     },
 
-    formatCommentText(text) {
-      // Convert markdown-style links to HTML links
+    formatCommentText(comment) {
+      let html = this.formatMarkdownLinks(comment.content);
+      
+      if (comment.comment_edit_history?.length) {
+        const lastEdit = comment.comment_edit_history[comment.comment_edit_history.length - 1];
+        const editorEmail = this.userEmails[lastEdit.edited_by] || 'Unknown user';
+        const editDate = new Date(lastEdit.edited_at).toLocaleString();
+        
+        html += `
+          <div class="edit-info">
+            <el-popover
+              placement="top"
+              trigger="hover"
+              width="300"
+            >
+              <template #reference>
+                <span class="edited-marker">(edited)</span>
+              </template>
+              <div class="edit-history">
+                <div class="edit-history-header">Previous version:</div>
+                <div class="previous-content">${this.formatMarkdownLinks(lastEdit.previous_content)}</div>
+                <div class="edit-metadata">
+                  Edited by ${editorEmail} on ${editDate}
+                </div>
+              </div>
+            </el-popover>
+          </div>`;
+      }
+      
+      return html;
+    },
+
+    formatMarkdownLinks(text) {
       return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="file-link">$1</a>');
+    },
+
+    startEditing(comment) {
+      // Only allow editing if this is the latest comment
+      const isLatestComment = this.comments[0].id === comment.id;
+      if (!isLatestComment) {
+        ElMessage.warning('Only the most recent comment can be edited');
+        return;
+      }
+      
+      this.editingCommentId = comment.id;
+      this.editingCommentText = comment.content;
+    },
+
+    async saveEdit(comment) {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Prepare edit history entry
+        const historyEntry = {
+          previous_content: comment.content,
+          edited_at: new Date().toISOString(),
+          edited_by: user.id
+        };
+
+        // Update comment with new content and history
+        const { error } = await supabase
+          .from('task_comments')
+          .update({
+            content: this.editingCommentText.trim(),
+            comment_edit_history: comment.comment_edit_history 
+              ? [...comment.comment_edit_history, historyEntry]
+              : [historyEntry],
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', comment.id);
+
+        if (error) throw error;
+
+        this.editingCommentId = null;
+        this.editingCommentText = '';
+        await this.loadComments();
+        ElMessage.success('Comment updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating comment: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    cancelEdit() {
+      this.editingCommentId = null;
+      this.editingCommentText = '';
     }
   },
   beforeUnmount() {
@@ -292,11 +379,37 @@ export default {
           <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
             <div class="comment-header">
               <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
-              <span class="comment-date">
-                {{ new Date(comment.created_at).toLocaleString() }}
-              </span>
+              <div class="comment-actions">
+                <span class="comment-date">
+                  {{ new Date(comment.created_at).toLocaleString() }}
+                </span>
+                <el-button 
+                  v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
+                  type="text"
+                  @click="startEditing(comment)"
+                >
+                  Edit
+                </el-button>
+              </div>
             </div>
-            <div class="comment-text" v-html="formatCommentText(comment.content)"></div>
+            <div v-if="editingCommentId === comment.id">
+              <el-input
+                v-model="editingCommentText"
+                type="textarea"
+                :rows="3"
+              />
+              <div class="edit-actions">
+                <el-button @click="cancelEdit">Cancel</el-button>
+                <el-button 
+                  type="primary"
+                  @click="saveEdit(comment)"
+                  :disabled="!editingCommentText.trim()"
+                >
+                  Save
+                </el-button>
+              </div>
+            </div>
+            <div v-else class="comment-text" v-html="formatCommentText(comment)"></div>
           </div>
         </div>
       </div>
@@ -444,5 +557,46 @@ export default {
   :deep(.el-drawer) {
     width: 90% !important;
   }
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edited-marker {
+  font-size: 0.8em;
+  color: #909399;
+  cursor: pointer;
+}
+
+.edit-history {
+  padding: 8px;
+}
+
+.edit-history-header {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.previous-content {
+  background: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.edit-metadata {
+  font-size: 0.8em;
+  color: #909399;
 }
 </style>

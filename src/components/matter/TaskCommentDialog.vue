@@ -379,12 +379,13 @@ export default {
               <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
               <div class="comment-actions">
                 <span class="comment-date">
-                  {{ new Date(comment.created_at).toLocaleString() }}
+                  {{ comment.updated_at ? new Date(comment.updated_at).toLocaleString() : new Date(comment.created_at).toLocaleString() }}
                   <span 
                     v-if="comment.comment_edit_history?.length" 
                     class="edited-marker"
+                    :data-comment-id="comment.id"
                     @click="toggleHistory(comment.id)"
-                  >(edited)</span>
+                  >(edited {{ comment.comment_edit_history.length }} times)</span>
                 </span>
                 <el-button 
                   v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
@@ -415,11 +416,13 @@ export default {
             <div v-else class="comment-text">
               <span v-html="formatMarkdownLinks(comment.content)"></span>
               <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
-                <div class="edit-history-header">Previous version:</div>
-                <div class="previous-content" v-html="formatMarkdownLinks(comment.comment_edit_history[comment.comment_edit_history.length - 1].previous_content)"></div>
-                <div class="edit-metadata">
-                  Edited by {{ userEmails[comment.comment_edit_history[comment.comment_edit_history.length - 1].edited_by] }} 
-                  on {{ new Date(comment.comment_edit_history[comment.comment_edit_history.length - 1].edited_at).toLocaleString() }}
+                <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
+                  <div class="edit-history-header">Version {{ comment.comment_edit_history.length - index }}:</div>
+                  <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
+                  <div class="edit-metadata">
+                    Edited by {{ userEmails[historyEntry.edited_by] }} 
+                    on {{ new Date(historyEntry.edited_at).toLocaleString() }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -605,9 +608,22 @@ export default {
   border-radius: 4px;
 }
 
+.edit-history-entry {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-history-entry:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .edit-history-header {
   font-weight: 500;
   margin-bottom: 8px;
+  color: #606266;
 }
 
 .previous-content {

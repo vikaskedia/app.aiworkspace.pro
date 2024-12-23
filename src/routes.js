@@ -136,6 +136,12 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
+  // Handle invalid matter routes
+  if (to.path.startsWith('/matter/') && (!to.params.matterId || to.params.matterId === '')) {
+    next('/all-matters');
+    return;
+  }
+
   // Redirect from login if already authenticated
   if (to.path === '/login' && session) {
     next('/all-matters');

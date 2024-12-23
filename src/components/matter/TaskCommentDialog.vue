@@ -325,15 +325,14 @@ export default {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
-    document.removeEventListener('click');
+    document.removeEventListener('click', this.handleClickOutside);
   },
   async created() {
     const { data: { user } } = await supabase.auth.getUser();
     this.currentUser = user;
   },
   mounted() {
-    // Add click handler for edited markers
-    document.addEventListener('click', (event) => {
+    this.handleClickOutside = (event) => {
       if (event.target.classList.contains('edited-marker')) {
         const commentId = event.target.dataset.commentId;
         if (this.expandedCommentHistories.has(commentId)) {
@@ -344,7 +343,8 @@ export default {
         // Force update
         this.$forceUpdate();
       }
-    });
+    };
+    document.addEventListener('click', this.handleClickOutside);
   }
 };
 </script>
@@ -364,7 +364,7 @@ export default {
             type="primary"
             link
             @click="$router.push({
-              name: 'single-task',
+              name: 'SingleTaskPage',
               params: {
                 matterId: task.matter_id,
                 taskId: task.id

@@ -111,11 +111,6 @@ const routes = [
   {
     path: '/',
     redirect: '/login'
-  },
-  {
-    path: '/matter/:matterId/tasks/:taskId',
-    name: 'single-task',
-    component: SingleTaskCt
   }
 ];
 

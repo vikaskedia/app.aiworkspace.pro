@@ -184,6 +184,7 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
+        // Get all matters that the user has access to. Even without the join with matter_access this will work if RLS is enabled. But in Dec 2024, RLS is not enabled since giving errors.
         const query = supabase
           .from('matters')
           .select(`

@@ -1,13 +1,14 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { FullScreen, Close } from '@element-plus/icons-vue';
+import { FullScreen, Close, Folder } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 
 export default {
   components: {
     FullScreen,
-    Close
+    Close,
+    Folder
   },
   props: {
     task: {
@@ -28,6 +29,7 @@ export default {
       userEmails: {},
       subscription: null,
       files: [],
+      folders: [],
       showFileSelector: false,
       mentionIndex: -1,
       fileSearchQuery: '',
@@ -35,14 +37,17 @@ export default {
       editingCommentText: '',
       currentUser: null,
       expandedCommentHistories: new Set(),
+      currentSelectorFolder: null,
+      selectorBreadcrumbs: [],
     };
   },
   computed: {
     filteredFiles() {
-      if (!this.fileSearchQuery) return this.files;
+      const items = [...this.folders, ...this.files];
+      if (!this.fileSearchQuery) return items;
       const query = this.fileSearchQuery.toLowerCase();
-      return this.files.filter(file => 
-        file.name.toLowerCase().includes(query)
+      return items.filter(item => 
+        item.name.toLowerCase().includes(query)
       );
     }
   },
@@ -199,8 +204,9 @@ export default {
           throw new Error('No git repository found for this matter');
         }
 
+        const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/`,
+          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
@@ -215,18 +221,30 @@ export default {
 
         const contents = await response.json();
         
+        // Separate files and folders
+        this.folders = contents
+          .filter(item => item.type === 'dir')
+          .map(folder => ({
+            id: folder.sha,
+            name: folder.name,
+            path: folder.path,
+            type: 'dir'
+          }));
+
         this.files = contents
           .filter(item => item.type === 'file' && item.name !== '.gitkeep')
           .map(file => ({
             id: file.sha,
             name: file.name,
             path: file.path,
+            type: 'file',
             download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
           }));
 
       } catch (error) {
         ElMessage.error('Error loading files: ' + error.message);
         this.files = [];
+        this.folders = [];
       }
     },
 
@@ -318,6 +336,34 @@ export default {
         this.expandedCommentHistories.delete(commentId);
       } else {
         this.expandedCommentHistories.add(commentId);
+      }
+    },
+
+    async navigateSelectorFolder(folder) {
+      try {
+        if (!folder) {
+          // Reset to root
+          this.currentSelectorFolder = null;
+          this.selectorBreadcrumbs = [];
+        } else {
+          // Find if folder exists in current breadcrumbs
+          const existingIndex = this.selectorBreadcrumbs.findIndex(f => f.id === folder.id);
+          
+          if (existingIndex >= 0) {
+            // Clicking a folder in breadcrumbs - truncate to that point
+            this.selectorBreadcrumbs = this.selectorBreadcrumbs.slice(0, existingIndex + 1);
+          } else {
+            // New folder - add to breadcrumbs
+            this.selectorBreadcrumbs.push(folder);
+          }
+          this.currentSelectorFolder = folder;
+        }
+
+        await this.loadFiles();
+      } catch (error) {
+        ElMessage.error('Error navigating to folder: ' + error.message);
+        this.currentSelectorFolder = null;
+        this.selectorBreadcrumbs = [];
       }
     }
   },
@@ -438,7 +484,7 @@ export default {
               <span v-html="formatMarkdownLinks(comment.content)"></span>
               <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
                 <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
-                  <div class="edit-history-header">Version {{ comment.comment_edit_history.length - index }}:</div>
+                  <div class="edit-history-header">Version {{ index + 1 }}:</div>
                   <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
                   <div class="edit-metadata">
                     Edited by {{ userEmails[historyEntry.edited_by] }}
@@ -461,6 +507,23 @@ export default {
         v-model="showFileSelector"
         title="Select File"
         width="500px">
+        <div class="file-selector-header">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item 
+              @click="navigateSelectorFolder(null)"
+              :class="{ clickable: currentSelectorFolder }">
+              Root
+            </el-breadcrumb-item>
+            <el-breadcrumb-item 
+              v-for="folder in selectorBreadcrumbs" 
+              :key="folder.id"
+              @click="navigateSelectorFolder(folder)"
+              :class="{ clickable: folder.id !== currentSelectorFolder?.id }">
+              {{ folder.name }}
+            </el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+
         <el-input
           v-model="fileSearchQuery"
           placeholder="Search files..."
@@ -471,11 +534,14 @@ export default {
         <el-scrollbar height="300px">
           <div class="file-list">
             <div
-              v-for="file in filteredFiles"
-              :key="file.id"
+              v-for="item in filteredFiles"
+              :key="item.id"
               class="file-item"
-              @click="selectFile(file)">
-              {{ file.name }}
+              @click="item.type === 'dir' ? navigateSelectorFolder(item) : selectFile(item)">
+              <el-icon v-if="item.type === 'dir'" class="folder-icon">
+                <Folder />
+              </el-icon>
+              {{ item.name }}
             </div>
           </div>
         </el-scrollbar>
@@ -665,5 +731,28 @@ export default {
 .edit-metadata {
   font-size: 0.8em;
   color: #909399;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folder-icon {
+  color: #909399;
+}
+
+.file-selector-header {
+  margin-bottom: 1rem;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable:hover {
+  text-decoration: underline;
 }
 </style>

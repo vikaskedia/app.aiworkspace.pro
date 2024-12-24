@@ -89,22 +89,22 @@ watch(currentMatter, async (newMatter) => {
 
 // Load matter if not already loaded
 onMounted(async () => {
-  if (route.params.matterId && !currentMatter.value) {
-    const { data, error } = await supabase
-      .from('matters')
-      .select('*')
-      .eq('id', route.params.matterId)
-      .single();
+  // if (route.params.matterId && !currentMatter.value) {
+  //   const { data, error } = await supabase
+  //     .from('matters')
+  //     .select('*')
+  //     .eq('id', route.params.matterId)
+  //     .single();
       
-    if (error) {
-      ElMessage.error('Error loading matter');
-      return;
-    }
+  //   if (error) {
+  //     ElMessage.error('Error loading matter');
+  //     return;
+  //   }
     
-    if (data) {
-      matterStore.setCurrentMatter(data);
-    }
-  }
+  //   if (data) {
+  //     matterStore.setCurrentMatter(data);
+  //   }
+  // }
 });
 
 async function loadFiles() {
@@ -183,7 +183,11 @@ async function handleFileUpload(file) {
 
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
-    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Construct the correct path including current folder
+    const uploadPath = currentFolder.value ? 
+      `${currentFolder.value.path}/${file.name}` : 
+      file.name;
 
     // Convert file to base64
     const base64Content = await new Promise((resolve) => {
@@ -195,9 +199,9 @@ async function handleFileUpload(file) {
       reader.readAsDataURL(file.raw);
     });
 
-    // Upload to Gitea
+    // Upload to Gitea with the correct path
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${file.name}`,
+      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${uploadPath}`,
       {
         method: 'POST',
         headers: {
@@ -314,9 +318,13 @@ async function loadFolders() {
   loading.value = true;
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const path = currentFolder.value?.path || '';
     
+    // Add proper path construction with leading slash
+    const apiPath = `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
+
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents${currentFolder.value?.path || ''}`,
+      apiPath,
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
@@ -326,7 +334,8 @@ async function loadFolders() {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch folders');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to fetch folders: ${errorData.message || response.statusText}`);
     }
 
     const contents = await response.json();
@@ -340,6 +349,7 @@ async function loadFolders() {
       }));
 
   } catch (error) {
+    console.error('Folder loading error details:', error);
     ElMessage.error('Error loading folders: ' + error.message);
   } finally {
     loading.value = false;

@@ -26,7 +26,42 @@
 
     <div class="task-content" v-loading="loading">
       <div class="task-main-info">
-        <h2>{{ task?.title }}</h2>
+        <div class="task-title-header">
+          <h2>{{ task?.title }}</h2>
+          <div class="edit-metadata">
+            <span 
+              v-if="task?.edit_history?.length" 
+              class="edited-marker"
+              @click="toggleTaskHistory"
+            >
+              (edited {{ task.edit_history.length }} times)
+            </span>
+          </div>
+        </div>
+
+        <div v-if="showTaskHistory" class="edit-history">
+          <div 
+            v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
+            :key="index" 
+            class="edit-history-entry"
+          >
+            <div class="edit-history-header">Changed {{ historyEntry.field_name }}:</div>
+            <div class="previous-content">
+              {{ historyEntry.previous_value || 'No previous content' }}
+            </div>
+            <div class="edit-metadata">
+              Edited by {{ userEmails[historyEntry.edited_by] }}
+              on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) }}
+            </div>
+          </div>
+        </div>
+
         <div class="task-metadata">
           <el-tag :type="getStatusType(task)">
             {{ formatStatus(task?.status) }}
@@ -44,7 +79,7 @@
             Assigned to: {{ assigneeEmail || 'Unassigned' }}
           </span>
         </div>
-        <p class="description">{{ task?.description || 'No description provided' }}</p>
+        <p class="description" v-html="formatCommentContent(task?.description || 'No description provided')"></p>
       </div>
 
       <div class="task-comments">
@@ -109,7 +144,7 @@
                 <span v-html="formatCommentContent(comment.content)"></span>
                 <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
                   <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
-                    <div class="edit-history-header">Version {{ comment.comment_edit_history.length - index }}:</div>
+                    <div class="edit-history-header">Version {{ index + 1 }}:</div>
                     <div class="previous-content" v-html="formatCommentContent(historyEntry.previous_content)"></div>
                     <div class="edit-metadata">
                       Edited by {{ userEmails[historyEntry.edited_by] }}
@@ -160,7 +195,9 @@
           <el-input 
             v-model="editingTask.description"
             type="textarea"
-            :rows="3" />
+            :rows="3"
+            placeholder="Write a description... (Type @files to mention a file)"
+            @input="handleInput" />
         </el-form-item>
         <el-form-item label="Status">
           <el-select v-model="editingTask.status" style="width: 100%">
@@ -272,6 +309,23 @@
       v-model="showFileSelector"
       title="Select File"
       width="500px">
+      <div class="file-selector-header">
+        <el-breadcrumb separator="/">
+          <el-breadcrumb-item 
+            @click="navigateSelectorFolder(null)"
+            :class="{ clickable: currentSelectorFolder }">
+            Root
+          </el-breadcrumb-item>
+          <el-breadcrumb-item 
+            v-for="folder in selectorBreadcrumbs" 
+            :key="folder.id"
+            @click="navigateSelectorFolder(folder)"
+            :class="{ clickable: folder.id !== currentSelectorFolder?.id }">
+            {{ folder.name }}
+          </el-breadcrumb-item>
+        </el-breadcrumb>
+      </div>
+
       <el-input
         v-model="fileSearchQuery"
         placeholder="Search files..."
@@ -281,11 +335,14 @@
       <el-scrollbar height="300px">
         <div class="file-list">
           <div
-            v-for="file in filteredFiles"
-            :key="file.id"
+            v-for="item in filteredFiles"
+            :key="item.id"
             class="file-item"
-            @click="selectFile(file)">
-            {{ file.name }}
+            @click="item.type === 'dir' ? navigateSelectorFolder(item) : selectFile(item)">
+            <el-icon v-if="item.type === 'dir'" class="folder-icon">
+              <Folder />
+            </el-icon>
+            {{ item.name }}
           </div>
         </div>
       </el-scrollbar>
@@ -294,7 +351,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -303,7 +360,8 @@ import { ElMessage } from 'element-plus';
 export default {
   components: {
     ArrowLeft,
-    DocumentCopy
+    DocumentCopy,
+    Folder
   },
   setup() {
     const matterStore = useMatterStore();
@@ -337,6 +395,11 @@ export default {
       editingCommentText: '',
       currentUser: null,
       expandedCommentHistories: new Set(),
+      showEditHistory: false,
+      showTaskHistory: false,
+      currentSelectorFolder: null,
+      selectorBreadcrumbs: [],
+      folders: [],
     };
   },
   async created() {
@@ -520,16 +583,46 @@ export default {
         const originalTask = { ...this.task };
         const { data: { user } } = await supabase.auth.getUser();
 
+        // Prepare edit history entries
+        const historyEntries = [];
+        
+        if (originalTask.title !== this.editingTask.title) {
+          historyEntries.push({
+            field_name: 'title',
+            previous_value: originalTask.title,
+            edited_at: new Date().toISOString(),
+            edited_by: user.id
+          });
+        }
+
+        if (originalTask.description !== this.editingTask.description) {
+          historyEntries.push({
+            field_name: 'description',
+            previous_value: originalTask.description,
+            edited_at: new Date().toISOString(),
+            edited_by: user.id
+          });
+        }
+
+        const updateData = {
+          title: this.editingTask.title,
+          description: this.editingTask.description,
+          status: this.editingTask.status,
+          priority: this.editingTask.priority,
+          due_date: this.editingTask.due_date,
+          assignee: this.editingTask.assignee
+        };
+
+        // If there are history entries, add them to the update
+        if (historyEntries.length > 0) {
+          updateData.edit_history = this.task.edit_history 
+            ? [...this.task.edit_history, ...historyEntries]
+            : historyEntries;
+        }
+
         const { data, error } = await supabase
           .from('tasks')
-          .update({
-            title: this.editingTask.title,
-            description: this.editingTask.description,
-            status: this.editingTask.status,
-            priority: this.editingTask.priority,
-            due_date: this.editingTask.due_date,
-            assignee: this.editingTask.assignee
-          })
+          .update(updateData)
           .eq('id', this.task.id)
           .select();
 
@@ -697,23 +790,18 @@ export default {
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
         
-        // First get the matter's git repo
         const { data: matter, error: matterError } = await supabase
           .from('matters')
           .select('git_repo')
           .eq('id', this.currentMatter.id)
           .single();
 
-        if (matterError) {
-          throw new Error('Failed to fetch matter details');
-        }
+        if (matterError) throw new Error('Failed to fetch matter details');
+        if (!matter?.git_repo) throw new Error('No git repository found for this matter');
 
-        if (!matter?.git_repo) {
-          throw new Error('No git repository found for this matter');
-        }
-
+        const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/`,
+          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
@@ -722,31 +810,42 @@ export default {
           }
         );
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch files');
-        }
+        if (!response.ok) throw new Error('Failed to fetch files');
 
         const contents = await response.json();
         
+        // Separate files and folders
+        this.folders = contents
+          .filter(item => item.type === 'dir')
+          .map(folder => ({
+            id: folder.sha,
+            name: folder.name,
+            path: folder.path,
+            type: 'dir'
+          }));
+
         this.files = contents
           .filter(item => item.type === 'file' && item.name !== '.gitkeep')
           .map(file => ({
             id: file.sha,
             name: file.name,
             path: file.path,
+            type: 'file',
             download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
           }));
 
       } catch (error) {
         ElMessage.error('Error loading files: ' + error.message);
         this.files = [];
+        this.folders = [];
       }
     },
 
     handleInput(event) {
       const text = typeof event === 'string' ? event : event?.target?.value || '';
       
-      const textarea = document.querySelector('.comment-input textarea');
+      // Get the current cursor position from the active textarea
+      const textarea = document.activeElement;
       const selectionStart = textarea?.selectionStart || 0;
       
       const lastWord = text.slice(0, selectionStart).split(' ').pop();
@@ -759,10 +858,21 @@ export default {
     },
 
     selectFile(file) {
-      const beforeMention = this.newComment.slice(0, this.mentionIndex - 6); // Remove '@files'
-      const afterMention = this.newComment.slice(this.mentionIndex);
+      // Determine which field we're editing
+      const isEditingDescription = this.editDialogVisible;
+      const text = isEditingDescription ? this.editingTask.description : this.newComment;
       
-      this.newComment = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
+      const beforeMention = text.slice(0, this.mentionIndex - 6); // Remove '@files'
+      const afterMention = text.slice(this.mentionIndex);
+      const newText = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
+      
+      // Update the appropriate field
+      if (isEditingDescription) {
+        this.editingTask.description = newText;
+      } else {
+        this.newComment = newText;
+      }
+      
       this.showFileSelector = false;
       this.fileSearchQuery = '';
     },
@@ -827,7 +937,39 @@ export default {
       } else {
         this.expandedCommentHistories.add(commentId);
       }
-    }
+    },
+
+    toggleTaskHistory() {
+      this.showTaskHistory = !this.showTaskHistory;
+    },
+
+    async navigateSelectorFolder(folder) {
+      try {
+        if (!folder) {
+          // Reset to root
+          this.currentSelectorFolder = null;
+          this.selectorBreadcrumbs = [];
+        } else {
+          // Find if folder exists in current breadcrumbs
+          const existingIndex = this.selectorBreadcrumbs.findIndex(f => f.id === folder.id);
+          
+          if (existingIndex >= 0) {
+            // Clicking a folder in breadcrumbs - truncate to that point
+            this.selectorBreadcrumbs = this.selectorBreadcrumbs.slice(0, existingIndex + 1);
+          } else {
+            // New folder - add to breadcrumbs
+            this.selectorBreadcrumbs.push(folder);
+          }
+          this.currentSelectorFolder = folder;
+        }
+
+        await this.loadFiles();
+      } catch (error) {
+        ElMessage.error('Error navigating to folder: ' + error.message);
+        this.currentSelectorFolder = null;
+        this.selectorBreadcrumbs = [];
+      }
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -838,10 +980,11 @@ export default {
   },
   computed: {
     filteredFiles() {
-      if (!this.fileSearchQuery) return this.files;
+      const items = [...this.folders, ...this.files];
+      if (!this.fileSearchQuery) return items;
       const query = this.fileSearchQuery.toLowerCase();
-      return this.files.filter(file => 
-        file.name.toLowerCase().includes(query)
+      return items.filter(item => 
+        item.name.toLowerCase().includes(query)
       );
     }
   }
@@ -1070,5 +1213,67 @@ h4 {
 .edit-metadata {
   font-size: 0.8em;
   color: #909399;
+}
+
+.task-title-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edited-marker {
+  font-size: 0.9em;
+  color: #909399;
+  cursor: pointer;
+}
+
+.edited-marker:hover {
+  text-decoration: underline;
+}
+
+.edit-history {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.edit-history-entry {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-history-entry:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.edit-history-header {
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #606266;
+}
+
+.previous-content {
+  background: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.edit-metadata {
+  font-size: 0.8em;
+  color: #909399;
+}
+.file-link {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: underline;
 }
 </style> 

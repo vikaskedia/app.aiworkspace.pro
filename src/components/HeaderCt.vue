@@ -200,7 +200,9 @@ export default {
         </div>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="logout">Logout</el-dropdown-item>
+            <el-dropdown-item command="settings">Settings</el-dropdown-item>
+            <el-dropdown-item command="feedback">Feedback</el-dropdown-item>
+            <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

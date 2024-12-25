@@ -18,18 +18,20 @@ CREATE TABLE matters (
 
 COMMENT ON TABLE matters IS 'Matters can be soft deleted but not permanently deleted. 
 Soft delete requires both deleted_by and deleted_at to be set.
+
 Each matter has:
-1. A matter has a name and description which can be edited by anyone with edit rights.
+1. A name and description which can be edited by anyone with edit rights.
 2. An associated email address for communication. 
 -- so attorneys can send email to 19fl002753@associateattorney.ai and that email will be associated with the matter.
 3. Goals (see goals.sql)
 4. Tasks (see tasks.sql)
 5. Events (see events.sql)
 6. Files stored in gitea repository
-7. The user who created the matter is:
-7A. Automatically given edit rights
-7B. Can later give up his edit rights
-7C. The user who created the matter is not treated special than anyone else who has edit rights to the matter';
+
+The user who created the matter is:
+1A. Automatically given edit rights
+1B. Can later give up his edit rights
+1C. Not treated special than anyone else who has edit rights to the matter';
 
 -- Add comments for the new columns
 COMMENT ON COLUMN matters.git_repo IS 'Repository name in Gitea where all files for this matter are stored. Files are managed through the Gitea server as described in FilesCt.vue';

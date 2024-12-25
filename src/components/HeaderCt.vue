@@ -76,8 +76,16 @@ export default {
       }
     },
     async handleCommand(command) {
-      if (command === 'logout') {
-        await this.handleLogout();
+      switch(command) {
+        case 'settings':
+          this.$router.push('/settings');
+          break;
+        case 'feedback':
+          // TODO: Implement feedback route
+          break;
+        case 'logout':
+          await this.handleLogout();
+          break;
       }
     },
     handleMatterSelect(matter) {

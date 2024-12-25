@@ -11,6 +11,7 @@ import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/matter/MatterLayout.vue';
 import SingleTaskCt from './components/matter/SingleTaskCt.vue';
 import UserSettingsCt from './components/UserSettingsCt.vue';
+import SettingsLayout from './components/settings/SettingsLayout.vue'
 
 const routes = [
   {
@@ -111,9 +112,13 @@ const routes = [
   },
   {
     path: '/settings',
-    name: 'UserSettings',
-    component: UserSettingsCt,
-    meta: { requiresAuth: true }
+    component: SettingsLayout,
+    children: [
+      {
+        path: '',
+        component: UserSettingsCt
+      }
+    ]
   },
   {
     path: '/',

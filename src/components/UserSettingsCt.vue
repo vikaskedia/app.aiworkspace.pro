@@ -30,7 +30,7 @@
               To get your Chat ID:
               <ol>
                 <li>Open Telegram</li>
-                <li>Search for "@LegalStudioBot"</li>
+                <li>Search for "@AIAttorneyBot"</li>
                 <li>Start a chat and type /start</li>
                 <li>The bot will reply with your Chat ID</li>
               </ol>

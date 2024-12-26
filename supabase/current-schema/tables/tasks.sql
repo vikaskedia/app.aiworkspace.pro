@@ -15,6 +15,7 @@ CREATE TABLE tasks (
   deleted_by uuid REFERENCES auth.users(id) NULL,
   deleted_at timestamp with time zone NULL,
   edit_history jsonb DEFAULT '{}' NOT NULL,
+  log_hours bigint DEFAULT 0 NOT NULL,
   CONSTRAINT delete_consistency CHECK (
     (deleted = false AND deleted_by IS NULL AND deleted_at IS NULL) OR
     (deleted = true AND deleted_by IS NOT NULL AND deleted_at IS NOT NULL)

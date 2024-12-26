@@ -39,7 +39,9 @@ export default {
         showDeleted: false
       },
       userEmails: {},
-      deletedTooltips: {}
+      deletedTooltips: {},
+      sortBy: null,
+      sortOrder: 'ascending'
     }
   },
   computed: {
@@ -108,6 +110,44 @@ export default {
               return false
           }
         })
+      }
+
+      // Apply sorting if set
+      if (this.sortBy) {
+        const sortTasks = (tasks) => {
+          return tasks.sort((a, b) => {
+            let aVal = a[this.sortBy];
+            let bVal = b[this.sortBy];
+
+            // Handle special cases
+            if (this.sortBy === 'assignee') {
+              aVal = this.sharedUsers.find(u => u.id === a.assignee)?.email || '';
+              bVal = this.sharedUsers.find(u => u.id === b.assignee)?.email || '';
+            }
+
+            // Handle null values
+            if (aVal === null) return this.sortOrder === 'ascending' ? 1 : -1;
+            if (bVal === null) return this.sortOrder === 'ascending' ? -1 : 1;
+
+            // Compare values
+            if (aVal < bVal) return this.sortOrder === 'ascending' ? -1 : 1;
+            if (aVal > bVal) return this.sortOrder === 'ascending' ? 1 : -1;
+            return 0;
+          });
+        };
+
+        // Sort root tasks and their children recursively
+        const sortRecursively = (tasks) => {
+          const sorted = sortTasks(tasks);
+          return sorted.map(task => {
+            if (task.children?.length) {
+              task.children = sortRecursively(task.children);
+            }
+            return task;
+          });
+        };
+
+        result = sortRecursively(result);
       }
 
       return result
@@ -199,6 +239,10 @@ export default {
         'awaiting_external': 'Awaiting external factor'
       };
       return statusMap[status] || status;
+    },
+    handleSort({ prop, order }) {
+      this.sortBy = prop;
+      this.sortOrder = order === 'ascending' ? 'ascending' : 'descending';
     }
   },
   watch: {
@@ -289,10 +333,12 @@ export default {
       :data="filteredTasks"
       row-key="id"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+      @sort-change="handleSort"
       style="width: 100%">
       <el-table-column 
         prop="title" 
         label="Title"
+        sortable
         min-width="200">
         <template #default="scope">
           <span 
@@ -304,7 +350,9 @@ export default {
       </el-table-column>
       
       <el-table-column 
+        prop="status" 
         label="Status"
+        sortable
         width="120">
         <template #default="scope">
           <div class="status-container">
@@ -330,6 +378,7 @@ export default {
       <el-table-column 
         prop="priority" 
         label="Priority"
+        sortable
         width="120">
         <template #default="scope">
           <el-tag :type="
@@ -344,6 +393,7 @@ export default {
       <el-table-column 
         prop="due_date" 
         label="Due Date"
+        sortable
         width="150">
         <template #default="scope">
           {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
@@ -351,10 +401,15 @@ export default {
       </el-table-column>
       
       <el-table-column 
+        prop="assignee" 
         label="Assignee"
+        sortable
         width="200">
         <template #default="scope">
           <span>{{ sharedUsers.find(u => u.id === scope.row.assignee)?.email || '-' }}</span>
+          <span class="logged-hours">
+            Hours Logged: {{ scope.row.log_hours || 0 }}
+          </span>
         </template>
       </el-table-column>
       
@@ -438,5 +493,12 @@ export default {
 .deleted-icon {
   color: #909399;
   cursor: help;
+}
+
+.logged-hours {
+  background-color: var(--el-color-info-light-9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
 </style>

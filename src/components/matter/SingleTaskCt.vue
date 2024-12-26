@@ -232,6 +232,16 @@
               :value="user.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="Log Hours">
+          <el-input-number
+            v-model="editingTask.log_hours"
+            :min="0"
+            :max="999.99"
+            :step="0.25"
+            :precision="2"
+            style="width: 100%"
+            placeholder="Enter hours worked" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -604,13 +614,23 @@ export default {
           });
         }
 
+        if (originalTask.log_hours !== this.editingTask.log_hours) {
+          historyEntries.push({
+            field_name: 'log_hours',
+            previous_value: originalTask.log_hours || 0,
+            edited_at: new Date().toISOString(),
+            edited_by: user.id
+          });
+        }
+
         const updateData = {
           title: this.editingTask.title,
           description: this.editingTask.description,
           status: this.editingTask.status,
           priority: this.editingTask.priority,
           due_date: this.editingTask.due_date,
-          assignee: this.editingTask.assignee
+          assignee: this.editingTask.assignee,
+          log_hours: parseInt(this.editingTask.log_hours || 0)
         };
 
         // If there are history entries, add them to the update
@@ -661,6 +681,9 @@ export default {
           const newDate = this.editingTask.due_date ? new Date(this.editingTask.due_date).toLocaleDateString() : 'none';
           changes.push(`due date from ${oldDate} to ${newDate}`);
         }
+        if (originalTask.log_hours !== this.editingTask.log_hours) {
+          changes.push(`logged hours from ${originalTask.log_hours || 0} to ${this.editingTask.log_hours || 0}`);
+        }
 
         if (changes.length > 0) {
           await supabase
@@ -692,6 +715,10 @@ export default {
                   due_date: this.editingTask.due_date !== originalTask.due_date ? {
                     from: originalTask.due_date,
                     to: this.editingTask.due_date
+                  } : null,
+                  log_hours: this.editingTask.log_hours !== originalTask.log_hours ? {
+                    from: parseInt(originalTask.log_hours || 0),
+                    to: parseInt(this.editingTask.log_hours || 0)
                   } : null
                 }
               }

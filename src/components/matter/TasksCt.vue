@@ -46,6 +46,7 @@ export default {
       aiLoading: false,
       pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
       parentTaskId: null,
+      showMoreFields: false,
     };
   },
   watch: {
@@ -676,6 +677,7 @@ export default {
         title="Create New Task"
         width="500px">
         <el-form :model="newTask" label-position="top">
+          <!-- Essential fields always shown -->
           <el-form-item label="Title" required>
             <el-input v-model="newTask.title" />
           </el-form-item>
@@ -685,42 +687,61 @@ export default {
               type="textarea"
               :rows="3" />
           </el-form-item>
-          <el-form-item label="Parent Task">
-            <el-select 
-              v-model="newTask.parent_task_id" 
-              style="width: 100%"
-              clearable
-              placeholder="Select parent task (optional)">
-              <el-option
-                v-for="task in flattenedTasks"
-                :key="task.id"
-                :label="task.title"
-                :value="task.id"
-                :disabled="task.id === editingTask?.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Priority">
-            <el-select v-model="newTask.priority" style="width: 100%">
-              <el-option label="High" value="high" />
-              <el-option label="Medium" value="medium" />
-              <el-option label="Low" value="low" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Due Date">
-            <el-date-picker
-              v-model="newTask.due_date"
-              type="date"
-              style="width: 100%" />
-          </el-form-item>
-          <el-form-item label="Assignee">
-            <el-select v-model="newTask.assignee" style="width: 100%">
-              <el-option
-                v-for="user in sharedUsers"
-                :key="user.id"
-                :label="user.email"
-                :value="user.id" />
-            </el-select>
-          </el-form-item>
+
+          <!-- Show more/less button -->
+          <div class="show-more-container">
+            <el-button 
+              link 
+              type="primary" 
+              @click="showMoreFields = !showMoreFields">
+              {{ showMoreFields ? 'Show Less' : 'Show More Options' }}
+              <el-icon class="el-icon--right">
+                <component :is="showMoreFields ? 'ArrowUp' : 'ArrowDown'" />
+              </el-icon>
+            </el-button>
+          </div>
+
+          <!-- Additional fields in collapse transition -->
+          <el-collapse-transition>
+            <div v-show="showMoreFields">
+              <el-form-item label="Parent Task">
+                <el-select 
+                  v-model="newTask.parent_task_id" 
+                  style="width: 100%"
+                  clearable
+                  placeholder="Select parent task (optional)">
+                  <el-option
+                    v-for="task in flattenedTasks"
+                    :key="task.id"
+                    :label="task.title"
+                    :value="task.id"
+                    :disabled="task.id === editingTask?.id" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="Priority">
+                <el-select v-model="newTask.priority" style="width: 100%">
+                  <el-option label="High" value="high" />
+                  <el-option label="Medium" value="medium" />
+                  <el-option label="Low" value="low" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="Due Date">
+                <el-date-picker
+                  v-model="newTask.due_date"
+                  type="date"
+                  style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="Assignee">
+                <el-select v-model="newTask.assignee" style="width: 100%">
+                  <el-option
+                    v-for="user in sharedUsers"
+                    :key="user.id"
+                    :label="user.email"
+                    :value="user.id" />
+                </el-select>
+              </el-form-item>
+            </div>
+          </el-collapse-transition>
         </el-form>
         <template #footer>
           <span class="dialog-footer">
@@ -906,5 +927,11 @@ label.el-checkbox.task-checkbox {
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+
+.show-more-container {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
 }
 </style> 

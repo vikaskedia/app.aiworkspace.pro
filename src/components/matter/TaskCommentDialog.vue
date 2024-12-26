@@ -257,31 +257,51 @@ export default {
     },
 
     handleInput(event) {
-      // For Element Plus input events, the value is passed directly
       const text = typeof event === 'string' ? event : event?.target?.value || '';
-      
-      // Get the current cursor position from the textarea element
       const textarea = document.querySelector('.comment-input textarea');
       const selectionStart = textarea?.selectionStart || 0;
       
       const lastWord = text.slice(0, selectionStart).split(' ').pop();
       
-      if (lastWord === '@files') {
-        this.showFileSelector = true;
-        this.mentionIndex = selectionStart;
-        this.loadFiles();
-      } else if (lastWord === '@ai-attorney') {
-        this.showAIDialog = true;
-        this.aiPrompt = '';
-      } else {
-        // Handle typeahead suggestions
-        if (this.typeaheadTimer) {
-          clearTimeout(this.typeaheadTimer);
-        }
+      if (lastWord === '/table') {
+        // Don't call preventDefault since event might be a string
+        // Remove the /table command
+        const beforeCommand = text.slice(0, selectionStart - 6);
+        const afterCommand = text.slice(selectionStart);
         
-        this.typeaheadTimer = setTimeout(() => {
-          this.getTypeaheadSuggestions(text, selectionStart);
-        }, 300);
+        // Insert table template
+        const tableTemplate = `
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Cell 1   | Cell 2   | Cell 3   |
+| Cell 4   | Cell 5   | Cell 6   |`;
+        
+        this.newComment = beforeCommand + tableTemplate + afterCommand;
+        
+        // Set cursor position after table template
+        this.$nextTick(() => {
+          const newPos = beforeCommand.length + tableTemplate.length;
+          textarea.setSelectionRange(newPos, newPos);
+          textarea.focus();
+        });
+      } else {
+        // Existing handleInput logic for @files, @ai-attorney, etc.
+        if (lastWord === '@files') {
+          this.showFileSelector = true;
+          this.mentionIndex = selectionStart;
+          this.loadFiles();
+        } else if (lastWord === '@ai-attorney') {
+          this.showAIDialog = true;
+          this.aiPrompt = '';
+        } else {
+          if (this.typeaheadTimer) {
+            clearTimeout(this.typeaheadTimer);
+          }
+          
+          this.typeaheadTimer = setTimeout(() => {
+            this.getTypeaheadSuggestions(text, selectionStart);
+          }, 300);
+        }
       }
     },
 
@@ -294,7 +314,58 @@ export default {
     },
 
     formatMarkdownLinks(text) {
+      // First handle tables by converting them to HTML tables
+      text = this.formatTables(text);
+      // Then handle existing markdown links
       return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="file-link">$1</a>');
+    },
+
+    formatTables(text) {
+      // Split text into lines
+      const lines = text.split('\n');
+      let inTable = false;
+      let tableHTML = '';
+      let result = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Check if line is part of a table
+        if (line.trim().startsWith('|')) {
+          if (!inTable) {
+            inTable = true;
+            tableHTML = '<div class="markdown-table-wrapper"><table class="markdown-table">';
+          }
+          
+          // Convert the line to table row
+          const cells = line.split('|').filter(cell => cell.trim() !== '');
+          const isHeader = line.includes('---');
+          
+          if (!isHeader) {
+            tableHTML += '<tr>';
+            cells.forEach(cell => {
+              // First row should be header unless it contains dashes
+              const tag = !tableHTML.includes('<tr>') && !lines[i + 1]?.includes('---') ? 'th' : 'td';
+              tableHTML += `<${tag}>${cell.trim()}</${tag}>`;
+            });
+            tableHTML += '</tr>';
+          }
+        } else if (inTable) {
+          inTable = false;
+          tableHTML += '</table></div>';
+          result.push(tableHTML);
+          result.push(line);
+        } else {
+          result.push(line);
+        }
+      }
+      
+      // Close any open table at the end of text
+      if (inTable) {
+        tableHTML += '</table></div>';
+        result.push(tableHTML);
+      }
+      
+      return result.join('\n');
     },
 
     startEditing(comment) {
@@ -1139,5 +1210,69 @@ Please provide assistance based on this context, the comment history, the availa
 
 .typeahead-suggestions::-webkit-scrollbar-thumb:hover {
   background: #c0c4cc;
+}
+
+.markdown-table-wrapper {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+:deep(.markdown-table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+}
+
+:deep(.markdown-table th),
+:deep(.markdown-table td) {
+  border: 1px solid #dcdfe6;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+:deep(.markdown-table th) {
+  background-color: #f5f7fa;
+  font-weight: 500;
+}
+
+:deep(.markdown-table tr:nth-child(even)) {
+  background-color: #fafafa;
+}
+
+:deep(.markdown-table tr:hover) {
+  background-color: #f5f7fa;
+}
+
+:deep(.previous-content .markdown-table-wrapper) {
+  margin: 1rem 0;
+  overflow-x: auto;
+  background: white;
+  border-radius: 4px;
+}
+
+:deep(.previous-content .markdown-table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+}
+
+:deep(.previous-content .markdown-table th),
+:deep(.previous-content .markdown-table td) {
+  border: 1px solid #dcdfe6;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+:deep(.previous-content .markdown-table th) {
+  background-color: #f5f7fa;
+  font-weight: 500;
+}
+
+:deep(.previous-content .markdown-table tr:nth-child(even)) {
+  background-color: #fafafa;
+}
+
+:deep(.previous-content .markdown-table tr:hover) {
+  background-color: #f5f7fa;
 }
 </style>

@@ -8,6 +8,8 @@
 
  > supabase secrets set TELEGRAM_BOT_TOKEN=<YOUR_BOT_TOKEN>
 
+> curl https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
+
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -27,27 +29,43 @@ serve(async (req) => {
 
     // Parse the webhook data from Telegram
     const payload = await req.json()
-    
-    // Handle /getchatid command
-    if (payload.message?.text === '/getchatid') {
+    console.log('Received webhook payload:', JSON.stringify(payload, null, 2))
+
+    // Handle any message
+    if (payload.message) {
       const chatId = payload.message.chat.id
+      const messageText = payload.message.text
       
-      // Send chat ID back to user
-      await fetch(
-        `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: `Your Chat ID is: ${chatId}`
-          })
+      console.log(`Received message "${messageText}" from chat ID ${chatId}`)
+
+      // Handle /getchatid command
+      if (messageText === '/getchatid' || messageText === '/start') {
+        console.log('Sending chat ID response')
+        
+        const response = await fetch(
+          `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `Your Chat ID is: ${chatId}`
+            })
+          }
+        )
+
+        const responseData = await response.json()
+        console.log('Telegram API response:', JSON.stringify(responseData, null, 2))
+
+        if (!response.ok) {
+          throw new Error(`Telegram API error: ${JSON.stringify(responseData)}`)
         }
-      )
+      }
     }
 
     return new Response('OK', { status: 200 })
   } catch (error) {
+    console.error('Error in webhook handler:', error)
     return new Response(error.message, { status: 500 })
   }
 }) 

@@ -1,3 +1,5 @@
+// to deploy: 1. docker is installed 2. > supabase functions deploy verify-telegram-id --project-ref oqdnbpmmgntqtigstaow
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')

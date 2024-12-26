@@ -39,6 +39,14 @@ export default {
       expandedCommentHistories: new Set(),
       currentSelectorFolder: null,
       selectorBreadcrumbs: [],
+      showAIDialog: false,
+      aiPrompt: '',
+      aiLoading: false,
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
+      showTypeahead: false,
+      typeaheadSuggestions: [],
+      typeaheadSelectedIndex: -1,
+      typeaheadTimer: null,
     };
   },
   computed: {
@@ -262,6 +270,18 @@ export default {
         this.showFileSelector = true;
         this.mentionIndex = selectionStart;
         this.loadFiles();
+      } else if (lastWord === '@ai-attorney') {
+        this.showAIDialog = true;
+        this.aiPrompt = '';
+      } else {
+        // Handle typeahead suggestions
+        if (this.typeaheadTimer) {
+          clearTimeout(this.typeaheadTimer);
+        }
+        
+        this.typeaheadTimer = setTimeout(() => {
+          this.getTypeaheadSuggestions(text, selectionStart);
+        }, 300);
       }
     },
 
@@ -365,6 +385,239 @@ export default {
         this.currentSelectorFolder = null;
         this.selectorBreadcrumbs = [];
       }
+    },
+
+    async submitAIPrompt() {
+      try {
+        this.aiLoading = true;
+        
+        // Get file contents from comments
+        const fileContents = [];
+        
+        // Format comments history
+        const commentsHistory = this.comments.map(comment => {
+          const timestamp = comment.updated_at || comment.created_at;
+          const formattedDate = new Date(timestamp).toLocaleString();
+          return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
+        }).join('\n\n');
+        
+        // Create a system prompt that includes task context, comments history, and files
+        const systemPrompt = `You are an AI legal assistant helping with a task titled "${this.task.title}". ${
+          this.task.description 
+            ? `The task description is: ${this.task.description}\n\n`
+            : ''
+        }
+
+Comment History:
+${commentsHistory}
+
+Please provide assistance based on this context, the comment history, the available files, and the user's prompt.`;
+
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: this.aiPrompt,
+            systemPrompt: systemPrompt,
+            taskId: this.task.id,
+            matterId: this.task.matter_id,
+            files: fileContents
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get AI response');
+        }
+
+        const data = await response.json();
+
+        // Set the AI response in the comment box
+        this.newComment = `${data.response}`;
+
+        this.showAIDialog = false;
+        this.aiPrompt = '';
+        ElMessage.success('AI response received successfully');
+      } catch (error) {
+        ElMessage.error('Error getting AI response: ' + error.message);
+      } finally {
+        this.aiLoading = false;
+      }
+    },
+
+    async getFileContentsFromComments() {
+      const fileUrls = new Set();
+      const fileContents = [];
+
+      // Extract all file URLs from comments
+      for (const comment of this.comments) {
+        const matches = comment.content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
+        if (matches) {
+          matches.forEach(match => {
+            const url = match.match(/\(([^)]+)\)/)[1];
+            const fileName = match.match(/\[([^\]]+)\]/)[1];
+            fileUrls.add({ url, fileName });
+          });
+        }
+      }
+
+      // Fetch content for each unique file
+      for (const { url, fileName } of fileUrls) {
+        try {
+          const fileType = this.getFileType(fileName);
+          let content;
+
+          if (fileType === 'text/plain') {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+            content = await response.text();
+          } else if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+            // Call our new endpoint for image and PDF processing
+            const response = await fetch(`${this.pythonApiBaseUrl}/gpt/extract_file_content`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url,
+                fileType: fileType
+              })
+            });
+
+            if (!response.ok) throw new Error(`Failed to process ${fileName}`);
+            const data = await response.json();
+            content = data.content;
+          } else {
+            content = `[File: ${fileName} (${fileType})]`;
+          }
+
+          fileContents.push({
+            url,
+            fileName,
+            type: fileType,
+            content
+          });
+        } catch (error) {
+          console.error(`Error fetching file content: ${error}`);
+          fileContents.push({
+            url,
+            fileName,
+            type: this.getFileType(fileName),
+            content: `[Error processing file: ${error.message}]`
+          });
+        }
+      }
+
+      return fileContents;
+    },
+
+    getFileType(filename) {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const mimeTypes = {
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        txt: 'text/plain',
+        png: 'image/png',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        gif: 'image/gif'
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
+    },
+
+    async getTypeaheadSuggestions(text, cursorPosition) {
+      try {
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            cursorPosition,
+            systemPrompt: `Task context: ${this.task.title}. ${this.task.description || ''}`
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to get suggestions');
+        const data = await response.json();
+        
+        if (data.suggestions?.length) {
+          this.typeaheadSuggestions = data.suggestions;
+          this.showTypeahead = true;
+          this.typeaheadSelectedIndex = -1;
+        } else {
+          this.showTypeahead = false;
+        }
+      } catch (error) {
+        console.error('Error getting suggestions:', error);
+        this.showTypeahead = false;
+      }
+    },
+
+    handleTypeaheadNavigation(event) {
+      if (!this.showTypeahead) return;
+      
+      switch (event.key) {
+        case 'Tab':
+          if (this.typeaheadSuggestions.length > 0) {
+            event.preventDefault();
+            // If nothing is selected, use the first suggestion
+            const suggestionIndex = this.typeaheadSelectedIndex >= 0 
+              ? this.typeaheadSelectedIndex 
+              : 0;
+            this.applySuggestion(this.typeaheadSuggestions[suggestionIndex]);
+          }
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.min(
+            this.typeaheadSelectedIndex + 1,
+            this.typeaheadSuggestions.length - 1
+          );
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, -1);
+          break;
+        case 'Enter':
+          if (this.typeaheadSelectedIndex >= 0) {
+            event.preventDefault();
+            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+          }
+          break;
+        case 'Escape':
+          this.showTypeahead = false;
+          break;
+      }
+    },
+
+    applySuggestion(suggestion) {
+      const textarea = document.querySelector('.comment-input textarea');
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = this.newComment.slice(0, cursorPos);
+      const textAfterCursor = this.newComment.slice(cursorPos);
+      
+      // Find the last word before cursor
+      const words = textBeforeCursor.split(' ');
+      const lastWord = words[words.length - 1];
+      
+      // Replace the incomplete word with the suggestion
+      words[words.length - 1] = suggestion;
+      this.newComment = words.join(' ') + textAfterCursor;
+      
+      // Reset typeahead
+      this.showTypeahead = false;
+      this.typeaheadSuggestions = [];
+      
+      // Set cursor position after the inserted suggestion
+      this.$nextTick(() => {
+        const newPos = cursorPos - lastWord.length + suggestion.length;
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+      });
     }
   },
   beforeUnmount() {
@@ -548,12 +801,26 @@ export default {
       </el-dialog>
 
       <div class="comment-input">
+        <div v-if="showTypeahead" class="typeahead-suggestions">
+          <div
+            v-for="(suggestion, index) in typeaheadSuggestions"
+            :key="index"
+            :class="['typeahead-item', { selected: index === typeaheadSelectedIndex }]"
+            @click="applySuggestion(suggestion)"
+            @mouseover="typeaheadSelectedIndex = index"
+          >
+            {{ suggestion }}
+          </div>
+        </div>
+        
         <el-input
           v-model="newComment"
           type="textarea"
           :rows="3"
           placeholder="Write a comment... (Type @files to mention a file)"
           @keyup.ctrl.enter="addComment"
+          @keydown.tab.prevent="handleTypeaheadNavigation"
+          @keydown="handleTypeaheadNavigation"
           @input="handleInput" />
         <el-button
           type="primary"
@@ -564,6 +831,31 @@ export default {
         </el-button>
       </div>
     </div>
+
+    <el-dialog
+      v-model="showAIDialog"
+      title="Ask AI Attorney"
+      width="500px">
+      <el-input
+        v-model="aiPrompt"
+        type="textarea"
+        :rows="4"
+        placeholder="What would you like to ask the AI attorney about this task?"
+        :disabled="aiLoading"
+      />
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showAIDialog = false" :disabled="aiLoading">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="submitAIPrompt"
+            :loading="aiLoading"
+            :disabled="!aiPrompt.trim()">
+            Submit
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </el-drawer>
 </template>
 
@@ -628,6 +920,7 @@ export default {
   margin-top: auto;
   padding: 20px;
   border-top: 1px solid #eee;
+  position: relative;
 }
 
 :deep(.el-dialog) {
@@ -754,5 +1047,97 @@ export default {
 
 .clickable:hover {
   text-decoration: underline;
+}
+
+.comment-content[data-type="ai_response"] {
+  background-color: #f0f9eb;
+  border-left: 4px solid #67c23a;
+}
+
+.ai-prompt {
+  font-style: italic;
+  color: #909399;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+}
+
+.typeahead-suggestions {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 20px;
+  right: 20px;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.2s ease-out;
+  padding: 4px 0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.typeahead-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.typeahead-item::before {
+  content: '→';
+  color: transparent;
+  transition: color 0.2s ease;
+}
+
+.typeahead-item:hover,
+.typeahead-item.selected {
+  background-color: #f5f7fa;
+  border-left-color: #409EFF;
+}
+
+.typeahead-item:hover::before,
+.typeahead-item.selected::before {
+  color: #409EFF;
+}
+
+.typeahead-item.selected {
+  background-color: #ecf5ff;
+  color: #409EFF;
+  font-weight: 500;
+}
+
+/* Custom scrollbar for the suggestions box */
+.typeahead-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.typeahead-suggestions::-webkit-scrollbar-track {
+  background: #f5f7fa;
+  border-radius: 3px;
+}
+
+.typeahead-suggestions::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 3px;
+}
+
+.typeahead-suggestions::-webkit-scrollbar-thumb:hover {
+  background: #c0c4cc;
 }
 </style>

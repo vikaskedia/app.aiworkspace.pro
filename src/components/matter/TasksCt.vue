@@ -39,7 +39,13 @@ export default {
       editDialogVisible: false,
       commentDialogVisible: false,
       selectedTask: null,
-      activeFiltersCount: 0
+      activeFiltersCount: 0,
+      showSubtaskSelectionDialog: false,
+      suggestedSubtasks: [],
+      selectedSubtasks: [],
+      aiLoading: false,
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
+      parentTaskId: null,
     };
   },
   watch: {
@@ -180,6 +186,9 @@ export default {
         this.dialogVisible = false;
         this.resetForm();
         ElMessage.success('Task created successfully');
+
+        // Generate AI subtasks
+        await this.generateAISubtasks(data[0]);
       } catch (error) {
         ElMessage.error('Error creating task: ' + error.message);
       } finally {
@@ -483,6 +492,105 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    async generateAISubtasks(parentTask) {
+      try {
+        this.aiLoading = true;
+        
+        // Store the parent task ID
+        this.parentTaskId = parentTask.id;
+        
+        // Create system prompt for subtask generation
+        const systemPrompt = `You are an AI legal assistant. A new task has been created with the following details:
+        Title: ${parentTask.title}
+        Description: ${parentTask.description || 'No description provided'}
+        Priority: ${parentTask.priority}
+        Due Date: ${parentTask.due_date ? new Date(parentTask.due_date).toLocaleDateString() : 'No due date'}
+        
+        Please suggest a list of subtasks that would help complete this task. Each subtask should include:
+        - title
+        - description
+        - priority (high/medium/low)
+        - timeline
+        
+        Return only a JSON array of tasks without any markdown formatting or code block syntax.`;
+
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemPrompt,
+            prompt: "Generate a list of subtasks to complete this task",
+            taskId: parentTask.id,
+            matterId: parentTask.matter_id
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to get AI response');
+        
+        const data = await response.json();
+        
+        // Clean up the response by removing any markdown code block syntax
+        const cleanResponse = data.response.replace(/```json\s*|\s*```/g, '').trim();
+        const suggestedSubtasks = JSON.parse(cleanResponse);
+        
+        // Show subtask selection dialog
+        this.suggestedSubtasks = suggestedSubtasks;
+        this.showSubtaskSelectionDialog = true;
+      } catch (error) {
+        ElMessage.error('Error generating subtasks: ' + error.message);
+      } finally {
+        this.aiLoading = false;
+      }
+    },
+
+    async createSelectedSubtasks(parentTaskId) {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+        const createdSubtasks = [];
+
+        for (const subtask of this.selectedSubtasks) {
+          const taskData = {
+            title: subtask.title,
+            description: subtask.description,
+            status: 'not_started',
+            priority: subtask.priority,
+            matter_id: this.currentMatter.id,
+            created_by: user.id,
+            due_date: subtask.due_date,
+            parent_task_id: parentTaskId
+          };
+
+          const { data, error } = await supabase
+            .from('tasks')
+            .insert([taskData])
+            .select();
+
+          if (error) throw error;
+          createdSubtasks.push(data[0]);
+        }
+
+        // Update cache
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedCachedTasks = [...cachedTasks, ...createdSubtasks];
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+
+        // Update UI
+        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+
+        this.showSubtaskSelectionDialog = false;
+        this.selectedSubtasks = [];
+        this.parentTaskId = null;
+        ElMessage.success('Subtasks created successfully');
+      } catch (error) {
+        ElMessage.error('Error creating subtasks: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     }
   },
 
@@ -696,6 +804,44 @@ export default {
         :task="selectedTask"
         v-model:visible="commentDialogVisible"
       />
+
+      <!-- AI Subtask Selection Dialog -->
+      <el-dialog
+        v-model="showSubtaskSelectionDialog"
+        title="Select Subtasks to Create"
+        width="600px">
+        <p>The AI has suggested the following subtasks:</p>
+        
+        <el-checkbox-group v-model="selectedSubtasks">
+          <div v-for="task in suggestedSubtasks" :key="task.title" class="task-suggestion">
+            <el-checkbox :label="task" class="task-checkbox">
+              <div class="task-details">
+                <h4>{{ task.title }}</h4>
+                <p>{{ task.description }}</p>
+                <div class="task-meta">
+                  <el-tag size="small" :type="task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'info'">
+                    {{ task.priority }}
+                  </el-tag>
+                  <span>Timeline: {{ task.timeline }}</span>
+                </div>
+              </div>
+            </el-checkbox>
+          </div>
+        </el-checkbox-group>
+
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="showSubtaskSelectionDialog = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              @click="createSelectedSubtasks(parentTaskId)"
+              :loading="loading"
+              :disabled="!selectedSubtasks.length">
+              Create Selected Subtasks
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -726,5 +872,39 @@ export default {
 .header-buttons {
   display: flex;
   gap: 12px;
+}
+
+.task-suggestion {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+label.el-checkbox.task-checkbox {
+    display: inline-block;
+}
+.task-suggestion:hover {
+  background-color: #f5f7fa;
+}
+
+.task-details {
+  margin-left: 0.5rem;
+}
+
+.task-details h4 {
+  margin: 0 0 0.5rem 0;
+}
+
+.task-details p {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.task-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 </style> 

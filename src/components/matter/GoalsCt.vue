@@ -32,6 +32,11 @@ export default {
       },
       showAIChat: false,
       selectedGoal: null,
+      aiLoading: false,
+      suggestedTasks: [],
+      showTaskSelectionDialog: false,
+      selectedTasks: [],
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL
     };
   },
   watch: {
@@ -93,26 +98,137 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
+        // First verify matter_access exists and has edit rights
+        const { data: accessCheck, error: accessError } = await supabase
+          .from('matter_access')
+          .select('access_type')
+          .eq('matter_id', this.currentMatter.id)
+          .eq('shared_with_user_id', user.id)
+          .eq('access_type', 'edit')
+          .single();
+
+        if (accessError || !accessCheck) {
+          throw new Error('You do not have edit access to this matter');
+        }
+
         const goalData = {
-          ...this.newGoal,
-          matter_id: this.currentMatter.id,
+          title: this.newGoal.title,
+          description: this.newGoal.description,
+          status: this.newGoal.status || 'in_progress',
+          priority: this.newGoal.priority || 'medium',
           due_date: this.newGoal.due_date || null,
-          created_by: user.id
+          matter_id: this.currentMatter.id,
+          created_by: user.id,
+          related_files: {}
         };
 
         const { data, error } = await supabase
           .from('goals')
           .insert([goalData])
-          .select();
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Full error:', error);
+          throw error;
+        }
+
+        // Get AI suggested tasks
+        await this.generateAITasks(data);
         
-        ElMessage.success('Goal created successfully');
-        this.goals.unshift(data[0]);
+        // Update local state and cache
+        this.goals.unshift(data);
+        const cachedGoals = this.cacheStore.getCachedData('goals', this.currentMatter.id) || [];
+        this.cacheStore.setCachedData('goals', this.currentMatter.id, [data, ...cachedGoals]);
+        
         this.dialogVisible = false;
         this.resetForm();
+        ElMessage.success('Goal created successfully');
       } catch (error) {
+        console.error('Full error:', error);
         ElMessage.error('Error creating goal: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async generateAITasks(goal) {
+      try {
+        this.aiLoading = true;
+        
+        // Create system prompt for task generation
+        const systemPrompt = `You are an AI legal assistant. A new goal has been created with the following details:
+        Title: ${goal.title}
+        Description: ${goal.description || 'No description provided'}
+        Priority: ${goal.priority}
+        Due Date: ${goal.due_date ? new Date(goal.due_date).toLocaleDateString() : 'No due date'}
+        
+        Please suggest a list of tasks that would help achieve this goal. Each task should include:
+        - title
+        - description
+        - priority (high/medium/low)
+        - timeline
+        
+        Return only a JSON array of tasks without any markdown formatting or code block syntax.`;
+
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemPrompt,
+            prompt: "Generate a list of tasks to achieve this goal",
+            goalId: goal.id,
+            matterId: goal.matter_id
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to get AI response');
+        
+        const data = await response.json();
+        
+        // Clean up the response by removing any markdown code block syntax
+        const cleanResponse = data.response.replace(/```json\s*|\s*```/g, '').trim();
+        const suggestedTasks = JSON.parse(cleanResponse);
+        
+        // Show task selection dialog
+        this.suggestedTasks = suggestedTasks;
+        this.showTaskSelectionDialog = true;
+      } catch (error) {
+        ElMessage.error('Error generating tasks: ' + error.message);
+      } finally {
+        this.aiLoading = false;
+      }
+    },
+
+    async createSelectedTasks() {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        for (const task of this.selectedTasks) {
+          const taskData = {
+            title: task.title,
+            description: task.description,
+            status: 'not_started',
+            priority: task.priority,
+            matter_id: this.currentMatter.id,
+            created_by: user.id,
+            due_date: task.due_date
+          };
+
+          await supabase
+            .from('tasks')
+            .insert([taskData])
+            .select();
+        }
+
+        this.showTaskSelectionDialog = false;
+        this.selectedTasks = [];
+        ElMessage.success('Tasks created successfully');
+      } catch (error) {
+        ElMessage.error('Error creating tasks: ' + error.message);
       } finally {
         this.loading = false;
       }
@@ -151,8 +267,11 @@ export default {
           (payload) => {
             switch (payload.eventType) {
               case 'INSERT':
-                this.goals.unshift(payload.new);
-                this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
+                // Check if goal already exists before adding
+                if (!this.goals.some(goal => goal.id === payload.new.id)) {
+                  this.goals.unshift(payload.new);
+                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
+                }
                 break;
               
               case 'UPDATE':
@@ -322,6 +441,44 @@ export default {
       :goal="selectedGoal"
       @close="showAIChat = false"
     />
+
+    <!-- AI Task Selection Dialog -->
+    <el-dialog
+      v-model="showTaskSelectionDialog"
+      title="Select Tasks to Create"
+      width="600px">
+      <p>The AI has suggested the following tasks to achieve your goal:</p>
+      
+      <el-checkbox-group v-model="selectedTasks">
+        <div v-for="task in suggestedTasks" :key="task.title" class="task-suggestion">
+          <el-checkbox :label="task" class="task-checkbox">
+            <div class="task-details">
+              <h4>{{ task.title }}</h4>
+              <p>{{ task.description }}</p>
+              <div class="task-meta">
+                <el-tag size="small" :type="task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'info'">
+                  {{ task.priority }}
+                </el-tag>
+                <span>Timeline: {{ task.timeline }}</span>
+              </div>
+            </div>
+          </el-checkbox>
+        </div>
+      </el-checkbox-group>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showTaskSelectionDialog = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="createSelectedTasks"
+            :loading="loading"
+            :disabled="!selectedTasks.length">
+            Create Selected Tasks
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -376,5 +533,50 @@ export default {
 
 .clickable-title:hover {
   text-decoration: underline;
+}
+
+.task-suggestion {
+  margin-bottom: 16px;
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.task-suggestion:hover {
+  background-color: #f9f9f9;
+}
+
+.task-checkbox {
+  width: 100%;
+  display: inline-block;
+  align-items: flex-start;
+}
+
+.task-details {
+  margin-left: 8px;
+  flex: 1;
+}
+
+.task-details h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.task-details p {
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.task-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.9em;
+  color: #666;
 }
 </style> 

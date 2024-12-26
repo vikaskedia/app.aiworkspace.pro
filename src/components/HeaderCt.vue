@@ -1,12 +1,10 @@
 <script>
 import { supabase } from '../supabase';
-import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar } from 'element-plus';
+import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
 import { useCacheStore } from '../store/cache';
-import { ElMessage } from 'element-plus';
-import NotificationsCt from './NotificationsCt.vue';
 import { ref } from 'vue';
 
 export default {
@@ -17,11 +15,17 @@ export default {
     ElAvatar,
     CaretBottom,
     MatterSelector,
-    NotificationsCt
+    ElDialog
   },
   data: function () {
     return {
-      user: null
+      user: null,
+      notifications: [],
+      unreadCount: 0,
+      subscription: null,
+      showNotificationsDialog: false,
+      userEmails: {},
+      loading: false
     };
   },
   computed: {
@@ -61,6 +65,13 @@ export default {
     } else if (error) {
       console.error('Error fetching session:', error.message);
     }
+    this.loadNotifications();
+    this.setupRealtimeSubscription();
+  },
+  beforeUnmount() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   },
   methods: {
     async handleLogout() {
@@ -85,6 +96,10 @@ export default {
           break;
         case 'logout':
           await this.handleLogout();
+          break;
+        case 'notifications':
+          // Show notifications dialog
+          this.showNotificationsDialog = true;
           break;
       }
     },
@@ -150,6 +165,62 @@ export default {
             break;
         }
       }
+    },
+    async loadNotifications() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { data: notifications, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (error) throw error;
+
+        this.notifications = notifications;
+        this.unreadCount = notifications.filter(n => !n.read).length;
+      } catch (error) {
+        ElMessage.error('Error loading notifications: ' + error.message);
+      }
+    },
+    setupRealtimeSubscription() {
+      // Copy the subscription setup from NotificationsCt.vue
+      // Lines 61-90 from NotificationsCt.vue
+    },
+    getNotificationText(notification) {
+      const actorEmail = this.userEmails[notification.actor_id] || 'Someone';
+      switch (notification.type) {
+        case 'task_assigned':
+          return `${actorEmail} assigned you a task: ${notification.data.task_title}`;
+        case 'task_created':
+          return `${actorEmail} created a new task: ${notification.data.task_title}`;
+        case 'task_updated':
+          return `${actorEmail} updated task: ${notification.data.task_title}`;
+        case 'matter_shared':
+          return `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
+        default:
+          return notification.message;
+      }
+    },
+    async markAsRead(notification) {
+      try {
+        const { error } = await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('id', notification.id);
+
+        if (error) throw error;
+
+        const index = this.notifications.findIndex(n => n.id === notification.id);
+        if (index !== -1) {
+          this.notifications[index].read = true;
+          this.unreadCount = Math.max(0, this.unreadCount - 1);
+        }
+      } catch (error) {
+        ElMessage.error('Error marking notification as read: ' + error.message);
+      }
     }
   }
 };
@@ -195,19 +266,27 @@ export default {
     </div>
     
     <div class="header-right" v-if="user">
-      <NotificationsCt />
       <el-dropdown @command="handleCommand" trigger="hover">
         <div class="user-profile">
           <span class="user-name">{{ displayName }}</span>
-          <el-avatar 
-            :size="40"
-            :src="user.user_metadata?.avatar_url"
-            :icon="!user.user_metadata?.avatar_url ? 'UserFilled' : undefined"
-          />
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0">
+            <el-avatar 
+              :size="40"
+              :src="user.user_metadata?.avatar_url"
+              :icon="!user.user_metadata?.avatar_url ? 'UserFilled' : undefined"
+            />
+          </el-badge>
           <el-icon class="dropdown-icon"><caret-bottom /></el-icon>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
+            <el-dropdown-item command="notifications">
+              Notifications
+              <el-badge 
+                :value="unreadCount" 
+                :hidden="unreadCount === 0" 
+                class="notification-badge" />
+            </el-dropdown-item>
             <el-dropdown-item command="settings">Settings</el-dropdown-item>
             <el-dropdown-item command="feedback">Feedback</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
@@ -216,6 +295,38 @@ export default {
       </el-dropdown>
     </div>
   </header>
+  <el-dialog
+    v-model="showNotificationsDialog"
+    title="Notifications"
+    width="500px"
+    :close-on-click-modal="true"
+    :close-on-press-escape="true"
+  >
+    <div class="notifications-container">
+      <div v-if="loading" class="loading-state">
+        <el-skeleton :rows="3" animated />
+      </div>
+      <template v-else>
+        <div v-if="notifications.length === 0" class="empty-state">
+          No notifications
+        </div>
+        <div
+          v-else
+          v-for="notification in notifications"
+          :key="notification.id"
+          :class="['notification-item', { unread: !notification.read }]"
+          @click="markAsRead(notification)"
+        >
+          <div class="notification-content">
+            <p>{{ getNotificationText(notification) }}</p>
+            <span class="notification-time">
+              {{ new Date(notification.created_at).toLocaleString() }}
+            </span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -394,5 +505,64 @@ export default {
 .current-section .dropdown-icon {
   font-size: 12px;
   color: #909399;
+}
+
+.notification-badge {
+  margin-left: 8px;
+}
+
+:deep(.el-badge__content) {
+  z-index: 1;
+}
+
+:deep(.el-badge) {
+  line-height: 1;
+}
+
+.notifications-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.notification-item.unread {
+  background-color: #ecf5ff;
+  border-left: 3px solid #409EFF;
+}
+
+.notification-item:hover {
+  background-color: #f5f7fa;
+}
+
+.notification-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-content p {
+  margin: 0;
+  color: #303133;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.notification-time {
+  font-size: 0.8em;
+  color: #909399;
+}
+
+.empty-state {
+  text-align: center;
+  color: #909399;
+  padding: 16px;
 }
 </style>

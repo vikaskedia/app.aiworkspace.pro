@@ -125,9 +125,9 @@ export default {
 
         if (data.verified) {
           this.settings.telegramVerified = true;
-          ElMessage.success('Telegram ID verified successfully!');
+          ElMessage.success('Telegram ID verified successfully! Check your Telegram for a test message.');
         } else {
-          ElMessage.error('Could not verify Telegram ID. Please check the ID and try again.');
+          ElMessage.error(data.error || 'Could not verify Telegram ID. Please check the ID and try again.');
         }
       } catch (error) {
         ElMessage.error('Error verifying Telegram ID: ' + error.message);

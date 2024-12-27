@@ -81,34 +81,37 @@ export default {
       
       try {
         this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
         
-        // Always fetch from database when showing deleted tasks
         let query = supabase
           .from('tasks')
-          .select('*')
+          .select(`
+            *,
+            task_stars!left(user_id)
+          `)
           .eq('matter_id', this.currentMatter.id)
+          .eq('task_stars.user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (!showDeleted) {
           query = query.eq('deleted', false);
-          
-          // Check cache only for non-deleted tasks
-          const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id);
-          if (cachedTasks) {
-            this.tasks = this.organizeTasksHierarchy(cachedTasks.filter(t => !t.deleted));
-            this.loading = false;
-            return;
-          }
         }
 
         const { data: tasks, error } = await query;
 
         if (error) throw error;
-        this.tasks = this.organizeTasksHierarchy(tasks);
+
+        // Transform the data to include starred status
+        const transformedTasks = tasks.map(task => ({
+          ...task,
+          starred: Boolean(task.task_stars?.length)
+        }));
+
+        this.tasks = this.organizeTasksHierarchy(transformedTasks);
         
-        // Only cache non-deleted tasks
+        // Update cache
         if (!showDeleted) {
-          this.cacheStore.setCachedData('tasks', this.currentMatter.id, tasks);
+          this.cacheStore.setCachedData('tasks', this.currentMatter.id, transformedTasks);
         }
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);

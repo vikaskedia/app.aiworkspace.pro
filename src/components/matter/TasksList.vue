@@ -258,17 +258,33 @@ export default {
     },
     async toggleStar(task) {
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ starred: !task.starred })
-          .eq('id', task.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (task.starred) {
+          // Remove star
+          const { error } = await supabase
+            .from('task_stars')
+            .delete()
+            .eq('task_id', task.id)
+            .eq('user_id', user.id);
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          // Add star
+          const { error } = await supabase
+            .from('task_stars')
+            .insert({
+              task_id: task.id,
+              user_id: user.id
+            });
+
+          if (error) throw error;
+        }
         
         // Emit an event to notify the parent component
         this.$emit('star-toggled', task.id, !task.starred);
       } catch (error) {
-        ElMessage.error('Error updating task: ' + error.message);
+        ElMessage.error('Error updating task star: ' + error.message);
       }
     }
   },

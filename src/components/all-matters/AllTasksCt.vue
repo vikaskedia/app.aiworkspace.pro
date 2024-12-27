@@ -292,18 +292,17 @@ export default {
     async loadTasks() {
       try {
         this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
         
         let query = supabase
           .from('tasks')
           .select(`
             *,
-            matter:matter_id (
-              id,
-              title
-            )
+            matter:matters(title),
+            task_stars!left(user_id)
           `)
           .eq('deleted', false)
-          .order('created_at', { ascending: false });
+          .eq('task_stars.user_id', user.id);
 
         // Apply filters
         if (this.filters.search) {
@@ -315,12 +314,6 @@ export default {
         if (this.filters.priority) {
           query = query.eq('priority', this.filters.priority);
         }
-        if (this.filters.dueDate) {
-          const date = new Date(this.filters.dueDate);
-          date.setHours(0, 0, 0, 0);
-          query = query.gte('due_date', date.toISOString())
-            .lt('due_date', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString());
-        }
         if (this.filters.matter) {
           query = query.eq('matter_id', this.filters.matter);
         }
@@ -328,14 +321,14 @@ export default {
           query = query.eq('assignee', this.filters.assignee);
         }
         if (this.filters.starred) {
-          query = query.eq('starred', true);
+          query = query.not('task_stars', 'is', null);
         }
 
         const { data: tasks, error } = await query;
 
         if (error) throw error;
 
-        // Transform data to include matter title
+        // Transform the data
         this.tasks = await Promise.all(tasks.map(async task => {
           const assigneeEmail = task.assignee ? 
             await this.loadUserEmail(task.assignee) : 
@@ -344,7 +337,8 @@ export default {
           return {
             ...task,
             matter_title: task.matter?.title || 'Unknown Matter',
-            assignee_email: assigneeEmail
+            assignee_email: assigneeEmail,
+            starred: Boolean(task.task_stars?.length)
           };
         }));
 
@@ -450,19 +444,35 @@ export default {
 
     async toggleStar(task) {
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ starred: !task.starred })
-          .eq('id', task.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (task.starred) {
+          // Remove star
+          const { error } = await supabase
+            .from('task_stars')
+            .delete()
+            .eq('task_id', task.id)
+            .eq('user_id', user.id);
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          // Add star
+          const { error } = await supabase
+            .from('task_stars')
+            .insert({
+              task_id: task.id,
+              user_id: user.id
+            });
+
+          if (error) throw error;
+        }
 
         // Update the task in the local state
         this.tasks = this.tasks.map(t => 
-          t.id === task.id ? { ...t, starred: !task.starred } : t
+          t.id === task.id ? { ...t, starred: !t.starred } : t
         );
       } catch (error) {
-        ElMessage.error('Error updating task: ' + error.message);
+        ElMessage.error('Error updating task star: ' + error.message);
       }
     },
 

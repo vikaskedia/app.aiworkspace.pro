@@ -3,12 +3,14 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { FullScreen, Close, Folder } from '@element-plus/icons-vue';
 import { ref } from 'vue';
+import EditableTable from './EditableTable.vue'
 
 export default {
   components: {
     FullScreen,
     Close,
-    Folder
+    Folder,
+    EditableTable
   },
   props: {
     task: {
@@ -47,6 +49,9 @@ export default {
       typeaheadSuggestions: [],
       typeaheadSelectedIndex: -1,
       typeaheadTimer: null,
+      showTableDialog: false,
+      tableContent: '',
+      tableInsertPosition: null,
     };
   },
   computed: {
@@ -264,26 +269,22 @@ export default {
       const lastWord = text.slice(0, selectionStart).split(' ').pop();
       
       if (lastWord === '/table') {
-        // Don't call preventDefault since event might be a string
-        // Remove the /table command
+        if (event?.preventDefault) {
+          event.preventDefault();
+        }
         const beforeCommand = text.slice(0, selectionStart - 6);
         const afterCommand = text.slice(selectionStart);
         
-        // Insert table template
-        const tableTemplate = `
+        this.tableContent = `
 | Header 1 | Header 2 | Header 3 |
 |----------|----------|----------|
-| Cell 1   | Cell 2   | Cell 3   |
-| Cell 4   | Cell 5   | Cell 6   |`;
+| Cell 1   | Cell 2   | Cell 3   |`;
         
-        this.newComment = beforeCommand + tableTemplate + afterCommand;
-        
-        // Set cursor position after table template
-        this.$nextTick(() => {
-          const newPos = beforeCommand.length + tableTemplate.length;
-          textarea.setSelectionRange(newPos, newPos);
-          textarea.focus();
-        });
+        this.tableInsertPosition = {
+          before: beforeCommand,
+          after: afterCommand
+        };
+        this.showTableDialog = true;
       } else {
         // Existing handleInput logic for @files, @ai-attorney, etc.
         if (lastWord === '@files') {
@@ -689,6 +690,15 @@ Please provide assistance based on this context, the comment history, the availa
         textarea.setSelectionRange(newPos, newPos);
         textarea.focus();
       });
+    },
+
+    insertTable() {
+      if (this.tableInsertPosition) {
+        this.newComment = this.tableInsertPosition.before + 
+          this.tableContent + 
+          this.tableInsertPosition.after
+      }
+      this.showTableDialog = false
     }
   },
   beforeUnmount() {
@@ -924,6 +934,22 @@ Please provide assistance based on this context, the comment history, the availa
             :disabled="!aiPrompt.trim()">
             Submit
           </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showTableDialog"
+      title="Edit Table"
+      width="80%"
+    >
+      <EditableTable
+        v-model="tableContent"
+      />
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showTableDialog = false">Cancel</el-button>
+          <el-button type="primary" @click="insertTable">Insert Table</el-button>
         </span>
       </template>
     </el-dialog>

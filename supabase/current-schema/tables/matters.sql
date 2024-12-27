@@ -108,3 +108,15 @@ CREATE POLICY "Users can soft delete matters"
         )
     )
     WITH CHECK (deleted = true);
+
+
+CREATE OR REPLACE FUNCTION public.get_all_users()
+RETURNS TABLE(id uuid, email text)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+  SELECT id, email
+  FROM auth.users
+  ORDER BY email;
+$function$;

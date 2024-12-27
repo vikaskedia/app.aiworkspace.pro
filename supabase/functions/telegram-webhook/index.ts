@@ -9,7 +9,7 @@
  > supabase secrets set TELEGRAM_BOT_TOKEN=<YOUR_BOT_TOKEN>
 
 > curl https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
-
+if bottoen is 123 then the url is https://api.telegram.org/bot123/getWebhookInfo
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'

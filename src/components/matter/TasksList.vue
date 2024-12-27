@@ -1,13 +1,16 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
+import { ElMessage } from 'element-plus'
 
 export default {
   components: {
     ArrowUp,
     ArrowDown,
-    InfoFilled
+    InfoFilled,
+    Star,
+    StarFilled
   },
   props: {
     tasks: {
@@ -27,7 +30,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count'],
+  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled'],
   data() {
     return {
       filters: {
@@ -36,7 +39,8 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null,
-        showDeleted: false
+        showDeleted: false,
+        starred: false
       },
       userEmails: {},
       deletedTooltips: {},
@@ -112,6 +116,13 @@ export default {
         })
       }
 
+      // Star filter
+      if (this.filters.starred) {
+        result = filterTasksRecursively(result, task => 
+          task.starred === true
+        )
+      }
+
       // Apply sorting if set
       if (this.sortBy) {
         const sortTasks = (tasks) => {
@@ -166,6 +177,7 @@ export default {
       if (this.filters.priority) count++;
       if (this.filters.assignee) count++;
       if (this.filters.dueDate) count++;
+      if (this.filters.starred) count++;
       return count;
     }
   },
@@ -243,6 +255,21 @@ export default {
     handleSort({ prop, order }) {
       this.sortBy = prop;
       this.sortOrder = order === 'ascending' ? 'ascending' : 'descending';
+    },
+    async toggleStar(task) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ starred: !task.starred })
+          .eq('id', task.id);
+
+        if (error) throw error;
+        
+        // Emit an event to notify the parent component
+        this.$emit('star-toggled', task.id, !task.starred);
+      } catch (error) {
+        ElMessage.error('Error updating task: ' + error.message);
+      }
     }
   },
   watch: {
@@ -322,6 +349,13 @@ export default {
             class="filter-item"
             active-text="Show Deleted Tasks"
             @change="$emit('show-deleted-changed', $event)"
+          />
+
+          <el-switch
+            v-model="filters.starred"
+            class="filter-item"
+            active-text="Show Starred Tasks"
+            @change="saveFilters"
           />
         </div>
       </div>
@@ -414,6 +448,18 @@ export default {
       </el-table-column>
       
       <el-table-column 
+        width="50"
+        align="center">
+        <template #default="scope">
+          <el-icon
+            :class="['star-icon', { 'starred': scope.row.starred }]"
+            @click.stop="toggleStar(scope.row)">
+            <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
+          </el-icon>
+        </template>
+      </el-table-column>
+      
+      <el-table-column 
         label="Actions"
         width="200"
         align="center">
@@ -500,5 +546,21 @@ export default {
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 0.9em;
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 18px;
+  color: #909399;
+  transition: color 0.3s;
+}
+
+.star-icon:hover {
+  color: #f0c541;
+}
+
+.star-icon.starred {
+  color: #f0c541;
+  font-size: 28px;
 }
 </style>

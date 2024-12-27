@@ -85,6 +85,13 @@
               </el-select>
             </el-form-item>
             <el-form-item>
+              <el-switch
+                v-model="filters.starred"
+                class="filter-item"
+                active-text="Show Starred Tasks"
+              />
+            </el-form-item>
+            <el-form-item>
               <el-button @click="clearFilters">Clear</el-button>
             </el-form-item>
           </el-form>
@@ -150,6 +157,17 @@
           </template>
         </el-table-column>
         <el-table-column 
+          width="50"
+          align="center">
+          <template #default="scope">
+            <el-icon
+              :class="['star-icon', { 'starred': scope.row.starred }]"
+              @click.stop="toggleStar(scope.row)">
+              <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
+            </el-icon>
+          </template>
+        </el-table-column>
+        <el-table-column 
           prop="assignee_email" 
           label="Assignee"
           min-width="180">
@@ -166,13 +184,15 @@
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import { ArrowUp, ArrowDown, Star, StarFilled } from '@element-plus/icons-vue';
 
 export default {
   name: 'AllTasksCt',
   components: {
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    Star,
+    StarFilled
   },
   setup() {
     const router = useRouter();
@@ -191,7 +211,8 @@ export default {
         priority: null,
         dueDate: null,
         matter: null,
-        assignee: null
+        assignee: null,
+        starred: false
       }
     };
   },
@@ -204,6 +225,7 @@ export default {
       if (this.filters.dueDate) count++;
       if (this.filters.matter) count++;
       if (this.filters.assignee) count++;
+      if (this.filters.starred) count++;
       return count;
     }
   },
@@ -245,6 +267,9 @@ export default {
         }
         if (this.filters.assignee) {
           query = query.eq('assignee', this.filters.assignee);
+        }
+        if (this.filters.starred) {
+          query = query.eq('starred', true);
         }
 
         const { data: tasks, error } = await query;
@@ -293,7 +318,8 @@ export default {
         priority: null,
         dueDate: null,
         matter: null,
-        assignee: null
+        assignee: null,
+        starred: false
       };
       this.saveFilters();
       this.loadTasks();
@@ -361,6 +387,24 @@ export default {
         'awaiting_external': 'Awaiting external factor'
       };
       return statusMap[status] || status;
+    },
+
+    async toggleStar(task) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ starred: !task.starred })
+          .eq('id', task.id);
+
+        if (error) throw error;
+
+        // Update the task in the local state
+        this.tasks = this.tasks.map(t => 
+          t.id === task.id ? { ...t, starred: !task.starred } : t
+        );
+      } catch (error) {
+        ElMessage.error('Error updating task: ' + error.message);
+      }
     }
   },
   mounted() {
@@ -415,5 +459,21 @@ export default {
 .header-buttons {
   display: flex;
   gap: 12px;
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 18px;
+  color: #909399;
+  transition: color 0.3s;
+}
+
+.star-icon:hover {
+  color: #f0c541;
+}
+
+.star-icon.starred {
+  color: #f0c541;
+  font-size: 28px;
 }
 </style> 

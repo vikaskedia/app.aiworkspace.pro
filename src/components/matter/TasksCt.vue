@@ -592,6 +592,31 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    async handleStarToggled(taskId, starred) {
+      // Update the task in the local state
+      const updateTaskRecursively = (tasks, taskId) => {
+        return tasks.map(t => {
+          if (t.id === taskId) {
+            return { ...t, starred };
+          }
+          if (t.children?.length) {
+            t.children = updateTaskRecursively(t.children, taskId);
+          }
+          return t;
+        });
+      };
+
+      // Update cache
+      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+      const updatedCachedTasks = cachedTasks.map(t => 
+        t.id === taskId ? { ...t, starred } : t
+      );
+      this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+      
+      // Update UI
+      this.tasks = updateTaskRecursively(this.tasks, taskId);
     }
   },
 
@@ -658,6 +683,7 @@ export default {
         v-model:active-filters-count="activeFiltersCount"
         @load-tasks="loadTasks"
         @show-deleted-changed="loadTasks"
+        @star-toggled="handleStarToggled"
         @edit="async (task) => {
           editingTask = {...task};
           await loadSharedUsers();

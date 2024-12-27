@@ -117,7 +117,7 @@ async function loadFiles() {
     const path = currentFolder.value?.path || '';
 
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}`,
+      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`,
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
@@ -201,7 +201,7 @@ async function handleFileUpload(file) {
 
     // Upload to Gitea with the correct path
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${uploadPath}`,
+      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uploadPath}`,
       {
         method: 'POST',
         headers: {
@@ -255,7 +255,7 @@ async function deleteFile(file) {
 
     // Delete from Gitea
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
+      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
       {
         method: 'DELETE',
         headers: {
@@ -321,7 +321,7 @@ async function loadFolders() {
     const path = currentFolder.value?.path || '';
     
     // Add proper path construction with leading slash
-    const apiPath = `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
+    const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
 
     const response = await fetch(
       apiPath,
@@ -367,7 +367,7 @@ async function createFolder() {
 
     // Create an empty file as .gitkeep to create the folder
     const response = await fetch(
-      `/gitea/api/v1/repos/vikas/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
+      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
       {
         method: 'POST',
         headers: {

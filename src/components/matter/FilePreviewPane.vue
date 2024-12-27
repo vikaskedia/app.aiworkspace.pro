@@ -203,7 +203,7 @@ async function handleRename() {
 
     // Delete the old file - Fix the repository path
     const deleteResponse = await fetch(
-      `/gitea/api/v1/repos/vikas/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      `/gitea/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
         method: 'DELETE',
         headers: {
@@ -222,7 +222,7 @@ async function handleRename() {
 
     // Create the new file - Fix the repository path here too
     const createResponse = await fetch(
-      `/gitea/api/v1/repos/vikas/${props.file.git_repo}/contents/${renameForm.value.newName}`,
+      `/gitea/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${renameForm.value.newName}`,
       {
         method: 'POST',
         headers: {

@@ -828,7 +828,7 @@ export default {
 
         const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `/gitea/api/v1/repos/vikas/${matter.git_repo}/contents/${path}`,
+          `/gitea/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,

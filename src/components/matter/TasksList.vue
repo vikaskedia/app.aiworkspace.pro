@@ -391,11 +391,18 @@ export default {
         sortable
         min-width="200">
         <template #default="scope">
-          <span 
-            class="clickable-title"
-            @click="$emit('view-comments', scope.row)">
-            {{ scope.row.title }}
-          </span>
+          <div class="title-with-star">
+            <el-icon
+              :class="['star-icon', { 'starred': scope.row.starred }]"
+              @click.stop="toggleStar(scope.row)">
+              <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
+            </el-icon>
+            <span 
+              class="clickable-title"
+              @click="$emit('view-comments', scope.row)">
+              {{ scope.row.title }}
+            </span>
+          </div>
         </template>
       </el-table-column>
       
@@ -460,18 +467,6 @@ export default {
           <span class="logged-hours">
             Hours Logged: {{ scope.row.log_hours || 0 }}
           </span>
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        width="50"
-        align="center">
-        <template #default="scope">
-          <el-icon
-            :class="['star-icon', { 'starred': scope.row.starred }]"
-            @click.stop="toggleStar(scope.row)">
-            <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
-          </el-icon>
         </template>
       </el-table-column>
       
@@ -578,5 +573,36 @@ export default {
 .star-icon.starred {
   color: #f0c541;
   font-size: 28px;
+}
+
+.title-with-star {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 18px;
+  color: #909399;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.star-icon:hover {
+  color: #f0c541;
+}
+
+.star-icon.starred {
+  color: #f0c541;
+}
+
+.clickable-title {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable-title:hover {
+  text-decoration: underline;
 }
 </style>

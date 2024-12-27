@@ -62,6 +62,19 @@ export default {
       return items.filter(item => 
         item.name.toLowerCase().includes(query)
       );
+    },
+    drawerSize() {
+      // Get viewport width
+      const width = window.innerWidth;
+      if (width <= 480) {
+        return '100%';
+      } else if (width <= 768) {
+        return '75%';
+      } else if (width <= 1024) {
+        return '50%';
+      } else {
+        return '35%';
+      }
     }
   },
   watch: {
@@ -699,6 +712,11 @@ Please provide assistance based on this context, the comment history, the availa
           this.tableInsertPosition.after
       }
       this.showTableDialog = false
+    },
+
+    handleResize() {
+      // Force update to recalculate drawer size
+      this.$forceUpdate();
     }
   },
   beforeUnmount() {
@@ -706,6 +724,7 @@ Please provide assistance based on this context, the comment history, the availa
       this.subscription.unsubscribe();
     }
     document.removeEventListener('click', this.handleClickOutside);
+    window.removeEventListener('resize', this.handleResize);
   },
   async created() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -725,6 +744,7 @@ Please provide assistance based on this context, the comment history, the availa
       }
     };
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('resize', this.handleResize);
   }
 };
 </script>
@@ -735,7 +755,7 @@ Please provide assistance based on this context, the comment history, the availa
     @update:model-value="$emit('update:visible', $event)"
     :title="`Comments - ${task.title}`"
     direction="rtl"
-    size="35%">
+    :size="drawerSize">
     <template #header>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span>Comments - {{ task.title }}</span>
@@ -1051,14 +1071,59 @@ Please provide assistance based on this context, the comment history, the availa
 }
 
 @media (max-width: 1024px) {
-  :deep(.el-drawer) {
-    width: 50% !important;
+  .comments-container {
+    padding: 16px;
+  }
+  
+  .comment-list {
+    gap: 12px;
+  }
+  
+  .comment-input {
+    padding: 16px;
   }
 }
 
 @media (max-width: 768px) {
-  :deep(.el-drawer) {
-    width: 90% !important;
+  .comments-container {
+    padding: 12px;
+  }
+  
+  .comment-header {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .comment-actions {
+    justify-content: space-between;
+  }
+  
+  .comment-input {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  :deep(.el-drawer__header) {
+    padding: 12px;
+    margin-bottom: 0;
+  }
+  
+  .comments-container {
+    padding: 8px;
+  }
+  
+  .comment-content {
+    padding: 10px;
+  }
+  
+  .comment-input {
+    padding: 8px;
+  }
+  
+  .typeahead-suggestions {
+    left: 8px;
+    right: 8px;
   }
 }
 

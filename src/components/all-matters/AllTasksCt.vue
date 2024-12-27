@@ -10,6 +10,24 @@
             plain>
             {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
           </el-button>
+          <el-dropdown @command="handleSavedFilter">
+            <el-button type="info" plain>
+              Saved Filters
+              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="save">Save Current Filters</el-dropdown-item>
+                <el-dropdown-item divided command="manage">Manage Saved Filters</el-dropdown-item>
+                <el-dropdown-item 
+                  v-for="filter in savedFilters" 
+                  :key="filter.id" 
+                  :command="['load', filter.id]">
+                  {{ filter.name }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
 
@@ -178,11 +196,50 @@
       </el-table>
     </div>
   </div>
+
+  <!-- Manage Saved Filters Dialog -->
+  <el-dialog
+    v-model="savedFiltersDialogVisible"
+    title="Manage Saved Filters"
+    width="500px">
+    <div v-if="savedFilters.length === 0" class="no-filters">
+      No saved filters found
+    </div>
+    <el-table
+      v-else
+      :data="savedFilters"
+      style="width: 100%">
+      <el-table-column
+        prop="name"
+        label="Filter Name"
+        min-width="200">
+      </el-table-column>
+      <el-table-column
+        label="Actions"
+        width="150"
+        align="right">
+        <template #default="scope">
+          <el-button
+            type="primary"
+            link
+            @click="loadSavedFilter(scope.row)">
+            Load
+          </el-button>
+          <el-button
+            type="danger"
+            link
+            @click="deleteSavedFilter(scope.row)">
+            Delete
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-dialog>
 </template>
 
 <script>
 import { supabase } from '../../supabase';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { ArrowUp, ArrowDown, Star, StarFilled } from '@element-plus/icons-vue';
 
@@ -213,7 +270,9 @@ export default {
         matter: null,
         assignee: null,
         starred: false
-      }
+      },
+      savedFilters: [],
+      savedFiltersDialogVisible: false,
     };
   },
   computed: {
@@ -373,7 +432,7 @@ export default {
     },
 
     loadSavedFilters() {
-      const savedFilters = localStorage.getItem('allTasksFilters');
+      const savedFilters = localStorage.getItem('allTasksSavedFilters');
       if (savedFilters) {
         this.filters = JSON.parse(savedFilters);
       }
@@ -404,6 +463,77 @@ export default {
         );
       } catch (error) {
         ElMessage.error('Error updating task: ' + error.message);
+      }
+    },
+
+    async handleSavedFilter(command) {
+      if (command === 'save') {
+        const filterName = await this.$prompt('Enter a name for this filter set', 'Save Filters', {
+          confirmButtonText: 'Save',
+          cancelButtonText: 'Cancel',
+        }).catch(() => null);
+
+        if (filterName?.value) {
+          const currentFilters = {
+            name: filterName.value,
+            filters: { ...this.filters }
+          };
+          
+          const savedFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
+          savedFilters.push(currentFilters);
+          localStorage.setItem('allTasksSavedFilters', JSON.stringify(savedFilters));
+          this.loadSavedFilters();
+          ElMessage.success('Filters saved successfully');
+        }
+      } else if (command === 'manage') {
+        this.savedFiltersDialogVisible = true;
+      } else if (Array.isArray(command) && command[0] === 'load') {
+        const filterId = command[1];
+        const filter = this.savedFilters.find(f => f.id === filterId);
+        if (filter) {
+          this.filters = { ...filter.filters };
+          ElMessage.success('Filters loaded successfully');
+        } else {
+          ElMessage.error('Unable to load filters');
+        }
+      }
+    },
+
+    loadSavedFilters() {
+      const filters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
+      this.savedFilters = filters.map((f, index) => ({
+        ...f,
+        id: index
+      }));
+    },
+
+    async loadSavedFilter(filter) {
+      this.filters = { ...filter.filters };
+      this.savedFiltersDialogVisible = false;
+      ElMessage.success('Filters loaded successfully');
+    },
+
+    async deleteSavedFilter(filter) {
+      try {
+        await ElMessageBox.confirm(
+          'Are you sure you want to delete this filter?',
+          'Warning',
+          {
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+          }
+        );
+
+        const savedFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
+        const updatedFilters = savedFilters.filter((f, index) => index !== filter.id);
+        localStorage.setItem('allTasksSavedFilters', JSON.stringify(updatedFilters));
+        this.loadSavedFilters();
+        ElMessage.success('Filter deleted successfully');
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('Error deleting filter');
+        }
       }
     }
   },
@@ -475,5 +605,11 @@ export default {
 .star-icon.starred {
   color: #f0c541;
   font-size: 28px;
+}
+
+.no-filters {
+  text-align: center;
+  color: #909399;
+  padding: 20px;
 }
 </style> 

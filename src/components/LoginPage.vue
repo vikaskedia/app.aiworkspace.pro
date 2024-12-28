@@ -52,7 +52,7 @@
       </div>
 
       <div class="terms">
-        By continuing, you agree to Legal AI Studio's Terms of Service and Privacy Policy
+        By continuing, you agree to AI Associate Attorney's Terms of Service and Privacy Policy
       </div>
     </el-card>
   </div>

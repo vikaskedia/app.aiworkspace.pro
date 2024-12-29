@@ -10,7 +10,6 @@ import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/matter/MatterLayout.vue';
 import SingleTaskCt from './components/matter/SingleTaskCt.vue';
-import UserSettingsCt from './components/UserSettingsCt.vue';
 import SettingsLayout from './components/settings/SettingsLayout.vue'
 
 const routes = [
@@ -49,6 +48,11 @@ const routes = [
         path: 'files',
         name: 'AllFilesPage',
         component: () => import('./components/all-matters/AllFilesCt.vue')
+      },
+      {
+        path: 'settings',
+        name: 'MatterSettingsPage',
+        component: () => import('./components/matter/MatterSettingsCt.vue')
       }
     ]
   },
@@ -90,11 +94,6 @@ const routes = [
         path: 'files',
         name: 'ManageFilesPage',
         component: ManageFilesCt
-      },
-      {
-        path: 'settings',
-        name: 'MatterSettingsPage',
-        component: () => import('./components/matter/MatterSettingsCt.vue')
       }
     ]
   },
@@ -111,12 +110,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/settings',
+    path: '/all-matters/settings',
     component: SettingsLayout,
     children: [
       {
         path: '',
-        component: UserSettingsCt
+        component: () => import('./components/all-matters/AllMatterSettingsCt.vue')
       }
     ]
   },

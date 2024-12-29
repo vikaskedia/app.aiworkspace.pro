@@ -1,6 +1,6 @@
 <template>
   <div class="settings-container">
-    <h2>User Settings</h2>
+    <h2>All Matter Settings</h2>
     
     <el-form :model="settings" label-position="top" class="settings-form">
       <!-- Notification Preferences Section -->
@@ -69,11 +69,11 @@
 
 <script>
 import { ref } from 'vue';
-import { supabase } from '../supabase';
+import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 
 export default {
-  name: 'UserSettingsCt',
+  name: 'AllMatterSettingsCt',
   setup() {
     const settings = ref({
       emailNotifications: true,

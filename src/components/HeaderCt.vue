@@ -49,6 +49,7 @@ export default {
         if (path.endsWith('/goals')) return 'All Goals';
         if (path.endsWith('/events')) return 'All Events';
         if (path.endsWith('/files')) return 'All Files';
+        if (path.includes('/settings')) return 'All Matter Settings';
         return 'All Matters';
       }
       return 'Dashboard';
@@ -88,9 +89,6 @@ export default {
     },
     async handleCommand(command) {
       switch(command) {
-        case 'settings':
-          this.$router.push('/settings');
-          break;
         case 'feedback':
           // TODO: Implement feedback route
           break;
@@ -259,6 +257,7 @@ export default {
               <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
               <el-dropdown-item command="all_events">Events</el-dropdown-item>
               <el-dropdown-item command="all_files">Files</el-dropdown-item>
+              <el-dropdown-item command="all_settings">Settings</el-dropdown-item>
             </template>
           </el-dropdown-menu>
         </template>
@@ -287,7 +286,6 @@ export default {
                 :hidden="unreadCount === 0" 
                 class="notification-badge" />
             </el-dropdown-item>
-            <el-dropdown-item command="settings">Settings</el-dropdown-item>
             <el-dropdown-item command="feedback">Feedback</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>

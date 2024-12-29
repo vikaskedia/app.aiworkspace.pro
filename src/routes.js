@@ -50,8 +50,8 @@ const routes = [
       },
       {
         path: 'settings',
-        name: 'MatterSettingsPage',
-        component: () => import('./components/single-matter/MatterSettingsCt.vue')
+        name: 'AllMatterSettingsPage',
+        component: () => import('./components/all-matters/AllMatterSettingsCt.vue')
       }
     ]
   },

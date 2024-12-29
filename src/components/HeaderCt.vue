@@ -484,7 +484,6 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .section-divider,
   .current-section {
     display: none;
   }

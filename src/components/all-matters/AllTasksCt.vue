@@ -383,11 +383,11 @@ export default {
     },
 
     navigateToTask(task) {
-      this.router.push(`/matter/${task.matter_id}/tasks`);
+      this.router.push(`/single-matter/${task.matter_id}/tasks`);
     },
 
     navigateToMatter(matterId) {
-      this.router.push(`/matter/${matterId}`);
+      this.router.push(`/single-matter/${matterId}`);
     },
 
     async loadMatters() {

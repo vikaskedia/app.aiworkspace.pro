@@ -7,7 +7,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/matter/${currentMatter?.id}/goals`)">
+          @click="$router.push(`/single-matter/${currentMatter?.id}/goals`)">
           View All Goals
         </el-button>
       </div>
@@ -57,7 +57,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/matter/${currentMatter?.id}/tasks`)">
+          @click="$router.push(`/single-matter/${currentMatter?.id}/tasks`)">
           View All Tasks
         </el-button>
       </div>
@@ -113,7 +113,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/matter/${currentMatter?.id}/events`)">
+          @click="$router.push(`/single-matter/${currentMatter?.id}/events`)">
           View All Events
         </el-button>
       </div>
@@ -268,7 +268,7 @@ export default {
     },
 
     navigateToTask(task) {
-      this.$router.push(`/matter/${this.currentMatter.id}/tasks/${task.id}`);
+      this.$router.push(`/single-matter/${this.currentMatter.id}/tasks/${task.id}`);
     }
   }
 };

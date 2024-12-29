@@ -374,7 +374,7 @@ export default {
       switch(command) {
         case 'view':
           this.matterStore.setCurrentMatter(matter);
-          this.router.push(`/matter/${matter.id}`);
+          this.router.push(`/single-matter/${matter.id}`);
           break;
         case 'edit':
           this.editingMatter = {

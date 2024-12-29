@@ -1,15 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
 import { useMatterStore } from './store/matter';
-import DashboardCt from './components/matter/DashboardCt.vue';
-import ManageFilesCt from './components/matter/FilesCt.vue';
-import GoalsCt from './components/matter/GoalsCt.vue';
-import TasksCt from './components/matter/TasksCt.vue';
-import EventsCt from './components/matter/EventsCt.vue';
+import DashboardCt from './components/single-matter/DashboardCt.vue';
+import ManageFilesCt from './components/single-matter/FilesCt.vue';
+import GoalsCt from './components/single-matter/GoalsCt.vue';
+import TasksCt from './components/single-matter/TasksCt.vue';
+import EventsCt from './components/single-matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
-import MatterLayout from './components/matter/MatterLayout.vue';
-import SingleTaskCt from './components/matter/SingleTaskCt.vue';
+import MatterLayout from './components/single-matter/MatterLayout.vue';
+import SingleTaskCt from './components/single-matter/SingleTaskCt.vue';
 
 const routes = [
   {
@@ -51,18 +51,18 @@ const routes = [
       {
         path: 'settings',
         name: 'MatterSettingsPage',
-        component: () => import('./components/matter/MatterSettingsCt.vue')
+        component: () => import('./components/single-matter/MatterSettingsCt.vue')
       }
     ]
   },
   { 
-    path: '/matter/:matterId?', 
+    path: '/single-matter/:matterId?', 
     component: MatterLayout,
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: to => `/matter/${to.params.matterId}/dashboard`
+        redirect: to => `/single-matter/${to.params.matterId}/dashboard`
       },
       {
         path: 'dashboard',
@@ -82,7 +82,7 @@ const routes = [
       {
         path: 'tasks/:taskId',
         name: 'SingleTaskPage',
-        component: () => import('./components/matter/SingleTaskCt.vue')
+        component: () => import('./components/single-matter/SingleTaskCt.vue')
       },
       {
         path: 'events',
@@ -138,7 +138,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Handle invalid matter routes
-  if (to.path.startsWith('/matter/') && (!to.params.matterId || to.params.matterId === '')) {
+  if (to.path.startsWith('/single-matter/') && (!to.params.matterId || to.params.matterId === '')) {
     next('/all-matters');
     return;
   }

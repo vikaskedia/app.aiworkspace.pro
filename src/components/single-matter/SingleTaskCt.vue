@@ -5,7 +5,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/matter/${currentMatter?.id}/tasks`)">
+          @click="$router.push(`/single-matter/${currentMatter?.id}/tasks`)">
           <el-icon><ArrowLeft /></el-icon>
           Back to Tasks
         </el-button>
@@ -755,7 +755,7 @@ export default {
     },
     generateShareLink() {
       const baseUrl = window.location.origin;
-      this.shareLink = `${baseUrl}/matter/${this.currentMatter.id}/tasks/${this.task.id}`;
+      this.shareLink = `${baseUrl}/single-matter/${this.currentMatter.id}/tasks/${this.task.id}`;
     },
     async copyLink() {
       try {

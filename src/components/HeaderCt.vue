@@ -112,9 +112,9 @@ export default {
       // If we're in a sub-route (goals, tasks, etc.), preserve it
       if (segments.length > 3) {
         const subRoute = segments[3]; // 'goals', 'tasks', etc.
-        this.$router.push(`/matter/${matter.id}/${subRoute}`);
+        this.$router.push(`/single-matter/${matter.id}/${subRoute}`);
       } else {
-        this.$router.push(`/matter/${matter.id}`);
+        this.$router.push(`/single-matter/${matter.id}`);
       }
     },
     handleMatterCommand(command) {
@@ -123,22 +123,22 @@ export default {
       if (this.currentMatter?.id) {
         switch(command) {
           case 'dashboard':
-            this.$router.push(`/matter/${this.currentMatter.id}/dashboard`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/dashboard`);
             break;
           case 'goals':
-            this.$router.push(`/matter/${this.currentMatter.id}/goals`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/goals`);
             break;
           case 'tasks':
-            this.$router.push(`/matter/${this.currentMatter.id}/tasks`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/tasks`);
             break;
           case 'events':
-            this.$router.push(`/matter/${this.currentMatter.id}/events`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/events`);
             break;
           case 'files':
-            this.$router.push(`/matter/${this.currentMatter.id}/files`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/files`);
             break;
           case 'settings':
-            this.$router.push(`/matter/${this.currentMatter.id}/settings`);
+            this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
             break;
         }
       } else {

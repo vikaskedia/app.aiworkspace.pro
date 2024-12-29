@@ -104,7 +104,7 @@ export default {
         
         // If we're in all-matters/tasks or any tasks view, always go to tasks
         if (currentPath.includes('/tasks')) {
-          router.push(`/matter/${matter.id}/tasks`);
+          router.push(`/single-matter/${matter.id}/tasks`);
           return;
         }
         
@@ -114,16 +114,16 @@ export default {
         
         switch(lastSegment) {
           case 'goals':
-            router.push(`/matter/${matter.id}/goals`);
+            router.push(`/single-matter/${matter.id}/goals`);
             break;
           case 'events':
-            router.push(`/matter/${matter.id}/events`);
+            router.push(`/single-matter/${matter.id}/events`);
             break;
           case 'files':
-            router.push(`/matter/${matter.id}/files`);
+            router.push(`/single-matter/${matter.id}/files`);
             break;
           default:
-            router.push(`/matter/${matter.id}/tasks`); // Default to tasks instead of dashboard
+            router.push(`/single-matter/${matter.id}/tasks`); // Default to tasks instead of dashboard
         }
         
         emit('matter-selected', matter);
@@ -135,22 +135,22 @@ export default {
       
       switch(command) {
         case 'dashboard':
-          router.push(`/matter/${selectedMatter.value.id}`);
+          router.push(`/single-matter/${selectedMatter.value.id}`);
           break;
         case 'goals':
-          router.push(`/matter/${selectedMatter.value.id}/goals`);
+          router.push(`/single-matter/${selectedMatter.value.id}/goals`);
           break;
         case 'tasks':
-          router.push(`/matter/${selectedMatter.value.id}/tasks`);
+          router.push(`/single-matter/${selectedMatter.value.id}/tasks`);
           break;
         case 'events':
-          router.push(`/matter/${selectedMatter.value.id}/events`);
+          router.push(`/single-matter/${selectedMatter.value.id}/events`);
           break;
         case 'files':
-          router.push(`/matter/${selectedMatter.value.id}/files`);
+          router.push(`/single-matter/${selectedMatter.value.id}/files`);
           break;
         case 'settings':
-          router.push(`/matter/${selectedMatter.value.id}/settings`);
+          router.push(`/single-matter/${selectedMatter.value.id}/settings`);
           break;
       }
     };

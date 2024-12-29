@@ -10,7 +10,6 @@ import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/matter/MatterLayout.vue';
 import SingleTaskCt from './components/matter/SingleTaskCt.vue';
-import SettingsLayout from './components/settings/SettingsLayout.vue'
 
 const routes = [
   {
@@ -108,16 +107,6 @@ const routes = [
     name: 'CallbackPage',
     component: CallbackPage,
     meta: { requiresAuth: false }
-  },
-  {
-    path: '/all-matters/settings',
-    component: SettingsLayout,
-    children: [
-      {
-        path: '',
-        component: () => import('./components/all-matters/AllMatterSettingsCt.vue')
-      }
-    ]
   },
   {
     path: '/',

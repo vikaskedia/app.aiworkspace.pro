@@ -161,6 +161,10 @@ export default {
           case 'all_files':
             this.$router.push('/all-matters/files');
             break;
+          case 'all_settings':
+            this.$router.push('/all-matters/settings');
+            break;
+
         }
       }
     },

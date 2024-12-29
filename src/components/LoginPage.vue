@@ -98,6 +98,8 @@ export default {
   flex-direction: column;
   background-color: #f5f7fa;
   font-family: Open Sans,sans-serif;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .login-card {
@@ -240,8 +242,9 @@ export default {
 /* Media queries for responsive design */
 @media (max-width: 640px) {
   .login-card {
-    margin: 1rem;
-    padding: 1.5rem;
+    margin: 0.5rem;
+    padding: 1rem;
+    width: auto;
   }
 
   .button-row {
@@ -255,6 +258,13 @@ export default {
 
   .header-content h1 {
     font-size: 1.5rem;
+  }
+}
+
+@supports (padding: max(0px)) {
+  .login-container {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
   }
 }
 </style>

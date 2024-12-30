@@ -15,11 +15,27 @@
         },
         {
           "key": "Access-Control-Allow-Methods",
-          "value": "GET,HEAD,PUT,PATCH,POST,DELETE"
+          "value": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
         },
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "3600"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
         }
       ]
     }

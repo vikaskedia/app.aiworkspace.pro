@@ -21,38 +21,33 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_GITEA_HOST || 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/gitea/, ''),
+          ws: true,
+          xfwd: true,
           configure: (proxy, _options) => {
             proxy.on('proxyReq', (proxyReq, req, _res) => {
-              // Remove origin and referer headers
-              proxyReq.removeHeader('origin');
-              proxyReq.removeHeader('referer');
-              
-              // Add cache control headers
+              // Preserve original headers
+              proxyReq.setHeader('origin', new URL(env.VITE_GITEA_HOST || 'http://localhost:3000').origin);
               proxyReq.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
               proxyReq.setHeader('Pragma', 'no-cache');
               proxyReq.setHeader('Expires', '0');
               
-              console.log('Sending Request to:', req.url);
+              console.log('Sending Request to:', req.url, 'Headers:', proxyReq.getHeaders());
             });
 
             proxy.on('proxyRes', (proxyRes, req, _res) => {
+              // Enhanced logging
+              console.log('Received Response from:', req.url, 'Status:', proxyRes.statusCode);
+              console.log('Response headers:', proxyRes.headers);
+              
               // Set CORS headers
               proxyRes.headers['access-control-allow-origin'] = '*';
-              proxyRes.headers['access-control-allow-methods'] = 'GET,HEAD,PUT,PATCH,POST,DELETE';
+              proxyRes.headers['access-control-allow-methods'] = 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS';
               proxyRes.headers['access-control-allow-headers'] = 'Content-Type,Authorization,Accept,Origin,X-Requested-With';
               proxyRes.headers['access-control-max-age'] = '3600';
-              
-              // Set cache control headers
-              proxyRes.headers['cache-control'] = 'no-cache, no-store, must-revalidate';
-              proxyRes.headers['pragma'] = 'no-cache';
-              proxyRes.headers['expires'] = '0';
-              
-              console.log('Received Response from:', req.url, 'Status:', proxyRes.statusCode);
             });
 
             proxy.on('error', (err, _req, _res) => {
-              console.log('proxy error', err);
+              console.error('Proxy error:', err);
             });
           }
         }

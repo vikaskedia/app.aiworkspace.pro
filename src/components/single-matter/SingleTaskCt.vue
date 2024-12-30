@@ -832,7 +832,11 @@ export default {
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
             }
           }
         );

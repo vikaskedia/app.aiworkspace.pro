@@ -208,7 +208,9 @@ async function handleRename() {
         method: 'DELETE',
         headers: {
           'Authorization': `token ${giteaToken}`,
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: `Delete ${props.file.name} for rename`,
@@ -228,6 +230,10 @@ async function handleRename() {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Content-Type': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: `Rename ${props.file.name} to ${renameForm.value.newName}`,

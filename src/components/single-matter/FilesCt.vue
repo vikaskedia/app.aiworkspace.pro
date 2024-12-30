@@ -121,7 +121,11 @@ async function loadFiles() {
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       }
     );
@@ -207,6 +211,10 @@ async function handleFileUpload(file) {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Content-Type': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: `Upload ${file.name}`,
@@ -261,6 +269,10 @@ async function deleteFile(file) {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Content-Type': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: `Delete ${file.name}`,
@@ -328,7 +340,11 @@ async function loadFolders() {
       {
         headers: {
           'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       }
     );
@@ -373,6 +389,10 @@ async function createFolder() {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Content-Type': 'application/json',
+          'Authorization': `token ${giteaToken}`,
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: `Create folder ${newFolderName.value}`,

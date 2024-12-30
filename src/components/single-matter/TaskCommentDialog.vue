@@ -4,13 +4,15 @@ import { ElMessage } from 'element-plus';
 import { FullScreen, Close, Folder } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
+import RichTextEditor from '../common/RichTextEditor.vue';
 
 export default {
   components: {
     FullScreen,
     Close,
     Folder,
-    EditableTable
+    EditableTable,
+    RichTextEditor
   },
   props: {
     task: {
@@ -44,14 +46,17 @@ export default {
       showAIDialog: false,
       aiPrompt: '',
       aiLoading: false,
-      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
       showTypeahead: false,
       typeaheadSuggestions: [],
       typeaheadSelectedIndex: -1,
       typeaheadTimer: null,
-      showTableDialog: false,
       tableContent: '',
       tableInsertPosition: null,
+      showUserMentions: false,
+      userSuggestions: [],
+      sharedUsers: [],
+      selectedUserIndex: -1,
     };
   },
   computed: {
@@ -141,6 +146,11 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
+        // Extract mentioned users
+        const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
+        const mentions = [...this.newComment.matchAll(mentionRegex)];
+        const mentionedUserIds = mentions.map(match => match[2]);
+
         const { error } = await supabase
           .from('task_comments')
           .insert({
@@ -150,6 +160,19 @@ export default {
           });
 
         if (error) throw error;
+
+        // Create notifications for mentioned users
+        for (const userId of mentionedUserIds) {
+          await this.createNotification(
+            userId,
+            'mention',
+            {
+              task_id: this.task.id,
+              task_title: this.task.title,
+              comment_by: user.email
+            }
+          );
+        }
 
         this.newComment = '';
         await this.loadComments();
@@ -275,47 +298,55 @@ export default {
     },
 
     handleInput(event) {
-      const text = typeof event === 'string' ? event : event?.target?.value || '';
-      const textarea = document.querySelector('.comment-input textarea');
-      const selectionStart = textarea?.selectionStart || 0;
-      
-      const lastWord = text.slice(0, selectionStart).split(' ').pop();
-      
-      if (lastWord === '/table') {
-        if (event?.preventDefault) {
-          event.preventDefault();
+      console.log('handleInput called', event);
+      let text = '';
+      let selectionStart = 0;
+
+      // Get text and cursor position from RichTextEditor
+      if (typeof event === 'string') {
+        text = event;
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          selectionStart = this.getCursorPosition(range);
         }
-        const beforeCommand = text.slice(0, selectionStart - 6);
-        const afterCommand = text.slice(selectionStart);
-        
-        this.tableContent = `
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Cell 1   | Cell 2   | Cell 3   |`;
-        
-        this.tableInsertPosition = {
-          before: beforeCommand,
-          after: afterCommand
-        };
-        this.showTableDialog = true;
+      } else if (event?.target) {
+        text = event.target.value || event.target.innerHTML || '';
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          selectionStart = this.getCursorPosition(range);
+        }
       } else {
-        // Existing handleInput logic for @files, @ai-attorney, etc.
-        if (lastWord === '@files') {
-          this.showFileSelector = true;
-          this.mentionIndex = selectionStart;
-          this.loadFiles();
-        } else if (lastWord === '@ai-attorney') {
-          this.showAIDialog = true;
-          this.aiPrompt = '';
-        } else {
-          if (this.typeaheadTimer) {
-            clearTimeout(this.typeaheadTimer);
-          }
-          
-          this.typeaheadTimer = setTimeout(() => {
-            this.getTypeaheadSuggestions(text, selectionStart);
-          }, 300);
+        text = this.newComment;
+      }
+
+      // Clean text and find the current word being typed
+      const cleanText = text.replace(/<[^>]*>/g, '');
+      const textBeforeCursor = cleanText.slice(0, selectionStart);
+      const currentWordMatch = textBeforeCursor.match(/\S+$/);
+      const currentWord = currentWordMatch ? currentWordMatch[0] : '';
+
+      if (currentWord.startsWith('@')) {
+        const searchTerm = currentWord.slice(1).toLowerCase();
+        this.showUserSuggestions(searchTerm);
+        this.mentionIndex = selectionStart;
+        this.showTypeahead = false; // Hide typeahead when showing user mentions
+      } else if (currentWord.length >= 2) { // Only show suggestions for words with 2 or more characters
+        // Clear any existing timer
+        if (this.typeaheadTimer) {
+          clearTimeout(this.typeaheadTimer);
         }
+        
+        // Set a new timer to avoid too many API calls
+        this.typeaheadTimer = setTimeout(() => {
+          this.getTypeaheadSuggestions(cleanText, selectionStart);
+        }, 300); // 300ms delay
+        
+        this.showUserMentions = false;
+      } else {
+        this.showUserMentions = false;
+        this.showTypeahead = false;
       }
     },
 
@@ -328,10 +359,19 @@ export default {
     },
 
     formatMarkdownLinks(text) {
-      // First handle tables by converting them to HTML tables
-      text = this.formatTables(text);
-      // Then handle existing markdown links
-      return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="file-link">$1</a>');
+      if (!text) return '';
+      
+      // First handle user mentions with el-tag
+      text = text.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
+        '<el-tag size="small" type="info" class="mention-tag">@$1</el-tag>'
+      );
+      
+      // Then handle regular markdown links
+      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
+        '<a href="$2" target="_blank" class="file-link">$1</a>'
+      );
+      
+      return text;
     },
 
     formatTables(text) {
@@ -614,6 +654,11 @@ Please provide assistance based on this context, the comment history, the availa
 
     async getTypeaheadSuggestions(text, cursorPosition) {
       try {
+        console.log('Getting typeahead suggestions for:', {
+          text,
+          cursorPosition
+        });
+
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
           method: 'POST',
           headers: {
@@ -626,8 +671,13 @@ Please provide assistance based on this context, the comment history, the availa
           })
         });
 
-        if (!response.ok) throw new Error('Failed to get suggestions');
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to get suggestions: ${errorText}`);
+        }
+        
         const data = await response.json();
+        console.log('Received suggestions:', data);
         
         if (data.suggestions?.length) {
           this.typeaheadSuggestions = data.suggestions;
@@ -643,38 +693,29 @@ Please provide assistance based on this context, the comment history, the availa
     },
 
     handleTypeaheadNavigation(event) {
-      if (!this.showTypeahead) return;
-      
+      if (!this.showUserMentions) return;
+
       switch (event.key) {
-        case 'Tab':
-          if (this.typeaheadSuggestions.length > 0) {
-            event.preventDefault();
-            // If nothing is selected, use the first suggestion
-            const suggestionIndex = this.typeaheadSelectedIndex >= 0 
-              ? this.typeaheadSelectedIndex 
-              : 0;
-            this.applySuggestion(this.typeaheadSuggestions[suggestionIndex]);
-          }
-          break;
         case 'ArrowDown':
           event.preventDefault();
-          this.typeaheadSelectedIndex = Math.min(
-            this.typeaheadSelectedIndex + 1,
-            this.typeaheadSuggestions.length - 1
+          this.selectedUserIndex = Math.min(
+            (this.selectedUserIndex + 1),
+            this.userSuggestions.length - 1
           );
           break;
         case 'ArrowUp':
           event.preventDefault();
-          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, -1);
+          this.selectedUserIndex = Math.max(this.selectedUserIndex - 1, 0);
           break;
         case 'Enter':
-          if (this.typeaheadSelectedIndex >= 0) {
-            event.preventDefault();
-            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+        case 'Tab':
+          event.preventDefault();
+          if (this.selectedUserIndex >= 0) {
+            this.selectUser(this.userSuggestions[this.selectedUserIndex]);
           }
           break;
         case 'Escape':
-          this.showTypeahead = false;
+          this.showUserMentions = false;
           break;
       }
     },
@@ -705,18 +746,141 @@ Please provide assistance based on this context, the comment history, the availa
       });
     },
 
-    insertTable() {
-      if (this.tableInsertPosition) {
-        this.newComment = this.tableInsertPosition.before + 
-          this.tableContent + 
-          this.tableInsertPosition.after
-      }
-      this.showTableDialog = false
-    },
-
     handleResize() {
       // Force update to recalculate drawer size
       this.$forceUpdate();
+    },
+
+    async loadSharedUsers() {
+      try {
+        const { data: users, error } = await supabase
+          .from('matter_access')
+          .select('shared_with_user_id')
+          .eq('matter_id', this.task.matter_id);
+
+        if (error) throw error;
+
+        // Get user details for each shared user
+        const userDetails = await Promise.all(
+          users.map(async (user) => {
+            const { data } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: user.shared_with_user_id
+              });
+            return {
+              id: user.shared_with_user_id,
+              email: data?.[0]?.email,
+              fullName: data?.[0]?.full_name || data?.[0]?.email.split('@')[0],
+              username: data?.[0]?.username || data?.[0]?.email.split('@')[0]
+            };
+          })
+        );
+
+        this.sharedUsers = userDetails.filter(Boolean);
+      } catch (error) {
+        console.error('Error loading shared users:', error);
+      }
+    },
+
+    async showUserSuggestions(query) {
+      if (!this.sharedUsers.length) {
+        await this.loadSharedUsers();
+      }
+
+      const normalizedQuery = query.toLowerCase();
+      this.userSuggestions = this.sharedUsers.filter(user =>
+        user.fullName?.toLowerCase().includes(normalizedQuery) ||
+        user.username?.toLowerCase().includes(normalizedQuery) ||
+        user.email.toLowerCase().includes(normalizedQuery)
+      );
+
+      this.showUserMentions = true;
+      this.selectedUserIndex = -1;
+    },
+
+    selectUser(user) {
+      // Get the current text and cursor position
+      const cleanText = this.newComment.replace(/<[^>]*>/g, '');
+      const textBeforeCursor = cleanText.slice(0, this.mentionIndex);
+      const textAfterCursor = cleanText.slice(this.mentionIndex);
+      
+      // Find the last @ symbol and remove everything after it up to the cursor
+      const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+      const newTextBeforeCursor = textBeforeCursor.slice(0, lastAtIndex);
+      
+      // Create the mention tag
+      const displayName = user.fullName || user.username;
+      const mentionTag = `@[${displayName}](${user.id})`;
+      
+      // Combine the text
+      this.newComment = `${newTextBeforeCursor}${mentionTag} ${textAfterCursor}`;
+      this.showUserMentions = false;
+      
+      // Focus back on the editor and set cursor position
+      this.$nextTick(() => {
+        const editor = document.querySelector('.comment-input .ProseMirror');
+        if (editor) {
+          editor.focus();
+          
+          // Create a new text node with a space after the mention
+          const textNode = document.createTextNode(' ');
+          
+          // Find the last text node in the editor
+          let lastTextNode = null;
+          const walk = document.createTreeWalker(
+            editor,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+          
+          while (walk.nextNode()) {
+            lastTextNode = walk.currentNode;
+          }
+          
+          // If we found the last text node, insert our new text node after it
+          if (lastTextNode && lastTextNode.parentNode) {
+            lastTextNode.parentNode.insertBefore(textNode, lastTextNode.nextSibling);
+            
+            // Create and set the selection range
+            const range = document.createRange();
+            const selection = window.getSelection();
+            
+            range.setStart(textNode, 1); // Position after the space
+            range.collapse(true);
+            
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+      });
+    },
+
+    async createNotification(userId, type, metadata) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: type,
+            actor_id: user.id,
+            metadata: metadata,
+            read: false
+          });
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error creating notification:', error);
+      }
+    },
+
+    getCursorPosition(range) {
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(range.startContainer.parentElement);
+      preCaretRange.setEnd(range.startContainer, range.startOffset);
+      return preCaretRange.toString().length;
     }
   },
   beforeUnmount() {
@@ -745,6 +909,7 @@ Please provide assistance based on this context, the comment history, the availa
     };
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.handleResize);
+    this.loadSharedUsers();
   }
 };
 </script>
@@ -818,9 +983,8 @@ Please provide assistance based on this context, the comment history, the availa
               </div>
             </div>
             <div v-if="editingCommentId === comment.id">
-              <el-input
+              <RichTextEditor
                 v-model="editingCommentText"
-                type="textarea"
                 :rows="3"
               />
               <div class="edit-actions">
@@ -902,27 +1066,29 @@ Please provide assistance based on this context, the comment history, the availa
       </el-dialog>
 
       <div class="comment-input">
-        <div v-if="showTypeahead" class="typeahead-suggestions">
+        <div v-if="showUserMentions" class="user-mentions">
           <div
-            v-for="(suggestion, index) in typeaheadSuggestions"
-            :key="index"
-            :class="['typeahead-item', { selected: index === typeaheadSelectedIndex }]"
-            @click="applySuggestion(suggestion)"
-            @mouseover="typeaheadSelectedIndex = index"
-          >
-            {{ suggestion }}
+            v-for="(user, index) in userSuggestions"
+            :key="user.id"
+            :class="['mention-item', { selected: index === selectedUserIndex }]"
+            @click="selectUser(user)">
+            <div class="mention-item-avatar">
+              {{ (user.fullName || user.username).charAt(0).toUpperCase() }}
+            </div>
+            <div class="mention-item-info">
+              <div class="mention-item-name">{{ user.fullName || user.username }}</div>
+              <div class="mention-item-hint">{{ user.email }}</div>
+            </div>
           </div>
         </div>
         
-        <el-input
+        <RichTextEditor
           v-model="newComment"
-          type="textarea"
-          :rows="3"
-          placeholder="Write a comment... (Type @files to mention a file)"
+          placeholder="Write a comment... (Type @ to mention someone)"
           @keyup.ctrl.enter="addComment"
-          @keydown.tab.prevent="handleTypeaheadNavigation"
           @keydown="handleTypeaheadNavigation"
-          @input="handleInput" />
+          @input="handleInput"
+        />
         <el-button
           type="primary"
           :disabled="!newComment.trim()"
@@ -954,22 +1120,6 @@ Please provide assistance based on this context, the comment history, the availa
             :disabled="!aiPrompt.trim()">
             Submit
           </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <el-dialog
-      v-model="showTableDialog"
-      title="Edit Table"
-      width="80%"
-    >
-      <EditableTable
-        v-model="tableContent"
-      />
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showTableDialog = false">Cancel</el-button>
-          <el-button type="primary" @click="insertTable">Insert Table</el-button>
         </span>
       </template>
     </el-dialog>
@@ -1365,5 +1515,84 @@ Please provide assistance based on this context, the comment history, the availa
 
 :deep(.previous-content .markdown-table tr:hover) {
   background-color: #f5f7fa;
+}
+
+.user-mentions {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 20px;
+  right: 20px;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  gap: 12px;
+}
+
+.mention-item-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #409EFF;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.mention-item-info {
+  flex: 1;
+}
+
+.mention-item-name {
+  font-weight: 500;
+  color: #303133;
+}
+
+.mention-item-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+.mention-item:hover,
+.mention-item.selected {
+  background-color: #ecf5ff;
+}
+
+.mention-item.selected .mention-item-hint {
+  color: #409EFF;
+}
+
+:deep(.mention-tag) {
+  margin: 0 2px;
+  cursor: default;
+  background-color: #409EFF !important;
+  border-color: #409EFF !important;
+  color: #FFF !important;
+  padding: 1px 5px 3px 5px;
+  line-height: 22px;
+  font-size: 12px;
+  border-radius: 20px;
+}
+
+:deep(.mention-tag:hover) {
+  background-color: transparent !important;
+  color: #409EFF !important;
+  font-size: 15px;
+  padding: 0;
+  cursor: default;
 }
 </style>

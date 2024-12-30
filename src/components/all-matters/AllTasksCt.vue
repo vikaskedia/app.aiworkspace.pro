@@ -145,9 +145,16 @@
                 @click.stop="toggleStar(scope.row)">
                 <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
               </el-icon>
-              <span class="clickable-title">
-                {{ scope.row.title }}
-              </span>
+              <div class="title-content">
+                <div class="title-hours-container">
+                  <span class="clickable-title">
+                    {{ scope.row.title }}
+                  </span>
+                  <span class="logged-hours">
+                    Hours Logged: {{ scope.row.log_hours || 0 }}
+                  </span>
+                </div>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -422,9 +429,31 @@ export default {
     },
 
     loadSavedFilters() {
-      const savedFilters = localStorage.getItem('allTasksSavedFilters');
-      if (savedFilters) {
-        this.filters = JSON.parse(savedFilters);
+      try {
+        // Load both types of filters
+        const allTasksFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
+        const taskListFilters = JSON.parse(localStorage.getItem('taskListFilters') || '{}');
+        
+        // Convert taskListFilters object to array format if it exists and is not empty
+        const taskListFiltersArray = Object.keys(taskListFilters).length > 0 ? 
+          [{
+            name: 'Last Used Filters',
+            filters: taskListFilters
+          }] : [];
+        
+        // Combine and deduplicate filters
+        const combinedFilters = [...allTasksFilters, ...taskListFiltersArray];
+        const uniqueFilters = Array.from(new Map(combinedFilters.map(filter => 
+          [filter.name, filter]
+        )).values());
+        
+        this.savedFilters = uniqueFilters.map((f, index) => ({
+          ...f,
+          id: index
+        }));
+      } catch (error) {
+        console.error('Error loading saved filters:', error);
+        this.savedFilters = [];
       }
     },
 
@@ -503,14 +532,6 @@ export default {
           ElMessage.error('Unable to load filters');
         }
       }
-    },
-
-    loadSavedFilters() {
-      const filters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
-      this.savedFilters = filters.map((f, index) => ({
-        ...f,
-        id: index
-      }));
     },
 
     async loadSavedFilter(filter) {
@@ -639,5 +660,24 @@ export default {
 
 .star-icon.starred {
   color: #f0c541;
+}
+
+.title-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.title-hours-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logged-hours {
+  background-color: var(--el-color-info-light-9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 </style> 

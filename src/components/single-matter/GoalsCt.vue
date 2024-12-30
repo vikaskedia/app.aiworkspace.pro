@@ -36,7 +36,7 @@ export default {
       suggestedTasks: [],
       showTaskSelectionDialog: false,
       selectedTasks: [],
-      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001'
     };
   },
   watch: {

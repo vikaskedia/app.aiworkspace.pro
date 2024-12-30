@@ -11,3 +11,10 @@
 
     -- Create index for faster queries
     create index notifications_user_id_idx on public.notifications(user_id);
+
+    -- Create a new migration file in supabase/migrations/[timestamp]_add_metadata_to_notifications.sql
+
+    ALTER TABLE notifications 
+    ADD COLUMN metadata JSONB DEFAULT NULL;
+
+    COMMENT ON COLUMN notifications.metadata IS 'Additional data specific to the notification type';

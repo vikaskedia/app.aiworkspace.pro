@@ -397,11 +397,18 @@ export default {
               @click.stop="toggleStar(scope.row)">
               <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
             </el-icon>
-            <span 
-              class="clickable-title"
-              @click="$emit('view-comments', scope.row)">
-              {{ scope.row.title }}
-            </span>
+            <div class="title-content">
+              <div class="title-hours-container">
+                <span 
+                  class="clickable-title"
+                  @click="$emit('view-comments', scope.row)">
+                  {{ scope.row.title }}
+                </span>
+                <span class="logged-hours">
+                  Hours Logged: {{ scope.row.log_hours || 0 }}
+                </span>
+              </div>
+            </div>
           </div>
         </template>
       </el-table-column>
@@ -464,9 +471,9 @@ export default {
         width="200">
         <template #default="scope">
           <span>{{ sharedUsers.find(u => u.id === scope.row.assignee)?.email || '-' }}</span>
-          <span class="logged-hours">
+          <!-- <span class="logged-hours">
             Hours Logged: {{ scope.row.log_hours || 0 }}
-          </span>
+          </span> -->
         </template>
       </el-table-column>
       
@@ -604,5 +611,38 @@ export default {
 
 .clickable-title:hover {
   text-decoration: underline;
+}
+
+.title-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.logged-hours {
+  background-color: var(--el-color-info-light-9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  width: fit-content;
+}
+
+.title-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.title-hours-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logged-hours {
+  background-color: var(--el-color-info-light-9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 </style>

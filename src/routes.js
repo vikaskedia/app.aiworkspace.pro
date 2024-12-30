@@ -93,6 +93,11 @@ const routes = [
         path: 'files',
         name: 'ManageFilesPage',
         component: ManageFilesCt
+      },
+      {
+        path: 'settings',
+        name: 'SingleMatterSettingsPage',
+        component: () => import('./components/single-matter/MatterSettingsCt.vue')
       }
     ]
   },

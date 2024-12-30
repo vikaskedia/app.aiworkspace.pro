@@ -46,7 +46,7 @@ export default {
       suggestedSubtasks: [],
       selectedSubtasks: [],
       aiLoading: false,
-      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
       parentTaskId: null,
       showMoreFields: false,
       savedFilters: [],

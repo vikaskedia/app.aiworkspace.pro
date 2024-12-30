@@ -202,8 +202,10 @@ export default {
           return `${actorEmail} updated task: ${notification.data.task_title}`;
         case 'matter_shared':
           return `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
+        case 'mention':
+          return `${notification.metadata.comment_by} mentioned you in task: ${notification.metadata.task_title}`;
         default:
-          return notification.message;
+          return 'New notification';
       }
     },
     async markAsRead(notification) {

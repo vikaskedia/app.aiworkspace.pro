@@ -424,30 +424,65 @@ export default {
       }
     },
 
-    saveFilters() {
-      localStorage.setItem('allTasksFilters', JSON.stringify(this.filters));
+    async saveFilters() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: existingSettings, error: fetchError } = await supabase
+          .from('user_settings')
+          .select('settings')
+          .eq('user_id', user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+        const updatedSettings = {
+          ...(existingSettings?.settings || {}),
+          allTasksFilters: this.filters
+        };
+
+        const { error } = await supabase
+          .from('user_settings')
+          .upsert({
+            user_id: user.id,
+            settings: updatedSettings
+          });
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error saving filters:', error);
+        ElMessage.error('Failed to save filters');
+      }
     },
 
-    loadSavedFilters() {
+    async loadSavedFilters() {
       try {
-        // Load both types of filters
-        const allTasksFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
-        const taskListFilters = JSON.parse(localStorage.getItem('taskListFilters') || '{}');
-        
-        // Convert taskListFilters object to array format if it exists and is not empty
-        const taskListFiltersArray = Object.keys(taskListFilters).length > 0 ? 
-          [{
-            name: 'Last Used Filters',
-            filters: taskListFilters
-          }] : [];
-        
-        // Combine and deduplicate filters
-        const combinedFilters = [...allTasksFilters, ...taskListFiltersArray];
-        const uniqueFilters = Array.from(new Map(combinedFilters.map(filter => 
-          [filter.name, filter]
-        )).values());
-        
-        this.savedFilters = uniqueFilters.map((f, index) => ({
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('settings')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (data?.settings?.allTasksFilters) {
+          this.filters = { ...data.settings.allTasksFilters };
+        }
+
+        // Load saved filter presets
+        const { data: presets, error: presetsError } = await supabase
+          .from('user_settings')
+          .select('settings->filterPresets')
+          .eq('user_id', user.id)
+          .single();
+
+        if (presetsError && presetsError.code !== 'PGRST116') throw presetsError;
+
+        this.savedFilters = (presets?.filterPresets || []).map((f, index) => ({
           ...f,
           id: index
         }));
@@ -509,16 +544,45 @@ export default {
         }).catch(() => null);
 
         if (filterName?.value) {
-          const currentFilters = {
-            name: filterName.value,
-            filters: { ...this.filters }
-          };
-          
-          const savedFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
-          savedFilters.push(currentFilters);
-          localStorage.setItem('allTasksSavedFilters', JSON.stringify(savedFilters));
-          this.loadSavedFilters();
-          ElMessage.success('Filters saved successfully');
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('No active session');
+
+            const { data: existingSettings, error: fetchError } = await supabase
+              .from('user_settings')
+              .select('settings')
+              .eq('user_id', user.id)
+              .single();
+
+            if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+            const currentPresets = existingSettings?.settings?.filterPresets || [];
+            const updatedSettings = {
+              ...(existingSettings?.settings || {}),
+              filterPresets: [
+                ...currentPresets,
+                {
+                  name: filterName.value,
+                  filters: { ...this.filters }
+                }
+              ]
+            };
+
+            const { error } = await supabase
+              .from('user_settings')
+              .upsert({
+                user_id: user.id,
+                settings: updatedSettings
+              });
+
+            if (error) throw error;
+
+            this.loadSavedFilters();
+            ElMessage.success('Filters saved successfully');
+          } catch (error) {
+            console.error('Error saving filter preset:', error);
+            ElMessage.error('Failed to save filter preset');
+          }
         }
       } else if (command === 'manage') {
         this.savedFiltersDialogVisible = true;
@@ -552,23 +616,47 @@ export default {
           }
         );
 
-        const savedFilters = JSON.parse(localStorage.getItem('allTasksSavedFilters') || '[]');
-        const updatedFilters = savedFilters.filter((f, index) => index !== filter.id);
-        localStorage.setItem('allTasksSavedFilters', JSON.stringify(updatedFilters));
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No active session');
+
+        const { data: existingSettings, error: fetchError } = await supabase
+          .from('user_settings')
+          .select('settings')
+          .eq('user_id', user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+        const updatedPresets = (existingSettings?.settings?.filterPresets || [])
+          .filter((_, index) => index !== filter.id);
+
+        const { error } = await supabase
+          .from('user_settings')
+          .update({
+            settings: {
+              ...existingSettings.settings,
+              filterPresets: updatedPresets
+            }
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
         this.loadSavedFilters();
         ElMessage.success('Filter deleted successfully');
       } catch (error) {
         if (error !== 'cancel') {
+          console.error('Error deleting filter:', error);
           ElMessage.error('Error deleting filter');
         }
       }
     }
   },
   mounted() {
-    this.loadSavedFilters();
-    this.loadMatters();
-    this.loadAssignees();
-    this.loadTasks();
+    await this.loadSavedFilters();
+    await this.loadMatters();
+    await this.loadAssignees();
+    await this.loadTasks();
   },
   watch: {
     filters: {

@@ -536,7 +536,6 @@ function handleSort({ prop, order }) {
           <div class="actions">
             <el-button 
               @click="filters.showFilters = !filters.showFilters"
-              :icon="filters.showFilters ? 'ArrowUp' : 'ArrowDown'"
               type="info"
               plain
               size="small">

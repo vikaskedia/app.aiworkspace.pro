@@ -5,7 +5,6 @@
         <div class="header-buttons">
           <el-button 
             @click="showFilters = !showFilters"
-            :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
             type="info"
             plain>
             {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
@@ -108,6 +107,19 @@
                 class="filter-item"
                 active-text="Show Starred Tasks"
               />
+            </el-form-item>
+            <el-form-item label="Exclude Status">
+              <el-select
+                v-model="filters.excludeStatus"
+                placeholder="Exclude statuses"
+                multiple
+                clearable
+                style="width: 200px">
+                <el-option label="Not started" value="not_started" />
+                <el-option label="In progress" value="in_progress" />
+                <el-option label="Awaiting external factor" value="awaiting_external" />
+                <el-option label="Completed" value="completed" />
+              </el-select>
             </el-form-item>
             <el-form-item>
               <el-button @click="clearFilters">Clear</el-button>
@@ -268,6 +280,7 @@ export default {
       filters: {
         search: '',
         status: null,
+        excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
         matter: null,
@@ -283,6 +296,7 @@ export default {
       let count = 0;
       if (this.filters.search) count++;
       if (this.filters.status) count++;
+      if (this.filters.excludeStatus?.length) count++;
       if (this.filters.priority) count++;
       if (this.filters.dueDate) count++;
       if (this.filters.matter) count++;
@@ -313,6 +327,9 @@ export default {
         }
         if (this.filters.status) {
           query = query.eq('status', this.filters.status);
+        }
+        if (this.filters.excludeStatus?.length) {
+          query = query.not('status', 'in', `(${this.filters.excludeStatus.join(',')})`);
         }
         if (this.filters.priority) {
           query = query.eq('priority', this.filters.priority);
@@ -371,6 +388,7 @@ export default {
       this.filters = {
         search: '',
         status: null,
+        excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
         matter: null,

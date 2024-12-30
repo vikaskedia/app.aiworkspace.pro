@@ -51,6 +51,16 @@ export default {
       showMoreFields: false,
       savedFilters: [],
       savedFiltersDialogVisible: false,
+      filters: {
+        search: '',
+        status: null,
+        excludeStatus: ['completed'],
+        priority: null,
+        assignee: null,
+        dueDate: null,
+        showDeleted: false,
+        starred: false
+      },
     };
   },
   watch: {
@@ -743,6 +753,32 @@ export default {
       };
       flatten(this.tasks);
       return flattened;
+    },
+    filteredTasks() {
+      let result = [...this.tasks];
+
+      const filterTasksRecursively = (tasks, filterFn) => {
+        return tasks.filter(task => {
+          const matchesFilter = filterFn(task);
+          if (task.children?.length) {
+            task.children = filterTasksRecursively(task.children, filterFn);
+            return matchesFilter || task.children.length > 0;
+          }
+          return matchesFilter;
+        });
+      };
+
+      // Apply exclude status filter
+      if (this.filters.excludeStatus?.length) {
+        result = filterTasksRecursively(result, task => 
+          !this.filters.excludeStatus.includes(task.status)
+        );
+      }
+
+      // Apply other filters...
+      // ... rest of the filtering logic ...
+
+      return result;
     }
   }
 };
@@ -761,7 +797,6 @@ export default {
           </el-button>
           <el-button 
             @click="showFilters = !showFilters"
-            :icon="showFilters ? 'ArrowUp' : 'ArrowDown'"
             type="info"
             plain>
             {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}

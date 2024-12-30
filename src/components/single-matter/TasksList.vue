@@ -36,6 +36,7 @@ export default {
       filters: {
         search: '',
         status: null,
+        excludeStatus: ['completed'],
         priority: null,
         assignee: null,
         dueDate: null,
@@ -123,6 +124,13 @@ export default {
         )
       }
 
+      // Exclude status filter
+      if (this.filters.excludeStatus?.length) {
+        result = filterTasksRecursively(result, task => 
+          !this.filters.excludeStatus.includes(task.status)
+        )
+      }
+
       // Apply sorting if set
       if (this.sortBy) {
         const sortTasks = (tasks) => {
@@ -166,6 +174,7 @@ export default {
     hasActiveFilters() {
       return this.filters.search ||
         this.filters.status ||
+        this.filters.excludeStatus?.length ||
         this.filters.priority ||
         this.filters.assignee ||
         this.filters.dueDate
@@ -174,6 +183,7 @@ export default {
       let count = 0;
       if (this.filters.search) count++;
       if (this.filters.status) count++;
+      if (this.filters.excludeStatus?.length) count++;
       if (this.filters.priority) count++;
       if (this.filters.assignee) count++;
       if (this.filters.dueDate) count++;
@@ -186,10 +196,12 @@ export default {
       this.filters = {
         search: '',
         status: null,
+        excludeStatus: ['completed'],
         priority: null,
         assignee: null,
         dueDate: null,
-        showDeleted: false
+        showDeleted: false,
+        starred: false
       }
     },
     async loadUserEmail(userId) {
@@ -240,7 +252,12 @@ export default {
     loadSavedFilters() {
       const savedFilters = localStorage.getItem('taskListFilters');
       if (savedFilters) {
-        this.filters = JSON.parse(savedFilters);
+        const parsedFilters = JSON.parse(savedFilters);
+        // Ensure excludeStatus is an array with 'completed' as default if not set
+        if (!parsedFilters.excludeStatus?.length) {
+          parsedFilters.excludeStatus = ['completed'];
+        }
+        this.filters = parsedFilters;
       }
     },
     formatStatus(status) {
@@ -299,6 +316,11 @@ export default {
   },
   mounted() {
     this.loadSavedFilters();
+    // Ensure completed status is excluded by default if no saved filters exist
+    if (!this.filters.excludeStatus?.length) {
+      this.filters.excludeStatus = ['completed'];
+      this.saveFilters();
+    }
   }
 }
 </script>
@@ -358,6 +380,18 @@ export default {
             <el-option label="Overdue" value="overdue" />
             <el-option label="Due Today" value="today" />
             <el-option label="Due This Week" value="week" />
+          </el-select>
+
+          <el-select 
+            v-model="filters.excludeStatus"
+            placeholder="Exclude statuses"
+            multiple
+            clearable
+            class="filter-item">
+            <el-option label="Not started" value="not_started" />
+            <el-option label="In progress" value="in_progress" />
+            <el-option label="Awaiting external factor" value="awaiting_external" />
+            <el-option label="Completed" value="completed" />
           </el-select>
 
           <el-switch

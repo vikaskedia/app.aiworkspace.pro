@@ -15,7 +15,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://app.associateattorney.ai"
+          "value": "*"
         },
         {
           "key": "Access-Control-Allow-Methods",
@@ -24,6 +24,14 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
         }
       ]
     }

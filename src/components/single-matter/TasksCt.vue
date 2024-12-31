@@ -642,30 +642,39 @@ export default {
 
     async handleSavedFilter(command) {
       if (command === 'save') {
-        // Prompt for filter name
         const filterName = await this.$prompt('Enter a name for this filter set', 'Save Filters', {
           confirmButtonText: 'Save',
           cancelButtonText: 'Cancel',
         }).catch(() => null);
 
         if (filterName?.value) {
-          const tasksList = this.$refs.tasksList;
-          if (!tasksList) {
-            ElMessage.error('Unable to access task list component');
-            return;
-          }
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('No authenticated user');
 
-          const currentFilters = {
-            name: filterName.value,
-            filters: { ...tasksList.filters }
-          };
-          
-          // Save to localStorage
-          const savedFilters = JSON.parse(localStorage.getItem('taskSavedFilters') || '[]');
-          savedFilters.push(currentFilters);
-          localStorage.setItem('taskSavedFilters', JSON.stringify(savedFilters));
-          this.loadSavedFilters();
-          ElMessage.success('Filters saved successfully');
+            const tasksList = this.$refs.tasksList;
+            if (!tasksList) {
+              ElMessage.error('Unable to access task list component');
+              return;
+            }
+
+            const { data, error } = await supabase
+              .from('saved_filters')
+              .insert([{
+                user_id: user.id,
+                filter_name: filterName.value,
+                filters: tasksList.filters
+              }])
+              .select();
+
+            if (error) throw error;
+
+            await this.loadSavedFilters();
+            ElMessage.success('Filters saved successfully');
+          } catch (error) {
+            console.error('Error saving filters:', error);
+            ElMessage.error('Error saving filters: ' + error.message);
+          }
         }
       } else if (command === 'manage') {
         this.savedFiltersDialogVisible = true;
@@ -673,7 +682,6 @@ export default {
         const filterId = command[1];
         const filter = this.savedFilters.find(f => f.id === filterId);
         const tasksList = this.$refs.tasksList;
-        
         if (filter && tasksList) {
           tasksList.filters = { ...filter.filters };
           ElMessage.success('Filters loaded successfully');
@@ -683,12 +691,25 @@ export default {
       }
     },
 
-    loadSavedFilters() {
-      const filters = JSON.parse(localStorage.getItem('taskSavedFilters') || '[]');
-      this.savedFilters = filters.map((f, index) => ({
-        ...f,
-        id: index
-      }));
+    async loadSavedFilters() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('saved_filters')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        this.savedFilters = data;
+      } catch (error) {
+        console.error('Error loading saved filters:', error);
+        ElMessage.error('Error loading saved filters: ' + error.message);
+        this.savedFilters = [];
+      }
     },
 
     async loadSavedFilter(filter) {
@@ -714,14 +735,19 @@ export default {
           }
         );
 
-        const savedFilters = JSON.parse(localStorage.getItem('taskSavedFilters') || '[]');
-        const updatedFilters = savedFilters.filter((f, index) => index !== filter.id);
-        localStorage.setItem('taskSavedFilters', JSON.stringify(updatedFilters));
-        this.loadSavedFilters();
+        const { error } = await supabase
+          .from('saved_filters')
+          .delete()
+          .eq('id', filter.id);
+
+        if (error) throw error;
+
+        await this.loadSavedFilters();
         ElMessage.success('Filter deleted successfully');
       } catch (error) {
         if (error !== 'cancel') {
-          ElMessage.error('Error deleting filter');
+          console.error('Error deleting filter:', error);
+          ElMessage.error('Error deleting filter: ' + error.message);
         }
       }
     },
@@ -922,7 +948,7 @@ export default {
                   v-for="filter in savedFilters" 
                   :key="filter.id" 
                   :command="['load', filter.id]">
-                  {{ filter.name }}
+                  {{ filter.filter_name }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -1177,7 +1203,7 @@ export default {
           :data="savedFilters"
           style="width: 100%">
           <el-table-column
-            prop="name"
+            prop="filter_name"
             label="Filter Name"
             min-width="200">
           </el-table-column>

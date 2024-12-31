@@ -42,4 +42,12 @@ rootVueApp.config.globalProperties.emitter = emitter;
 // set base url
 rootVueApp.config.globalProperties.baseUrlForApiCall = '';
 
+if (!import.meta.env.VITE_GITEA_HOST) {
+  console.error('VITE_GITEA_HOST environment variable is not set');
+}
+
+if (!import.meta.env.VITE_GITEA_TOKEN) {
+  console.error('VITE_GITEA_TOKEN environment variable is not set');
+}
+
 rootVueApp.mount('#app')

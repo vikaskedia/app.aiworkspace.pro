@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/gitea/:path*",
+      "destination": "${process.env.VITE_GITEA_HOST}/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
@@ -20,22 +24,6 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
-        },
-        {
-          "key": "Access-Control-Max-Age",
-          "value": "3600"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        },
-        {
-          "key": "Pragma",
-          "value": "no-cache"
-        },
-        {
-          "key": "Expires",
-          "value": "0"
         }
       ]
     }

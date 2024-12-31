@@ -325,15 +325,25 @@ function handleFileUpdate(updatedFile) {
 }
 
 async function loadFolders() {
-  if (!currentMatter.value) return;
+  if (!currentMatter.value) {
+    console.warn('No current matter selected');
+    return;
+  }
   
+  if (!import.meta.env.VITE_GITEA_TOKEN) {
+    ElMessage.error('Gitea configuration is missing');
+    return;
+  }
+
   loading.value = true;
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    // Add proper path construction with leading slash
     const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
+    
+    console.log('Making Gitea API request to:', apiPath);
+    console.log('Using token:', giteaToken ? 'Token present' : 'Token missing');
 
     const response = await fetch(
       apiPath,
@@ -341,13 +351,14 @@ async function loadFolders() {
         headers: {
           'Authorization': `token ${giteaToken}`,
           'Accept': 'application/json',
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache'
         }
       }
     );
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -509,6 +520,17 @@ function handleSort({ prop, order }) {
   
   files.value = sortedItems.filter(item => item.type !== 'dir');
   folders.value = sortedItems.filter(item => item.type === 'dir');
+}
+
+function validateGiteaConfig() {
+  const missingConfig = [];
+  
+  if (!import.meta.env.VITE_GITEA_HOST) missingConfig.push('VITE_GITEA_HOST');
+  if (!import.meta.env.VITE_GITEA_TOKEN) missingConfig.push('VITE_GITEA_TOKEN');
+  
+  if (missingConfig.length > 0) {
+    throw new Error(`Missing required Gitea configuration: ${missingConfig.join(', ')}`);
+  }
 }
 </script>
 

@@ -362,12 +362,15 @@ async function loadFolders() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
+    // Ensure proper URL construction
+    const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/+/g, '/');
     
     console.log('Making Gitea API request to:', apiPath);
+    console.log('Current origin:', window.location.origin);
     console.log('Environment:', {
       VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
-      hasToken: !!giteaToken
+      hasToken: !!giteaToken,
+      currentMatterRepo: currentMatter.value.git_repo
     });
 
     const response = await fetch(apiPath, {
@@ -375,32 +378,24 @@ async function loadFolders() {
         'Authorization': `token ${giteaToken}`,
         'Accept': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        'Origin': 'https://app.associateattorney.ai'
       },
-      redirect: 'follow'
+      credentials: 'include'
     });
 
     console.log('Response status:', response.status);
+    console.log('Response URL:', response.url);
     console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const text = await response.text();
       console.error('Error response body:', text);
-      console.error('Response URL:', response.url);
       throw new Error(`Failed to fetch folders: ${response.status} ${response.statusText}`);
     }
 
-    // Try to parse as JSON, with better error handling
-    let contents;
-    try {
-      contents = await response.json();
-    } catch (parseError) {
-      const text = await response.text();
-      console.error('JSON Parse Error:', parseError);
-      console.error('Raw Response:', text);
-      throw new Error('Invalid JSON response from server');
-    }
-
+    const contents = await response.json();
+    
     folders.value = contents
       .filter(item => item.type === 'dir')
       .map(folder => ({
@@ -411,8 +406,9 @@ async function loadFolders() {
       }));
 
   } catch (error) {
-    console.error('Folder loading error details:', error);
+    console.error('Folder loading error:', error);
     ElMessage.error('Error loading folders: ' + error.message);
+    folders.value = [];
   } finally {
     loading.value = false;
   }

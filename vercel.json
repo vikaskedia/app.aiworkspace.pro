@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/gitea/:path*",
-      "destination": "${process.env.VITE_GITEA_HOST}/:path*"
+      "destination": "https://git.associateattorney.ai/:path*"
     },
     {
       "source": "/(.*)",
@@ -24,6 +24,10 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "3600"
         }
       ]
     }

@@ -106,32 +106,54 @@ onMounted(async () => {
   //   }
   // }
 });
-
+// Add this before your loadFiles function
+function validateGiteaConfig() {
+  const errors = [];
+  
+  if (!import.meta.env.VITE_GITEA_HOST) {
+    errors.push('VITE_GITEA_HOST is not configured');
+  }
+  
+  if (!import.meta.env.VITE_GITEA_TOKEN) {
+    errors.push('VITE_GITEA_TOKEN is not configured');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(`Gitea configuration errors: ${errors.join(', ')}`);
+  }
+}
 async function loadFiles() {
   if (!currentMatter.value) return;
   
   loading.value = true;
-  
   try {
+    validateGiteaConfig();
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
+    
+    const apiUrl = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
+    console.log('Making request to:', apiUrl);
+    console.log('Environment:', {
+      VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
+      hasToken: !!giteaToken
+    });
 
-    const response = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`,
-      {
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Authorization': `token ${giteaToken}`,
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
-    );
+    });
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
-      throw new Error('Failed to fetch files');
+      const text = await response.text();
+      console.error('Error response body:', text);
+      throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
     }
 
     const contents = await response.json();
@@ -520,17 +542,6 @@ function handleSort({ prop, order }) {
   
   files.value = sortedItems.filter(item => item.type !== 'dir');
   folders.value = sortedItems.filter(item => item.type === 'dir');
-}
-
-function validateGiteaConfig() {
-  const missingConfig = [];
-  
-  if (!import.meta.env.VITE_GITEA_HOST) missingConfig.push('VITE_GITEA_HOST');
-  if (!import.meta.env.VITE_GITEA_TOKEN) missingConfig.push('VITE_GITEA_TOKEN');
-  
-  if (missingConfig.length > 0) {
-    throw new Error(`Missing required Gitea configuration: ${missingConfig.join(', ')}`);
-  }
 }
 </script>
 

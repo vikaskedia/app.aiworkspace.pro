@@ -683,15 +683,17 @@ export default {
           ElMessage.error('Error deleting filter');
         }
       }
-    }
-  },
-  mounted() {
-    (async () => {
+    },
+
+    async initializeComponent() {
       await this.loadSavedFilters();
       await this.loadMatters();
       await this.loadAssignees();
       await this.loadTasks();
-    })();
+    }
+  },
+  mounted() {
+    this.initializeComponent();
   },
   watch: {
     filters: {

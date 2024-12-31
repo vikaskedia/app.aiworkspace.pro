@@ -315,11 +315,15 @@ export default {
           .from('tasks')
           .select(`
             *,
-            matter:matters(title),
+            matter:matters!inner(
+              title,
+              matter_access!inner(shared_with_user_id)
+            ),
             task_stars!left(user_id)
           `)
           .eq('deleted', false)
-          .eq('task_stars.user_id', user.id);
+          .eq('task_stars.user_id', user.id)
+          .eq('matter.matter_access.shared_with_user_id', user.id);
 
         // Apply filters
         if (this.filters.search) {
@@ -417,10 +421,18 @@ export default {
 
     async loadMatters() {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
         const { data: matters, error } = await supabase
           .from('matters')
-          .select('id, title')
+          .select(`
+            *,
+            matter_access!inner (
+              access_type,
+              shared_with_user_id
+            )
+          `)
           .eq('deleted', false)
+          .eq('matter_access.shared_with_user_id', user.id)
           .order('title');
         
         if (error) throw error;
@@ -432,8 +444,11 @@ export default {
 
     async loadAssignees() {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
         const { data: users, error } = await supabase
-          .rpc('get_all_users');
+          .rpc('get_assignees_for_accessible_matters', {
+            user_uuid: user.id
+          });
           
         if (error) throw error;
         this.assignees = users;

@@ -56,3 +56,32 @@ AS $function$
   FROM auth.users 
   WHERE id = user_id;
 $function$
+
+    -- Function: get_assignees_for_accessible_matters
+    CREATE OR REPLACE FUNCTION get_assignees_for_accessible_matters(user_uuid uuid)
+    RETURNS TABLE (
+      id uuid,
+      email text
+    ) AS $$
+    BEGIN
+      RETURN QUERY
+      WITH accessible_matters AS (
+        SELECT DISTINCT matters.id AS matter_id
+        FROM matters
+        INNER JOIN matter_access ON matters.id = matter_access.matter_id
+        WHERE matter_access.shared_with_user_id = user_uuid
+          AND matters.deleted = false
+      ),
+      assignees AS (
+        SELECT DISTINCT tasks.assignee
+        FROM tasks
+        WHERE tasks.matter_id IN (SELECT matter_id FROM accessible_matters)
+          AND tasks.assignee IS NOT NULL
+          AND tasks.deleted = false
+      )
+      SELECT DISTINCT auth_users.id, auth_users.email::text
+      FROM auth.users auth_users
+      WHERE auth_users.id IN (SELECT assignee FROM assignees)
+      ORDER BY auth_users.email::text;
+    END;
+    $$ LANGUAGE plpgsql SECURITY DEFINER;

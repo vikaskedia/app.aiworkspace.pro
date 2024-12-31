@@ -57,6 +57,8 @@ export default {
       userSuggestions: [],
       sharedUsers: [],
       selectedUserIndex: -1,
+      isDescriptionExpanded: false,
+      isCommentBoxExpanded: false,
     };
   },
   computed: {
@@ -107,6 +109,24 @@ export default {
     }
   },
   methods: {
+    formatCommentContent(text) {
+      if (!text) return '';
+      
+      // First handle user mentions with el-tag
+      text = text.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
+        '<el-tag size="small" type="info" class="mention-tag">@$1</el-tag>'
+      );
+      
+      // Then handle regular markdown links
+      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
+        '<a href="$2" target="_blank" class="file-link">$1</a>'
+      );
+      
+      // Handle tables
+      text = this.formatTables(text);
+      
+      return text;
+    },
     async loadComments() {
       try {
         this.loading = true;
@@ -947,76 +967,97 @@ Please provide assistance based on this context, the comment history, the availa
       </div>
     </template>
     <div class="comments-container">
-      <div class="comment-list">
-        <div v-for="comment in comments" :key="comment.id" class="comment-item">
-          <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
-            <div class="comment-header">
-              <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
-              <div class="comment-actions">
-                <span class="comment-date">
-                  {{ comment.updated_at 
-                    ? new Date(comment.updated_at).toLocaleString(undefined, { 
-                        year: 'numeric', 
-                        month: 'numeric', 
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })
-                    : new Date(comment.created_at).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric', 
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })
-                  }}
-                  <span 
-                    v-if="comment.comment_edit_history?.length" 
-                    class="edited-marker"
-                    :data-comment-id="comment.id"
-                    @click="toggleHistory(comment.id)"
-                  >(edited {{ comment.comment_edit_history.length }} times)</span>
-                </span>
+      <!-- Description section -->
+      <div class="description-section">
+        <div v-if="task.description" class="task-description">
+          <div 
+            :class="['description-content', { 'collapsed': !isDescriptionExpanded }]" 
+            v-html="formatCommentContent(task.description)">
+          </div>
+          <div class="description-toggle">
+            <el-button 
+              link 
+              type="primary" 
+              @click="isDescriptionExpanded = !isDescriptionExpanded">
+              {{ isDescriptionExpanded ? 'Show Less' : 'Show More' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments section -->
+      <div class="comments-section">
+        <div class="comment-list">
+          <div v-for="comment in comments" :key="comment.id" class="comment-item">
+            <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
+              <div class="comment-header">
+                <div class="comment-author-info">
+                  <div class="author-avatar">
+                    {{ userEmails[comment.user_id]?.charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="author-details">
+                    <span class="comment-author">{{ userEmails[comment.user_id] }}</span>
+                    <span class="comment-date">
+                      {{ comment.updated_at 
+                        ? new Date(comment.updated_at).toLocaleString(undefined, { 
+                            year: 'numeric', 
+                            month: 'numeric', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : new Date(comment.created_at).toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric', 
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                      }}
+                      <span 
+                        v-if="comment.comment_edit_history?.length" 
+                        class="edited-marker"
+                        :data-comment-id="comment.id"
+                        @click="toggleHistory(comment.id)"
+                      >(edited {{ comment.comment_edit_history.length }} times)</span>
+                    </span>
+                  </div>
+                </div>
                 <el-button 
                   v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
                   link
+                  type="primary"
                   @click="startEditing(comment)"
                 >
                   Edit
                 </el-button>
               </div>
-            </div>
-            <div v-if="editingCommentId === comment.id">
-              <RichTextEditor
-                v-model="editingCommentText"
-                :rows="3"
-              />
-              <div class="edit-actions">
-                <el-button @click="cancelEdit">Cancel</el-button>
-                <el-button 
-                  type="primary"
-                  @click="saveEdit(comment)"
-                  :disabled="!editingCommentText.trim()"
-                >
-                  Save
-                </el-button>
+              <div v-if="editingCommentId === comment.id" class="comment-edit">
+                <RichTextEditor
+                  v-model="editingCommentText"
+                  :rows="3"
+                />
+                <div class="edit-actions">
+                  <el-button @click="cancelEdit">Cancel</el-button>
+                  <el-button 
+                    type="primary"
+                    @click="saveEdit(comment)"
+                    :disabled="!editingCommentText.trim()"
+                  >
+                    Save
+                  </el-button>
+                </div>
               </div>
-            </div>
-            <div v-else class="comment-text">
-              <span v-html="formatMarkdownLinks(comment.content)"></span>
+              <div v-else class="comment-text">
+                <span v-html="formatMarkdownLinks(comment.content)"></span>
+              </div>
               <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
                 <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
                   <div class="edit-history-header">Version {{ index + 1 }}:</div>
                   <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
                   <div class="edit-metadata">
                     Edited by {{ userEmails[historyEntry.edited_by] }}
-                    on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
-                      year: 'numeric',
-                      month: 'numeric',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    }) }}
+                    on {{ new Date(historyEntry.edited_at).toLocaleString() }}
                   </div>
                 </div>
               </div>
@@ -1130,473 +1171,286 @@ Please provide assistance based on this context, the comment history, the availa
   </el-drawer>
 </template>
 
-<style scoped>
+<style>
 .comments-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  height: 100%;
+  height: calc(100vh - 120px); /* Account for header and padding */
+  overflow: hidden;
+}
+
+.description-section {
+  flex-shrink: 0;
+  max-height: none; /* Remove the max-height constraint */
+  overflow-y: visible; /* Remove scroll */
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.el-drawer__header {
+  margin-bottom: 0px !important;
+}
+.comments-section {
+  flex: 1;
+  overflow-y: auto;
   padding: 20px;
 }
 
-.comment-list {
-  flex: 1;
-  overflow-y: auto;
+.task-description {
+  background-color: var(--el-color-info-light-9);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.description-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  transition: max-height 0.3s ease-out;
+  overflow: hidden;
+}
+
+.description-content.collapsed {
+  max-height: 100px; /* Adjust this value based on your needs */
+  position: relative;
+  overflow: hidden;
+}
+
+.description-content.collapsed::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(transparent, var(--el-color-info-light-9));
+  pointer-events: none;
+}
+
+.description-toggle {
   display: flex;
-  flex-direction: column;
-  gap: 15px;
+  justify-content: center;
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+/* Add custom scrollbar styles for better visibility */
+.description-section::-webkit-scrollbar,
+.comments-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.description-section::-webkit-scrollbar-track,
+.comments-section::-webkit-scrollbar-track {
+  background: #f5f7fa;
+  border-radius: 3px;
+}
+
+.description-section::-webkit-scrollbar-thumb,
+.comments-section::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 3px;
+}
+
+.description-section::-webkit-scrollbar-thumb:hover,
+.comments-section::-webkit-scrollbar-thumb:hover {
+  background: #c0c4cc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .description-section {
+    max-height: 30vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .description-section,
+  .comments-section {
+    padding: 12px;
+  }
 }
 
 .comment-item {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .comment-content {
   background-color: #f5f7fa;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .comment-content.activity {
   background-color: #f0f9ff;
   font-style: italic;
   font-size: 0.95em;
+  border-left: 3px solid var(--el-color-primary-light-5);
 }
 
 .comment-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.9em;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.comment-author-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: var(--el-color-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .comment-author {
   font-weight: 500;
-  color: #409EFF;
+  color: var(--el-color-primary);
+  font-size: 0.95em;
 }
 
 .comment-date {
   color: #909399;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  font-size: 0.85em;
 }
 
 .comment-text {
-  color: #606266;
+  line-height: 1.5;
+  color: #303133;
   white-space: pre-wrap;
 }
 
-.comment-input {
-  margin-top: auto;
-  padding: 20px;
-  border-top: 1px solid #eee;
-  position: relative;
-}
-
-:deep(.el-dialog) {
-  margin-top: 15vh !important;
-}
-
-.file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.file-item {
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.file-item:hover {
-  background-color: #f5f7fa;
-}
-
-:deep(.file-link) {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-:deep(.file-link:hover) {
-  text-decoration: underline;
-}
-
-@media (max-width: 1024px) {
-  .comments-container {
-    padding: 16px;
-  }
-  
-  .comment-list {
-    gap: 12px;
-  }
-  
-  .comment-input {
-    padding: 16px;
-  }
-}
-
-@media (max-width: 768px) {
-  .comments-container {
-    padding: 12px;
-  }
-  
-  .comment-header {
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .comment-actions {
-    justify-content: space-between;
-  }
-  
-  .comment-input {
-    padding: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  :deep(.el-drawer__header) {
-    padding: 12px;
-    margin-bottom: 0;
-  }
-  
-  .comments-container {
-    padding: 8px;
-  }
-  
-  .comment-content {
-    padding: 10px;
-  }
-  
-  .comment-input {
-    padding: 8px;
-  }
-  
-  .typeahead-suggestions {
-    left: 8px;
-    right: 8px;
-  }
-}
-
-.edit-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .edited-marker {
-  font-size: 0.9em;
   color: #909399;
+  font-size: 0.9em;
+  margin-left: 4px;
   cursor: pointer;
 }
 
 .edited-marker:hover {
-  text-decoration: underline;
+  color: var(--el-color-primary);
 }
 
 .edit-history {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 
 .edit-history-entry {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eee;
-}
-
-.edit-history-entry:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
+  background-color: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
 .edit-history-header {
   font-weight: 500;
-  margin-bottom: 8px;
   color: #606266;
+  margin-bottom: 8px;
 }
 
 .previous-content {
-  background: #f5f7fa;
+  color: #606266;
+  background-color: #f5f7fa;
   padding: 8px;
   border-radius: 4px;
   margin-bottom: 8px;
-  white-space: pre-wrap;
 }
 
 .edit-metadata {
-  font-size: 0.8em;
+  font-size: 0.85em;
   color: #909399;
 }
 
-.file-item {
+.comment-edit {
+  margin-top: 12px;
+}
+
+.edit-actions {
   display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-top: 8px;
 }
 
-.folder-icon {
-  color: #909399;
-}
-
-.file-selector-header {
-  margin-bottom: 1rem;
-}
-
-.clickable {
-  cursor: pointer;
-  color: #409EFF;
-}
-
-.clickable:hover {
-  text-decoration: underline;
-}
-
-.comment-content[data-type="ai_response"] {
-  background-color: #f0f9eb;
-  border-left: 4px solid #67c23a;
-}
-
-.ai-prompt {
-  font-style: italic;
-  color: #909399;
-  margin-bottom: 8px;
-  font-size: 0.9em;
-}
-
-.typeahead-suggestions {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 20px;
-  right: 20px;
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  animation: slideIn 0.2s ease-out;
-  padding: 4px 0;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.typeahead-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-left: 3px solid transparent;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.typeahead-item::before {
-  content: '→';
-  color: transparent;
-  transition: color 0.2s ease;
-}
-
-.typeahead-item:hover,
-.typeahead-item.selected {
-  background-color: #f5f7fa;
-  border-left-color: #409EFF;
-}
-
-.typeahead-item:hover::before,
-.typeahead-item.selected::before {
-  color: #409EFF;
-}
-
-.typeahead-item.selected {
-  background-color: #ecf5ff;
-  color: #409EFF;
-  font-weight: 500;
-}
-
-/* Custom scrollbar for the suggestions box */
-.typeahead-suggestions::-webkit-scrollbar {
-  width: 6px;
-}
-
-.typeahead-suggestions::-webkit-scrollbar-track {
-  background: #f5f7fa;
-  border-radius: 3px;
-}
-
-.typeahead-suggestions::-webkit-scrollbar-thumb {
-  background: #dcdfe6;
-  border-radius: 3px;
-}
-
-.typeahead-suggestions::-webkit-scrollbar-thumb:hover {
-  background: #c0c4cc;
-}
-
-.markdown-table-wrapper {
-  margin: 1rem 0;
-  overflow-x: auto;
-}
-
-:deep(.markdown-table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 0;
-}
-
-:deep(.markdown-table th),
-:deep(.markdown-table td) {
-  border: 1px solid #dcdfe6;
-  padding: 8px 12px;
-  text-align: left;
-}
-
-:deep(.markdown-table th) {
-  background-color: #f5f7fa;
-  font-weight: 500;
-}
-
-:deep(.markdown-table tr:nth-child(even)) {
-  background-color: #fafafa;
-}
-
-:deep(.markdown-table tr:hover) {
-  background-color: #f5f7fa;
-}
-
-:deep(.previous-content .markdown-table-wrapper) {
-  margin: 1rem 0;
-  overflow-x: auto;
-  background: white;
-  border-radius: 4px;
-}
-
-:deep(.previous-content .markdown-table) {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 0;
-}
-
-:deep(.previous-content .markdown-table th),
-:deep(.previous-content .markdown-table td) {
-  border: 1px solid #dcdfe6;
-  padding: 8px 12px;
-  text-align: left;
-}
-
-:deep(.previous-content .markdown-table th) {
-  background-color: #f5f7fa;
-  font-weight: 500;
-}
-
-:deep(.previous-content .markdown-table tr:nth-child(even)) {
-  background-color: #fafafa;
-}
-
-:deep(.previous-content .markdown-table tr:hover) {
-  background-color: #f5f7fa;
-}
-
+/* Add these styles for user mentions */
 .user-mentions {
   position: absolute;
-  bottom: calc(100% + 8px);
-  left: 20px;
-  right: 20px;
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background: white;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  z-index: 100;
 }
 
 .mention-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  gap: 12px;
+  padding: 8px 12px;
   cursor: pointer;
   transition: background-color 0.2s;
-  gap: 12px;
-}
-
-.mention-item-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #409EFF;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 500;
-}
-
-.mention-item-info {
-  flex: 1;
-}
-
-.mention-item-name {
-  font-weight: 500;
-  color: #303133;
-}
-
-.mention-item-hint {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 2px;
 }
 
 .mention-item:hover,
 .mention-item.selected {
-  background-color: #ecf5ff;
+  background-color: var(--el-color-primary-light-9);
 }
 
-.mention-item.selected .mention-item-hint {
-  color: #409EFF;
-}
-
-:deep(.mention-tag) {
-  margin: 0 2px;
-  cursor: default;
-  background-color: #409EFF !important;
-  border-color: #409EFF !important;
-  color: #FFF !important;
-  padding: 1px 5px 3px 5px;
-  line-height: 22px;
+.mention-item-avatar {
+  width: 28px;
+  height: 28px;
+  background-color: var(--el-color-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  border-radius: 20px;
+  font-weight: 500;
 }
 
-:deep(.mention-tag:hover) {
-  background-color: transparent !important;
-  color: #409EFF !important;
-  font-size: 15px;
-  padding: 0;
-  cursor: default;
+.mention-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mention-item-name {
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.mention-item-hint {
+  color: #909399;
+  font-size: 0.8em;
+}
+
+/* Add this to ensure proper positioning */
+.comment-input {
+  position: relative;
 }
 </style>

@@ -1192,7 +1192,7 @@ export default {
   gap: 16px;
 }
 
-/* Reuse comment styles from TaskCommentDialog.vue */
+/* Reuse comment styles from QuickTaskViewCt.vue */
 /* Lines 209-256 */
 
 .header-actions {

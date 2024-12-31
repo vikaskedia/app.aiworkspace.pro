@@ -9,7 +9,7 @@ import EventsCt from './components/single-matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
-import SingleTaskCt from './components/single-matter/SingleTaskCt.vue';
+import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
 
 const routes = [
   {
@@ -82,7 +82,7 @@ const routes = [
       {
         path: 'tasks/:taskId',
         name: 'SingleTaskPage',
-        component: () => import('./components/single-matter/SingleTaskCt.vue')
+        component: () => import('./components/single-matter/DetailedTaskViewCt.vue')
       },
       {
         path: 'events',

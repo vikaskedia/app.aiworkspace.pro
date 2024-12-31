@@ -3,7 +3,7 @@ import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
-import TaskCommentDialog from './TaskCommentDialog.vue';
+import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
 import { ArrowDown } from '@element-plus/icons-vue'
@@ -16,7 +16,7 @@ export default {
     return { currentMatter, cacheStore };
   },
   components: {
-    TaskCommentDialog,
+    QuickTaskViewCt,
     TasksList,
     ArrowDown
   },
@@ -1120,7 +1120,7 @@ export default {
         </template>
       </el-dialog>
 
-      <TaskCommentDialog
+      <QuickTaskViewCt
         v-if="selectedTask"
         :task="selectedTask"
         v-model:visible="commentDialogVisible"

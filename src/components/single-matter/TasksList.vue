@@ -439,8 +439,8 @@ export default {
                   {{ scope.row.title }}
                 </span>
                 <span class="logged-hours">
-                  Hours Logged: {{ scope.row.log_hours || 0 }}
-                </span>
+                    HL: {{ scope.row.log_hours || 0 }}
+                  </span>
               </div>
             </div>
           </div>
@@ -664,12 +664,6 @@ export default {
 .title-content {
   display: flex;
   flex-direction: column;
-}
-
-.title-hours-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .logged-hours {

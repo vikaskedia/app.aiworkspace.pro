@@ -671,10 +671,12 @@ export default {
     }
   },
   mounted() {
-    await this.loadSavedFilters();
-    await this.loadMatters();
-    await this.loadAssignees();
-    await this.loadTasks();
+    (async () => {
+      await this.loadSavedFilters();
+      await this.loadMatters();
+      await this.loadAssignees();
+      await this.loadTasks();
+    })();
   },
   watch: {
     filters: {

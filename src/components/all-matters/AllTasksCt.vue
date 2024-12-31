@@ -47,8 +47,11 @@
               <el-select
                 v-model="filters.status"
                 placeholder="All statuses"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
                 clearable
-                style="width: 140px">
+                style="width: 200px">
                 <el-option label="Not started" value="not_started" />
                 <el-option label="In progress" value="in_progress" />
                 <el-option label="Awaiting external factor" value="awaiting_external" />
@@ -93,10 +96,17 @@
               <el-select
                 v-model="filters.assignee"
                 placeholder="All assignees"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
                 clearable
+                filterable
+                remote
+                :remote-method="handleAssigneeSearch"
+                :loading="loading"
                 style="width: 200px">
                 <el-option
-                  v-for="user in assignees"
+                  v-for="user in filteredAssignees"
                   :key="user.id"
                   :label="user.email"
                   :value="user.id"
@@ -281,16 +291,18 @@ export default {
       assignees: [],
       filters: {
         search: '',
-        status: null,
+        status: [],
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
         matter: null,
-        assignee: null,
+        assignee: [],
         starred: false
       },
       savedFilters: [],
       savedFiltersDialogVisible: false,
+      filteredAssignees: [],
+      assigneeSearchQuery: '',
     };
   },
   computed: {
@@ -331,8 +343,8 @@ export default {
         if (this.filters.search) {
           query = query.ilike('title', `%${this.filters.search}%`);
         }
-        if (this.filters.status) {
-          query = query.eq('status', this.filters.status);
+        if (this.filters.status?.length) {
+          query = query.in('status', this.filters.status);
         }
         if (this.filters.excludeStatus?.length) {
           query = query.not('status', 'in', `(${this.filters.excludeStatus.join(',')})`);
@@ -343,8 +355,8 @@ export default {
         if (this.filters.matter) {
           query = query.eq('matter_id', this.filters.matter);
         }
-        if (this.filters.assignee) {
-          query = query.eq('assignee', this.filters.assignee);
+        if (this.filters.assignee?.length) {
+          query = query.in('assignee', this.filters.assignee);
         }
         if (this.filters.starred) {
           query = query.not('task_stars', 'is', null);
@@ -393,12 +405,12 @@ export default {
     clearFilters() {
       this.filters = {
         search: '',
-        status: null,
+        status: [],
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
         matter: null,
-        assignee: null,
+        assignee: [],
         starred: false
       };
       this.loadTasks();
@@ -606,12 +618,26 @@ export default {
       await this.loadMatters();
       await this.loadAssignees();
       await this.loadTasks();
-    }
+    },
+
+    handleAssigneeSearch(query) {
+      this.assigneeSearchQuery = query;
+      if (!query) {
+        this.filteredAssignees = this.assignees;
+        return;
+      }
+      const normalizedQuery = query.toLowerCase();
+      this.filteredAssignees = this.assignees.filter(user =>
+        user.email.toLowerCase().includes(normalizedQuery)
+      );
+    },
   },
   mounted() {
     this.loadSavedFilters();
+    this.loadAssignees().then(() => {
+      this.filteredAssignees = this.assignees;
+    });
     this.loadMatters();
-    this.loadAssignees();
     this.loadTasks();
   },
   watch: {

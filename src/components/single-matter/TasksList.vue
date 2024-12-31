@@ -74,9 +74,9 @@ export default {
       }
 
       // Status filter
-      if (this.filters.status) {
+      if (this.filters.status?.length) {
         result = filterTasksRecursively(result, task => 
-          task.status === this.filters.status
+          this.filters.status.includes(task.status)
         )
       }
 
@@ -88,9 +88,9 @@ export default {
       }
 
       // Assignee filter
-      if (this.filters.assignee) {
+      if (this.filters.assignee?.length) {
         result = filterTasksRecursively(result, task => 
-          task.assignee === this.filters.assignee
+          this.filters.assignee.includes(task.assignee)
         )
       }
 
@@ -195,10 +195,10 @@ export default {
     clearFilters() {
       this.filters = {
         search: '',
-        status: null,
+        status: [],
         excludeStatus: ['completed'],
         priority: null,
-        assignee: null,
+        assignee: [],
         dueDate: null,
         showDeleted: false,
         starred: false
@@ -341,6 +341,9 @@ export default {
           <el-select 
             v-model="filters.status" 
             placeholder="Status" 
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             class="filter-item">
             <el-option label="Not started" value="not_started" />
@@ -362,6 +365,9 @@ export default {
           <el-select 
             v-model="filters.assignee" 
             placeholder="Assignee" 
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
             clearable
             class="filter-item">
             <el-option

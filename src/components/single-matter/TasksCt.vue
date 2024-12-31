@@ -53,10 +53,10 @@ export default {
       savedFiltersDialogVisible: false,
       filters: {
         search: '',
-        status: null,
+        status: [],
         excludeStatus: ['completed'],
         priority: null,
-        assignee: null,
+        assignee: [],
         dueDate: null,
         showDeleted: false,
         starred: false

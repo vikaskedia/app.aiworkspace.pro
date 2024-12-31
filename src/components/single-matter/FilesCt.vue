@@ -210,6 +210,7 @@ async function handleFileUpload(file) {
 
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
     
     // Construct the correct path including current folder
     const uploadPath = currentFolder.value ? 
@@ -228,7 +229,7 @@ async function handleFileUpload(file) {
 
     // Upload to Gitea with the correct path
     const response = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uploadPath}`,
+      giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uploadPath}`,
       {
         method: 'POST',
         headers: {
@@ -283,10 +284,11 @@ async function deleteFile(file) {
   try {
     loading.value = true;
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
 
     // Delete from Gitea
     const response = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
+      giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
       {
         method: 'DELETE',
         headers: {
@@ -363,7 +365,7 @@ async function loadFolders() {
     const apiUrl = new URL(`/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`, giteaHost);
     console.log('Full API URL:', apiUrl.toString());
     
-    const response = await fetch(`/gitea${apiUrl.pathname}`, {
+    const response = await fetch(giteaHost + `/${apiUrl.pathname}`, {
       headers: {
         'Authorization': `token ${giteaToken}`,
         'Accept': 'application/json',
@@ -405,13 +407,14 @@ async function createFolder() {
   
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const path = currentFolder.value ? 
       `${currentFolder.value.path}/${newFolderName.value}` : 
       newFolderName.value;
 
     // Create an empty file as .gitkeep to create the folder
     const response = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
+      giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
       {
         method: 'POST',
         headers: {

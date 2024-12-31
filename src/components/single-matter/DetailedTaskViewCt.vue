@@ -827,7 +827,7 @@ export default {
         /\[([^\]]+)\]\(([^)]+)\)/g, 
         (match, text, url) => {
           // Only allow gitea links
-          if (url.includes('/gitea/')) {
+          if (url.includes('/g.associateattorney.ai/')) {
             return `<a href="${url}" target="_blank" class="file-link">${text}</a>`;
           }
           return match;
@@ -837,6 +837,7 @@ export default {
     async loadFiles() {
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         const { data: matter, error: matterError } = await supabase
           .from('matters')
@@ -849,7 +850,7 @@ export default {
 
         const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `/gitea/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
+          giteaHost + `/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,

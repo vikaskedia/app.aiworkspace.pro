@@ -187,6 +187,7 @@ async function handleRename() {
   try {
     renaming.value = true;
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
     
     // Get the current file content
     const getResponse = await fetch(props.file.download_url, {
@@ -203,7 +204,7 @@ async function handleRename() {
 
     // Delete the old file - Fix the repository path
     const deleteResponse = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      giteaHost + `/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
         method: 'DELETE',
         headers: {
@@ -224,7 +225,7 @@ async function handleRename() {
 
     // Create the new file - Fix the repository path here too
     const createResponse = await fetch(
-      `/gitea/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${renameForm.value.newName}`,
+      giteaHost + `/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${renameForm.value.newName}`,
       {
         method: 'POST',
         headers: {

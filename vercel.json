@@ -1,12 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/gitea/api/v1/:path*",
-      "destination": "https://git.associateattorney.ai/api/v1/:path*"
+      "source": "/gitea/api/:path*",
+      "destination": "https://g.associateattorney.ai/api/:path*"
     },
     {
       "source": "/gitea/:path*",
-      "destination": "https://git.associateattorney.ai/:path*"
+      "destination": "https://g.associateattorney.ai/:path*"
     }
   ],
   "headers": [

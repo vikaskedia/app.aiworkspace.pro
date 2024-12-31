@@ -357,8 +357,9 @@ async function loadFolders() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    // Fix URL construction
-    const apiUrl = new URL(`/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`, 'https://git.associateattorney.ai');
+    // Use the environment variable directly
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const apiUrl = new URL(`/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`, giteaHost);
     console.log('Full API URL:', apiUrl.toString());
     
     const response = await fetch(`/gitea${apiUrl.pathname}`, {

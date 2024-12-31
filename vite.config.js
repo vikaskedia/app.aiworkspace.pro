@@ -20,34 +20,19 @@ export default defineConfig(({ mode }) => {
         '/gitea': {
           target: env.VITE_GITEA_HOST || 'http://localhost:3000',
           changeOrigin: true,
-          secure: false,
           rewrite: (path) => path.replace(/^\/gitea/, ''),
           configure: (proxy, _options) => {
             proxy.on('proxyReq', (proxyReq, req, _res) => {
-              // Remove origin and referer headers
-              proxyReq.removeHeader('origin');
-              proxyReq.removeHeader('referer');
-              
-              // Add cache control headers
               proxyReq.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
               proxyReq.setHeader('Pragma', 'no-cache');
               proxyReq.setHeader('Expires', '0');
-              
               console.log('Sending Request to:', req.url);
             });
 
             proxy.on('proxyRes', (proxyRes, req, _res) => {
-              // Set CORS headers
-              proxyRes.headers['access-control-allow-origin'] = '*';
-              proxyRes.headers['access-control-allow-methods'] = 'GET,HEAD,PUT,PATCH,POST,DELETE';
-              proxyRes.headers['access-control-allow-headers'] = 'Content-Type,Authorization,Accept,Origin,X-Requested-With';
-              proxyRes.headers['access-control-max-age'] = '3600';
-              
-              // Set cache control headers
               proxyRes.headers['cache-control'] = 'no-cache, no-store, must-revalidate';
               proxyRes.headers['pragma'] = 'no-cache';
               proxyRes.headers['expires'] = '0';
-              
               console.log('Received Response from:', req.url, 'Status:', proxyRes.statusCode);
             });
 

@@ -61,6 +61,10 @@ export default {
         showDeleted: false,
         starred: false
       },
+      showTypeahead: false,
+      typeaheadSuggestions: [],
+      typeaheadSelectedIndex: -1,
+      typeaheadTimer: null,
     };
   },
   watch: {
@@ -720,6 +724,110 @@ export default {
           ElMessage.error('Error deleting filter');
         }
       }
+    },
+
+    async getTypeaheadSuggestions(text, cursorPosition) {
+      try {
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            cursor_position: cursorPosition,
+            context: {
+              task_title: this.newTask.title,
+              matter_id: this.currentMatter.id
+            }
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to get suggestions');
+        
+        const data = await response.json();
+        
+        if (data.suggestions?.length) {
+          this.typeaheadSuggestions = data.suggestions;
+          this.showTypeahead = true;
+          this.typeaheadSelectedIndex = -1;
+        } else {
+          this.showTypeahead = false;
+        }
+      } catch (error) {
+        console.error('Error getting suggestions:', error);
+        this.showTypeahead = false;
+      }
+    },
+
+    handleDescriptionInput(event) {
+      // For el-input, the event is directly the new value
+      const text = event;
+      const textarea = document.querySelector('.description-input textarea');
+      const cursorPos = textarea?.selectionStart || 0;
+
+      // Clear any existing timer
+      if (this.typeaheadTimer) {
+        clearTimeout(this.typeaheadTimer);
+      }
+      
+      // Set a new timer to avoid too many API calls
+      this.typeaheadTimer = setTimeout(() => {
+        this.getTypeaheadSuggestions(text, cursorPos);
+      }, 300);
+    },
+
+    applySuggestion(suggestion) {
+      const textarea = document.querySelector('.description-input textarea');
+      const cursorPos = textarea.selectionStart;
+      const text = this.newTask.description;
+      
+      // Find the last word before cursor
+      const words = text.slice(0, cursorPos).split(' ');
+      const lastWord = words[words.length - 1];
+      
+      // Replace the incomplete word with the suggestion
+      words[words.length - 1] = suggestion;
+      this.newTask.description = words.join(' ') + text.slice(cursorPos);
+      
+      // Reset typeahead
+      this.showTypeahead = false;
+      this.typeaheadSuggestions = [];
+      
+      // Set cursor position after the inserted suggestion
+      this.$nextTick(() => {
+        const newPos = cursorPos - lastWord.length + suggestion.length;
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+      });
+    },
+
+    handleTypeaheadNavigation(event) {
+      if (!this.showTypeahead || !this.typeaheadSuggestions.length) return;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.min(
+            this.typeaheadSelectedIndex + 1,
+            this.typeaheadSuggestions.length - 1
+          );
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, -1);
+          break;
+        case 'Tab':
+        case 'Enter':
+          event.preventDefault();
+          if (this.typeaheadSelectedIndex >= 0) {
+            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+          }
+          break;
+        case 'Escape':
+          this.showTypeahead = false;
+          break;
+      }
     }
   },
 
@@ -848,7 +956,8 @@ export default {
       <!-- Create Task Dialog -->
       <el-dialog
         v-model="dialogVisible"
-        title="Create New Task"
+        title="Create New Task" 
+        class="create-task-dialog"
         width="500px">
         <el-form :model="newTask" label-position="top">
           <!-- Essential fields always shown -->
@@ -856,10 +965,27 @@ export default {
             <el-input v-model="newTask.title" />
           </el-form-item>
           <el-form-item label="Description">
-            <el-input 
-              v-model="newTask.description"
-              type="textarea"
-              :rows="3" />
+            <div class="description-input-container">
+              <el-input 
+                v-model="newTask.description"
+                type="textarea"
+                :rows="3"
+                class="description-input"
+                @input="handleDescriptionInput" 
+                @keydown="handleTypeaheadNavigation" />
+              
+              <!-- Typeahead suggestions -->
+              <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
+                <div
+                  v-for="(suggestion, index) in typeaheadSuggestions"
+                  :key="index"
+                  class="suggestion-item"
+                  :class="{ 'selected': index === typeaheadSelectedIndex }"
+                  @click="applySuggestion(suggestion)">
+                  {{ suggestion }}
+                </div>
+              </div>
+            </div>
           </el-form-item>
 
           <!-- Show more/less button -->
@@ -1152,5 +1278,43 @@ label.el-checkbox.task-checkbox {
   text-align: center;
   color: #909399;
   padding: 20px;
+}
+
+.description-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.description-input {
+  width: 100%;
+}
+
+:deep(.el-textarea__inner) {
+  width: 100%;
+  resize: vertical;
+}
+
+.typeahead-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background-color: #f5f7fa;
 }
 </style> 

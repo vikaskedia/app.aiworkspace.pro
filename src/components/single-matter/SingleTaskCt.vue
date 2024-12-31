@@ -192,12 +192,28 @@
           <el-input v-model="editingTask.title" />
         </el-form-item>
         <el-form-item label="Description">
-          <el-input 
-            v-model="editingTask.description"
-            type="textarea"
-            :rows="3"
-            placeholder="Write a description... (Type @files to mention a file)"
-            @input="handleInput" />
+          <div class="description-input-container">
+            <el-input 
+              v-model="editingTask.description"
+              type="textarea"
+              :rows="3"
+              class="description-input"
+              placeholder="Write a description..."
+              @input="handleDescriptionInput"
+              @keydown="handleTypeaheadNavigation" />
+            
+            <!-- Typeahead suggestions -->
+            <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
+              <div
+                v-for="(suggestion, index) in typeaheadSuggestions"
+                :key="index"
+                class="suggestion-item"
+                :class="{ 'selected': index === typeaheadSelectedIndex }"
+                @click="applySuggestion(suggestion)">
+                {{ suggestion }}
+              </div>
+            </div>
+          </div>
         </el-form-item>
         <el-form-item label="Status">
           <el-select v-model="editingTask.status" style="width: 100%">
@@ -410,6 +426,11 @@ export default {
       currentSelectorFolder: null,
       selectorBreadcrumbs: [],
       folders: [],
+      showTypeahead: false,
+      typeaheadSuggestions: [],
+      typeaheadSelectedIndex: -1,
+      typeaheadTimer: null,
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
     };
   },
   async created() {
@@ -1001,6 +1022,103 @@ export default {
         this.selectorBreadcrumbs = [];
       }
     },
+
+    async getTypeaheadSuggestions(text, cursorPosition) {
+      try {
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            cursorPosition,
+            systemPrompt: `Task context: ${this.task.title}. ${this.task.description || ''}`
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to get suggestions: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.suggestions?.length) {
+          this.typeaheadSuggestions = data.suggestions;
+          this.showTypeahead = true;
+          this.typeaheadSelectedIndex = -1;
+        } else {
+          this.showTypeahead = false;
+        }
+      } catch (error) {
+        console.error('Error getting suggestions:', error);
+        this.showTypeahead = false;
+      }
+    },
+
+    handleDescriptionInput(event) {
+      const text = event;
+      const textarea = document.querySelector('.description-input textarea');
+      const cursorPos = textarea?.selectionStart || 0;
+
+      if (this.typeaheadTimer) {
+        clearTimeout(this.typeaheadTimer);
+      }
+      
+      this.typeaheadTimer = setTimeout(() => {
+        this.getTypeaheadSuggestions(text, cursorPos);
+      }, 300);
+    },
+
+    applySuggestion(suggestion) {
+      const textarea = document.querySelector('.description-input textarea');
+      const cursorPos = textarea.selectionStart;
+      const text = this.editingTask.description;
+      
+      const words = text.slice(0, cursorPos).split(' ');
+      const lastWord = words[words.length - 1];
+      
+      words[words.length - 1] = suggestion;
+      this.editingTask.description = words.join(' ') + text.slice(cursorPos);
+      
+      this.showTypeahead = false;
+      this.typeaheadSuggestions = [];
+      
+      this.$nextTick(() => {
+        const newPos = cursorPos - lastWord.length + suggestion.length;
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+      });
+    },
+
+    handleTypeaheadNavigation(event) {
+      if (!this.showTypeahead || !this.typeaheadSuggestions.length) return;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.min(
+            this.typeaheadSelectedIndex + 1,
+            this.typeaheadSuggestions.length - 1
+          );
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, -1);
+          break;
+        case 'Tab':
+        case 'Enter':
+          event.preventDefault();
+          if (this.typeaheadSelectedIndex >= 0) {
+            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+          }
+          break;
+        case 'Escape':
+          this.showTypeahead = false;
+          break;
+      }
+    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -1306,5 +1424,45 @@ h4 {
 
 .file-link:hover {
   text-decoration: underline;
+}
+
+.description-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.description-input {
+  width: 100%;
+}
+
+:deep(.el-textarea__inner) {
+  width: 100%;
+  resize: vertical;
+}
+
+.typeahead-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background-color: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 </style> 

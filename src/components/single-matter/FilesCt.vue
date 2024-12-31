@@ -365,29 +365,42 @@ async function loadFolders() {
     const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/\//g, '/');
     
     console.log('Making Gitea API request to:', apiPath);
-    console.log('Using token:', giteaToken ? 'Token present' : 'Token missing');
+    console.log('Environment:', {
+      VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
+      hasToken: !!giteaToken
+    });
 
-    const response = await fetch(
-      apiPath,
-      {
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      }
-    );
+    const response = await fetch(apiPath, {
+      headers: {
+        'Authorization': `token ${giteaToken}`,
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      redirect: 'follow'
+    });
 
     console.log('Response status:', response.status);
     console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Failed to fetch folders: ${errorData.message || response.statusText}`);
+      const text = await response.text();
+      console.error('Error response body:', text);
+      console.error('Response URL:', response.url);
+      throw new Error(`Failed to fetch folders: ${response.status} ${response.statusText}`);
     }
 
-    const contents = await response.json();
+    // Try to parse as JSON, with better error handling
+    let contents;
+    try {
+      contents = await response.json();
+    } catch (parseError) {
+      const text = await response.text();
+      console.error('JSON Parse Error:', parseError);
+      console.error('Raw Response:', text);
+      throw new Error('Invalid JSON response from server');
+    }
+
     folders.value = contents
       .filter(item => item.type === 'dir')
       .map(folder => ({

@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/gitea/api/:path*",
-      "destination": "https://git.associateattorney.ai/api/:path*"
+      "source": "/gitea/api/v1/:path*",
+      "destination": "https://git.associateattorney.ai/api/v1/:path*"
     },
     {
       "source": "/gitea/:path*",
@@ -24,10 +24,6 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
-        },
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
         }
       ]
     }

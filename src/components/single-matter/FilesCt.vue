@@ -352,41 +352,26 @@ async function loadFolders() {
     return;
   }
   
-  if (!import.meta.env.VITE_GITEA_TOKEN) {
-    ElMessage.error('Gitea configuration is missing');
-    return;
-  }
-
   loading.value = true;
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    // Ensure proper URL construction
-    const apiPath = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`.replace(/\/+/g, '/');
+    // Fix URL construction
+    const apiUrl = new URL(`/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`, 'https://git.associateattorney.ai');
+    console.log('Full API URL:', apiUrl.toString());
     
-    console.log('Making Gitea API request to:', apiPath);
-    console.log('Current origin:', window.location.origin);
-    console.log('Environment:', {
-      VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
-      hasToken: !!giteaToken,
-      currentMatterRepo: currentMatter.value.git_repo
-    });
-
-    const response = await fetch(apiPath, {
+    const response = await fetch(`/gitea${apiUrl.pathname}`, {
       headers: {
         'Authorization': `token ${giteaToken}`,
         'Accept': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Origin': 'https://app.associateattorney.ai'
-      },
-      credentials: 'include'
+        'Pragma': 'no-cache'
+      }
     });
 
     console.log('Response status:', response.status);
     console.log('Response URL:', response.url);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const text = await response.text();
@@ -395,7 +380,6 @@ async function loadFolders() {
     }
 
     const contents = await response.json();
-    
     folders.value = contents
       .filter(item => item.type === 'dir')
       .map(folder => ({

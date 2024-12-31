@@ -18,12 +18,14 @@
               <el-dropdown-menu>
                 <el-dropdown-item command="save">Save Current Filters</el-dropdown-item>
                 <el-dropdown-item divided command="manage">Manage Saved Filters</el-dropdown-item>
-                <el-dropdown-item 
-                  v-for="filter in savedFilters" 
-                  :key="filter.id" 
-                  :command="['load', filter.id]">
-                  {{ filter.name }}
-                </el-dropdown-item>
+                <template v-if="savedFilters.length > 0">
+                  <el-dropdown-item 
+                    v-for="filter in savedFilters" 
+                    :key="filter.id" 
+                    :command="['load', filter.id]">
+                    {{ filter.filter_name }}
+                  </el-dropdown-item>
+                </template>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -225,7 +227,7 @@
       :data="savedFilters"
       style="width: 100%">
       <el-table-column
-        prop="name"
+        prop="filter_name"
         label="Filter Name"
         min-width="200">
       </el-table-column>
@@ -399,7 +401,6 @@ export default {
         assignee: null,
         starred: false
       };
-      this.saveFilters();
       this.loadTasks();
     },
 
@@ -457,70 +458,23 @@ export default {
       }
     },
 
-    async saveFilters() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: existingSettings, error: fetchError } = await supabase
-          .from('user_settings')
-          .select('settings')
-          .eq('user_id', user.id)
-          .single();
-
-        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-        const updatedSettings = {
-          ...(existingSettings?.settings || {}),
-          allTasksFilters: this.filters
-        };
-
-        const { error } = await supabase
-          .from('user_settings')
-          .upsert({
-            user_id: user.id,
-            settings: updatedSettings
-          });
-
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error saving filters:', error);
-        ElMessage.error('Failed to save filters');
-      }
-    },
-
     async loadSavedFilters() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         const { data, error } = await supabase
-          .from('user_settings')
-          .select('settings')
+          .from('saved_filters')
+          .select('*')
           .eq('user_id', user.id)
-          .single();
+          .order('created_at', { ascending: false });
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error) throw error;
+        this.savedFilters = data || [];
 
-        if (data?.settings?.allTasksFilters) {
-          this.filters = { ...data.settings.allTasksFilters };
-        }
-
-        // Load saved filter presets
-        const { data: presets, error: presetsError } = await supabase
-          .from('user_settings')
-          .select('settings->filterPresets')
-          .eq('user_id', user.id)
-          .single();
-
-        if (presetsError && presetsError.code !== 'PGRST116') throw presetsError;
-
-        this.savedFilters = (presets?.filterPresets || []).map((f, index) => ({
-          ...f,
-          id: index
-        }));
       } catch (error) {
         console.error('Error loading saved filters:', error);
+        ElMessage.error('Error loading saved filters: ' + error.message);
         this.savedFilters = [];
       }
     },
@@ -579,42 +533,24 @@ export default {
         if (filterName?.value) {
           try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('No active session');
+            if (!user) throw new Error('No authenticated user');
 
-            const { data: existingSettings, error: fetchError } = await supabase
-              .from('user_settings')
-              .select('settings')
-              .eq('user_id', user.id)
-              .single();
-
-            if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-            const currentPresets = existingSettings?.settings?.filterPresets || [];
-            const updatedSettings = {
-              ...(existingSettings?.settings || {}),
-              filterPresets: [
-                ...currentPresets,
-                {
-                  name: filterName.value,
-                  filters: { ...this.filters }
-                }
-              ]
-            };
-
-            const { error } = await supabase
-              .from('user_settings')
-              .upsert({
+            const { data, error } = await supabase
+              .from('saved_filters')
+              .insert([{
                 user_id: user.id,
-                settings: updatedSettings
-              });
+                filter_name: filterName.value,
+                filters: this.filters
+              }])
+              .select();
 
             if (error) throw error;
 
-            this.loadSavedFilters();
+            await this.loadSavedFilters();
             ElMessage.success('Filters saved successfully');
           } catch (error) {
-            console.error('Error saving filter preset:', error);
-            ElMessage.error('Failed to save filter preset');
+            console.error('Error saving filters:', error);
+            ElMessage.error('Error saving filters: ' + error.message);
           }
         }
       } else if (command === 'manage') {
@@ -624,9 +560,8 @@ export default {
         const filter = this.savedFilters.find(f => f.id === filterId);
         if (filter) {
           this.filters = { ...filter.filters };
+          this.loadTasks();
           ElMessage.success('Filters loaded successfully');
-        } else {
-          ElMessage.error('Unable to load filters');
         }
       }
     },
@@ -649,38 +584,19 @@ export default {
           }
         );
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No active session');
-
-        const { data: existingSettings, error: fetchError } = await supabase
-          .from('user_settings')
-          .select('settings')
-          .eq('user_id', user.id)
-          .single();
-
-        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-        const updatedPresets = (existingSettings?.settings?.filterPresets || [])
-          .filter((_, index) => index !== filter.id);
-
         const { error } = await supabase
-          .from('user_settings')
-          .update({
-            settings: {
-              ...existingSettings.settings,
-              filterPresets: updatedPresets
-            }
-          })
-          .eq('user_id', user.id);
+          .from('saved_filters')
+          .delete()
+          .eq('id', filter.id);
 
         if (error) throw error;
 
-        this.loadSavedFilters();
+        await this.loadSavedFilters();
         ElMessage.success('Filter deleted successfully');
       } catch (error) {
         if (error !== 'cancel') {
           console.error('Error deleting filter:', error);
-          ElMessage.error('Error deleting filter');
+          ElMessage.error('Error deleting filter: ' + error.message);
         }
       }
     },
@@ -693,13 +609,15 @@ export default {
     }
   },
   mounted() {
-    this.initializeComponent();
+    this.loadSavedFilters();
+    this.loadMatters();
+    this.loadAssignees();
+    this.loadTasks();
   },
   watch: {
     filters: {
       deep: true,
       handler() {
-        this.saveFilters();
         this.loadTasks();
       }
     }

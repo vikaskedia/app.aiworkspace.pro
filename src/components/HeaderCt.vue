@@ -226,14 +226,20 @@ export default {
         ElMessage.error('Error marking notification as read: ' + error.message);
       }
     }
-  }
+  },
+  emits: ['logo-click']
 };
 </script>
 
 <template>
   <header class="site-header">
     <div class="header-left">
-      <img src="/associate-ai-attorney-logo.svg" alt="Legal Studio" class="logo-image" />
+      <img 
+        src="/associate-ai-attorney-logo.svg" 
+        alt="Logo" 
+        class="logo-image clickable"
+        @click="$emit('logo-click')" 
+      />
       <h1>Legal Studio</h1>
     </div>
     

@@ -445,8 +445,8 @@ export default {
                   {{ scope.row.title }}
                 </span>
                 <span class="logged-hours">
-                    HL: {{ scope.row.log_hours || 0 }}
-                  </span>
+                  Hours: {{ scope.row.total_hours || 0 }}
+                </span>
               </div>
             </div>
           </div>

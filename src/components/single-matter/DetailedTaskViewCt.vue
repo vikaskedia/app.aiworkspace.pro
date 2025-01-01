@@ -21,6 +21,12 @@
           @click="shareDialogVisible = true">
           Share Task
         </el-button>
+        <el-button 
+          type="warning"
+          @click="logHoursDialogVisible = true"
+          style="margin-right: 10px">
+          Log Hours
+        </el-button>
       </div>
     </div>
 
@@ -80,6 +86,27 @@
           </span>
         </div>
         <p class="description" v-html="formatCommentContent(task?.description || 'No description provided')"></p>
+      </div>
+
+      <div class="hours-logs" v-if="hoursLogs.length">
+        <h3>Hours Logged</h3>
+        <div class="total-hours">
+          Total Hours: {{ totalHours }}
+        </div>
+        <el-table :data="hoursLogs" style="width: 100%">
+          <el-table-column prop="hours" label="Hours" width="100" />
+          <el-table-column prop="comment" label="Comment" />
+          <el-table-column label="Logged By" width="200">
+            <template #default="scope">
+              {{ userEmails[scope.row.user_id] }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="created_at" label="Date" width="150">
+            <template #default="scope">
+              {{ new Date(scope.row.created_at).toLocaleDateString() }}
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <div class="task-comments">
@@ -257,16 +284,6 @@
               :value="user.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Log Hours">
-          <el-input-number
-            v-model="editingTask.log_hours"
-            :min="0"
-            :max="999.99"
-            :step="0.25"
-            :precision="2"
-            style="width: 100%"
-            placeholder="Enter hours worked" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -382,6 +399,43 @@
         </div>
       </el-scrollbar>
     </el-dialog>
+
+    <!-- Log Hours Dialog -->
+    <el-dialog
+      v-model="logHoursDialogVisible"
+      title="Log Hours"
+      width="500px">
+      <el-form :model="newHoursLog" label-position="top">
+        <el-form-item label="Hours" required>
+          <el-input-number
+            v-model="newHoursLog.hours"
+            :min="0"
+            :max="999.99"
+            :step="0.25"
+            :precision="2"
+            style="width: 100%"
+            placeholder="Enter hours worked" />
+        </el-form-item>
+        <el-form-item label="Comment">
+          <el-input
+            v-model="newHoursLog.comment"
+            type="textarea"
+            :rows="3"
+            placeholder="Add a comment about the work done..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="logHoursDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="submitHoursLog"
+            :disabled="!newHoursLog.hours">
+            Submit
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -441,6 +495,12 @@ export default {
       typeaheadSelectedIndex: -1,
       typeaheadTimer: null,
       pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
+      logHoursDialogVisible: false,
+      newHoursLog: {
+        hours: null,
+        comment: ''
+      },
+      hoursLogs: [],
     };
   },
   async created() {
@@ -450,6 +510,7 @@ export default {
     await this.loadTask(taskId);
     await this.loadSharedUsers();
     this.setupRealtimeSubscription();
+    await this.loadHoursLogs();
   },
   unmounted() {
     if (this.subscription) {
@@ -1129,6 +1190,56 @@ export default {
           this.showTypeahead = false;
           break;
       }
+    },
+
+    async loadHoursLogs() {
+      try {
+        const { data: logs, error } = await supabase
+          .from('task_hours_logs')
+          .select('*')
+          .eq('task_id', this.task.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        this.hoursLogs = logs;
+
+        // Load user emails for each log
+        for (const log of logs) {
+          if (!this.userEmails[log.user_id]) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', { user_id: log.user_id });
+            if (userData?.[0]) {
+              this.userEmails[log.user_id] = userData[0].email;
+            }
+          }
+        }
+      } catch (error) {
+        ElMessage.error('Error loading hours logs: ' + error.message);
+      }
+    },
+
+    async submitHoursLog() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('task_hours_logs')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            hours: this.newHoursLog.hours,
+            comment: this.newHoursLog.comment
+          });
+
+        if (error) throw error;
+
+        this.logHoursDialogVisible = false;
+        this.newHoursLog = { hours: null, comment: '' };
+        await this.loadHoursLogs();
+        ElMessage.success('Hours logged successfully');
+      } catch (error) {
+        ElMessage.error('Error logging hours: ' + error.message);
+      }
     }
   },
   watch: {
@@ -1146,6 +1257,9 @@ export default {
       return items.filter(item => 
         item.name.toLowerCase().includes(query)
       );
+    },
+    totalHours() {
+      return this.hoursLogs.reduce((sum, log) => sum + (log.hours || 0), 0).toFixed(2);
     }
   }
 };

@@ -716,7 +716,7 @@ Please provide assistance based on this context, the comment history, the availa
       }
     },
 
-    handleTypeaheadNavigation(event) {
+    handleUserMentionNavigation(event) {
       if (!this.showUserMentions) return;
 
       switch (event.key) {
@@ -744,8 +744,35 @@ Please provide assistance based on this context, the comment history, the availa
       }
     },
 
+    handleTypeaheadNavigation(event) {
+      if (!this.showTypeahead || !this.typeaheadSuggestions.length) return;
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.min(
+            this.typeaheadSelectedIndex + 1,
+            this.typeaheadSuggestions.length - 1
+          );
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, -1);
+          break;
+        case 'Tab':
+        case 'Enter':
+          event.preventDefault();
+          if (this.typeaheadSelectedIndex >= 0) {
+            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+          }
+          break;
+        case 'Escape':
+          this.showTypeahead = false;
+          break;
+      }
+    },
     applySuggestion(suggestion) {
-      const textarea = document.querySelector('.comment-input textarea');
+      const textarea = document.querySelector('.comment-input .editor-content '); //.comment-input textarea
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = this.newComment.slice(0, cursorPos);
       const textAfterCursor = this.newComment.slice(cursorPos);
@@ -842,7 +869,7 @@ Please provide assistance based on this context, the comment history, the availa
       
       // Focus back on the editor and set cursor position
       this.$nextTick(() => {
-        const editor = document.querySelector('.comment-input .ProseMirror');
+        const editor = document.querySelector('.comment-input .editor-content '); //.ProseMirror
         if (editor) {
           editor.focus();
           
@@ -1126,12 +1153,25 @@ Please provide assistance based on this context, the comment history, the availa
             </div>
           </div>
         </div>
+
+         <!-- Typeahead suggestions -->
+         <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
+          <div
+            v-for="(suggestion, index) in typeaheadSuggestions"
+            :key="index"
+            class="suggestion-item"
+            :class="{ 'selected': index === typeaheadSelectedIndex }"
+            @click="applySuggestion(suggestion)">
+            {{ suggestion }}
+          </div>
+        </div>
         
         <RichTextEditor
           v-model="newComment"
           placeholder="Write a comment... (Type @ to mention someone)"
           @keyup.ctrl.enter="addComment"
-          @keydown="handleTypeaheadNavigation"
+          @keyup="handleUserMentionNavigation"
+          @keydown="handleUserMentionNavigation"
           @input="handleInput"
         />
         <el-button

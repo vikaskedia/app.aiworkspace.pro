@@ -333,7 +333,7 @@ export default {
           <el-input
             v-model="newGoal.description"
             type="textarea"
-            rows="3"
+            :rows="3"
             placeholder="Enter goal description" />
         </el-form-item>
         

@@ -35,6 +35,13 @@ const filters = ref({
   showFilters: false
 });
 
+// Expose these refs to make them accessible from parent
+defineExpose({
+  uploadDialogVisible,
+  newFolderDialogVisible,
+  filters
+});
+
 const FILE_TYPES = {
   FOLDER: 'dir',
   PDF: 'application/pdf',

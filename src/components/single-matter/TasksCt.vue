@@ -7,6 +7,7 @@ import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
 import { ArrowDown, Close } from '@element-plus/icons-vue'
+import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 
 export default {
   setup() {
@@ -19,7 +20,8 @@ export default {
     QuickTaskViewCt,
     TasksList,
     ArrowDown,
-    Close
+    Close,
+    QuickActionDrawer
   },
   data() {
     return {
@@ -66,6 +68,7 @@ export default {
       typeaheadSuggestions: [],
       typeaheadSelectedIndex: -1,
       typeaheadTimer: null,
+      showQuickActions: false,
     };
   },
   watch: {
@@ -855,6 +858,20 @@ export default {
           this.showTypeahead = false;
           break;
       }
+    },
+
+    handleQuickAction(actionId) {
+      switch (actionId) {
+        case 'new_task':
+          this.dialogVisible = true
+          break
+        case 'toggle_filters':
+          this.showFilters = !this.showFilters
+          break
+        case 'manage_filters':
+          this.savedFiltersDialogVisible = true
+          break
+      }
     }
   },
 
@@ -921,6 +938,11 @@ export default {
 
 <template>
   <div class="tasks-container">
+    <QuickActionDrawer
+      v-model="showQuickActions"
+      context="tasks"
+      @action="handleQuickAction"
+    />
     <div class="content">
       <div class="tasks-header">
         <div class="header-buttons">

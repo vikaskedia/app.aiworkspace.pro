@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Close } from '@element-plus/icons-vue'
 
 export default {
   setup() {
@@ -18,7 +18,8 @@ export default {
   components: {
     QuickTaskViewCt,
     TasksList,
-    ArrowDown
+    ArrowDown,
+    Close
   },
   data() {
     return {
@@ -1002,6 +1003,15 @@ export default {
               
               <!-- Typeahead suggestions -->
               <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
+                <div class="typeahead-header">
+                  <span>Suggestions</span>
+                  <el-button
+                    type="text"
+                    class="close-button"
+                    @click="showTypeahead = false">
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
                 <div
                   v-for="(suggestion, index) in typeaheadSuggestions"
                   :key="index"
@@ -1332,6 +1342,28 @@ label.el-checkbox.task-checkbox {
   overflow-y: auto;
   z-index: 1000;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+}
+
+.typeahead-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dcdfe6;
+  background-color: #f5f7fa;
+}
+
+.typeahead-header span {
+  color: #909399;
+  font-size: 0.9em;
+}
+
+.close-button {
+  padding: 2px;
+}
+
+.close-button:hover {
+  color: #409EFF;
 }
 
 .suggestion-item {

@@ -5,6 +5,7 @@ import { FullScreen, Close, Folder } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
+import TiptapEditor from '../common/TiptapEditor.vue'
 
 export default {
   components: {
@@ -12,7 +13,8 @@ export default {
     Close,
     Folder,
     EditableTable,
-    RichTextEditor
+    RichTextEditor,
+    TiptapEditor
   },
   props: {
     task: {
@@ -166,11 +168,6 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        // Extract mentioned users
-        const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
-        const mentions = [...this.newComment.matchAll(mentionRegex)];
-        const mentionedUserIds = mentions.map(match => match[2]);
-
         const { error } = await supabase
           .from('task_comments')
           .insert({
@@ -180,19 +177,6 @@ export default {
           });
 
         if (error) throw error;
-
-        // Create notifications for mentioned users
-        for (const userId of mentionedUserIds) {
-          await this.createNotification(
-            userId,
-            'mention',
-            {
-              task_id: this.task.id,
-              task_title: this.task.title,
-              comment_by: user.email
-            }
-          );
-        }
 
         this.newComment = '';
         await this.loadComments();
@@ -322,41 +306,15 @@ export default {
     },
 
     handleInput(event) {
-      console.log('handleInput called', event);
-      let text = '';
-      let selectionStart = 0;
-
-      // Get text and cursor position from RichTextEditor
-      if (typeof event === 'string') {
-        text = event;
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          selectionStart = this.getCursorPosition(range);
-        }
-      } else if (event?.target) {
-        text = event.target.value || event.target.innerHTML || '';
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          selectionStart = this.getCursorPosition(range);
-        }
-      } else {
-        text = this.newComment;
-      }
-
-      // Clean text and find the current word being typed
-      const cleanText = text.replace(/<[^>]*>/g, '');
-      const textBeforeCursor = cleanText.slice(0, selectionStart);
+      const text = event.target.value;
+      const cursorPos = event.target.selectionStart;
+      
+      // Get the current word being typed
+      const textBeforeCursor = text.slice(0, cursorPos);
       const currentWordMatch = textBeforeCursor.match(/\S+$/);
       const currentWord = currentWordMatch ? currentWordMatch[0] : '';
 
-      if (currentWord.startsWith('@')) {
-        const searchTerm = currentWord.slice(1).toLowerCase();
-        this.showUserSuggestions(searchTerm);
-        this.mentionIndex = selectionStart;
-        this.showTypeahead = false; // Hide typeahead when showing user mentions
-      } else if (currentWord.length >= 2) { // Only show suggestions for words with 2 or more characters
+      if (currentWord.length >= 2) {
         // Clear any existing timer
         if (this.typeaheadTimer) {
           clearTimeout(this.typeaheadTimer);
@@ -364,12 +322,9 @@ export default {
         
         // Set a new timer to avoid too many API calls
         this.typeaheadTimer = setTimeout(() => {
-          this.getTypeaheadSuggestions(cleanText, selectionStart);
-        }, 300); // 300ms delay
-        
-        this.showUserMentions = false;
+          this.getTypeaheadSuggestions(text, cursorPos);
+        }, 300);
       } else {
-        this.showUserMentions = false;
         this.showTypeahead = false;
       }
     },
@@ -745,7 +700,7 @@ Please provide assistance based on this context, the comment history, the availa
     },
 
     applySuggestion(suggestion) {
-      const textarea = document.querySelector('.comment-input textarea');
+      const textarea = document.querySelector('.comment-textarea');
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = this.newComment.slice(0, cursorPos);
       const textAfterCursor = this.newComment.slice(cursorPos);
@@ -842,7 +797,7 @@ Please provide assistance based on this context, the comment history, the availa
       
       // Focus back on the editor and set cursor position
       this.$nextTick(() => {
-        const editor = document.querySelector('.comment-input .ProseMirror');
+        const editor = document.querySelector('.comment-textarea');
         if (editor) {
           editor.focus();
           
@@ -1111,29 +1066,12 @@ Please provide assistance based on this context, the comment history, the availa
       </el-dialog>
 
       <div class="comment-input">
-        <div v-if="showUserMentions" class="user-mentions">
-          <div
-            v-for="(user, index) in userSuggestions"
-            :key="user.id"
-            :class="['mention-item', { selected: index === selectedUserIndex }]"
-            @click="selectUser(user)">
-            <div class="mention-item-avatar">
-              {{ (user.fullName || user.username).charAt(0).toUpperCase() }}
-            </div>
-            <div class="mention-item-info">
-              <div class="mention-item-name">{{ user.fullName || user.username }}</div>
-              <div class="mention-item-hint">{{ user.email }}</div>
-            </div>
-          </div>
-        </div>
-        
-        <RichTextEditor
+        <TiptapEditor
           v-model="newComment"
-          placeholder="Write a comment... (Type @ to mention someone)"
+          placeholder="Write a comment..."
           @keyup.ctrl.enter="addComment"
-          @keydown="handleTypeaheadNavigation"
-          @input="handleInput"
         />
+        
         <el-button
           type="primary"
           :disabled="!newComment.trim()"
@@ -1142,6 +1080,7 @@ Please provide assistance based on this context, the comment history, the availa
           Add Comment
         </el-button>
       </div>
+      
     </div>
 
     <el-dialog

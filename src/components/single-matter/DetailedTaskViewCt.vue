@@ -202,8 +202,17 @@
               @input="handleDescriptionInput"
               @keydown="handleTypeaheadNavigation" />
             
-            <!-- Typeahead suggestions -->
+            <!-- Typeahead suggestions with close button -->
             <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
+              <div class="typeahead-header">
+                <span>Suggestions</span>
+                <el-button
+                  type="text"
+                  class="close-button"
+                  @click="showTypeahead = false">
+                  <el-icon><Close /></el-icon>
+                </el-button>
+              </div>
               <div
                 v-for="(suggestion, index) in typeaheadSuggestions"
                 :key="index"
@@ -377,7 +386,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -387,7 +396,8 @@ export default {
   components: {
     ArrowLeft,
     DocumentCopy,
-    Folder
+    Folder,
+    Close
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1309,6 +1319,28 @@ h4 {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 8px;
+}
+
+.typeahead-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dcdfe6;
+  background-color: #f5f7fa;
+}
+
+.typeahead-header span {
+  color: #909399;
+  font-size: 0.9em;
+}
+
+.close-button {
+  padding: 2px;
+}
+
+.close-button:hover {
+  color: #409EFF;
 }
 
 .comment-actions {

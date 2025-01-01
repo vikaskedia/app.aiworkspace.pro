@@ -1,9 +1,13 @@
+-- The menu options will be called "talk to dev team" 
+-- The tables instead of being called "feedback" will be called "talktodevteam_topics" and "talktodevteam_replies"
+
 create table feedback_topics (
   id uuid default uuid_generate_v4() primary key,
   title text not null,
   description text not null,
   created_by uuid references auth.users not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  -- also allow file uploads and files will be stored here in the table.
 );
 
 COMMENT ON TABLE feedback_topics IS 'Feedback topics are created by users and can be replied to by anyone who has access to the user feedback system';
@@ -14,6 +18,7 @@ create table feedback_replies (
   content text not null,
   created_by uuid references auth.users not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  -- also allow file uploads and files will be stored here in the table.
 );
 
 create table feedback_system_admins (
@@ -22,7 +27,6 @@ create table feedback_system_admins (
   granted_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Add comment explaining the table's purpose
 COMMENT ON TABLE feedback_system_admins IS 'Stores users who have administrative access to the feedback system. These users can view and reply to all feedback topics.';
 
 -- Enable RLS

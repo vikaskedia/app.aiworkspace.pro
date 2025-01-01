@@ -132,7 +132,7 @@ async function loadFiles() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    const apiUrl = giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
+    const apiUrl = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
     console.log('Making request to:', apiUrl);
     console.log('Environment:', {
       VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
@@ -140,12 +140,9 @@ async function loadFiles() {
     });
 
     const response = await fetch(apiUrl, {
-      headers: {
-        'Authorization': `token ${giteaToken}`,
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
+      method: 'GET',
+      headers: getGiteaHeaders(giteaToken),
+      credentials: 'same-origin'
     });
 
     console.log('Response status:', response.status);
@@ -232,14 +229,8 @@ async function handleFileUpload(file) {
       giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uploadPath}`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Content-Type': 'application/json',
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
         body: JSON.stringify({
           message: `Upload ${file.name}`,
           content: base64Content,
@@ -291,14 +282,8 @@ async function deleteFile(file) {
       giteaHost + `/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
       {
         method: 'DELETE',
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Content-Type': 'application/json',
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
         body: JSON.stringify({
           message: `Delete ${file.name}`,
           sha: file.id,
@@ -358,24 +343,18 @@ async function loadFolders() {
   loading.value = true;
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const path = currentFolder.value?.path || '';
     
-    // Use the environment variable directly
-    const giteaHost = import.meta.env.VITE_GITEA_HOST;
-    const apiUrl = new URL(`/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`, giteaHost);
-    console.log('Full API URL:', apiUrl.toString());
+    // Construct the URL properly
+    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
     
-    const response = await fetch(giteaHost + `/${apiUrl.pathname}`, {
-      headers: {
-        'Authorization': `token ${giteaToken}`,
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: getGiteaHeaders(giteaToken),
+      credentials: 'include',
+      mode: 'cors'
     });
-
-    console.log('Response status:', response.status);
-    console.log('Response URL:', response.url);
 
     if (!response.ok) {
       const text = await response.text();
@@ -540,6 +519,25 @@ function handleSort({ prop, order }) {
   
   files.value = sortedItems.filter(item => item.type !== 'dir');
   folders.value = sortedItems.filter(item => item.type === 'dir');
+}
+
+function getGiteaHeaders(token) {
+  return {
+    'Authorization': `token ${token}`,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache'
+  };
+}
+
+function logRequestDetails(url, options) {
+  console.group('Request Details');
+  console.log('URL:', url);
+  console.log('Method:', options.method);
+  console.log('Headers:', options.headers);
+  console.log('Credentials:', options.credentials);
+  console.log('Mode:', options.mode);
+  console.groupEnd();
 }
 </script>
 

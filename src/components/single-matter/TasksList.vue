@@ -795,17 +795,40 @@ export default {
 
 <style>
 .el-table.tasks-table .cell {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
-.el-table.tasks-table [class*=el-table__row--level] .el-table__expand-icon i {
-    font-size: 17px;
-    font-weight: 600;
+
+.el-table.tasks-table [class*=el-table__row--level] .el-table__expand-icon {
+  font-size: 17px;
+  font-weight: 600;
 }
-span.el-table__indent {
-    padding-left: 20px !important;
+
+/* Preserve indentation for tree structure */
+.el-table__indent {
+  height: 100%;
+  float: left;
+  padding-left: 20px !important;
 }
-tr.el-table__row.el-table__row--level-1 {
-    background-color: #faf9f9;
+
+/* Ensure input field doesn't break indentation */
+.title-with-link .el-input {
+  flex: 1;
+  min-width: 0;
 }
- </style>
+
+/* Maintain proper alignment for title content */
+.title-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.title-with-star {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>

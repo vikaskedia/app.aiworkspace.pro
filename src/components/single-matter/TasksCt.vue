@@ -959,14 +959,28 @@ export default {
     async updateTaskTitle(task) {
       try {
         this.loading = true;
-        const originalTask = this.tasks.find(t => t.id === task.id);
+        
+        // Flatten the tasks array to find subtasks
+        const flattenTasks = (tasks) => {
+          let flat = [];
+          tasks.forEach(t => {
+            flat.push(t);
+            if (t.children?.length) {
+              flat = flat.concat(flattenTasks(t.children));
+            }
+          });
+          return flat;
+        };
+        
+        const allTasks = flattenTasks(this.tasks);
+        const originalTask = allTasks.find(t => t.id === task.id);
+        
         const { data: { user } } = await supabase.auth.getUser();
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('tasks')
           .update({ title: task.title })
-          .eq('id', task.id)
-          .select();
+          .eq('id', task.id);
 
         if (error) throw error;
 

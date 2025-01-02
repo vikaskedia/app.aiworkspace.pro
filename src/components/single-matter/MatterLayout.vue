@@ -63,6 +63,9 @@ export default {
         case 'new_goal':
           component.dialogVisible = true
           break
+        case 'new_event':
+          component.dialogVisible = true
+          break
       }
     }
   }

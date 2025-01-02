@@ -71,6 +71,10 @@ export default {
             { id: 'new_goal', label: 'New Goal', icon: 'Plus', type: 'primary' },
             { id: 'toggle_filters', label: 'Toggle Filters', icon: 'Filter' }
           ]
+        case 'events':
+          return [
+            { id: 'new_event', label: 'New Event', icon: 'Plus', type: 'primary' }
+          ]
         default:
           return []
       }

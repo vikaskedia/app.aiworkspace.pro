@@ -62,7 +62,8 @@ export default {
       const path = this.$route.path;
       return path.includes('/tasks') || 
             path.includes('/files') || 
-            path.includes('/goals');
+            path.includes('/goals') ||
+            path.includes('/events');
     }
   },
   async mounted() {

@@ -116,7 +116,6 @@ export default {
           type="primary" 
           @click="dialogVisible = true"
           :disabled="!currentMatter">
-          <el-icon><Plus /></el-icon>
           New Event
         </el-button>
       </div>

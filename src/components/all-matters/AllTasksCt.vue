@@ -175,7 +175,7 @@
                     {{ scope.row.title }}
                   </span>
                   <span class="logged-hours">
-                    HL: {{ scope.row.log_hours || 0 }}
+                    HL: {{ scope.row.total_hours.toFixed(2) }}
                   </span>
                 </div>
               </div>
@@ -333,7 +333,10 @@ export default {
               title,
               matter_access!inner(shared_with_user_id)
             ),
-            task_stars!left(user_id)
+            task_stars!left(user_id),
+            task_hours_logs!task_id(
+              hours
+            )
           `)
           .eq('deleted', false)
           .eq('task_stars.user_id', user.id)
@@ -376,7 +379,8 @@ export default {
             ...task,
             matter_title: task.matter?.title || 'Unknown Matter',
             assignee_email: assigneeEmail,
-            starred: Boolean(task.task_stars?.length)
+            starred: Boolean(task.task_stars?.length),
+            total_hours: task.task_hours_logs?.reduce((sum, log) => sum + (log.hours || 0), 0) || 0
           };
         }));
 

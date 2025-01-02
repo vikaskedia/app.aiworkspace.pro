@@ -85,3 +85,16 @@ $function$
       ORDER BY auth_users.email::text;
     END;
     $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+CREATE OR REPLACE FUNCTION get_task_total_hours(task_id BIGINT)
+RETURNS NUMERIC AS $$
+BEGIN
+    RETURN COALESCE(
+        (SELECT SUM(hours)
+         FROM task_hours_logs
+         WHERE task_id = $1),
+        0
+    );
+END;
+$$ LANGUAGE plpgsql;

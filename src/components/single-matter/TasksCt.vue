@@ -115,7 +115,10 @@ export default {
           .from('tasks')
           .select(`
             *,
-            task_stars!left(user_id)
+            task_stars!left(user_id),
+            task_hours_logs!task_id (
+              hours
+            )
           `)
           .eq('matter_id', this.currentMatter.id)
           .eq('task_stars.user_id', user.id)
@@ -132,7 +135,8 @@ export default {
         // Transform the data to include starred status
         const transformedTasks = tasks.map(task => ({
           ...task,
-          starred: Boolean(task.task_stars?.length)
+          starred: Boolean(task.task_stars?.length),
+          total_hours: task.task_hours_logs?.reduce((sum, log) => sum + (log.hours || 0), 0) || 0
         }));
 
         this.tasks = this.organizeTasksHierarchy(transformedTasks);

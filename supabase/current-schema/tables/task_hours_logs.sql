@@ -17,7 +17,10 @@ ALTER TABLE task_hours_logs ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 CREATE POLICY "Users can view hours logs on tasks they have access to" ON task_hours_logs
-FOR SELECT USING (
+AS PERMISSIVE
+FOR SELECT 
+TO authenticated 
+USING (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
@@ -27,7 +30,10 @@ FOR SELECT USING (
 );
 
 CREATE POLICY "Users can create hours logs on tasks they have access to" ON task_hours_logs
-FOR INSERT WITH CHECK (
+AS PERMISSIVE
+FOR INSERT 
+TO authenticated 
+WITH CHECK (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (

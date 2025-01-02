@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link, Edit } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted } from 'vue'
@@ -12,7 +12,8 @@ export default {
     InfoFilled,
     Star,
     StarFilled,
-    Link
+    Link,
+    Edit
   },
   props: {
     tasks: {
@@ -32,7 +33,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled'],
+  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled'],
   data() {
     return {
       filters: {
@@ -324,8 +325,11 @@ export default {
       this.saveFilters();
     }
   },
-  setup() {
-    const titleRef = ref(null)
+  setup(props, { emit }) {
+    const titleRefs = ref({})
+    const hoveredRowId = ref(null)
+    const editingTaskId = ref(null)
+    const editingTitle = ref('')
     
     const checkTruncation = (element) => {
       if (element) {
@@ -333,10 +337,35 @@ export default {
       }
       return false
     }
+
+    const startEditing = (task) => {
+      editingTaskId.value = task.id
+      editingTitle.value = task.title
+    }
+
+    const handleTitleSubmit = (task) => {
+      if (editingTitle.value.trim() !== '' && editingTitle.value !== task.title) {
+        emit('update-title', { ...task, title: editingTitle.value.trim() })
+      }
+      editingTaskId.value = null
+      editingTitle.value = ''
+    }
     
     return {
-      titleRef,
-      checkTruncation
+      titleRefs,
+      checkTruncation,
+      hoveredRowId,
+      editingTaskId,
+      editingTitle,
+      startEditing,
+      handleTitleSubmit
+    }
+  },
+  directives: {
+    focus: {
+      mounted(el) {
+        el.querySelector('input').focus()
+      }
     }
   }
 }
@@ -443,7 +472,9 @@ export default {
       class="tasks-table"
       @sort-change="handleSort"
       default-expand-all
-      style="width: 100%">
+      style="width: 100%"
+      @cell-mouse-enter="(row) => hoveredRowId = row.id"
+      @cell-mouse-leave="() => hoveredRowId = null">
       <el-table-column 
         prop="title" 
         label="Title"
@@ -459,25 +490,37 @@ export default {
             <div class="title-content">
               <div class="title-row">
                 <div class="title-with-link">
-                  <el-tooltip
-                    v-if="checkTruncation($refs[`titleRef-${scope.row.id}`])"
-                    effect="dark"
-                    :content="scope.row.title"
-                    placement="top">
+                  <template v-if="editingTaskId === scope.row.id">
+                    <el-input
+                      v-model="editingTitle"
+                      size="small"
+                      @keyup.enter="handleTitleSubmit(scope.row)"
+                      @blur="handleTitleSubmit(scope.row)"
+                      ref="titleInput"
+                      v-focus
+                    />
+                  </template>
+                  <template v-else>
                     <span 
-                      :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
+                      :ref="el => titleRefs[scope.row.id] = el"
                       class="task-title"
                       @click.stop="$emit('view-comments', scope.row)">
                       {{ scope.row.title }}
                     </span>
+                  </template>
+                </div>
+                <div class="actions-wrapper">
+                  <el-tooltip
+                    v-if="hoveredRowId === scope.row.id && editingTaskId !== scope.row.id"
+                    effect="dark"
+                    content="Rename task"
+                    placement="top">
+                    <el-icon 
+                      class="edit-icon"
+                      @click.stop="startEditing(scope.row)">
+                      <Edit />
+                    </el-icon>
                   </el-tooltip>
-                  <span 
-                    v-else 
-                    :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
-                    class="task-title"
-                    @click.stop="$emit('view-comments', scope.row)">
-                    {{ scope.row.title }}
-                  </span>
                   <span class="logged-hours">
                     Hours: {{ (scope.row.total_hours || 0).toFixed(2) }}
                   </span>
@@ -641,7 +684,7 @@ export default {
   font-size: 0.85em;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-left: auto;
 }
 
 .star-icon {
@@ -664,46 +707,17 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 40px);
-}
-
-.star-icon {
-  cursor: pointer;
-  font-size: 18px;
-  color: #909399;
-  transition: color 0.3s;
-  flex-shrink: 0;
-}
-
-.star-icon:hover {
-  color: #f0c541;
-}
-
-.star-icon.starred {
-  color: #f0c541;
-}
-
-.clickable-title {
-  cursor: pointer;
-  color: #409EFF;
-}
-
-.clickable-title:hover {
-  text-decoration: underline;
+  width: 100%;
 }
 
 .title-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
+  flex: 1;
   min-width: 0;
 }
 
 .title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
   width: 100%;
   min-width: 0;
 }
@@ -711,7 +725,6 @@ export default {
 .title-with-link {
   display: flex;
   align-items: center;
-  gap: 8px;
   min-width: 0;
   flex: 1;
 }
@@ -719,15 +732,10 @@ export default {
 .task-title {
   cursor: pointer;
   color: #409EFF;
-  font-weight: normal;
+  margin-right: 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
-  flex: 1;
-  font-size: 14px;
-  line-height: 1.5;
-  padding: 5px 0;
 }
 
 .task-title:hover {
@@ -741,7 +749,7 @@ export default {
   font-size: 0.85em;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-left: auto;
 }
 
 .link-icon {
@@ -757,6 +765,31 @@ export default {
 .link-icon:hover {
   background-color: rgba(64, 158, 255, 0.1);
   transform: scale(1.1);
+}
+
+.edit-icon {
+  cursor: pointer;
+  color: #909399;
+  font-size: 16px;
+  transition: color 0.3s;
+  flex-shrink: 0;
+}
+
+.edit-icon:hover {
+  color: #409EFF;
+}
+
+.actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.el-input {
+  margin-right: 8px;
+  width: calc(100% - 16px);
 }
 </style>
 

@@ -949,6 +949,63 @@ export default {
       } finally {
         this.folderNavigationLoading = false;
       }
+    },
+
+    handleEditTask(task) {
+      this.editingTask = task;
+      this.editDialogVisible = true;
+    },
+
+    async updateTaskTitle(task) {
+      try {
+        this.loading = true;
+        const originalTask = this.tasks.find(t => t.id === task.id);
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ title: task.title })
+          .eq('id', task.id)
+          .select();
+
+        if (error) throw error;
+
+        // Update cache and UI
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const updatedCachedTasks = cachedTasks.map(t => 
+          t.id === task.id ? { ...t, title: task.title } : t
+        );
+        
+        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+
+        // Log the title change as activity
+        if (originalTask.title !== task.title) {
+          await supabase
+            .from('task_comments')
+            .insert({
+              task_id: task.id,
+              user_id: user.id,
+              content: `Updated title from "${originalTask.title}" to "${task.title}"`,
+              type: 'activity',
+              metadata: {
+                action: 'update',
+                changes: {
+                  title: {
+                    from: originalTask.title,
+                    to: task.title
+                  }
+                }
+              }
+            });
+        }
+
+        ElMessage.success('Task title updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating task title: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
     }
   },
 
@@ -1061,16 +1118,13 @@ export default {
         :tasks="tasks"
         :loading="loading"
         :shared-users="sharedUsers"
-        v-model:show-filters="showFilters"
+        :show-filters="showFilters"
+        @update-title="updateTaskTitle"
+        @edit="handleEditTask"
         v-model:active-filters-count="activeFiltersCount"
         @load-tasks="loadTasks"
         @show-deleted-changed="loadTasks"
         @star-toggled="handleStarToggled"
-        @edit="async (task) => {
-          editingTask = {...task};
-          await loadSharedUsers();
-          editDialogVisible = true;
-        }"
         @view-comments="(task) => {
           selectedTask = task;
           commentDialogVisible = true;

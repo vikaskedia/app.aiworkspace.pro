@@ -457,7 +457,7 @@ export default {
         prop="status" 
         label="Status"
         sortable
-        width="120">
+        width="100">
         <template #default="scope">
           <div class="status-container">
             <el-tag :type="getStatusType(scope.row)">
@@ -483,7 +483,7 @@ export default {
         prop="priority" 
         label="Priority"
         sortable
-        width="120">
+        width="100">
         <template #default="scope">
           <el-tag :type="
             scope.row.priority === 'high' ? 'danger' :
@@ -519,7 +519,7 @@ export default {
       
       <el-table-column 
         label="Actions"
-        width="200"
+        width="120"
         align="center">
         <template #default="scope">
           <el-button

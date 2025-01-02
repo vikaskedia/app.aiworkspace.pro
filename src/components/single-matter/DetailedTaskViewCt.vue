@@ -142,7 +142,7 @@
                     >(edited {{ comment.comment_edit_history.length }} times)</span>
                   </span>
                   <el-button 
-                    v-if="comment.user_id === currentUser?.id && comments[0].id === comment.id"
+                    v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
                     link
                     @click="startEditing(comment)"
                   >
@@ -1000,10 +1000,15 @@ export default {
     },
 
     startEditing(comment) {
-      // Only allow editing if this is the latest comment
-      const isLatestComment = this.comments[0].id === comment.id;
-      if (!isLatestComment) {
-        ElMessage.warning('Only the most recent comment can be edited');
+      // Don't allow editing of activity type comments
+      if (comment.type === 'activity') {
+        ElMessage.warning('System-generated activity comments cannot be edited');
+        return;
+      }
+
+      // Only allow editing of own comments
+      if (comment.user_id !== this.currentUser?.id) {
+        ElMessage.warning('You can only edit your own comments');
         return;
       }
       

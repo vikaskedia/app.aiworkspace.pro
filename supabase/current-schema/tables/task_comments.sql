@@ -21,8 +21,12 @@ CREATE INDEX task_comments_user_id_idx ON task_comments(user_id);
 ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
 
 -- Policies
-CREATE POLICY "Users can view comments on tasks they have access to" ON task_comments
-FOR SELECT USING (
+CREATE POLICY "Users can view comments on tasks they have access to" 
+ON task_comments
+AS PERMISSIVE
+FOR SELECT
+TO authenticated 
+USING (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
@@ -31,8 +35,12 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "Users can create comments on tasks they have access to" ON task_comments
-FOR INSERT WITH CHECK (
+CREATE POLICY "Users can create comments on tasks they have edit access to" 
+ON task_comments
+AS PERMISSIVE
+FOR INSERT 
+TO authenticated 
+WITH CHECK (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
@@ -41,8 +49,12 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "Users can update their own comments" ON task_comments
-FOR UPDATE USING (
+CREATE POLICY "Users can update their own comments" 
+ON task_comments
+AS PERMISSIVE
+FOR UPDATE 
+TO authenticated 
+USING (
   user_id = auth.uid() AND
   task_id IN (
     SELECT t.id FROM tasks t

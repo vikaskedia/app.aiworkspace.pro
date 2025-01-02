@@ -36,22 +36,33 @@ ALTER TABLE matter_access ENABLE ROW LEVEL SECURITY;
 
 -- Policies for matter_access
 CREATE POLICY "Users can view matter access" ON matter_access
-FOR SELECT USING (
-    shared_with_user_id = auth.uid()
+AS PERMISSIVE
+FOR SELECT 
+TO authenticated 
+USING (
+    true
 );
 
 CREATE POLICY "Users with edit access can create shares" ON matter_access
-FOR INSERT WITH CHECK (
+AS PERMISSIVE
+FOR INSERT 
+TO authenticated 
+WITH CHECK (
     matter_id IN (
-        SELECT matter_id FROM matter_access 
-        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+        SELECT matter_access_1.matter_id
+        FROM matter_access matter_access_1
+        WHERE (matter_access_1.shared_with_user_id = auth.uid() AND (matter_access_1.access_type)::text = 'edit'::text)
     )
 );
 
 CREATE POLICY "Users with edit access can delete shares" ON matter_access
-FOR DELETE USING (
+AS PERMISSIVE
+FOR DELETE 
+TO authenticated 
+USING (
     matter_id IN (
-        SELECT matter_id FROM matter_access 
-        WHERE shared_with_user_id = auth.uid() AND access_type = 'edit'
+        SELECT matter_access_1.matter_id
+        FROM matter_access matter_access_1
+        WHERE (matter_access_1.shared_with_user_id = auth.uid() AND (matter_access_1.access_type)::text = 'edit'::text)
     )
 );

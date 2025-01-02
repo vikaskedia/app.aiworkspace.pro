@@ -77,19 +77,29 @@ ALTER TABLE matters ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS Policies
 CREATE POLICY "Users can create matters" 
-    ON matters FOR INSERT 
+    ON matters 
+    TO authenticated 
+    FOR INSERT 
     WITH CHECK (created_by = auth.uid());
 
 CREATE POLICY "Users can view matters" 
-    ON matters FOR SELECT 
-    USING (id IN (
-        SELECT matter_id 
-        FROM matter_access 
-        WHERE shared_with_user_id = auth.uid()
-    ));
+    ON matters 
+    TO authenticated 
+    FOR SELECT 
+    USING (
+        (id IN (
+            SELECT matter_id 
+            FROM matter_access 
+            WHERE shared_with_user_id = auth.uid()
+        ))
+        OR
+        (created_by = auth.uid())
+    );
 
 CREATE POLICY "Users can update matters" 
-    ON matters FOR UPDATE 
+    ON matters
+    TO authenticated 
+    FOR UPDATE 
     USING (id IN (
         SELECT matter_id 
         FROM matter_access 
@@ -98,7 +108,9 @@ CREATE POLICY "Users can update matters"
     ));
 
 CREATE POLICY "Users can soft delete matters" 
-    ON matters FOR UPDATE 
+    ON matters
+    TO authenticated 
+    FOR UPDATE 
     USING (
         id IN (
             SELECT matter_id 

@@ -1,8 +1,9 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
+import { ref, onMounted } from 'vue'
 
 export default {
   components: {
@@ -10,7 +11,8 @@ export default {
     ArrowDown,
     InfoFilled,
     Star,
-    StarFilled
+    StarFilled,
+    Link
   },
   props: {
     tasks: {
@@ -321,6 +323,21 @@ export default {
       this.filters.excludeStatus = ['completed'];
       this.saveFilters();
     }
+  },
+  setup() {
+    const titleRef = ref(null)
+    
+    const checkTruncation = (element) => {
+      if (element) {
+        return element.offsetWidth < element.scrollWidth
+      }
+      return false
+    }
+    
+    return {
+      titleRef,
+      checkTruncation
+    }
   }
 }
 </script>
@@ -438,18 +455,51 @@ export default {
               <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
             </el-icon>
             <div class="title-content">
-              <div class="title-hours-container">
-                <span 
-                  class="clickable-title"
-                  @click="$emit('view-comments', scope.row)">
-                  {{ scope.row.title }}
-                </span>
-                <span class="logged-hours">
-                  Hours: {{ scope.row.total_hours || 0 }}
-                </span>
+              <div class="title-row">
+                <div class="title-with-link">
+                  <el-tooltip
+                    effect="dark"
+                    content="Open Quick Task View"
+                    placement="top">
+                    <el-icon
+                      class="link-icon"
+                      @click.stop="$emit('view-comments', scope.row)">
+                      <Link />
+                    </el-icon>
+                  </el-tooltip>
+                  <el-tooltip
+                    v-if="checkTruncation($refs[`titleRef-${scope.row.id}`])"
+                    effect="dark"
+                    :content="scope.row.title"
+                    placement="top">
+                    <span 
+                      :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
+                      class="task-title">
+                      {{ scope.row.title }}
+                    </span>
+                  </el-tooltip>
+                  <span 
+                    v-else 
+                    :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
+                    class="task-title">
+                    {{ scope.row.title }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+        </template>
+      </el-table-column>
+      
+      <el-table-column 
+        prop="total_hours" 
+        label="Hours"
+        sortable
+        width="90">
+        <template #default="scope">
+          <span class="logged-hours">
+            {{ (scope.row.total_hours || 0).toFixed(2) }}
+          </span>
         </template>
       </el-table-column>
       
@@ -657,19 +707,34 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex-grow: 1;
+  min-width: 0;
 }
 
-.logged-hours {
-  background-color: var(--el-color-info-light-9);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  width: fit-content;
-}
-
-.title-content {
+.title-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.title-with-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.task-title {
+  color: #606266;
+  font-weight: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 
 .logged-hours {
@@ -678,5 +743,21 @@ export default {
   border-radius: 4px;
   font-size: 0.85em;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.link-icon {
+  color: #409EFF;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.link-icon:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+  transform: scale(1.1);
 }
 </style>

@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { FullScreen, Close, Folder } from '@element-plus/icons-vue';
+import { FullScreen, Close, Folder, Document } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
@@ -14,7 +14,8 @@ export default {
     Folder,
     EditableTable,
     RichTextEditor,
-    TiptapEditor
+    TiptapEditor,
+    Document
   },
   props: {
     task: {
@@ -114,20 +115,12 @@ export default {
     formatCommentContent(text) {
       if (!text) return '';
       
-      // First handle user mentions with el-tag
-      text = text.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
-        '<el-tag size="small" type="info" class="mention-tag">@$1</el-tag>'
-      );
-      
-      // Then handle regular markdown links
-      text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
-        '<a href="$2" target="_blank" class="file-link">$1</a>'
-      );
-      
-      // Handle tables
-      text = this.formatTables(text);
-      
-      return text;
+      // Replace markdown file links with custom file links
+      return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, fileUrl) => {
+        return `<a class="file-link" href="${fileUrl}" target="_blank" title="Click to view file">
+          ${fileName}
+        </a>`;
+      });
     },
     async loadComments() {
       try {
@@ -1141,7 +1134,6 @@ Please provide assistance based on this context, the comment history, the availa
 }
 
 .description-content {
-  white-space: pre-wrap;
   word-break: break-word;
   transition: max-height 0.3s ease-out;
   overflow: hidden;
@@ -1391,5 +1383,20 @@ Please provide assistance based on this context, the comment history, the availa
 /* Add this to ensure proper positioning */
 .comment-input {
   position: relative;
+}
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: none;
+}
+
+.file-link .file-icon {
+  font-size: 14px;
 }
 </style>

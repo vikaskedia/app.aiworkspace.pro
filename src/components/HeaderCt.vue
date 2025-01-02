@@ -57,6 +57,12 @@ export default {
     currentMatter() {
       const matterStore = useMatterStore();
       return matterStore.currentMatter;
+    },
+    hasQuickActions() {
+      const path = this.$route.path;
+      return path.includes('/tasks') || 
+            path.includes('/files') || 
+            path.includes('/goals');
     }
   },
   async mounted() {
@@ -237,8 +243,8 @@ export default {
       <img 
         src="/associate-ai-attorney-logo.svg" 
         alt="Logo" 
-        class="logo-image clickable"
-        @click="$emit('logo-click')" 
+        :class="['logo-image', { clickable: hasQuickActions }]"
+        @click="hasQuickActions && $emit('logo-click')" 
       />
       <h1>Legal Studio</h1>
     </div>
@@ -367,6 +373,16 @@ export default {
   background-color: white;
   padding: 6px;
   border-radius: 8px;
+  cursor: default;
+}
+
+.logo-image.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logo-image.clickable:hover {
+  opacity: 0.8;
 }
 
 .header-left h1 {

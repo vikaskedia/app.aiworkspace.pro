@@ -225,8 +225,8 @@
               type="textarea"
               :rows="3"
               class="description-input"
-              placeholder="Write a description..."
-              @input="handleDescriptionInput"
+              placeholder="Write a description... (Type @files to mention a file)"
+              @input="(event) => { handleInput(event); handleDescriptionInput(event); }"
               @keydown="handleTypeaheadNavigation" />
             
             <!-- Typeahead suggestions with close button -->
@@ -440,7 +440,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -451,7 +451,8 @@ export default {
     ArrowLeft,
     DocumentCopy,
     Folder,
-    Close
+    Close,
+    Document
   },
   setup() {
     const matterStore = useMatterStore();
@@ -892,18 +893,15 @@ export default {
         this.sending = false;
       }
     },
-    formatCommentContent(content) {
-      if (!content) return '';
-      return content.replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g, 
-        (match, text, url) => {
-          // Only allow gitea links
-          if (url.includes('/g.associateattorney.ai/')) {
-            return `<a href="${url}" target="_blank" class="file-link">${text}</a>`;
-          }
-          return match;
-        }
-      );
+    formatCommentContent(text) {
+      if (!text) return '';
+      
+      // Replace markdown file links with custom file links
+      return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, fileUrl) => {
+        return `<a class="file-link" href="${fileUrl}" target="_blank" title="Click to view file">
+          ${fileName}
+        </a>`;
+      });
     },
     async loadFiles() {
       try {
@@ -972,7 +970,7 @@ export default {
       const textarea = document.activeElement;
       const selectionStart = textarea?.selectionStart || 0;
       
-      const lastWord = text.slice(0, selectionStart).split(' ').pop();
+      const lastWord = text.slice(0, selectionStart).split(/\s+/).pop();
       
       if (lastWord === '@files') {
         this.showFileSelector = true;
@@ -1130,9 +1128,8 @@ export default {
     },
 
     handleDescriptionInput(event) {
-      const text = event;
-      const textarea = document.querySelector('.description-input textarea');
-      const cursorPos = textarea?.selectionStart || 0;
+      const text = typeof event === 'string' ? event : event?.target?.value || '';
+      const cursorPos = typeof event === 'string' ? event.length : event?.target?.selectionStart || 0;
 
       if (this.typeaheadTimer) {
         clearTimeout(this.typeaheadTimer);
@@ -1300,7 +1297,6 @@ export default {
 .description {
   margin-top: 16px;
   color: #606266;
-  white-space: pre-wrap;
 }
 
 .task-comments {

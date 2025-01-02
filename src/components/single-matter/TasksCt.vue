@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
-import { ArrowDown, Close } from '@element-plus/icons-vue'
+import { ArrowDown, Close, Folder, Loading } from '@element-plus/icons-vue'
 import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 
 export default {
@@ -21,7 +21,9 @@ export default {
     TasksList,
     ArrowDown,
     Close,
-    QuickActionDrawer
+    QuickActionDrawer,
+    Folder,
+    Loading
   },
   data() {
     return {
@@ -69,6 +71,14 @@ export default {
       typeaheadSelectedIndex: -1,
       typeaheadTimer: null,
       showQuickActions: false,
+      showFileSelector: false,
+      mentionIndex: 0,
+      files: [],
+      folders: [],
+      currentSelectorFolder: null,
+      fileSearchQuery: '',
+      selectorBreadcrumbs: [],
+      folderNavigationLoading: false,
     };
   },
   watch: {
@@ -791,45 +801,29 @@ export default {
     },
 
     handleDescriptionInput(event) {
-      // For el-input, the event is directly the new value
       const text = event;
       const textarea = document.querySelector('.description-input textarea');
       const cursorPos = textarea?.selectionStart || 0;
-
-      // Clear any existing timer
-      if (this.typeaheadTimer) {
-        clearTimeout(this.typeaheadTimer);
-      }
       
-      // Set a new timer to avoid too many API calls
-      this.typeaheadTimer = setTimeout(() => {
-        this.getTypeaheadSuggestions(text, cursorPos);
-      }, 300);
+      const textBeforeCursor = text.slice(0, cursorPos);
+      const lastWord = textBeforeCursor.split(/\s+/).pop();
+      
+      if (lastWord === '@files') {
+        this.showFileSelector = true;
+        this.mentionIndex = cursorPos;
+        this.loadFiles();
+      }
     },
 
-    applySuggestion(suggestion) {
+    selectFile(file) {
       const textarea = document.querySelector('.description-input textarea');
-      const cursorPos = textarea.selectionStart;
       const text = this.newTask.description;
+      const beforeMention = text.slice(0, this.mentionIndex - 6); // Remove '@files'
+      const afterMention = text.slice(this.mentionIndex);
       
-      // Find the last word before cursor
-      const words = text.slice(0, cursorPos).split(' ');
-      const lastWord = words[words.length - 1];
-      
-      // Replace the incomplete word with the suggestion
-      words[words.length - 1] = suggestion;
-      this.newTask.description = words.join(' ') + text.slice(cursorPos);
-      
-      // Reset typeahead
-      this.showTypeahead = false;
-      this.typeaheadSuggestions = [];
-      
-      // Set cursor position after the inserted suggestion
-      this.$nextTick(() => {
-        const newPos = cursorPos - lastWord.length + suggestion.length;
-        textarea.setSelectionRange(newPos, newPos);
-        textarea.focus();
-      });
+      this.newTask.description = `${beforeMention}[${file.name}](${file.download_url})${afterMention}`;
+      this.showFileSelector = false;
+      this.fileSearchQuery = '';
     },
 
     handleTypeaheadNavigation(event) {
@@ -871,6 +865,85 @@ export default {
         case 'manage_filters':
           this.savedFiltersDialogVisible = true
           break
+      }
+    },
+
+    async loadFiles() {
+      if (!this.currentMatter) return;
+      
+      try {
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const path = this.currentSelectorFolder?.path || '';
+        
+        const response = await fetch(
+          `/gitea/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${path}`,
+          {
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          }
+        );
+
+        if (!response.ok) throw new Error('Failed to fetch files');
+        
+        const contents = await response.json();
+        
+        this.folders = contents
+          .filter(item => item.type === 'dir')
+          .map(folder => ({
+            id: folder.sha,
+            name: folder.name,
+            path: folder.path,
+            type: 'dir'
+          }));
+
+        this.files = contents
+          .filter(item => item.type === 'file' && item.name !== '.gitkeep')
+          .map(file => ({
+            id: file.sha,
+            name: file.name,
+            path: file.path,
+            type: 'file',
+            download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+          }));
+
+      } catch (error) {
+        ElMessage.error('Error loading files: ' + error.message);
+        this.files = [];
+        this.folders = [];
+      }
+    },
+
+    async navigateSelectorFolder(folder) {
+      try {
+        this.folderNavigationLoading = true;
+        if (!folder) {
+          // Reset to root
+          this.currentSelectorFolder = null;
+          this.selectorBreadcrumbs = [];
+        } else {
+          // Find if folder exists in current breadcrumbs
+          const existingIndex = this.selectorBreadcrumbs.findIndex(f => f.id === folder.id);
+          
+          if (existingIndex >= 0) {
+            // Clicking a folder in breadcrumbs - truncate to that point
+            this.selectorBreadcrumbs = this.selectorBreadcrumbs.slice(0, existingIndex + 1);
+          } else {
+            // New folder - add to breadcrumbs
+            this.selectorBreadcrumbs.push(folder);
+          }
+          this.currentSelectorFolder = folder;
+        }
+
+        await this.loadFiles();
+      } catch (error) {
+        ElMessage.error('Error navigating to folder: ' + error.message);
+        this.currentSelectorFolder = null;
+        this.selectorBreadcrumbs = [];
+      } finally {
+        this.folderNavigationLoading = false;
       }
     }
   },
@@ -1260,6 +1333,60 @@ export default {
           </el-table-column>
         </el-table>
       </el-dialog>
+
+      <!-- File Selector Dialog -->
+      <el-dialog
+        v-model="showFileSelector"
+        title="Select File"
+        width="500px">
+        <div class="file-selector">
+          <div class="file-selector-header">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item 
+                @click="navigateSelectorFolder(null)"
+                :class="{ clickable: currentSelectorFolder }">
+                Root
+              </el-breadcrumb-item>
+              <el-breadcrumb-item 
+                v-for="folder in selectorBreadcrumbs" 
+                :key="folder.id"
+                @click="navigateSelectorFolder(folder)"
+                :class="{ clickable: folder.id !== currentSelectorFolder?.id }">
+                {{ folder.name }}
+              </el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+
+          <el-input
+            v-model="fileSearchQuery"
+            placeholder="Search files..."
+            clearable />
+          
+          <div class="files-list">
+            <div v-if="folderNavigationLoading" class="loading-container">
+              <el-icon class="is-loading"><Loading /></el-icon>
+              <span>Loading folder contents...</span>
+            </div>
+            <template v-else>
+              <div
+                v-for="folder in folders"
+                :key="folder.id"
+                class="file-item"
+                @click="navigateSelectorFolder(folder)">
+                <el-icon><Folder /></el-icon>
+                {{ folder.name }}
+              </div>
+              <div
+                v-for="file in files"
+                :key="file.id"
+                class="file-item"
+                @click="selectFile(file)">
+                {{ file.name }}
+              </div>
+            </template>
+          </div>
+        </div>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -1396,5 +1523,51 @@ label.el-checkbox.task-checkbox {
 .suggestion-item:hover,
 .suggestion-item.selected {
   background-color: #f5f7fa;
+}
+
+.file-selector {
+  .file-selector-header {
+    margin-bottom: 1rem;
+  }
+  
+  .files-list {
+    margin-top: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .file-item {
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    &:hover {
+      background-color: #f5f7fa;
+    }
+  }
+  
+  .clickable {
+    color: #409EFF;
+    cursor: pointer;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: #909399;
+    
+    .el-icon {
+      font-size: 20px;
+    }
+  }
 }
 </style> 

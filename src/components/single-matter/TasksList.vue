@@ -460,48 +460,31 @@ export default {
               <div class="title-row">
                 <div class="title-with-link">
                   <el-tooltip
-                    effect="dark"
-                    content="Open Quick Task View"
-                    placement="top">
-                    <el-icon
-                      class="link-icon"
-                      @click.stop="$emit('view-comments', scope.row)">
-                      <Link />
-                    </el-icon>
-                  </el-tooltip>
-                  <el-tooltip
                     v-if="checkTruncation($refs[`titleRef-${scope.row.id}`])"
                     effect="dark"
                     :content="scope.row.title"
                     placement="top">
                     <span 
                       :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
-                      class="task-title">
+                      class="task-title"
+                      @click.stop="$emit('view-comments', scope.row)">
                       {{ scope.row.title }}
                     </span>
                   </el-tooltip>
                   <span 
                     v-else 
                     :ref="el => { if (el) $refs[`titleRef-${scope.row.id}`] = el }"
-                    class="task-title">
+                    class="task-title"
+                    @click.stop="$emit('view-comments', scope.row)">
                     {{ scope.row.title }}
+                  </span>
+                  <span class="logged-hours">
+                    Hours: {{ (scope.row.total_hours || 0).toFixed(2) }}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        prop="total_hours" 
-        label="Hours"
-        sortable
-        width="90">
-        <template #default="scope">
-          <span class="logged-hours">
-            {{ (scope.row.total_hours || 0).toFixed(2) }}
-          </span>
         </template>
       </el-table-column>
       
@@ -653,9 +636,12 @@ export default {
 
 .logged-hours {
   background-color: var(--el-color-info-light-9);
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.9em;
+  font-size: 0.85em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .star-icon {
@@ -731,13 +717,21 @@ export default {
 }
 
 .task-title {
-  color: #606266;
+  cursor: pointer;
+  color: #409EFF;
   font-weight: normal;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
   flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 5px 0;
+}
+
+.task-title:hover {
+  text-decoration: underline;
 }
 
 .logged-hours {
@@ -747,6 +741,7 @@ export default {
   font-size: 0.85em;
   white-space: nowrap;
   flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .link-icon {

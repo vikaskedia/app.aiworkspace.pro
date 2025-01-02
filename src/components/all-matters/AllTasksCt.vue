@@ -144,12 +144,15 @@
       <el-table
         v-loading="loading"
         :data="tasks"
+        row-key="id"
+        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+        default-expand-all
         style="width: 100%"
         @row-click="navigateToTask">
         <el-table-column 
           prop="matter_title" 
           label="Matter"
-          min-width="150">
+          min-width="120">
           <template #default="scope">
             <el-link 
               type="primary" 
@@ -184,7 +187,7 @@
         </el-table-column>
         <el-table-column 
           label="Status"
-          width="120">
+          width="110">
           <template #default="scope">
             <el-tag :type="getStatusType(scope.row)">
               {{ formatStatus(scope.row.status) }}
@@ -194,7 +197,7 @@
         <el-table-column 
           prop="priority" 
           label="Priority"
-          width="120">
+          width="100">
           <template #default="scope">
             <el-tag :type="
               scope.row.priority === 'high' ? 'danger' :
@@ -207,7 +210,7 @@
         <el-table-column 
           prop="due_date" 
           label="Due Date"
-          width="150">
+          width="100">
           <template #default="scope">
             {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
           </template>
@@ -215,7 +218,7 @@
         <el-table-column 
           prop="assignee_email" 
           label="Assignee"
-          min-width="180">
+          width="200">
           <template #default="scope">
             {{ scope.row.assignee_email || '-' }}
           </template>
@@ -370,7 +373,7 @@ export default {
         if (error) throw error;
 
         // Transform the data
-        this.tasks = await Promise.all(tasks.map(async task => {
+        const transformedTasks = await Promise.all(tasks.map(async task => {
           const assigneeEmail = task.assignee ? 
             await this.loadUserEmail(task.assignee) : 
             null;
@@ -383,6 +386,9 @@ export default {
             total_hours: task.task_hours_logs?.reduce((sum, log) => sum + (log.hours || 0), 0) || 0
           };
         }));
+
+        // Organize into hierarchy
+        this.tasks = this.organizeTasksHierarchy(transformedTasks);
 
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);
@@ -635,6 +641,23 @@ export default {
         user.email.toLowerCase().includes(normalizedQuery)
       );
     },
+
+    organizeTasksHierarchy(tasks) {
+      // Create a map of all tasks
+      const taskMap = new Map(tasks.map(task => [task.id, { ...task, children: [] }]));
+      const rootTasks = [];
+
+      // Organize tasks into hierarchy
+      for (const task of taskMap.values()) {
+        if (task.parent_task_id && taskMap.has(task.parent_task_id)) {
+          taskMap.get(task.parent_task_id).children.push(task);
+        } else {
+          rootTasks.push(task);
+        }
+      }
+
+      return rootTasks;
+    },
   },
   mounted() {
     this.loadSavedFilters();
@@ -746,5 +769,18 @@ export default {
   border-radius: 4px;
   font-size: 0.85em;
   white-space: nowrap;
+}
+
+:deep(.el-table__expand-icon) {
+  height: 20px;
+  margin-right: 8px;
+}
+
+:deep(.el-table [class*=el-table__row--level] .el-table__expand-icon) {
+  margin-right: 8px;
+}
+
+:deep(.el-table__indent) {
+  padding-left: 15px !important;
 }
 </style> 

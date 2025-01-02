@@ -440,7 +440,9 @@ export default {
       :data="filteredTasks"
       row-key="id"
       :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+      class="tasks-table"
       @sort-change="handleSort"
+      default-expand-all
       style="width: 100%">
       <el-table-column 
         prop="title" 
@@ -676,6 +678,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: calc(100% - 40px);
 }
 
 .star-icon {
@@ -761,3 +764,20 @@ export default {
   transform: scale(1.1);
 }
 </style>
+
+<style>
+.el-table.tasks-table .cell {
+    display: flex;
+    align-items: center;
+}
+.el-table.tasks-table [class*=el-table__row--level] .el-table__expand-icon i {
+    font-size: 17px;
+    font-weight: 600;
+}
+span.el-table__indent {
+    padding-left: 20px !important;
+}
+tr.el-table__row.el-table__row--level-1 {
+    background-color: #faf9f9;
+}
+ </style>

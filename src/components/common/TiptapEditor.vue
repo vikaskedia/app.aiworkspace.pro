@@ -277,6 +277,7 @@ export default {
       showFileDialog: false,
       processedMentions: [],
       typeaheadTimer: null,
+      mentionPopup: null,
     }
   },
   watch: {
@@ -310,6 +311,18 @@ export default {
         FileUpload,
         Typeahead.configure({
           onKeyDown: ({ text, cursorPosition, event }) => {
+            // Get the last word
+            const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
+            
+            // If last word starts with @, hide typeahead and return
+            if (lastWord?.startsWith('@')) {
+              if (this.showTypeahead) {
+                this.showTypeahead = false
+                this.typeaheadSuggestions = []
+              }
+              return false
+            }
+
             // Handle navigation keys
             if (this.showTypeahead && this.typeaheadSuggestions.length) {
               switch (event.key) {
@@ -347,8 +360,7 @@ export default {
             }
 
             // Check for typeahead trigger
-            const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
-            if (lastWord && lastWord.length > 2) {
+            if (lastWord && lastWord.length > 2 && !lastWord.startsWith('@')) {
               if (this.typeaheadTimer) {
                 clearTimeout(this.typeaheadTimer)
               }
@@ -363,16 +375,22 @@ export default {
         Mention.configure({
           suggestion: {
             items: ({ query }) => {
-              console.log('Getting mention items for:', query, this.sharedUsers)
-              const normalizedQuery = query.toLowerCase()
-              return this.sharedUsers.filter(user =>
-                user.fullName?.toLowerCase().includes(normalizedQuery) ||
-                user.username?.toLowerCase().includes(normalizedQuery) ||
-                user.email.toLowerCase().includes(normalizedQuery)
-              ).map(user => ({
-                id: user.id,
-                label: user.fullName || user.username || user.email
-              }))
+              const normalizedQuery = query?.toLowerCase() || ''
+              return this.sharedUsers
+                .filter(user => {
+                  const username = user.username?.toLowerCase() || ''
+                  const fullName = user.fullName?.toLowerCase() || ''
+                  const email = user.email?.toLowerCase() || ''
+                  
+                  return username.includes(normalizedQuery) ||
+                         fullName.includes(normalizedQuery) ||
+                         email.includes(normalizedQuery)
+                })
+                .slice(0, 5)
+                .map(user => ({
+                  id: user.id,
+                  label: user.username || user.email.split('@')[0] // Prioritize username, fallback to email username
+                }))
             },
             command: ({ editor, range, props }) => {
               editor
@@ -518,9 +536,22 @@ export default {
       if (!this.showTypeahead) {
         // Check if we should show typeahead
         const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
-        if (lastWord && lastWord.length > 2) { // Only show after 2 characters
+        
+        // Only show typeahead if:
+        // 1. There is a last word
+        // 2. The word is longer than 2 characters
+        // 3. The word doesn't start with @
+        // 4. The last character isn't a space
+        if (lastWord && 
+            lastWord.length > 2 && 
+            !lastWord.startsWith('@') && 
+            !text.slice(cursorPosition - 1, cursorPosition).match(/\s/)) {
           this.debouncedGetSuggestions(text, cursorPosition)
           this.updateTypeaheadPosition()
+        } else {
+          // Hide typeahead if conditions aren't met
+          this.showTypeahead = false
+          this.typeaheadSuggestions = []
         }
       } else {
         // Handle navigation
@@ -749,34 +780,48 @@ export default {
       return popupContent
     },
 
-    handleMentionKeydown({ event, command, items, selectedIndex }) {
-      if (!items || !Array.isArray(items)) {
-        return false
-      }
-
+    handleMentionKeydown({ items, command, event, selectedIndex }) {
+      if (!items || !items.length) return false
+      
       switch (event.key) {
-        case 'ArrowUp':
+        case 'ArrowUp': {
           event.preventDefault()
           const prevIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1
           command({ selectedIndex: prevIndex })
           return true
-        case 'ArrowDown':
+        }
+          
+        case 'ArrowDown': {
           event.preventDefault()
           const nextIndex = selectedIndex >= items.length - 1 ? 0 : selectedIndex + 1
           command({ selectedIndex: nextIndex })
           return true
+        }
+          
         case 'Enter':
-        case 'Tab':
+        case 'Tab': {
           event.preventDefault()
           if (selectedIndex >= 0 && items[selectedIndex]) {
             command(items[selectedIndex])
           }
           return true
-        case 'Escape':
+        }
+          
+        case 'Escape': {
           event.preventDefault()
+          this.destroyMentionPopup()
           return true
+        }
       }
+      
       return false
+    },
+
+    destroyMentionPopup() {
+      if (this.mentionPopup) {
+        this.mentionPopup.destroy()
+        this.mentionPopup = null
+      }
     },
 
     async handleMentions(editor) {
@@ -818,15 +863,46 @@ export default {
     },
 
     renderMentionPopup(props) {
-      return tippy('body', {
-        getReferenceClientRect: props.clientRect,
-        appendTo: () => document.body,
-        content: this.renderPopup(props),
-        showOnCreate: true,
-        interactive: true,
-        trigger: 'manual',
-        placement: 'bottom-start',
-      })[0]
+      const { items, command, selectedIndex } = props
+      
+      const wrapper = document.createElement('div')
+      wrapper.className = 'mention-popup'
+      
+      items.forEach((item, index) => {
+        const itemEl = document.createElement('div')
+        itemEl.className = `mention-item ${index === selectedIndex ? 'selected' : ''}`
+        
+        const avatarLetter = (item.label[0] || '').toUpperCase()
+        
+        itemEl.innerHTML = `
+          <div class="mention-item-avatar">${avatarLetter}</div>
+          <div class="mention-item-info">
+            <div class="mention-item-name">${item.label}</div>
+          </div>
+        `
+        
+        itemEl.addEventListener('click', () => command(item))
+        wrapper.appendChild(itemEl)
+      })
+      
+      if (!this.mentionPopup) {
+        this.mentionPopup = tippy('body', {
+          getReferenceClientRect: props.clientRect,
+          appendTo: () => document.body,
+          content: wrapper,
+          showOnCreate: true,
+          interactive: true,
+          trigger: 'manual',
+          placement: 'bottom-start',
+        })[0]
+      } else {
+        this.mentionPopup.setProps({
+          getReferenceClientRect: props.clientRect,
+          content: wrapper
+        })
+      }
+      
+      return this.mentionPopup
     },
 
     updateMentionPopup(props) {
@@ -998,9 +1074,11 @@ export default {
     padding: 0.5em;
     cursor: pointer;
     border-radius: 4px;
+    color: var(--el-text-color-primary);
     
     &:hover, &.selected {
       background: #edf2fc;
+      color: var(--el-color-primary);
     }
     
     .mention-item-avatar {
@@ -1018,7 +1096,7 @@ export default {
     
     .mention-item-info {
       .mention-item-name {
-        font-size: 14px;
+        font-weight: 500;
       }
     }
   }
@@ -1060,5 +1138,8 @@ export default {
 }
 .el-breadcrumb {
     margin-bottom: 7px;
+}
+.mention-item:hover .mention-item-name, .mention-item.selected .mention-item-name {
+    color: #444;
 }
 </style>

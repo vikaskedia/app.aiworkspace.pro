@@ -111,6 +111,48 @@ export default {
     }
   },
   methods: {
+    async loadSharedUsers() {
+      try {
+        const { data: shares, error } = await supabase
+          .from('matter_access')
+          .select('shared_with_user_id, access_type')
+          .eq('matter_id', this.currentMatter.id);
+
+        if (error) throw error;
+
+        const sharesWithUserInfo = await Promise.all(
+          shares.map(async (share) => {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: share.shared_with_user_id
+              });
+
+            // Add console.log to debug user data
+            console.log('User data from RPC:', userData);
+
+            if (!userData || !userData[0]) {
+              console.error('No user data found for ID:', share.shared_with_user_id);
+              return null;
+            }
+
+            return {
+              id: share.shared_with_user_id,
+              email: userData[0].email,
+              username: userData[0].username || userData[0].email.split('@')[0], // Fallback to email username
+              fullName: userData[0].full_name,
+              access_type: share.access_type
+            };
+          })
+        );
+
+        // Filter out any null values from failed user lookups
+        this.sharedUsers = sharesWithUserInfo.filter(user => user !== null);
+        console.log('Processed shared users:', this.sharedUsers);
+      } catch (error) {
+        ElMessage.error('Error loading shared users: ' + error.message);
+      }
+    },
+
     async loadTasks(showDeleted = false) {
       if (!this.currentMatter) return;
       
@@ -260,36 +302,6 @@ export default {
         parent_task_id: null
       };
       this.loadSharedUsers();
-    },
-
-    async loadSharedUsers() {
-      try {
-        const { data: shares, error } = await supabase
-          .from('matter_access')
-          .select('shared_with_user_id, access_type')
-          .eq('matter_id', this.currentMatter.id);
-
-        if (error) throw error;
-
-        const sharesWithUserInfo = await Promise.all(
-          shares.map(async (share) => {
-            const { data: userData } = await supabase
-              .rpc('get_user_info_by_id', {
-                user_id: share.shared_with_user_id
-              });
-
-            return {
-              id: share.shared_with_user_id,
-              email: userData[0].email,
-              access_type: share.access_type
-            };
-          })
-        );
-
-        this.sharedUsers = sharesWithUserInfo;
-      } catch (error) {
-        ElMessage.error('Error loading shared users: ' + error.message);
-      }
     },
 
     async updateTask(task) {

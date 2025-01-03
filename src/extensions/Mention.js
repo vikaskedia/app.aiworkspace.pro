@@ -59,19 +59,39 @@ export const Mention = Node.create({
         items: ({ query }) => {
           // Get shared users from editor's parent component
           const component = this.editor.options.element.closest('.editor')
-            .__vueParentComponent.ctx
+            ?.__vueParentComponent?.ctx
           
-          const sharedUsers = component.sharedUsers || []
-          const normalizedQuery = query.toLowerCase()
+          if (!component?.sharedUsers) return []
           
-          return sharedUsers.filter(user =>
-            user.fullName?.toLowerCase().includes(normalizedQuery) ||
-            user.username?.toLowerCase().includes(normalizedQuery) ||
-            user.email.toLowerCase().includes(normalizedQuery)
-          ).map(user => ({
-            id: user.id,
-            label: user.fullName || user.username || user.email
-          }))
+          const normalizedQuery = query?.toLowerCase() || ''
+          console.log('Filtering with query:', normalizedQuery)
+          
+          // Instant filtering of users
+          const filteredUsers = component.sharedUsers
+            .filter(user => {
+              const username = user.username?.toLowerCase() || ''
+              const fullName = user.fullName?.toLowerCase() || ''
+              const email = user.email?.toLowerCase() || ''
+              
+              // Prioritize exact matches, then starts with, then includes
+              return username === normalizedQuery ||
+                     fullName === normalizedQuery ||
+                     email === normalizedQuery ||
+                     username.startsWith(normalizedQuery) ||
+                     fullName.startsWith(normalizedQuery) ||
+                     email.startsWith(normalizedQuery) ||
+                     username.includes(normalizedQuery) ||
+                     fullName.includes(normalizedQuery) ||
+                     email.includes(normalizedQuery)
+            })
+            .slice(0, 5) // Limit to 5 suggestions for performance
+            .map(user => ({
+              id: user.id,
+              label: user.username || user.fullName || user.email.split('@')[0]
+            }))
+
+          console.log('Filtered results:', filteredUsers)
+          return filteredUsers
         },
         command: ({ editor, range, props }) => {
           editor

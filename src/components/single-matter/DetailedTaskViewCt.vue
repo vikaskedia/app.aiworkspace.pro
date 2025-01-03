@@ -91,10 +91,10 @@
       <div class="hours-logs" v-if="hoursLogs.length">
         <h3>Hours Logged</h3>
         <div class="total-hours">
-          Total Hours: {{ totalHours }}
+          Total Hours: {{ formatTotalTime }}
         </div>
         <el-table :data="hoursLogs" style="width: 100%">
-          <el-table-column prop="hours" label="Hours" width="100" />
+          <el-table-column prop="time_taken" label="Time Taken" width="100" />
           <el-table-column prop="comment" label="Comment" />
           <el-table-column label="Logged By" width="200">
             <template #default="scope">
@@ -407,14 +407,25 @@
       width="500px">
       <el-form :model="newHoursLog" label-position="top">
         <el-form-item label="Hours" required>
-          <el-input-number
+
+          <!-- <el-input-number
             v-model="newHoursLog.hours"
             :min="0"
             :max="999.99"
             :step="0.25"
             :precision="2"
             style="width: 100%"
-            placeholder="Enter hours worked" />
+            placeholder="Enter hours worked" /> -->
+
+            <el-time-select
+              v-model="newHoursLog.time_taken"
+              start="00:15"
+              step="00:15"
+              end="12:00"
+              placeholder="Select time"
+              style="width: 100%"
+            />
+            
         </el-form-item>
         <el-form-item label="Comment">
           <el-input
@@ -430,7 +441,7 @@
           <el-button
             type="primary"
             @click="submitHoursLog"
-            :disabled="!newHoursLog.hours">
+            :disabled="!newHoursLog.time_taken">
             Submit
           </el-button>
         </span>
@@ -498,7 +509,7 @@ export default {
       pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
       logHoursDialogVisible: false,
       newHoursLog: {
-        hours: null,
+        time_taken: null,
         comment: ''
       },
       hoursLogs: [],
@@ -1203,7 +1214,12 @@ export default {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        this.hoursLogs = logs;
+        
+         // Trim time_taken to HH:MM format
+         this.hoursLogs = logs.map(log => ({
+          ...log,
+          time_taken: log.time_taken ? log.time_taken.substring(0, 5) : null
+        }));
 
         // Load user emails for each log
         for (const log of logs) {
@@ -1229,14 +1245,15 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: user.id,
-            hours: this.newHoursLog.hours,
+            hours: '0.00',
+            time_taken: this.newHoursLog.time_taken,
             comment: this.newHoursLog.comment
           });
 
         if (error) throw error;
 
         this.logHoursDialogVisible = false;
-        this.newHoursLog = { hours: null, comment: '' };
+        this.newHoursLog = { time_taken: null, comment: '' };
         await this.loadHoursLogs();
         ElMessage.success('Hours logged successfully');
       } catch (error) {
@@ -1262,7 +1279,18 @@ export default {
     },
     totalHours() {
       return this.hoursLogs.reduce((sum, log) => sum + (log.hours || 0), 0).toFixed(2);
-    }
+    },
+    formatTotalTime() {
+      const totalMinutes = this.hoursLogs.reduce((sum, log) => {
+        if (!log.time_taken) return sum;
+        const [hours, minutes] = log.time_taken.split(':').map(Number);
+        return sum + (hours * 60) + minutes;
+      }, 0);
+
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
   }
 };
 </script>

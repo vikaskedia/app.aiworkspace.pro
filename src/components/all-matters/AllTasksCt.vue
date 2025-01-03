@@ -338,7 +338,7 @@ export default {
             ),
             task_stars!left(user_id),
             task_hours_logs!task_id(
-              hours
+              time_taken
             )
           `)
           .eq('deleted', false)
@@ -383,7 +383,13 @@ export default {
             matter_title: task.matter?.title || 'Unknown Matter',
             assignee_email: assigneeEmail,
             starred: Boolean(task.task_stars?.length),
-            total_hours: task.task_hours_logs?.reduce((sum, log) => sum + (log.hours || 0), 0) || 0
+            total_hours: task.task_hours_logs?.reduce((sum, log) => {
+              if (!log.time_taken) return sum;
+              // Convert time_taken (PostgreSQL time type) to hours
+              const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
+              const totalHours = hours + minutes/60 + seconds/3600;
+              return sum + totalHours;
+            }, 0) || 0
           };
         }));
 

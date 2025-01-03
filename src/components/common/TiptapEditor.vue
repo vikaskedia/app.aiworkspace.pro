@@ -8,21 +8,21 @@
           :class="{ 'is-active': editor?.isActive('bold') }"
           @click="editor?.chain().focus().toggleBold().run()"
           title="Bold">
-          <el-icon><Bold /></el-icon>
+          <span class="format-text">B</span>
         </el-button>
         <el-button 
           size="small"
           :class="{ 'is-active': editor?.isActive('italic') }"
           @click="editor?.chain().focus().toggleItalic().run()"
           title="Italic">
-          <el-icon><Italic /></el-icon>
+          <span class="format-text">I</span>
         </el-button>
         <el-button 
           size="small"
           :class="{ 'is-active': editor?.isActive('strike') }"
           @click="editor?.chain().focus().toggleStrike().run()"
           title="Strike">
-          <el-icon><Strike /></el-icon>
+          <span class="format-text">S</span>
         </el-button>
       </el-button-group>
 
@@ -1021,8 +1021,8 @@ export default {
   
   .editor-toolbar {
     padding: 4px;
-    border-bottom: 1px solid var(--el-border-color);
-    background: #f0f0f0;
+    border-bottom: 1px solid rgb(160 207 255 / 15%);
+    background: rgb(160 207 255 / 15%);
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -1338,5 +1338,11 @@ export default {
 }
 .mention-item:hover .mention-item-name, .mention-item.selected .mention-item-name {
     color: #444;
+}
+.format-text {
+  font-family: Times New Roman, serif;
+  font-weight: bold;
+  font-size: 15px;
+  line-height: 1;
 }
 </style>

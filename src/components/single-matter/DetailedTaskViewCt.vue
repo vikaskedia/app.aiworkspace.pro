@@ -408,21 +408,12 @@
       <el-form :model="newHoursLog" label-position="top">
         <el-form-item label="Hours" required>
 
-          <!-- <el-input-number
-            v-model="newHoursLog.hours"
-            :min="0"
-            :max="999.99"
-            :step="0.25"
-            :precision="2"
-            style="width: 100%"
-            placeholder="Enter hours worked" /> -->
-
             <el-time-select
               v-model="newHoursLog.time_taken"
               start="00:15"
               step="00:15"
               end="12:00"
-              placeholder="Select time"
+              placeholder="Enter hours worked"
               style="width: 100%"
             />
             
@@ -1214,7 +1205,7 @@ export default {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
+
          // Trim time_taken to HH:MM format
          this.hoursLogs = logs.map(log => ({
           ...log,
@@ -1245,7 +1236,6 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: user.id,
-            hours: '0.00',
             time_taken: this.newHoursLog.time_taken,
             comment: this.newHoursLog.comment
           });

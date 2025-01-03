@@ -217,6 +217,8 @@ import { Mention } from '../../extensions/Mention'
 import tippy from 'tippy.js'
 import 'tippy.js/dist/tippy.css'
 import { supabase } from '../../supabase'
+import { Plugin, PluginKey } from 'prosemirror-state'
+import { Decoration, DecorationSet } from 'prosemirror-view'
 
 export default {
   components: {
@@ -1012,6 +1014,20 @@ export default {
       border-radius: 4px;
       font-family: monospace;
     }
+
+    .file-link {
+      color: var(--el-color-primary);
+      text-decoration: none;
+      // padding: 2px 4px;
+      // border-radius: 4px;
+      // background: var(--el-color-primary-light-9);
+      display: inline-block;
+      
+      &:hover {
+        text-decoration: underline;
+        background: var(--el-color-primary-light-8);
+      }
+    }
   }
 }
 
@@ -1127,6 +1143,24 @@ export default {
 .mention-item-name {
   font-weight: 500;
   font-size: 14px;
+}
+
+.editor {
+  :deep(.ProseMirror) {
+    .file-link {
+      color: var(--el-color-primary);
+      text-decoration: none;
+      // padding: 2px 4px;
+      // border-radius: 4px;
+      // background: var(--el-color-primary-light-9);
+      display: inline-block;
+      
+      &:hover {
+        text-decoration: underline;
+        background: var(--el-color-primary-light-8);
+      }
+    }
+  }
 }
 </style> 
 

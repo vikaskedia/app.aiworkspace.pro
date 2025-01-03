@@ -254,7 +254,7 @@ export default {
     taskId: {
       type: String,
       required: false,
-      default: 0
+      default: "0"
     },
     taskTitle: {
       type: String,

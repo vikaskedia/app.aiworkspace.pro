@@ -43,7 +43,17 @@ export const Mention = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    return ['span', mergeAttributes({ 'data-mention': '' }, HTMLAttributes), `@${node.attrs.label}`]
+    return [
+      'span',
+      mergeAttributes(
+        {
+          'data-mention': '',
+          'style': 'color: #409EFF; font-weight: 500;'
+        },
+        HTMLAttributes
+      ),
+      `@${node.attrs.label}`
+    ]
   },
 
   renderText({ node }) {

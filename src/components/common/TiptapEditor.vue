@@ -928,106 +928,37 @@ export default {
 
 <style lang="scss" scoped>
 .editor {
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  background: white;
   
   .editor-toolbar {
-    padding: 8px;
-    border-bottom: 1px solid var(--el-border-color);
-    background: var(--el-fill-color-light);
+    padding: 12px;
+    border-bottom: 1px solid var(--el-border-color-light);
+    background: var(--el-bg-color);
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
+    border-radius: 8px 8px 0 0;
   }
 
   .toolbar-group {
     display: flex;
     align-items: center;
-    gap: 1px;
-  }
+    background: white;
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-  :deep(.el-button) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px;
-    height: 32px;
-    width: 32px;
-
-    &.is-active {
-      background-color: var(--el-color-primary-light-9);
-      color: var(--el-color-primary);
-    }
-
-    .el-icon {
-      font-size: 16px;
+    &:hover {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
   }
-  
-  :deep(.ProseMirror) {
-    min-height: 150px;
-    padding: 16px;
-    outline: none;
-    
-    line-height: 1.5;
-    
-    p {
-      margin: 0.5em 0;
-    }
-    
-    &:focus {
-      outline: none;
-    }
 
-    p.is-editor-empty:first-child::before {
-      content: attr(data-placeholder);
-      float: left;
-      color: var(--el-text-color-placeholder);
-      pointer-events: none;
-      height: 0;
-    }
-
-    ul[data-type="taskList"] {
-      list-style: none;
-      padding: 0;
-
-      li {
-        display: flex;
-        gap: 0.5rem;
-        
-        > label {
-          margin-right: 0.5rem;
-        }
-      }
-    }
-
-    blockquote {
-      border-left: 3px solid var(--el-border-color-darker);
-      padding-left: 1rem;
-      color: var(--el-text-color-regular);
-    }
-
-    code {
-      background-color: var(--el-fill-color-lighter);
-      padding: 0.2rem 0.4rem;
-      border-radius: 4px;
-      font-family: monospace;
-    }
-
-    .file-link {
-      color: var(--el-color-primary);
-      text-decoration: none;
-      // padding: 2px 4px;
-      // border-radius: 4px;
-      // background: var(--el-color-primary-light-9);
-      display: inline-block;
-      
-      &:hover {
-        text-decoration: underline;
-        background: var(--el-color-primary-light-8);
-      }
-    }
+  * {
+    transition: all 0.2s ease;
   }
 }
 
@@ -1147,19 +1078,128 @@ export default {
 
 .editor {
   :deep(.ProseMirror) {
-    .file-link {
-      color: var(--el-color-primary);
-      text-decoration: none;
-      // padding: 2px 4px;
-      // border-radius: 4px;
-      // background: var(--el-color-primary-light-9);
-      display: inline-block;
-      
-      &:hover {
-        text-decoration: underline;
-        background: var(--el-color-primary-light-8);
+    min-height: 200px;
+    padding: 20px;
+    outline: none;
+    line-height: 1.6;
+    font-size: 15px;
+    color: var(--el-text-color-primary);
+    
+    p {
+      margin: 1em 0;
+    }
+    
+    &:focus {
+      outline: none;
+    }
+
+    // Placeholder styling
+    p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      float: left;
+      color: var(--el-text-color-placeholder);
+      pointer-events: none;
+      height: 0;
+      font-style: italic;
+    }
+
+    // Headings
+    h1, h2, h3 {
+      margin: 1.5em 0 0.5em;
+      line-height: 1.3;
+      font-weight: 600;
+    }
+
+    // Lists
+    ul[data-type="taskList"] {
+      list-style: none;
+      padding: 0;
+
+      li {
+        display: flex;
+        gap: 0.75rem;
+        margin: 0.5em 0;
+        align-items: flex-start;
+        
+        > label {
+          margin-right: 0.5rem;
+          margin-top: 0.25rem;
+        }
+
+        > div {
+          flex: 1;
+        }
       }
     }
+
+    // Blockquotes
+    blockquote {
+      border-left: 4px solid var(--el-color-primary-light-5);
+      margin: 1em 0;
+      padding: 0.5em 0 0.5em 1em;
+      background: var(--el-color-primary-light-9);
+      border-radius: 0 4px 4px 0;
+      color: var(--el-text-color-regular);
+      font-style: italic;
+    }
+
+    // Code blocks
+    code {
+      background-color: var(--el-fill-color-light);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      font-size: 0.9em;
+    }
+  }
+}
+
+:deep(.el-button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  height: 32px;
+  width: 32px;
+  border: none;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin: 0;
+
+  &:hover {
+    background-color: var(--el-color-primary-light-8);
+    transform: translateY(-1px);
+  }
+
+  &.is-active {
+    background-color: var(--el-color-primary-light-7);
+    color: var(--el-color-primary);
+  }
+
+  .el-icon {
+    font-size: 16px;
+  }
+}
+
+.file-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  
+  &:hover {
+    background: var(--el-color-primary-light-8);
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+
+  &::before {
+    content: '📎';
+    font-size: 14px;
   }
 }
 </style> 

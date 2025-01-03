@@ -10,15 +10,31 @@ export const Typeahead = Extension.create({
         key: new PluginKey('typeahead'),
         props: {
           handleKeyDown: (view, event) => {
-            // Get the current text and cursor position
-            const text = view.state.doc.textBetween(0, view.state.selection.from, '\n')
-            const cursorPosition = view.state.selection.from
+            const { state } = view
+            const { selection } = state
+            const { $from } = selection
             
+            // Get the current text and cursor position
+            const text = state.doc.textBetween(0, selection.from, '\n')
+            const cursorPosition = selection.from
+
             // Get the last word before cursor
             const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
-            
-            // Don't trigger typeahead if the word starts with @
-            if (lastWord?.startsWith('@')) {
+
+            // Check if cursor is inside an anchor tag
+            const isInLink = $from.marks().some(mark => mark.type.name === 'link')
+
+            // Don't trigger typeahead if:
+            // 1. The word starts with @
+            // 2. The cursor is inside a link
+            if (lastWord?.startsWith('@') || isInLink) {
+              // Call onKeyDown with a flag to hide typeahead
+              this.options.onKeyDown?.({
+                text,
+                cursorPosition,
+                event,
+                shouldHideTypeahead: true
+              })
               return false
             }
             
@@ -26,7 +42,8 @@ export const Typeahead = Extension.create({
             const handled = this.options.onKeyDown?.({
               text,
               cursorPosition,
-              event
+              event,
+              shouldHideTypeahead: false
             })
             
             return handled || false

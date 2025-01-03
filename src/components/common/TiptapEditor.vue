@@ -362,6 +362,7 @@ export default {
         Mention.configure({
           suggestion: {
             items: ({ query }) => {
+              console.log('Getting mention items for:', query, this.sharedUsers)
               const normalizedQuery = query.toLowerCase()
               return this.sharedUsers.filter(user =>
                 user.fullName?.toLowerCase().includes(normalizedQuery) ||

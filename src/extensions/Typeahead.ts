@@ -14,6 +14,14 @@ export const Typeahead = Extension.create({
             const text = view.state.doc.textBetween(0, view.state.selection.from, '\n')
             const cursorPosition = view.state.selection.from
             
+            // Get the last word before cursor
+            const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
+            
+            // Don't trigger typeahead if the word starts with @
+            if (lastWord?.startsWith('@')) {
+              return false
+            }
+            
             // Call the onKeyDown handler with the event
             const handled = this.options.onKeyDown?.({
               text,
@@ -21,7 +29,6 @@ export const Typeahead = Extension.create({
               event
             })
             
-            // Return true if the event was handled
             return handled || false
           },
         },

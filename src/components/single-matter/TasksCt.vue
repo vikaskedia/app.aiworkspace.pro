@@ -8,6 +8,7 @@ import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
 import { ArrowDown, Close, Folder, Loading } from '@element-plus/icons-vue'
 import QuickActionDrawer from '../common/QuickActionDrawer.vue'
+import TiptapEditor from '../common/TiptapEditor.vue'
 
 export default {
   setup() {
@@ -23,7 +24,8 @@ export default {
     Close,
     QuickActionDrawer,
     Folder,
-    Loading
+    Loading,
+    TiptapEditor
   },
   data() {
     return {
@@ -805,10 +807,9 @@ export default {
     },
 
     handleDescriptionInput(event) {
-      const text = event;
-      const textarea = document.querySelector('.description-input textarea');
-      const cursorPos = textarea?.selectionStart || 0;
-      
+      const text = typeof event === 'string' ? event : event?.target?.value || '';
+      const cursorPos = text.length;
+
       const textBeforeCursor = text.slice(0, cursorPos);
       const lastWord = textBeforeCursor.split(/\s+/).pop();
       
@@ -1159,7 +1160,7 @@ export default {
             <el-input v-model="newTask.title" />
           </el-form-item>
           <el-form-item label="Description">
-            <div class="description-input-container">
+            <!--<div class="description-input-container">
               <el-input 
                 v-model="newTask.description"
                 type="textarea"
@@ -1168,7 +1169,6 @@ export default {
                 @input="handleDescriptionInput" 
                 @keydown="handleTypeaheadNavigation" />
               
-              <!-- Typeahead suggestions -->
               <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
                 <div class="typeahead-header">
                   <span>Suggestions</span>
@@ -1188,7 +1188,12 @@ export default {
                   {{ suggestion }}
                 </div>
               </div>
-            </div>
+            </div>-->
+            <TiptapEditor
+              v-model="newTask.description"
+              placeholder="Write a description... (Type @files to mention a file)"
+              @input="handleDescriptionInput"
+            />
           </el-form-item>
 
           <!-- Show more/less button -->

@@ -126,19 +126,14 @@
       </el-button-group>
 
       <!-- File Upload -->
+      <!-- Replace the existing upload button group in TiptapEditor.vue -->
       <el-button-group class="toolbar-group">
-        <el-upload
-          class="upload-button"
-          action="#"
-          :auto-upload="false"
-          :show-file-list="false"
-          :on-change="file => handleFileUpload(file.raw)">
-          <el-button 
-            size="small"
-            title="Upload File">
-            <el-icon><UploadIcon /></el-icon>
-          </el-button>
-        </el-upload>
+        <el-button 
+          size="small"
+          title="Insert File"
+          @click="showFileDialog = true">
+          <el-icon><UploadIcon /></el-icon>
+        </el-button>
       </el-button-group>
     </div>
 
@@ -180,6 +175,11 @@
         <el-button type="danger" @click="uploadDialogVisible = false">Cancel</el-button>
       </el-upload>
     </el-dialog>
+
+    <FileInsertDialog
+      v-model="showFileDialog"
+      @file-selected="handleFileSelected"
+    />
   </div>
 </template>
 
@@ -212,6 +212,11 @@ import { useMatterStore } from '../../store/matter'
 import { storeToRefs } from 'pinia'
 import { Typeahead } from '../../extensions/Typeahead'
 import debounce from 'lodash/debounce'
+import FileInsertDialog from './FileInsertDialog.vue'
+import { Mention } from '../../extensions/Mention'
+import tippy from 'tippy.js'
+import 'tippy.js/dist/tippy.css'
+import { supabase } from '../../supabase'
 
 export default {
   components: {
@@ -230,7 +235,8 @@ export default {
     Back,
     Right,
     UploadIcon,
-    Close
+    Close,
+    FileInsertDialog
   },
   props: {
     modelValue: {
@@ -240,6 +246,18 @@ export default {
     placeholder: {
       type: String,
       default: 'Write something...'
+    },
+    sharedUsers: {
+      type: Array,
+      default: () => []
+    },
+    taskId: {
+      type: String,
+      required: true
+    },
+    taskTitle: {
+      type: String,
+      required: true
     }
   },
   data() {
@@ -254,7 +272,10 @@ export default {
         top: '0px',
         left: '0px'
       },
-      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL,
+      showFileDialog: false,
+      processedMentions: [],
+      typeaheadTimer: null,
     }
   },
   watch: {
@@ -266,6 +287,17 @@ export default {
     }
   },
   mounted() {
+    window.selectMention = (index) => {
+      const mentionState = this.editor.state.selection.$from.marks().find(mark => mark.type.name === 'mention')
+      if (mentionState) {
+        const items = mentionState.attrs.items || []
+        const item = items[index]
+        if (item) {
+          this.editor.commands.insertMention({ id: item.id, label: item.label })
+        }
+      }
+    }
+    
     this.editor = new Editor({
       extensions: [
         StarterKit,
@@ -276,17 +308,119 @@ export default {
         }),
         FileUpload,
         Typeahead.configure({
-          onKeyDown: this.handleEditorKeyDown
-        })
+          onKeyDown: ({ text, cursorPosition, event }) => {
+            // Handle navigation keys
+            if (this.showTypeahead && this.typeaheadSuggestions.length) {
+              switch (event.key) {
+                case 'ArrowDown':
+                  event.preventDefault()
+                  this.typeaheadSelectedIndex = Math.min(
+                    (this.typeaheadSelectedIndex + 1),
+                    this.typeaheadSuggestions.length - 1
+                  )
+                  return true
+                case 'ArrowUp':
+                  event.preventDefault()
+                  this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
+                  return true
+                case 'Tab':
+                case 'Enter':
+                  if (this.showTypeahead) {
+                    event.preventDefault()
+                    this.applySuggestion(
+                      this.typeaheadSuggestions[
+                        this.typeaheadSelectedIndex >= 0 ? this.typeaheadSelectedIndex : 0
+                      ]
+                    )
+                    return true
+                  }
+                  break
+                case 'Escape':
+                  if (this.showTypeahead) {
+                    event.preventDefault()
+                    this.showTypeahead = false
+                    return true
+                  }
+                  break
+              }
+            }
+
+            // Check for typeahead trigger
+            const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
+            if (lastWord && lastWord.length > 2) {
+              if (this.typeaheadTimer) {
+                clearTimeout(this.typeaheadTimer)
+              }
+              
+              this.typeaheadTimer = setTimeout(() => {
+                this.getTypeaheadSuggestions(text, cursorPosition)
+              }, 300)
+            }
+            return false
+          }
+        }),
+        Mention.configure({
+          suggestion: {
+            items: ({ query }) => {
+              const normalizedQuery = query.toLowerCase()
+              return this.sharedUsers.filter(user =>
+                user.fullName?.toLowerCase().includes(normalizedQuery) ||
+                user.username?.toLowerCase().includes(normalizedQuery) ||
+                user.email.toLowerCase().includes(normalizedQuery)
+              ).map(user => ({
+                id: user.id,
+                label: user.fullName || user.username || user.email
+              }))
+            },
+            command: ({ editor, range, props }) => {
+              editor
+                .chain()
+                .focus()
+                .insertContentAt(range, [
+                  {
+                    type: 'mention',
+                    attrs: props
+                  },
+                  {
+                    type: 'text',
+                    text: ' '
+                  }
+                ])
+                .run()
+            },
+            render: () => {
+              let popup
+              return {
+                onStart: (props) => {
+                  popup = tippy('body', {
+                    getReferenceClientRect: props.clientRect,
+                    appendTo: () => document.body,
+                    content: this.renderPopup(props),
+                    showOnCreate: true,
+                    interactive: true,
+                    trigger: 'manual',
+                    placement: 'bottom-start',
+                  })
+                },
+                onUpdate: (props) => {
+                  const content = this.renderPopup(props)
+                  popup[0].setProps({ content })
+                },
+                onKeyDown: (props) => {
+                  return this.handleMentionKeydown(props)
+                },
+                onExit: () => {
+                  popup[0].destroy()
+                },
+              }
+            },
+          },
+        }),
       ],
       content: this.modelValue,
-      onUpdate: () => {
-        this.$emit('update:modelValue', this.editor.getHTML())
-      },
-      editorProps: {
-        attributes: {
-          class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
-        },
+      onUpdate: ({ editor }) => {
+        this.$emit('update:modelValue', editor.getHTML())
+        this.handleMentions(editor)
       }
     })
 
@@ -394,6 +528,8 @@ export default {
 
     async getTypeaheadSuggestions(text, cursorPosition) {
       try {
+        console.log('Getting suggestions for:', { text, cursorPosition })
+        
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
           method: 'POST',
           headers: {
@@ -403,20 +539,27 @@ export default {
             text,
             cursor_position: cursorPosition,
             context: {
-              matter_id: this.currentMatter?.id
+              task_id: this.taskId,
+              task_title: this.taskTitle
             }
           })
         })
 
-        if (!response.ok) throw new Error('Failed to get suggestions')
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Failed to get suggestions: ${errorText}`)
+        }
         
         const data = await response.json()
+        console.log('Received suggestions:', data)
         
         if (data.suggestions?.length) {
           this.typeaheadSuggestions = data.suggestions
           this.showTypeahead = true
           this.typeaheadSelectedIndex = -1
           this.updateTypeaheadPosition()
+        } else {
+          this.showTypeahead = false
         }
       } catch (error) {
         console.error('Error getting suggestions:', error)
@@ -453,6 +596,8 @@ export default {
     },
 
     applySuggestion(suggestion) {
+      if (!this.editor || !suggestion) return
+      
       const { state, dispatch } = this.editor.view
       const { from } = state.selection
       
@@ -464,14 +609,23 @@ export default {
       // Calculate the position to replace
       const start = from - lastWord.length
       
-      // Replace the text
-      dispatch(state.tr.replaceWith(
+      // Create the transaction
+      const tr = state.tr.replaceWith(
         start,
         from,
         state.schema.text(suggestion)
-      ))
+      )
       
+      // Apply the transaction
+      dispatch(tr)
+      
+      // Reset typeahead state
       this.showTypeahead = false
+      this.typeaheadSuggestions = []
+      this.typeaheadSelectedIndex = -1
+      
+      // Focus back on editor
+      this.editor.commands.focus()
     },
 
     updateTypeaheadPosition() {
@@ -492,6 +646,164 @@ export default {
           left: `${relativeLeft}px`
         }
       })
+    },
+
+    getUniqueFileName(originalName) {
+      const timestamp = new Date().getTime();
+      const lastDotIndex = originalName.lastIndexOf('.');
+      
+      // Handle files with no extension
+      if (lastDotIndex === -1) {
+        return `${originalName}_${timestamp}`;
+      }
+      
+      // Handle files with extension
+      const baseName = originalName.substring(0, lastDotIndex);
+      const ext = originalName.substring(lastDotIndex);
+      
+      return `${baseName}_${timestamp}${ext}`;
+    },
+
+    async handleFileSelected(file) {
+      try {
+        if (file.download_url) {
+          // If file already has a download_url, it's an existing file - use it directly
+          this.editor.chain().focus().insertContent(`[${file.name}](${file.download_url})`).run();
+          this.showFileDialog = false;
+          ElMessage.success('File inserted successfully');
+        } else {
+          // Only for new file uploads
+          const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+          const uniqueFileName = this.getUniqueFileName(file.name);
+          
+          // Convert file to base64
+          const base64Content = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result.split(',')[1];
+              resolve(base64);
+            };
+            reader.readAsDataURL(file);
+          });
+
+          // Upload with new filename
+          const response = await fetch(
+            `/gitea/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uniqueFileName}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: `Upload ${uniqueFileName}`,
+                content: base64Content,
+                branch: 'main'
+              })
+            }
+          );
+
+          if (!response.ok) throw new Error('Failed to upload file');
+          
+          const data = await response.json();
+          const downloadUrl = data.content.download_url.replace(
+            import.meta.env.VITE_GITEA_HOST,
+            '/gitea'
+          );
+
+          // Insert the file link into the editor
+          this.editor.chain().focus().insertContent(`[${uniqueFileName}](${downloadUrl})`).run();
+          this.showFileDialog = false;
+          ElMessage.success('File uploaded successfully');
+        }
+      } catch (error) {
+        console.error('Error handling file:', error);
+        ElMessage.error('Failed to handle file: ' + error.message);
+      }
+    },
+
+    renderPopup({ items, command, selectedIndex }) {
+      return `
+        <div class="mention-popup">
+          ${items.map((item, index) => `
+            <div 
+              class="mention-item ${index === selectedIndex ? 'selected' : ''}"
+              data-index="${index}"
+              onclick="window.selectMention(${index})"
+            >
+              <div class="mention-item-avatar">
+                ${item.label[0].toUpperCase()}
+              </div>
+              <div class="mention-item-info">
+                <div class="mention-item-name">${item.label}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `
+    },
+
+    handleMentionKeydown({ event, command, items, selectedIndex }) {
+      switch (event.key) {
+        case 'ArrowUp':
+          event.preventDefault()
+          const prevIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1
+          command({ selectedIndex: prevIndex })
+          return true
+        case 'ArrowDown':
+          event.preventDefault()
+          const nextIndex = selectedIndex >= items.length - 1 ? 0 : selectedIndex + 1
+          command({ selectedIndex: nextIndex })
+          return true
+        case 'Enter':
+        case 'Tab':
+          event.preventDefault()
+          command(items[selectedIndex])
+          return true
+        case 'Escape':
+          event.preventDefault()
+          return true
+      }
+      return false
+    },
+
+    async handleMentions(editor) {
+      const mentions = editor.getJSON().content
+        .filter(node => node.type === 'mention')
+        .map(node => node.attrs.id)
+
+      // Create notifications for new mentions
+      for (const userId of mentions) {
+        if (!this.processedMentions.includes(userId)) {
+          await this.createNotification(userId)
+          this.processedMentions.push(userId)
+        }
+      }
+    },
+
+    async createNotification(userId) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        const { error } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: 'mention',
+            actor_id: user.id,
+            metadata: {
+              task_id: this.taskId,
+              task_title: this.taskTitle,
+              comment_by: user.email
+            },
+            read: false
+          })
+
+        if (error) throw error
+      } catch (error) {
+        console.error('Error creating mention notification:', error)
+      }
     }
   }
 }
@@ -634,4 +946,107 @@ export default {
     }
   }
 }
+
+.mention-popup {
+  background: white;
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover, &.selected {
+    background: var(--el-color-primary-light-9);
+  }
+}
+
+.mention-item-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--el-color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.mention-item-info {
+  flex: 1;
+}
+
+.mention-item-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.mention-item-email {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+:deep(.ProseMirror) {
+  .mention {
+    background: var(--el-color-primary-light-9);
+    border-radius: 4px;
+    padding: 2px 4px;
+    color: var(--el-color-primary);
+    text-decoration: none;
+    font-weight: 500;
+    
+    &::before {
+      content: '@';
+      opacity: 0.5;
+    }
+  }
+}
+
+.mention-item {
+  &:hover, &.selected {
+    background: var(--el-color-primary-light-9);
+  }
+}
+
+.mention-item-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--el-color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.mention-item-info {
+  flex: 1;
+}
+
+.mention-item-name {
+  font-weight: 500;
+  font-size: 14px;
+}
 </style> 
+
+<style>
+.editor .dialog-footer .el-button {
+    display: inline-block;
+    padding: 8px 15px;
+    width: auto;
+}
+.el-breadcrumb {
+    margin-bottom: 7px;
+}
+</style>

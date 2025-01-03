@@ -103,6 +103,11 @@ export default {
         }
       },
       immediate: true
+    },
+    dialogVisible(newValue) {
+      if (newValue) {
+        this.resetNewTask();
+      }
     }
   },
   methods: {
@@ -1021,7 +1026,25 @@ export default {
       } finally {
         this.loading = false;
       }
-    }
+    },
+
+    generateTempId() {
+      return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    },
+
+    resetNewTask() {
+      this.newTask = {
+        id: this.generateTempId(),
+        title: '',
+        description: '',
+        status: 'not_started',
+        priority: 'medium',
+        matter_id: this.currentMatter?.id,
+        parent_task_id: null,
+        due_date: null,
+        assignee: null
+      };
+    },
   },
 
   mounted() {
@@ -1191,8 +1214,11 @@ export default {
             </div>-->
             <TiptapEditor
               v-model="newTask.description"
-              placeholder="Write a description... (Type @files to mention a file)"
+              placeholder="Write a description..."
               @input="handleDescriptionInput"
+              :task-id="newTask.id"
+              :task-title="newTask.title || 'New Task'"
+              :shared-users="sharedUsers"
             />
           </el-form-item>
 

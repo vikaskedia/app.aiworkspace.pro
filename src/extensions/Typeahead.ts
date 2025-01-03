@@ -10,17 +10,19 @@ export const Typeahead = Extension.create({
         key: new PluginKey('typeahead'),
         props: {
           handleKeyDown: (view, event) => {
-            // Emit custom event that parent can listen to
+            // Get the current text and cursor position
             const text = view.state.doc.textBetween(0, view.state.selection.from, '\n')
             const cursorPosition = view.state.selection.from
             
-            this.options.onKeyDown?.({
+            // Call the onKeyDown handler with the event
+            const handled = this.options.onKeyDown?.({
               text,
               cursorPosition,
               event
             })
             
-            return false
+            // Return true if the event was handled
+            return handled || false
           },
         },
       }),

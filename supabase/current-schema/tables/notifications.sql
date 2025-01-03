@@ -18,3 +18,31 @@
     ADD COLUMN metadata JSONB DEFAULT NULL;
 
     COMMENT ON COLUMN notifications.metadata IS 'Additional data specific to the notification type';
+
+    -- Policies for notifications
+    CREATE POLICY "Users can create notifications" ON notifications
+    AS PERMISSIVE
+    FOR SELECT 
+    TO authenticated 
+    WITH CHECK (
+      (true)
+    );
+
+   CREATE POLICY "Users can view own notifications only" ON notifications
+    AS PERMISSIVE
+    FOR SELECT 
+    TO public
+    USING (
+      (user_id = auth.uid())
+    );
+
+    CREATE POLICY "Users can update their own notifications" ON notifications
+    AS PERMISSIVE
+    FOR UPDATE 
+    TO public
+    USING (
+      (user_id = auth.uid())
+    )
+    WITH CHECK (
+      (user_id = auth.uid())
+    );

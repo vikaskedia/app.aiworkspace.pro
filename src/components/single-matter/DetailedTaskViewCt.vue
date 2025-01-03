@@ -1632,3 +1632,57 @@ h4 {
   color: var(--el-color-primary);
 }
 </style> 
+
+<style>
+table.editor-table {
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--el-border-color);
+
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border: 1px solid var(--el-border-color-lighter);
+    line-height: 1.5;
+    font-size: 14px;
+
+    &:first-child {
+      padding-left: 16px;
+    }
+
+    &:last-child {
+      padding-right: 16px;
+    }
+  }
+
+  th {
+    background: var(--el-fill-color-light);
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    white-space: nowrap;
+  }
+
+  tr {
+    &:nth-child(even) {
+      background-color: var(--el-fill-color-lighter);
+    }
+
+    &:hover {
+      background-color: var(--el-fill-color-light);
+    }
+  }
+
+  @media (max-width: 640px) {
+    font-size: 13px;
+    
+    th, td {
+      padding: 8px;
+    }
+  }
+}
+</style>

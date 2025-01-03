@@ -107,6 +107,16 @@
         </el-button>
       </el-button-group>
 
+      <!-- Table Controls -->
+      <el-button-group class="toolbar-group">
+        <el-button 
+          size="small"
+          title="Insert Table"
+          @click="insertTable">
+          <el-icon><TableIcon /></el-icon>
+        </el-button>
+      </el-button-group>
+
       <!-- Undo/Redo -->
       <el-button-group class="toolbar-group">
         <el-button 
@@ -180,6 +190,33 @@
       v-model="showFileDialog"
       @file-selected="handleFileSelected"
     />
+
+    <!-- Table Dialog -->
+    <el-dialog
+      v-model="showTableDialog"
+      title="Insert Table"
+      width="300px">
+      <el-form>
+        <el-form-item label="Rows">
+          <el-input-number 
+            v-model="tableForm.rows" 
+            :min="2" 
+            :max="10" 
+            size="small" />
+        </el-form-item>
+        <el-form-item label="Columns">
+          <el-input-number 
+            v-model="tableForm.columns" 
+            :min="2" 
+            :max="10" 
+            size="small" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showTableDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="createTable">Insert</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -219,6 +256,11 @@ import 'tippy.js/dist/tippy.css'
 import { supabase } from '../../supabase'
 import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
+import { Grid as TableIcon } from '@element-plus/icons-vue'
 
 export default {
   components: {
@@ -238,7 +280,8 @@ export default {
     Right,
     UploadIcon,
     Close,
-    FileInsertDialog
+    FileInsertDialog,
+    TableIcon
   },
   props: {
     modelValue: {
@@ -280,6 +323,11 @@ export default {
       processedMentions: [],
       typeaheadTimer: null,
       mentionPopup: null,
+      showTableDialog: false,
+      tableForm: {
+        rows: 3,
+        columns: 3
+      }
     }
   },
   watch: {
@@ -438,6 +486,15 @@ export default {
             },
           },
         }),
+        Table.configure({
+          resizable: true,
+          HTMLAttributes: {
+            class: 'editor-table',
+          },
+        }),
+        TableRow,
+        TableCell,
+        TableHeader,
       ],
       content: this.modelValue,
       onUpdate: ({ editor }) => {
@@ -921,6 +978,24 @@ export default {
         this.mentionPopup.destroy()
         this.mentionPopup = null
       }
+    },
+
+    insertTable() {
+      this.showTableDialog = true
+    },
+
+    createTable() {
+      this.editor
+        .chain()
+        .focus()
+        .insertTable({ 
+          rows: this.tableForm.rows, 
+          cols: this.tableForm.columns, 
+          withHeaderRow: true 
+        })
+        .run()
+      
+      this.showTableDialog = false
     }
   }
 }
@@ -1151,6 +1226,34 @@ export default {
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
       font-size: 0.9em;
     }
+
+    // Table styles
+    table {
+      border-collapse: collapse;
+      margin: 1em 0;
+      width: 100%;
+      table-layout: fixed;
+
+      td, th {
+        border: 2px solid var(--el-border-color);
+        padding: 8px;
+        position: relative;
+        min-width: 100px;
+        
+        > * {
+          margin: 0;
+        }
+      }
+
+      th {
+        background: var(--el-fill-color-light);
+        font-weight: bold;
+      }
+    }
+
+    .selectedCell {
+      background: var(--el-color-primary-light-9);
+    }
   }
 }
 
@@ -1205,7 +1308,8 @@ export default {
 </style> 
 
 <style>
-.editor .dialog-footer .el-button {
+.editor .dialog-footer .el-button,
+.editor .el-dialog__footer .el-button {
     display: inline-block;
     padding: 8px 15px;
     width: auto;

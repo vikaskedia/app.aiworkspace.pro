@@ -57,8 +57,21 @@ export const Mention = Node.create({
         char: '@',
         pluginKey: MentionPluginKey,
         items: ({ query }) => {
-          // Return empty array by default, the actual filtering will be handled by TiptapEditor
-          return []
+          // Get shared users from editor's parent component
+          const component = this.editor.options.element.closest('.editor')
+            .__vueParentComponent.ctx
+          
+          const sharedUsers = component.sharedUsers || []
+          const normalizedQuery = query.toLowerCase()
+          
+          return sharedUsers.filter(user =>
+            user.fullName?.toLowerCase().includes(normalizedQuery) ||
+            user.username?.toLowerCase().includes(normalizedQuery) ||
+            user.email.toLowerCase().includes(normalizedQuery)
+          ).map(user => ({
+            id: user.id,
+            label: user.fullName || user.username || user.email
+          }))
         },
         command: ({ editor, range, props }) => {
           editor
@@ -80,12 +93,28 @@ export const Mention = Node.create({
           return editor.can().insertContentAt(range, { type: this.name })
         },
         render: () => {
-          // Return empty object, the actual rendering will be handled by TiptapEditor
+          let popup
           return {
-            onStart: () => {},
-            onUpdate: () => {},
-            onKeyDown: () => false,
-            onExit: () => {},
+            onStart: (props) => {
+              const component = this.editor.options.element.closest('.editor')
+                .__vueParentComponent.ctx
+              popup = component.renderMentionPopup(props)
+            },
+            onUpdate: (props) => {
+              const component = this.editor.options.element.closest('.editor')
+                .__vueParentComponent.ctx
+              component.updateMentionPopup(props)
+            },
+            onKeyDown: (props) => {
+              const component = this.editor.options.element.closest('.editor')
+                .__vueParentComponent.ctx
+              return component.handleMentionKeydown(props)
+            },
+            onExit: () => {
+              const component = this.editor.options.element.closest('.editor')
+                .__vueParentComponent.ctx
+              component.destroyMentionPopup()
+            },
           }
         }
       }),

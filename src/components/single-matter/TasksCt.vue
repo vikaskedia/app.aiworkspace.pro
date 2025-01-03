@@ -1034,13 +1034,12 @@ export default {
       }
     },
 
-    generateTempId() {
-      return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    },
+    // generateTempId() {
+    //   return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    // },
 
     resetNewTask() {
       this.newTask = {
-        id: this.generateTempId(),
         title: '',
         description: '',
         status: 'not_started',
@@ -1222,7 +1221,6 @@ export default {
               v-model="newTask.description"
               placeholder="Write a description..."
               @input="handleDescriptionInput"
-              :task-id="newTask.id"
               :task-title="newTask.title || 'New Task'"
               :shared-users="sharedUsers"
             />

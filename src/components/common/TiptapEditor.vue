@@ -253,7 +253,8 @@ export default {
     },
     taskId: {
       type: String,
-      required: true
+      required: false,
+      default: 0
     },
     taskTitle: {
       type: String,
@@ -725,27 +726,34 @@ export default {
     },
 
     renderPopup({ items, command, selectedIndex }) {
-      return `
-        <div class="mention-popup">
-          ${items.map((item, index) => `
-            <div 
-              class="mention-item ${index === selectedIndex ? 'selected' : ''}"
-              data-index="${index}"
-              onclick="window.selectMention(${index})"
-            >
-              <div class="mention-item-avatar">
-                ${item.label[0].toUpperCase()}
-              </div>
-              <div class="mention-item-info">
-                <div class="mention-item-name">${item.label}</div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `
+      const popupContent = document.createElement('div')
+      popupContent.className = 'mention-popup'
+      
+      items.forEach((item, index) => {
+        const itemElement = document.createElement('div')
+        itemElement.className = `mention-item ${index === selectedIndex ? 'selected' : ''}`
+        itemElement.onclick = () => command(item)
+        
+        itemElement.innerHTML = `
+          <div class="mention-item-avatar">
+            ${item.label[0].toUpperCase()}
+          </div>
+          <div class="mention-item-info">
+            <div class="mention-item-name">${item.label}</div>
+          </div>
+        `
+        
+        popupContent.appendChild(itemElement)
+      })
+      
+      return popupContent
     },
 
     handleMentionKeydown({ event, command, items, selectedIndex }) {
+      if (!items || !Array.isArray(items)) {
+        return false
+      }
+
       switch (event.key) {
         case 'ArrowUp':
           event.preventDefault()
@@ -760,7 +768,9 @@ export default {
         case 'Enter':
         case 'Tab':
           event.preventDefault()
-          command(items[selectedIndex])
+          if (selectedIndex >= 0 && items[selectedIndex]) {
+            command(items[selectedIndex])
+          }
           return true
         case 'Escape':
           event.preventDefault()
@@ -804,6 +814,34 @@ export default {
         if (error) throw error
       } catch (error) {
         console.error('Error creating mention notification:', error)
+      }
+    },
+
+    renderMentionPopup(props) {
+      return tippy('body', {
+        getReferenceClientRect: props.clientRect,
+        appendTo: () => document.body,
+        content: this.renderPopup(props),
+        showOnCreate: true,
+        interactive: true,
+        trigger: 'manual',
+        placement: 'bottom-start',
+      })[0]
+    },
+
+    updateMentionPopup(props) {
+      if (this.mentionPopup) {
+        this.mentionPopup.setProps({
+          getReferenceClientRect: props.clientRect,
+          content: this.renderPopup(props)
+        })
+      }
+    },
+
+    destroyMentionPopup() {
+      if (this.mentionPopup) {
+        this.mentionPopup.destroy()
+        this.mentionPopup = null
       }
     }
   }
@@ -949,66 +987,39 @@ export default {
 }
 
 .mention-popup {
+  padding: 0.2em;
   background: white;
-  border: 1px solid var(--el-border-color);
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.mention-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  cursor: pointer;
-  border-radius: 4px;
-
-  &:hover, &.selected {
-    background: var(--el-color-primary-light-9);
-  }
-}
-
-.mention-item-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--el-color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-}
-
-.mention-item-info {
-  flex: 1;
-}
-
-.mention-item-name {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.mention-item-email {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-:deep(.ProseMirror) {
-  .mention {
-    background: var(--el-color-primary-light-9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0px 10px 20px rgba(0, 0, 0, 0.1);
+  
+  .mention-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5em;
+    cursor: pointer;
     border-radius: 4px;
-    padding: 2px 4px;
-    color: var(--el-color-primary);
-    text-decoration: none;
-    font-weight: 500;
     
-    &::before {
-      content: '@';
-      opacity: 0.5;
+    &:hover, &.selected {
+      background: #edf2fc;
+    }
+    
+    .mention-item-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #409eff;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 8px;
+      font-size: 12px;
+    }
+    
+    .mention-item-info {
+      .mention-item-name {
+        font-size: 14px;
+      }
     }
   }
 }

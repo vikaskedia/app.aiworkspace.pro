@@ -71,21 +71,33 @@
           :class="{ 'is-active': editor?.isActive({ textAlign: 'left' }) }"
           @click="editor?.chain().focus().setTextAlign('left').run()"
           title="Align Left">
-          <el-icon><AlignLeft /></el-icon>
+          <el-icon>
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18v2H3V5zm0 4h12v2H3V9zm0 4h18v2H3v-2zm0 4h12v2H3v-2z"/>
+            </svg>
+          </el-icon>
         </el-button>
         <el-button 
           size="small"
           :class="{ 'is-active': editor?.isActive({ textAlign: 'center' }) }"
           @click="editor?.chain().focus().setTextAlign('center').run()"
           title="Align Center">
-          <el-icon><AlignCenter /></el-icon>
+          <el-icon>
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18v2H3V5zm3 4h12v2H6V9zm-3 4h18v2H3v-2zm3 4h12v2H6v-2z"/>
+            </svg>
+          </el-icon>
         </el-button>
         <el-button 
           size="small"
           :class="{ 'is-active': editor?.isActive({ textAlign: 'right' }) }"
           @click="editor?.chain().focus().setTextAlign('right').run()"
           title="Align Right">
-          <el-icon><AlignRight /></el-icon>
+          <el-icon>
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M3 5h18v2H3V5zm6 4h12v2H9V9zm-6 4h18v2H3v-2zm6 4h12v2H9v-2z"/>
+            </svg>
+          </el-icon>
         </el-button>
       </el-button-group>
 
@@ -1003,38 +1015,72 @@ export default {
 
 <style lang="scss" scoped>
 .editor {
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
   background: white;
   
   .editor-toolbar {
-    padding: 12px;
-    border-bottom: 1px solid var(--el-border-color-light);
-    background: var(--el-bg-color);
+    padding: 4px;
+    border-bottom: 1px solid var(--el-border-color);
+    background: #f0f0f0;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 12px;
-    border-radius: 8px 8px 0 0;
+    gap: 2px;
   }
 
   .toolbar-group {
     display: flex;
     align-items: center;
-    background: white;
-    border-radius: 6px;
-    padding: 2px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: transparent;
+    border-radius: 2px;
+    padding: 1px;
+    gap: 1px;
 
-    &:hover {
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    &:not(:last-child) {
+      margin-right: 2px;
+    }
+  }
+}
+
+:deep(.editor-toolbar .el-button) {
+  height: 24px;
+  width: 24px;
+  padding: 2px;
+  border: none;
+  border-radius: 2px;
+  margin: 0;
+  background: transparent;
+
+  .el-icon {
+    font-size: 14px;
+    color: #444;
+  }
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #222;
+    
+    .el-icon {
+      color: #222;
     }
   }
 
-  * {
-    transition: all 0.2s ease;
+  &.is-active {
+    background-color: rgba(0, 0, 0, 0.15);
+    color: #000;
+    
+    .el-icon {
+      color: #000;
+    }
   }
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 16px;
+  background-color: #ddd;
+  margin: 0 2px;
 }
 
 .upload-button {
@@ -1254,33 +1300,6 @@ export default {
     .selectedCell {
       background: var(--el-color-primary-light-9);
     }
-  }
-}
-
-:deep(.el-button) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  height: 32px;
-  width: 32px;
-  border: none;
-  transition: all 0.2s ease;
-  border-radius: 4px;
-  margin: 0;
-
-  &:hover {
-    background-color: var(--el-color-primary-light-8);
-    transform: translateY(-1px);
-  }
-
-  &.is-active {
-    background-color: var(--el-color-primary-light-7);
-    color: var(--el-color-primary);
-  }
-
-  .el-icon {
-    font-size: 16px;
   }
 }
 

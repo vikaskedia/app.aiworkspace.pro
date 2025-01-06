@@ -1,5 +1,5 @@
 <template>
-  <div class="single-task-view">
+  <div class="single-task-view" v-if="task">
     <div class="task-header">
       <div class="back-button">
         <el-button 
@@ -191,13 +191,13 @@
         </div>
 
         <div class="comment-input">
-          <el-input
+          <TiptapEditor
             v-model="newComment"
-            type="textarea"
-            :rows="3"
-            placeholder="Write a comment... (Type @files to mention a file)"
-            @keyup.ctrl.enter="addComment"
-            @input="handleInput" />
+            placeholder="Write a comment..."
+            :taskId="String(task.id)"
+            :taskTitle="task.title"
+            :sharedUsers="sharedUsers"
+          />
           <el-button
             type="primary"
             :disabled="!newComment.trim()"
@@ -219,37 +219,13 @@
           <el-input v-model="editingTask.title" />
         </el-form-item>
         <el-form-item label="Description">
-          <div class="description-input-container">
-            <el-input 
-              v-model="editingTask.description"
-              type="textarea"
-              :rows="3"
-              class="description-input"
-              placeholder="Write a description... (Type @files to mention a file)"
-              @input="(event) => { handleInput(event); handleDescriptionInput(event); }"
-              @keydown="handleTypeaheadNavigation" />
-            
-            <!-- Typeahead suggestions with close button -->
-            <div v-if="showTypeahead && typeaheadSuggestions.length" class="typeahead-suggestions">
-              <div class="typeahead-header">
-                <span>Suggestions</span>
-                <el-button
-                  type="text"
-                  class="close-button"
-                  @click="showTypeahead = false">
-                  <el-icon><Close /></el-icon>
-                </el-button>
-              </div>
-              <div
-                v-for="(suggestion, index) in typeaheadSuggestions"
-                :key="index"
-                class="suggestion-item"
-                :class="{ 'selected': index === typeaheadSelectedIndex }"
-                @click="applySuggestion(suggestion)">
-                {{ suggestion }}
-              </div>
-            </div>
-          </div>
+          <TiptapEditor
+            v-model="editingTask.description"
+            placeholder="Write a description..."
+            :taskId="String(task.id)"
+            :taskTitle="task.title"
+            :sharedUsers="sharedUsers"
+          />
         </el-form-item>
         <el-form-item label="Status">
           <el-select v-model="editingTask.status" style="width: 100%">
@@ -439,6 +415,9 @@
       </template>
     </el-dialog>
   </div>
+  <div v-else class="loading-state">
+    <el-skeleton :rows="3" animated />
+  </div>
 </template>
 
 <script>
@@ -447,6 +426,7 @@ import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
+import TiptapEditor from '../common/TiptapEditor.vue';
 
 export default {
   components: {
@@ -454,7 +434,8 @@ export default {
     DocumentCopy,
     Folder,
     Close,
-    Document
+    Document,
+    TiptapEditor
   },
   setup() {
     const matterStore = useMatterStore();
@@ -585,15 +566,35 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('task_comments')
           .insert({
             task_id: this.task.id,
             user_id: user.id,
             content: this.newComment.trim()
-          });
+          })
+          .select();
 
         if (error) throw error;
+
+        // Parse mentions from TiptapEditor content
+        const mentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
+        const mentions = [...this.newComment.matchAll(mentionRegex)];
+        
+        for (const mention of mentions) {
+          const userId = mention[1];
+          if (userId && userId !== user.id) {
+            await this.createNotification(
+              userId,
+              'mention',
+              { 
+                task_id: this.task.id, 
+                task_title: this.task.title,
+                comment_by: user.email
+              }
+            );
+          }
+        }
 
         this.newComment = '';
         await this.loadComments();
@@ -602,6 +603,25 @@ export default {
         ElMessage.error('Error adding comment: ' + error.message);
       } finally {
         this.loading = false;
+      }
+    },
+    async createNotification(userId, type, data) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('notifications')
+          .insert([{
+            user_id: userId,
+            actor_id: user.id,
+            type,
+            data,
+            read: false
+          }]);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error creating notification:', error);
       }
     },
     setupRealtimeSubscription() {
@@ -1401,7 +1421,7 @@ h4 {
 
 .comment-text {
   color: #606266;
-  white-space: pre-wrap;
+  white-space: normal;
 }
 
 .comment-text :deep(a.file-link) {
@@ -1684,5 +1704,13 @@ table.editor-table {
       padding: 8px;
     }
   }
+}
+</style>
+
+<style scoped>
+.loading-state {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 </style>

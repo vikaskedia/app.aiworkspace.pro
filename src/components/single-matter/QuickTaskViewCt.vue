@@ -161,15 +161,35 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('task_comments')
           .insert({
             task_id: this.task.id,
             user_id: user.id,
             content: this.newComment.trim()
-          });
+          })
+          .select();
 
         if (error) throw error;
+
+        // Parse comment for mentions and create notifications
+        const mentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
+        const mentions = [...this.newComment.matchAll(mentionRegex)];
+        
+        for (const mention of mentions) {
+          const userId = mention[1];
+          if (userId && userId !== user.id) {
+            await this.createNotification(
+              userId,
+              'mention',
+              { 
+                task_id: this.task.id, 
+                task_title: this.task.title,
+                comment_by: user.email
+              }
+            );
+          }
+        }
 
         this.newComment = '';
         await this.loadComments();
@@ -833,19 +853,19 @@ Please provide assistance based on this context, the comment history, the availa
       });
     },
 
-    async createNotification(userId, type, metadata) {
+    async createNotification(userId, type, data) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
           .from('notifications')
-          .insert({
+          .insert([{
             user_id: userId,
-            type: type,
             actor_id: user.id,
-            metadata: metadata,
+            type,
+            data,
             read: false
-          });
+          }]);
 
         if (error) throw error;
       } catch (error) {
@@ -1067,7 +1087,9 @@ Please provide assistance based on this context, the comment history, the availa
         <TiptapEditor
           v-model="newComment"
           placeholder="Write a comment..."
-          @keyup.ctrl.enter="addComment"
+          @keyup.ctrl.enter="addComment" 
+          :shared-users="sharedUsers"
+          :task-title="task.title || 'New Task'"
         />
         
         <el-button

@@ -588,10 +588,7 @@ export default {
         if (!response.ok) throw new Error('Failed to upload file');
         
         const data = await response.json();
-        const downloadUrl = data.content.download_url.replace(
-          '/gitea',
-          giteaHost
-        );
+        const downloadUrl = data.content.download_url;
 
         // Insert the file link into the editor
         this.editor.chain().focus().insertFile({
@@ -813,10 +810,7 @@ export default {
           if (!response.ok) throw new Error('Failed to upload file');
           
           const data = await response.json();
-          const downloadUrl = data.content.download_url.replace(
-            '/gitea',
-            giteaHost
-          );
+          const downloadUrl = data.content.download_url;
 
           // Insert the file link into the editor
           this.editor.chain().focus().insertContent(`[${uniqueFileName}](${downloadUrl})`).run();

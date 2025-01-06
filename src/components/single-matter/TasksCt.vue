@@ -956,7 +956,7 @@ export default {
             name: file.name,
             path: file.path,
             type: 'file',
-            download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+            download_url: file.download_url
           }));
 
       } catch (error) {

@@ -254,7 +254,7 @@ async function handleRename() {
       id: newFileData.content.sha,
       name: renameForm.value.newName,
       storage_path: newFileData.content.path,
-      download_url: newFileData.content.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+      download_url: newFileData.content.download_url
     };
 
     // Emit the updated file

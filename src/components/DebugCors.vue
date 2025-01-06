@@ -66,7 +66,7 @@ async function loadFiles() {
         name: file.name,
         type: file.type,
         size: file.size,
-        download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+        download_url: file.download_url
       }));
 
   } catch (err) {

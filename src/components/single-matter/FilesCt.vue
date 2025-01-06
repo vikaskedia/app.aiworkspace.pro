@@ -174,7 +174,7 @@ async function loadFiles() {
         git_repo: currentMatter.value.git_repo,
         created_at: new Date().toISOString(),
         tags: [],
-        download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+        download_url: file.download_url
       }));
 
   } catch (error) {
@@ -263,7 +263,7 @@ async function handleFileUpload(file) {
       git_repo: currentMatter.value.git_repo,
       created_at: new Date().toISOString(),
       tags: selectedTags.value,
-      download_url: giteaData.content.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+      download_url: giteaData.content.download_url
     });
 
     uploadDialogVisible.value = false;

@@ -192,7 +192,7 @@
           name: file.name,
           path: file.path,
           type: 'file',
-          download_url: file.download_url.replace(import.meta.env.VITE_GITEA_HOST, '/gitea')
+          download_url: file.download_url
         }))
     } catch (error) {
       ElMessage.error('Error loading files: ' + error.message)
@@ -307,10 +307,7 @@
       if (!response.ok) throw new Error('Failed to upload file')
       
       const data = await response.json()
-      const downloadUrl = data.content.download_url.replace(
-        import.meta.env.VITE_GITEA_HOST,
-        '/gitea'
-      )
+      const downloadUrl = data.content.download_url
   
       // Emit the file selected event with the new filename
       emit('file-selected', {

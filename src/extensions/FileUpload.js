@@ -25,10 +25,6 @@ export const FileUpload = Extension.create({
                   const end = start + match[0].length
                   const fullPath = match[1]
                   let fileUrl = match[2]
-
-                  // Replace the gitea host with the local host
-                  const giteaHost = import.meta.env.VITE_GITEA_HOST;
-                  fileUrl = fileUrl.replace('/gitea', giteaHost);
                   
                   // Extract just the filename from the full path
                   const fileName = fullPath.split('/').pop()

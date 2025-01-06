@@ -507,6 +507,9 @@ export default {
         time_taken: null,
         comment: ''
       },
+      hours: '',
+      minutes: '',
+      timeError: '',
       hoursLogs: [],
     };
   },
@@ -1388,7 +1391,14 @@ export default {
       } catch (error) {
         ElMessage.error('Error logging hours: ' + error.message);
       }
-    }
+    },
+    
+    handleHoursKeyup(event) {
+      // If 2 digits entered in hours, move to minutes
+      if (this.hours.length === 2 && parseInt(this.hours) <= 12) {
+        this.$refs.minutesInput.$el.querySelector('input').focus();
+      }
+    },
   },
   watch: {
     shareDialogVisible(newVal) {

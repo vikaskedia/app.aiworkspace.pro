@@ -200,6 +200,7 @@ export default {
     },
     getNotificationText(notification) {
       const actorEmail = this.userEmails[notification.actor_id] || 'Someone';
+      
       switch (notification.type) {
         case 'task_assigned':
           return `${actorEmail} assigned you a task: ${notification.data.task_title}`;
@@ -210,7 +211,7 @@ export default {
         case 'matter_shared':
           return `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
         case 'mention':
-          return `${notification.metadata.comment_by} mentioned you in task: ${notification.metadata.task_title}`;
+          return `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;
         default:
           return 'New notification';
       }

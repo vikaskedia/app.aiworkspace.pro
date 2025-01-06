@@ -256,6 +256,27 @@ export default {
           );
         }
 
+        // Parse description for mentions and create notifications
+        if (taskData.description) {
+          const mentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
+          const mentions = [...taskData.description.matchAll(mentionRegex)];
+          
+          for (const mention of mentions) {
+            const userId = mention[1];
+            if (userId && userId !== user.id) {
+              await this.createNotification(
+                userId,
+                'mention',
+                { 
+                  task_id: data[0].id, 
+                  task_title: data[0].title,
+                  comment_by: user.email
+                }
+              );
+            }
+          }
+        }
+
         // Log task creation activity
         await supabase
           .from('task_comments')

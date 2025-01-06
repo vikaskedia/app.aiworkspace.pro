@@ -11,6 +11,7 @@ import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
 import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
 import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
+import DebugCors from './components/DebugCors.vue';
 
 const routes = [
   {
@@ -112,6 +113,12 @@ const routes = [
     path: '/login',
     name: 'LoginPage',
     component: LoginPage,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/debug-cors',
+    name: 'DebugCors',
+    component: DebugCors,
     meta: { requiresAuth: false }
   },
   {

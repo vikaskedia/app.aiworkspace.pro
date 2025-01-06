@@ -106,6 +106,10 @@ export default {
           // Show notifications dialog
           this.showNotificationsDialog = true;
           break;
+        case 'talktodev':
+          // TODO: Implement talk to dev route
+          this.$router.push('/talk-to-dev');
+          break;
       }
     },
     handleMatterSelect(matter) {
@@ -306,7 +310,7 @@ export default {
                 :hidden="unreadCount === 0" 
                 class="notification-badge" />
             </el-dropdown-item>
-            <el-dropdown-item command="feedback">Feedback</el-dropdown-item>
+            <el-dropdown-item divided command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>

@@ -114,6 +114,17 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/talk-to-dev',
+    name: 'TalkToDev',
+    component: () => import('./components/single-matter/TalkToDevSystem.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/talk-to-dev/:id',
+    name: 'TopicDetails',
+    component: () => import('./components/single-matter/TalkToDevTopicDetails.vue')
+  }, 
+  {
     path: '/',
     redirect: '/login'
   }

@@ -589,8 +589,8 @@ export default {
         
         const data = await response.json();
         const downloadUrl = data.content.download_url.replace(
-          import.meta.env.VITE_GITEA_HOST,
-          '/gitea'
+          '/gitea',
+          giteaHost
         );
 
         // Insert the file link into the editor
@@ -814,8 +814,8 @@ export default {
           
           const data = await response.json();
           const downloadUrl = data.content.download_url.replace(
-            import.meta.env.VITE_GITEA_HOST,
-            '/gitea'
+            '/gitea',
+            giteaHost
           );
 
           // Insert the file link into the editor

@@ -33,6 +33,18 @@
                   {{ new Date(scope.row.granted_at).toLocaleDateString() }}
                 </template>
               </el-table-column>
+              <el-table-column align="right" width="70">
+                <template #default="scope">
+                  <el-button
+                    type="danger"
+                    link
+                    :disabled="scope.row.id === currentUser?.id"
+                    @click="removeAdmin(scope.row)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </template>
+              </el-table-column>
             </el-table>
           </div>
 
@@ -169,7 +181,7 @@ import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import HeaderCt from '../HeaderCt.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
-import { Edit, ChatLineSquare, UserFilled } from '@element-plus/icons-vue'
+import { Edit, ChatLineSquare, UserFilled, Delete } from '@element-plus/icons-vue'
 
 export default {
   name: 'TalkToDevSystem',
@@ -178,7 +190,8 @@ export default {
     TiptapEditor,
     Edit,
     ChatLineSquare,
-    UserFilled
+    UserFilled,
+    Delete
   },
   setup() {
     const topics = ref([])
@@ -471,6 +484,26 @@ export default {
       }
     }
 
+    const removeAdmin = async (admin) => {
+      try {
+        loading.value = true
+        const { error } = await supabase
+          .from('talktodevteam_system_admins')
+          .delete()
+          .eq('user_id', admin.id)
+
+        if (error) throw error
+
+        ElMessage.success('Admin removed successfully')
+        await loadSystemAdmins()
+      } catch (error) {
+        console.error('Error removing admin:', error)
+        ElMessage.error('Error removing admin')
+      } finally {
+        loading.value = false
+      }
+    }
+
     // Rest of the setup function remains the same
     
     onMounted(async () => {
@@ -522,7 +555,8 @@ export default {
       replyLoading,
       newReplies,
       addReply,
-      userNames
+      userNames,
+      removeAdmin
     }
   }
 }

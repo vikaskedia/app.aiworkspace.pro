@@ -64,6 +64,9 @@ export default {
             path.includes('/files') || 
             path.includes('/goals') ||
             path.includes('/events');
+    },
+    isTalkToDevRoute() {
+      return this.$route.path.includes('/talk-to-dev')
     }
   },
   async mounted() {
@@ -256,36 +259,41 @@ export default {
     </div>
     
     <div class="header-center">
-      <MatterSelector @matter-selected="handleMatterSelect" />
-      <span class="section-divider">/</span>
-      <el-dropdown trigger="click" @command="handleMatterCommand">
-        <span class="current-section clickable">
-          {{ currentSection }}
-          <el-icon class="dropdown-icon"><caret-bottom /></el-icon>
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <!-- Show these options when a specific matter is selected -->
-            <template v-if="currentMatter">
-              <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
-              <el-dropdown-item command="goals">Goals</el-dropdown-item>
-              <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
-              <el-dropdown-item command="events">Events</el-dropdown-item>
-              <el-dropdown-item command="files">Files</el-dropdown-item>
-              <el-dropdown-item command="settings">Settings</el-dropdown-item>
-            </template>
-            <!-- Show these options when "All Matters" is selected -->
-            <template v-else>
-              <el-dropdown-item command="all_dashboard">Dashboard</el-dropdown-item>
-              <el-dropdown-item command="all_tasks">Tasks</el-dropdown-item>
-              <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
-              <el-dropdown-item command="all_events">Events</el-dropdown-item>
-              <el-dropdown-item command="all_files">Files</el-dropdown-item>
-              <el-dropdown-item command="all_settings">Settings</el-dropdown-item>
-            </template>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <template v-if="isTalkToDevRoute">
+        <h2 class="talk-to-dev-title">Talk to Dev</h2>
+      </template>
+      <template v-else>
+        <MatterSelector @matter-selected="handleMatterSelect" />
+        <span class="section-divider">/</span>
+        <el-dropdown trigger="click" @command="handleMatterCommand">
+          <span class="current-section clickable">
+            {{ currentSection }}
+            <el-icon class="dropdown-icon"><caret-bottom /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <!-- Show these options when a specific matter is selected -->
+              <template v-if="currentMatter">
+                <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
+                <el-dropdown-item command="goals">Goals</el-dropdown-item>
+                <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
+                <el-dropdown-item command="events">Events</el-dropdown-item>
+                <el-dropdown-item command="files">Files</el-dropdown-item>
+                <el-dropdown-item command="settings">Settings</el-dropdown-item>
+              </template>
+              <!-- Show these options when "All Matters" is selected -->
+              <template v-else>
+                <el-dropdown-item command="all_dashboard">Dashboard</el-dropdown-item>
+                <el-dropdown-item command="all_tasks">Tasks</el-dropdown-item>
+                <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
+                <el-dropdown-item command="all_events">Events</el-dropdown-item>
+                <el-dropdown-item command="all_files">Files</el-dropdown-item>
+                <el-dropdown-item command="all_settings">Settings</el-dropdown-item>
+              </template>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
     </div>
     
     <div class="header-right" v-if="user">
@@ -500,6 +508,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 200px; /* Ensures consistent width */
+  justify-content: center;
 }
 
 .section-divider {
@@ -595,5 +605,12 @@ export default {
   text-align: center;
   color: #909399;
   padding: 16px;
+}
+
+.talk-to-dev-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0;
 }
 </style>

@@ -1,31 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/gitea/:path*",
-      "destination": "https://app.associateattorney.ai/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/gitea/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type,Authorization,Accept,Origin,X-Requested-With"
-        },
-        {
-          "key": "Access-Control-Expose-Headers",
-          "value": "*"
-        }
-      ]
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link, Edit } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted } from 'vue'
@@ -13,7 +13,13 @@ export default {
     Star,
     StarFilled,
     Link,
-    Edit
+    Edit,
+    More,
+    Calendar,
+    User,
+    Timer,
+    Delete,
+    Plus
   },
   props: {
     tasks: {
@@ -33,7 +39,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled'],
+  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled', 'update-task'],
   data() {
     return {
       filters: {
@@ -49,7 +55,10 @@ export default {
       userEmails: {},
       deletedTooltips: {},
       sortBy: null,
-      sortOrder: 'ascending'
+      sortOrder: 'ascending',
+      editingAssignee: null,
+      editingDueDate: null,
+      hoveredTaskId: null,
     }
   },
   computed: {
@@ -235,9 +244,16 @@ export default {
     },
     getStatusType(task) {
       switch (task.status) {
-        case 'completed': return 'success';
-        case 'in_progress': return 'warning';
-        default: return 'info';
+        case 'completed':
+          return 'success';
+        case 'in_progress':
+          return 'primary';
+        case 'not_started':
+          return 'info';
+        case 'awaiting_external':
+          return 'warning';
+        default:
+          return 'info';
       }
     },
     async loadDeletedTooltip(task) {
@@ -306,6 +322,83 @@ export default {
       } catch (error) {
         ElMessage.error('Error updating task star: ' + error.message);
       }
+    },
+    async updateStatus(task, checked) {
+      this.$emit('update-status', {
+        ...task,
+        status: checked ? 'completed' : 'not_started'
+      });
+    },
+    handleAction(command, task) {
+      switch (command) {
+        case 'edit':
+          this.$emit('edit', task);
+          break;
+        case 'comments':
+          this.$emit('view-comments', task);
+          break;
+        case 'delete':
+          this.$emit('delete', task);
+          break;
+        case 'restore':
+          this.$emit('restore', task);
+          break;
+      }
+    },
+    formatDueDate(date) {
+      if (!date) return 'No due date';
+      const dueDate = new Date(date);
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      if (dueDate.toDateString() === today.toDateString()) return 'Today';
+      if (dueDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+      return dueDate.toLocaleDateString();
+    },
+    
+    getDueDateType(task) {
+      if (!task.due_date) return 'info';
+      const dueDate = new Date(task.due_date);
+      const today = new Date();
+      
+      if (dueDate < today && task.status !== 'completed') return 'danger';
+      if (dueDate.toDateString() === today.toDateString()) return 'warning';
+      return 'info';
+    },
+    
+    updateTaskField(task, field, value) {
+      this.$emit('update-task', { ...task, [field]: value });
+      if (field === 'assignee') this.editingAssignee = null;
+      if (field === 'due_date') this.editingDueDate = null;
+    },
+    
+    openComments(task) {
+      this.$emit('view-comments', task);
+    },
+
+    getPriorityType(priority) {
+      switch (priority?.toLowerCase()) {
+        case 'high':
+          return 'danger';
+        case 'medium':
+          return 'warning';
+        case 'low':
+          return 'success';
+        default:
+          return 'info';
+      }
+    },
+
+    getAssigneeColor(userId) {
+      // Generate consistent color based on user ID
+      let hash = 0;
+      const email = this.sharedUsers.find(u => u.id === userId)?.email || userId;
+      for (let i = 0; i < email.length; i++) {
+        hash = email.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = hash % 360;
+      return `hsl(${hue}, 70%, 80%)`; // Light pastel colors
     }
   },
   watch: {
@@ -326,39 +419,49 @@ export default {
     }
   },
   setup(props, { emit }) {
-    const titleRefs = ref({})
-    const hoveredRowId = ref(null)
     const editingTaskId = ref(null)
-    const editingTitle = ref('')
+    const editingField = ref(null)
+    const editingValue = ref('')
     
-    const checkTruncation = (element) => {
-      if (element) {
-        return element.offsetWidth < element.scrollWidth
-      }
-      return false
-    }
-
-    const startEditing = (task) => {
+    const startEditing = (task, field) => {
       editingTaskId.value = task.id
-      editingTitle.value = task.title
+      editingField.value = field
+      editingValue.value = task[field]
     }
 
-    const handleTitleSubmit = (task) => {
-      if (editingTitle.value.trim() !== '' && editingTitle.value !== task.title) {
-        emit('update-title', { ...task, title: editingTitle.value.trim() })
+    const handleSubmit = (task) => {
+      if (editingValue.value !== task[editingField.value]) {
+        emit('update-task', { 
+          ...task, 
+          [editingField.value]: editingValue.value 
+        })
       }
       editingTaskId.value = null
-      editingTitle.value = ''
+      editingField.value = null
+      editingValue.value = ''
     }
-    
+
+    const cancelEditing = () => {
+      editingTaskId.value = null
+      editingField.value = null
+      editingValue.value = ''
+    }
+
+    const toggleStar = (task) => {
+      emit('update-task', {
+        ...task,
+        starred: !task.starred
+      })
+    }
+
     return {
-      titleRefs,
-      checkTruncation,
-      hoveredRowId,
       editingTaskId,
-      editingTitle,
+      editingField,
+      editingValue,
       startEditing,
-      handleTitleSubmit
+      handleSubmit,
+      cancelEditing,
+      toggleStar
     }
   },
   directives: {
@@ -373,248 +476,198 @@ export default {
 
 <template>
   <div class="tasks-list">
+    <!-- Column Headers -->
+    <div class="task-headers">
+      <div class="header-title">
+        <span>Title</span>
+      </div>
+      <div class="header-metadata">
+        <span>Status</span>
+        <span>Assignee</span>
+        <span>Priority</span>
+        <span>Due Date</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
     <el-collapse-transition>
-      <div v-show="showFilters" class="filters-section">
-        <el-input
-          v-model="filters.search"
-          placeholder="Search tasks..."
-          prefix-icon="Search"
-          clearable
-          class="filter-item"
-        />
-        
-        <div class="filters-row">
-          <el-select 
-            v-model="filters.status" 
-            placeholder="Status" 
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            clearable
-            class="filter-item">
-            <el-option label="Not started" value="not_started" />
-            <el-option label="In progress" value="in_progress" />
-            <el-option label="Awaiting external factor" value="awaiting_external" />
-            <el-option label="Completed" value="completed" />
-          </el-select>
-
-          <el-select 
-            v-model="filters.priority" 
-            placeholder="Priority" 
-            clearable
-            class="filter-item">
-            <el-option label="High" value="high" />
-            <el-option label="Medium" value="medium" />
-            <el-option label="Low" value="low" />
-          </el-select>
-
-          <el-select 
-            v-model="filters.assignee" 
-            placeholder="Assignee" 
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            clearable
-            class="filter-item">
-            <el-option
-              v-for="user in sharedUsers"
-              :key="user.id"
-              :label="user.email"
-              :value="user.id"
+      <div v-show="showFilters" class="filters-container">
+        <el-form :inline="true" class="filter-form">
+          <el-form-item label="Search">
+            <el-input
+              v-model="filters.search"
+              placeholder="Search tasks..."
+              clearable
             />
-          </el-select>
-
-          <el-select 
-            v-model="filters.dueDate" 
-            placeholder="Due Date" 
-            clearable
-            class="filter-item">
-            <el-option label="Overdue" value="overdue" />
-            <el-option label="Due Today" value="today" />
-            <el-option label="Due This Week" value="week" />
-          </el-select>
-
-          <el-select 
-            v-model="filters.excludeStatus"
-            placeholder="Exclude statuses"
-            multiple
-            clearable
-            class="filter-item">
-            <el-option label="Not started" value="not_started" />
-            <el-option label="In progress" value="in_progress" />
-            <el-option label="Awaiting external factor" value="awaiting_external" />
-            <el-option label="Completed" value="completed" />
-          </el-select>
-
-          <el-switch
-            v-model="filters.showDeleted"
-            class="filter-item"
-            active-text="Show Deleted Tasks"
-            @change="$emit('show-deleted-changed', $event)"
-          />
-
-          <el-switch
-            v-model="filters.starred"
-            class="filter-item"
-            active-text="Show Starred Tasks"
-            @change="saveFilters"
-          />
-        </div>
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-select
+              v-model="filters.status"
+              placeholder="All statuses"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              clearable
+              style="width: 200px">
+              <el-option label="Not started" value="not_started" />
+              <el-option label="In progress" value="in_progress" />
+              <el-option label="Awaiting external factor" value="awaiting_external" />
+              <el-option label="Completed" value="completed" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Priority">
+            <el-select
+              v-model="filters.priority"
+              placeholder="All priorities"
+              clearable
+              style="width: 200px">
+              <el-option label="High" value="high" />
+              <el-option label="Medium" value="medium" />
+              <el-option label="Low" value="low" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Due Date">
+            <el-select
+              v-model="filters.dueDate"
+              placeholder="All dates"
+              clearable
+              style="width: 200px">
+              <el-option label="Overdue" value="overdue" />
+              <el-option label="Today" value="today" />
+              <el-option label="This week" value="week" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-switch
+              v-model="filters.starred"
+              active-text="Show Starred Tasks"
+            />
+          </el-form-item>
+          <el-form-item label="Exclude Status">
+            <el-select
+              v-model="filters.excludeStatus"
+              placeholder="Exclude statuses"
+              multiple
+              clearable
+              style="width: 200px">
+              <el-option label="Not started" value="not_started" />
+              <el-option label="In progress" value="in_progress" />
+              <el-option label="Awaiting external factor" value="awaiting_external" />
+              <el-option label="Completed" value="completed" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button @click="clearFilters">Clear</el-button>
+          </el-form-item>
+        </el-form>
       </div>
     </el-collapse-transition>
 
-    <!-- Tasks Table -->
-    <el-table
-      v-loading="loading"
-      :data="filteredTasks"
-      row-key="id"
-      :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-      class="tasks-table"
-      @sort-change="handleSort"
-      default-expand-all
-      style="width: 100%"
-      @cell-mouse-enter="(row) => hoveredRowId = row.id"
-      @cell-mouse-leave="() => hoveredRowId = null">
-      <el-table-column 
-        prop="title" 
-        label="Title"
-        sortable
-        min-width="200">
-        <template #default="scope">
-          <div class="title-with-star">
-            <el-icon
-              :class="['star-icon', { 'starred': scope.row.starred }]"
-              @click.stop="toggleStar(scope.row)">
-              <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
+    <div 
+      v-for="task in filteredTasks" 
+      :key="task.id"
+      class="task-card"
+      @click="openComments(task)">
+      
+      <div class="task-main">
+        <div class="task-title-container">
+          <div class="star-wrapper">
+            <el-icon 
+              class="star-icon"
+              :class="{ starred: task.starred }"
+              @click.stop="toggleStar(task)">
+              <Star v-if="task.starred" />
+              <StarFilled v-else />
             </el-icon>
-            <div class="title-content">
-              <div class="title-row">
-                <div class="title-with-link">
-                  <template v-if="editingTaskId === scope.row.id">
-                    <el-input
-                      v-model="editingTitle"
-                      size="small"
-                      @keyup.enter="handleTitleSubmit(scope.row)"
-                      @blur="handleTitleSubmit(scope.row)"
-                      ref="titleInput"
-                      v-focus
-                    />
-                  </template>
-                  <template v-else>
-                    <span 
-                      :ref="el => titleRefs[scope.row.id] = el"
-                      class="task-title"
-                      @click.stop="$emit('view-comments', scope.row)">
-                      {{ scope.row.title }}
-                    </span>
-                  </template>
-                </div>
-                <div class="actions-wrapper">
-                  <el-tooltip
-                    v-if="hoveredRowId === scope.row.id && editingTaskId !== scope.row.id"
-                    effect="dark"
-                    content="Rename task"
-                    placement="top">
-                    <el-icon 
-                      class="edit-icon"
-                      @click.stop="startEditing(scope.row)">
-                      <Edit />
-                    </el-icon>
-                  </el-tooltip>
-                  <span class="logged-hours">
-                    Hours: {{ (scope.row.total_hours || 0).toFixed(2) }}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        prop="status" 
-        label="Status"
-        sortable
-        width="100">
-        <template #default="scope">
-          <div class="status-container">
-            <el-tag :type="getStatusType(scope.row)">
-              {{ scope.row.status === 'not_started' ? 'Not started' : 
-                 scope.row.status === 'in_progress' ? 'In progress' : 
-                 scope.row.status === 'awaiting_external' ? 'Awaiting external factor' :
-                 scope.row.status }}
-            </el-tag>
-            <el-tooltip 
-              v-if="scope.row.deleted"
-              effect="dark"
-              :content="deletedTooltips[scope.row.id] || 'Loading...'"
-              placement="top">
-              <el-icon class="deleted-icon" @mouseenter="loadDeletedTooltip(scope.row)">
-                <InfoFilled />
-              </el-icon>
-            </el-tooltip>
+          <template v-if="editingTaskId === task.id && editingField === 'title'">
+            <el-input
+              v-model="editingValue"
+              size="small"
+              @keyup.enter="handleSubmit(task)"
+              @keyup.esc="cancelEditing"
+              v-focus
+            />
+          </template>
+          <div v-else class="title-hours-wrapper">
+            <span class="task-title" @dblclick="startEditing(task, 'title')">
+              {{ task.title }}
+            </span>
+            <span class="logged-hours" v-if="task.total_hours">
+              <el-tag size="small" class="logged-hours-tag">
+                <el-icon><Timer /></el-icon>
+                {{ task.total_hours.toFixed(1) }}h
+              </el-tag>
+            </span>
           </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        prop="priority" 
-        label="Priority"
-        sortable
-        width="100">
-        <template #default="scope">
-          <el-tag :type="
-            scope.row.priority === 'high' ? 'danger' :
-            scope.row.priority === 'medium' ? 'warning' : 'info'
-          ">
-            {{ scope.row.priority }}
+          <div class="hover-actions" v-if="editingTaskId !== task.id">
+            <el-icon class="action-icon" @click.stop="startEditing(task, 'title')"><Edit /></el-icon>
+            <el-icon class="action-icon delete" @click.stop="handleAction('delete', task)"><Delete /></el-icon>
+          </div>
+        </div>
+
+        <div class="task-metadata">
+          <el-tag
+            :type="getStatusType(task)"
+            size="small"
+            class="status-tag clickable"
+            @click.stop="startEditing(task, 'status')">
+            <span>{{ formatStatus(task.status) }}</span>
           </el-tag>
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        prop="due_date" 
-        label="Due Date"
-        sortable
-        width="150">
-        <template #default="scope">
-          {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        prop="assignee" 
-        label="Assignee"
-        sortable
-        width="200">
-        <template #default="scope">
-          <span>{{ sharedUsers.find(u => u.id === scope.row.assignee)?.email || '-' }}</span>
-          <!-- <span class="logged-hours">
-            Hours Logged: {{ scope.row.log_hours || 0 }}
-          </span> -->
-        </template>
-      </el-table-column>
-      
-      <el-table-column 
-        label="Actions"
-        width="120"
-        align="center">
-        <template #default="scope">
-          <el-button
-            type="primary"
-            link
-            @click="$emit('edit', scope.row)">
-            Edit
-          </el-button>
-          <el-button
-            :type="scope.row.deleted ? 'success' : 'danger'"
-            link
-            @click="$emit(scope.row.deleted ? 'restore' : 'delete', scope.row)">
-            {{ scope.row.deleted ? 'Restore' : 'Delete' }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+
+          <div class="assignee-wrapper">
+            <template v-if="task.assignee">
+              <el-tooltip
+                :content="sharedUsers.find(u => u.id === task.assignee)?.email"
+                placement="top">
+                <div 
+                  class="assignee-badge clickable"
+                  :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
+                  @click.stop="startEditing(task, 'assignee')">
+                  {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
+                </div>
+              </el-tooltip>
+            </template>
+            <template v-else>
+              <el-tooltip content="Assign task" placement="top">
+                <div 
+                  class="assignee-badge unassigned clickable"
+                  @click.stop="startEditing(task, 'assignee')">
+                  <el-icon><Plus /></el-icon>
+                </div>
+              </el-tooltip>
+            </template>
+          </div>
+
+          <el-tag
+            :type="getPriorityType(task.priority)"
+            size="small"
+            class="priority-tag clickable"
+            @click.stop="startEditing(task, 'priority')">
+            <span>{{ task.priority || 'No priority' }}</span>
+          </el-tag>
+
+          <template v-if="task.due_date">
+            <el-tag
+              :type="getDueDateType(task)"
+              size="small"
+              class="due-date-tag clickable"
+              @click.stop="startEditing(task, 'due_date')">
+              <el-icon><Calendar /></el-icon>
+              {{ formatDueDate(task.due_date) }}
+            </el-tag>
+          </template>
+          <template v-else>
+            <div 
+              class="due-date-empty clickable"
+              @click.stop="startEditing(task, 'due_date')">
+              <el-icon><Calendar /></el-icon>
+              <span>No due date</span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -622,69 +675,47 @@ export default {
 .tasks-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.filters-header {
+.task-card {
   display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.filters-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background-color: white;
-  padding: 1rem;
+  padding: 8px 16px;
+  background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.filters-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.filter-item {
-  min-width: 200px;
-}
-
-@media (max-width: 768px) {
-  .filter-item {
-    width: 100%;
-  }
-}
-
-.clickable-title {
+  transition: background-color 0.2s ease;
   cursor: pointer;
-  color: #409EFF;
+  border: 1px solid var(--el-border-color-lighter);
 }
 
-.clickable-title:hover {
-  text-decoration: underline;
+.task-card:hover {
+  background-color: var(--el-fill-color-light);
 }
 
-.status-container {
+.task-main {
   display: flex;
   align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title-container {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
   gap: 8px;
 }
 
-.deleted-icon {
-  color: #909399;
-  cursor: help;
-}
-
-.logged-hours {
-  background-color: var(--el-color-info-light-9);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-left: auto;
+.star-wrapper {
+  display: flex;
+  align-items: center;
 }
 
 .star-icon {
@@ -692,6 +723,7 @@ export default {
   font-size: 18px;
   color: #909399;
   transition: color 0.3s;
+  flex-shrink: 0;
 }
 
 .star-icon:hover {
@@ -700,96 +732,148 @@ export default {
 
 .star-icon.starred {
   color: #f0c541;
-  font-size: 28px;
-}
-
-.title-with-star {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.title-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-}
-
-.title-with-link {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex: 1;
 }
 
 .task-title {
-  cursor: pointer;
-  color: #409EFF;
-  margin-right: 8px;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
-.task-title:hover {
-  text-decoration: underline;
-}
-
-.logged-hours {
-  background-color: var(--el-color-info-light-9);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.link-icon {
-  color: #409EFF;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.3s;
-  flex-shrink: 0;
-}
-
-.link-icon:hover {
-  background-color: rgba(64, 158, 255, 0.1);
-  transform: scale(1.1);
-}
-
-.edit-icon {
-  cursor: pointer;
-  color: #909399;
-  font-size: 16px;
-  transition: color 0.3s;
-  flex-shrink: 0;
-}
-
-.edit-icon:hover {
-  color: #409EFF;
-}
-
-.actions-wrapper {
+.task-metadata {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-left: auto;
-  flex-shrink: 0;
 }
 
-.el-input {
-  margin-right: 8px;
-  width: calc(100% - 16px);
+.task-metadata > * {
+  min-width: 80px;
+  text-align: center;
+}
+
+.task-metadata .status-tag {
+  width: 100px;
+}
+
+.task-metadata .priority-tag {
+  width: 80px;
+}
+
+.task-metadata .due-date-tag,
+.task-metadata .due-date-empty {
+  width: 100px;
+}
+
+.task-metadata .logged-hours {
+  width: 60px;
+  text-align: center;
+}
+
+.assignee-wrapper {
+  width: 40px;
+  display: flex;
+  justify-content: center;
+  margin-left: 0;
+}
+
+.hover-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  gap: 4px;
+  background-color: var(--el-fill-color-light);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.task-title-container:hover .hover-actions {
+  display: flex;
+}
+
+.action-icon {
+  padding: 4px;
+  font-size: 14px;
+  color: var(--el-color-primary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.action-icon.delete {
+  color: var(--el-color-danger);
+}
+
+
+.action-icon:hover {
+  background-color: var(--el-fill-color);
+  color: var(--el-color-primary);
+}
+
+.action-icon.delete:hover {
+  color: var(--el-color-danger);
+}
+
+.assignee-badge.unassigned {
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.assignee-badge.unassigned:hover {
+  background-color: var(--el-fill-color-dark);
+  color: var(--el-text-color-primary);
+}
+
+.assignee-badge.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  height: 16px;
+  width: 16px;
+  text-align: center;
+  padding: 4px;
+}
+span.logged-hours {
+    font-size: 14px;
+}
+
+span.logged-hours i {
+    vertical-align: text-top;
+}
+
+.assignee-badge.clickable:hover {
+  opacity: 0.8;
+}
+
+.due-date-empty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  background-color: var(--el-fill-color-light);
+  transition: all 0.2s ease;
+}
+
+.due-date-empty:hover {
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-primary);
+}
+
+.due-date-empty .el-icon {
+  font-size: 14px;
 }
 </style>
 
@@ -830,5 +914,124 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+</style>
+
+<style>
+@media (max-width: 768px) {
+
+  .task-card {
+    padding: 12px;
+  }
+  
+  .task-card.is-child {
+    margin-left: 16px;
+  }
+  
+  .task-metadata {
+    gap: 6px;
+  }
+}
+</style>
+
+<style>
+.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable:hover {
+  background-color: var(--el-fill-color);
+}
+
+.el-input.el-input--small {
+  width: 100%;
+}
+
+.el-select.el-select--small {
+  width: 120px;
+}
+
+.el-date-picker.el-date-picker--small {
+  width: 130px;
+}
+
+.status-tag, .priority-tag, .due-date-tag {
+  position: relative;
+}
+
+.status-tag :deep(.el-select),
+.priority-tag :deep(.el-select),
+.due-date-tag :deep(.el-date-picker) {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+</style>
+
+<style scoped>
+.task-headers {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.header-title {
+  flex: 1;
+  min-width: 0;
+  padding-left: 46px; /* Account for star icon (18px) + padding (8px) + gap (8px) */
+}
+
+.header-metadata {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-metadata span {
+  min-width: 80px;
+  text-align: center;
+}
+
+.header-metadata span:nth-child(1) { /* Status */
+  width: 100px;
+}
+
+.header-metadata span:nth-child(2) { /* Priority */
+  width: 80px;
+}
+
+.header-metadata span:nth-child(3) { /* Due Date */
+  width: 85px;
+}
+
+.header-metadata span:last-child { /* Assignee */
+  width: 115px;
+  text-align: center;
+}
+</style>
+
+<style>
+.filters-container {
+  padding: 16px;
+  background-color: var(--el-fill-color-light);
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-form :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 </style>

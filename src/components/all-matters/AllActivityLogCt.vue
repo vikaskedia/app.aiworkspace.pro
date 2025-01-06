@@ -1,100 +1,100 @@
 <template>
   <div class="activity-log-container">
-    <h2>Hourly  Time Logs</h2>
-    <!-- <div class="filters">
-        Select User:
-      <el-select
-        v-model="selectedUser"
-        placeholder="Select user"
-        clearable
-        @change="loadTimeLogs"
-        style="width: 200px">
-        <el-option
-          v-for="user in users"
-          :key="user.id"
-          :label="user.email"
-          :value="user.id"
-        />
-      </el-select>
-    </div> -->
+    <!-- <h2>Hourly Time Logs</h2> -->
     
-    <div class="content">
-      <el-table
-        ref="timeLogsTable"
-        v-loading="loading"
-        :data="groupedTimeLogs"
-        row-key="id"
-        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-        style="width: 100%">
-        
-        <el-table-column
-          prop="title"
-          label="Task"
-          min-width="300">
-          <template #default="scope">
-            <template v-if="scope.row.isGroup">
-              <div class="task-group-header">
-                <span 
-                  class="task-title" 
-                  @click="toggleRow(scope.row)"
-                  role="button"
-                >
-                  <i 
-                    :class="[
-                      'el-icon', 
-                      scope.row.expanded ? 'el-icon-caret-bottom' : 'el-icon-caret-right'
-                    ]"
-                  ></i>
-                  {{ scope.row.title }}
-                </span>
-                <el-tag size="small" type="primary" effect="plain" class="total-time-tag">
-                  Total: {{ formatTime(scope.row.totalTime) }}
-                </el-tag>
-                <el-tag size="small" type="info" effect="plain" class="entries-count-tag">
-                  {{ scope.row.children.length }} entries
-                </el-tag>
+      <div class="">
+        <div class="content">
+          <div class="task-logs-list">
+            <!-- Header Row -->
+            <div class="task-log-header">
+              <div class="task-title-section">
+                <span class="header-label">Task Name</span>
               </div>
-            </template>
-            <template v-else>
-              <div class="time-log-entry">
-                <el-tag size="small" type="success" class="time-tag">
-                  {{ formatTime(scope.row.time_taken) }}
-                </el-tag>
-                <span class="log-date">{{ new Date(scope.row.created_at).toLocaleString() }}</span>
+              <div class="matter-section">
+                <span class="header-label">Matter</span>
               </div>
-            </template>
-          </template>
-        </el-table-column>
+              <div class="time-section">
+                <span class="header-label">Total Time</span>
+              </div>
+            </div>
 
-        <el-table-column
-          prop="matter.title"
-          label="Matter"
-          min-width="200">
-          <template #default="scope">
-            <template v-if="!scope.row.isGroup">
-              <el-tag 
-                size="small" 
-                effect="plain" 
-                class="matter-tag"
-              >
-                {{ scope.row.task?.matter?.title || 'No Matter' }}
+            <!-- Data Rows -->
+            <div 
+              v-for="group in groupedTimeLogs" 
+              :key="group.id" 
+              class="task-log-row"
+              @click="showTaskDetails(group)"
+            >
+              <div class="task-title-section">
+                <span class="task-name">{{ group.title }}</span>
+              </div>
+              <div class="matter-section">
+                <el-tag size="small" type="info" effect="plain" class="matter-name">
+                  {{ group.children[0]?.task?.matter?.title || 'No Matter' }}
+                </el-tag>
+              </div>
+              <div class="time-section">
+                <el-tag size="small" type="primary" effect="plain" class="total-time-tag">
+                  {{ formatTime(group.totalTime) }}
+                </el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+
+    <!-- Task Details Drawer -->
+    <el-drawer
+      v-model="taskDetailsVisible"
+      :title="selectedTask?.title"
+      size="700px"
+      direction="rtl"
+    >
+      <template #header>
+        <div class="drawer-header">
+          <h3>{{ selectedTask?.title }}</h3>
+          <div class="drawer-tags">
+            <el-tag size="small" type="primary" effect="plain">
+              Total Time: {{ selectedTask?.totalTime }}
+            </el-tag>
+            <el-tag size="small" type="info" effect="plain">
+              {{ selectedTask?.children.length }} entries
+            </el-tag>
+          </div>
+        </div>
+      </template>
+
+      <div class="task-details-content">
+        <el-table 
+          :data="selectedTask?.children" 
+          style="width: 100%"
+          :max-height="'calc(100vh - 200px)'"
+        >
+          <el-table-column label="Time" width="100" fixed="left">
+            <template #default="scope">
+              <el-tag size="small" type="success" class="time-tag">
+                {{ formatTime(scope.row.time_taken) }}
               </el-tag>
             </template>
-          </template>
-        </el-table-column>
-        
-        <el-table-column
-          prop="comment"
-          label="Comment"
-          min-width="200">
-          <template #default="scope">
-            <template v-if="!scope.row.isGroup">
+          </el-table-column>
+          
+          <el-table-column label="Date" width="180">
+            <template #default="scope">
+              <span class="log-date">
+                {{ new Date(scope.row.created_at).toLocaleString() }}
+              </span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="Comment" min-width="200">
+            <template #default="scope">
               <span class="comment-text">{{ scope.row.comment || '-' }}</span>
             </template>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+          </el-table-column>
+        </el-table>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -109,7 +109,9 @@ export default {
       timeLogs: [],
       users: [],
       selectedUser: null,
-      loading: false
+      loading: false,
+      taskDetailsVisible: false,
+      selectedTask: null
     };
   },
   computed: {
@@ -225,6 +227,11 @@ export default {
       // Get the table ref and toggle the row
       const table = this.$refs.timeLogsTable;
       table.toggleRowExpansion(row);
+    },
+    
+    showTaskDetails(task) {
+      this.selectedTask = task;
+      this.taskDetailsVisible = true;
     }
   },
   mounted() {
@@ -244,16 +251,16 @@ export default {
 }
 
 .content {
-  margin-top: 20px;
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.el-table thead th {
+      font-weight: 400;
 }
 
 :deep(.el-table) {
   --el-table-border-color: #EBEEF5;
-  --el-table-header-bg-color: #F5F7FA;
+  --el-table-header-bg-color: transparent;
 }
 
 .task-group-header {
@@ -335,5 +342,133 @@ export default {
 .el-icon {
   font-size: 14px;
   transition: transform 0.2s;
+}
+
+.task-logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.task-log-header {
+  display: grid;
+  grid-template-columns: 1fr 200px 120px;
+  align-items: center;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+}
+
+.header-label {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.task-log-row {
+  display: grid;
+  grid-template-columns: 1fr 200px 120px;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.task-log-row:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.task-name {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matter-section {
+  text-align: center;
+}
+
+.time-section {
+  text-align: right;
+}
+
+.matter-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.total-time-tag {
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .task-log-row {
+    padding: 12px;
+  }
+  
+  .task-metadata {
+    gap: 6px;
+  }
+}
+
+.drawer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drawer-header h3 {
+  margin: 0;
+  font-size: 1.2em;
+  color: var(--el-text-color-primary);
+}
+
+.drawer-tags {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-details-content {
+  padding: 20px;
+  height: 100%;
+}
+
+:deep(.el-drawer__header) {
+  margin-bottom: 0;
+  padding: 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+:deep(.el-drawer__body) {
+  padding: 0;
+  height: calc(100% - 80px);
+  overflow: hidden;
+}
+
+.time-tag {
+  min-width: 70px;
+  text-align: center;
+}
+
+.log-date {
+  color: var(--el-text-color-secondary);
+  font-size: 0.9em;
+}
+
+.comment-text {
+  color: var(--el-text-color-regular);
+  font-size: 0.95em;
 }
 </style> 

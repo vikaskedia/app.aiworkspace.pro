@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Star, StarFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted } from 'vue'
@@ -10,8 +10,6 @@ export default {
     ArrowUp,
     ArrowDown,
     InfoFilled,
-    Star,
-    StarFilled,
     Link,
     Edit,
     More,
@@ -39,7 +37,7 @@ export default {
       required: true
     }
   },
-  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'star-toggled', 'update-task'],
+  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'update-task'],
   data() {
     return {
       filters: {
@@ -49,8 +47,7 @@ export default {
         priority: null,
         assignee: null,
         dueDate: null,
-        showDeleted: false,
-        starred: false
+        showDeleted: false
       },
       userEmails: {},
       deletedTooltips: {},
@@ -127,13 +124,6 @@ export default {
               return false
           }
         })
-      }
-
-      // Star filter
-      if (this.filters.starred) {
-        result = filterTasksRecursively(result, task => 
-          task.starred === true
-        )
       }
 
       // Exclude status filter
@@ -537,12 +527,6 @@ export default {
               <el-option label="This week" value="week" />
             </el-select>
           </el-form-item>
-          <el-form-item>
-            <el-switch
-              v-model="filters.starred"
-              active-text="Show Starred Tasks"
-            />
-          </el-form-item>
           <el-form-item label="Exclude Status">
             <el-select
               v-model="filters.excludeStatus"
@@ -571,15 +555,6 @@ export default {
       
       <div class="task-main">
         <div class="task-title-container">
-          <div class="star-wrapper">
-            <el-icon 
-              class="star-icon"
-              :class="{ starred: task.starred }"
-              @click.stop="toggleStar(task)">
-              <Star v-if="task.starred" />
-              <StarFilled v-else />
-            </el-icon>
-          </div>
           <template v-if="editingTaskId === task.id && editingField === 'title'">
             <el-input
               v-model="editingValue"
@@ -590,9 +565,11 @@ export default {
             />
           </template>
           <div v-else class="title-hours-wrapper">
-            <span class="task-title" @dblclick="startEditing(task, 'title')">
-              {{ task.title }}
-            </span>
+            <div class="title-container">
+              <span class="task-title" @dblclick="startEditing(task, 'title')">
+                {{ task.title }}
+              </span>
+            </div>
             <span class="logged-hours" v-if="task.total_hours">
               <el-tag size="small" class="logged-hours-tag">
                 <el-icon><Timer /></el-icon>
@@ -708,7 +685,6 @@ export default {
   min-width: 0;
   display: flex;
   align-items: center;
-  padding: 4px 8px;
   border-radius: 4px;
   gap: 8px;
 }
@@ -985,7 +961,7 @@ span.logged-hours i {
 .header-title {
   flex: 1;
   min-width: 0;
-  padding-left: 46px; /* Account for star icon (18px) + padding (8px) + gap (8px) */
+  padding-left: 8px;
 }
 
 .header-metadata {
@@ -1033,5 +1009,17 @@ span.logged-hours i {
 
 .filter-form :deep(.el-form-item) {
   margin-bottom: 0;
+}
+
+.title-hours-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title-container {
+  display: flex;
+  min-width: 0;
 }
 </style>

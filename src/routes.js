@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
 import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
+import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 
 const routes = [
   {
@@ -52,7 +53,13 @@ const routes = [
         path: 'settings',
         name: 'AllMatterSettingsPage',
         component: () => import('./components/all-matters/AllMatterSettingsCt.vue')
-      }
+      },
+       {
+        path: 'activity-log',
+        name: 'AllActivityLogPage',
+        component: () => import('./components/all-matters/AllActivityLogCt.vue')
+        }
+        
     ]
   },
   { 

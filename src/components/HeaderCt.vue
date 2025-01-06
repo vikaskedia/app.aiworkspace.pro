@@ -102,6 +102,9 @@ export default {
         case 'feedback':
           // TODO: Implement feedback route
           break;
+        case 'activity_log':
+          this.$router.push('/all-matters/activity-log');
+          break;
         case 'logout':
           await this.handleLogout();
           break;
@@ -319,6 +322,7 @@ export default {
                 class="notification-badge" />
             </el-dropdown-item>
             <el-dropdown-item divided command="talktodev">Talk to Dev</el-dropdown-item>
+            <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>

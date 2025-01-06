@@ -254,6 +254,7 @@ export default {
     async loadFiles() {
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // First get the matter's git repo
         const { data: matter, error: matterError } = await supabase
@@ -272,7 +273,7 @@ export default {
 
         const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `/gitea/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,

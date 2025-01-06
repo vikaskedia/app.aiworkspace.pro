@@ -128,7 +128,7 @@ export default {
               });
 
             // Add console.log to debug user data
-            console.log('User data from RPC:', userData);
+            //console.log('User data from RPC:', userData);
 
             if (!userData || !userData[0]) {
               console.error('No user data found for ID:', share.shared_with_user_id);
@@ -147,7 +147,7 @@ export default {
 
         // Filter out any null values from failed user lookups
         this.sharedUsers = sharesWithUserInfo.filter(user => user !== null);
-        console.log('Processed shared users:', this.sharedUsers);
+        //console.log('Processed shared users:', this.sharedUsers);
       } catch (error) {
         ElMessage.error('Error loading shared users: ' + error.message);
       }
@@ -922,10 +922,11 @@ export default {
       
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
         const path = this.currentSelectorFolder?.path || '';
         
         const response = await fetch(
-          `/gitea/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${path}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,

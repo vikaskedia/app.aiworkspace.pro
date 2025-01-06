@@ -158,10 +158,11 @@
     loading.value = true
     try {
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
       const path = currentFolder.value?.path || ''
       
       const response = await fetch(
-        `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`,
+        `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`,
         {
           headers: {
             'Authorization': `token ${giteaToken}`,
@@ -268,6 +269,7 @@
     try {
       const file = fileList.value[0].raw
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
       
       if (!currentMatter.value) throw new Error('No matter selected')
       
@@ -286,7 +288,7 @@
   
       // Upload to Gitea with unique filename
       const response = await fetch(
-        `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uniqueFileName}`,
+        `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uniqueFileName}`,
         {
           method: 'POST',
           headers: {

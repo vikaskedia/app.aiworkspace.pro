@@ -552,6 +552,7 @@ export default {
       
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // Use currentMatter from Pinia store instead of this.$store
         if (!this.currentMatter) throw new Error('No matter selected');
@@ -568,7 +569,7 @@ export default {
 
         // Upload to Gitea
         const response = await fetch(
-          `/gitea/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${file.name}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${file.name}`,
           {
             method: 'POST',
             headers: {
@@ -778,6 +779,7 @@ export default {
         } else {
           // Only for new file uploads
           const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+          const giteaHost = import.meta.env.VITE_GITEA_HOST;
           const uniqueFileName = this.getUniqueFileName(file.name);
           
           // Convert file to base64
@@ -792,7 +794,7 @@ export default {
 
           // Upload with new filename
           const response = await fetch(
-            `/gitea/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uniqueFileName}`,
+            `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uniqueFileName}`,
             {
               method: 'POST',
               headers: {

@@ -31,7 +31,8 @@ async function loadFiles() {
   try {
     validateGiteaConfig();
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
-    const apiUrl = `/gitea/api/v1/repos/associateattorney/legal-studio/contents/`;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/legal-studio/contents/`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',

@@ -382,17 +382,40 @@
       title="Log Hours"
       width="500px">
       <el-form :model="newHoursLog" label-position="top">
-        <el-form-item label="Hours" required>
-
-            <el-time-select
-              v-model="newHoursLog.time_taken"
-              start="00:15"
-              step="00:15"
-              end="12:00"
-              placeholder="Enter hours worked"
-              style="width: 100%"
-            />
-            
+        <el-form-item label="Time" required>
+          <div class="time-input-container">
+            <div class="time-input-group-container">
+              <div class="time-input-group">
+                <el-input
+                  ref="hoursInput"
+                  v-model="hours"
+                  placeholder="HH"
+                  @input="validateHours"
+                  @blur="formatHours"
+                  @keyup="handleHoursKeyup"
+                  size="small"
+                  style="width: 50px"
+                  maxlength="2"
+                />
+                <span class="time-separator">:</span>
+                <el-input
+                  ref="minutesInput"
+                  v-model="minutes"
+                  placeholder="MM"
+                  @input="validateMinutes"
+                  @blur="formatMinutes"
+                  @keydown="handleMinutesKeydown"
+                  size="small"
+                  style="width: 50px"
+                  maxlength="2"
+                />
+              </div>
+              <span class="time-unit">hours</span>
+            </div>
+            <small class="time-input-help" :class="{ 'error-text': timeError }">
+              {{ timeError || 'Hours (0-12), Minutes (0-59)' }}
+            </small>
+          </div>
         </el-form-item>
         <el-form-item label="Comment">
           <el-input
@@ -1247,6 +1270,102 @@ export default {
       }
     },
 
+    
+    validateHours(value) {
+      // Remove non-numeric characters
+      let cleanValue = value.replace(/[^\d]/g, '');
+      
+      // Convert to number for validation
+      let numValue = parseInt(cleanValue);
+      
+      // Validate range
+      if (numValue > 12) {
+        cleanValue = '12';
+      }
+      
+      this.hours = cleanValue;
+      this.updateTimeTaken();
+    },
+
+    validateMinutes(value) {
+      // Remove non-numeric characters
+      let cleanValue = value.replace(/[^\d]/g, '');
+      
+      // Convert to number for validation
+      let numValue = parseInt(cleanValue);
+      
+      // Validate range
+      if (numValue > 59) {
+        cleanValue = '59';
+      }
+      
+      this.minutes = cleanValue;
+      this.updateTimeTaken();
+    },
+
+    formatHours() {
+      if (this.hours) {
+        // Pad with leading zero if needed
+        this.hours = String(parseInt(this.hours)).padStart(2, '0');
+      }
+      this.validateTimeInput();
+    },
+
+    formatMinutes() {
+      if (this.minutes) {
+        // Pad with leading zero if needed
+        this.minutes = String(parseInt(this.minutes)).padStart(2, '0');
+      }
+      this.validateTimeInput();
+    },
+
+    validateTimeInput() {
+      const hours = parseInt(this.hours || '0');
+      const minutes = parseInt(this.minutes || '0');
+
+      if (hours === 0 && minutes === 0) {
+        this.timeError = 'Time must be greater than 0';
+        this.newHoursLog.time_taken = null;
+        return false;
+      }
+
+      if (hours < 0 || hours > 12) {
+        this.timeError = 'Hours must be between 0 and 12';
+        this.newHoursLog.time_taken = null;
+        return false;
+      }
+
+      if (minutes < 0 || minutes > 59) {
+        this.timeError = 'Minutes must be between 0 and 59';
+        this.newHoursLog.time_taken = null;
+        return false;
+      }
+
+      this.timeError = '';
+      return true;
+    },
+    handleMinutesKeydown(event) {
+      // If backspace is pressed and minutes is empty, move to hours input
+      if (event.key === 'Backspace' && !this.minutes) {
+        this.$refs.hoursInput.$el.querySelector('input').focus();
+      }
+    },
+
+    updateTimeTaken() {
+      if (this.validateTimeInput()) {
+        const formattedHours = String(parseInt(this.hours || '0')).padStart(2, '0');
+        const formattedMinutes = String(parseInt(this.minutes || '0')).padStart(2, '0');
+        this.newHoursLog.time_taken = `${formattedHours}:${formattedMinutes}:00`;
+      }
+    },
+
+    resetTimeInputs() {
+      this.hours = '';
+      this.minutes = '';
+      this.timeError = '';
+      this.newHoursLog.time_taken = null;
+    },
+
     async submitHoursLog() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -1650,6 +1769,60 @@ h4 {
 .suggestion-item.selected {
   background-color: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
+}
+
+.time-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-input-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--el-fill-color-blank);
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+.time-separator {
+  padding: 0 4px;
+  color: var(--el-text-color-regular);
+  font-weight: bold;
+}
+
+.time-unit {
+  margin-left: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.time-input-group-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.el-input__wrapper) {
+  box-shadow: none !important;
+  padding: 0 4px;
+}
+
+:deep(.el-input__inner) {
+  text-align: center;
+}
+
+.time-input-help {
+  color: #909399;
+  font-size: 12px;
+}
+
+.error-text {
+  color: #f56c6c;
 }
 </style> 
 

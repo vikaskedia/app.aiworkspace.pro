@@ -139,7 +139,7 @@ async function loadFiles() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    const apiUrl = `/gitea/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
+    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
     console.log('Making request to:', apiUrl);
     console.log('Environment:', {
       VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,

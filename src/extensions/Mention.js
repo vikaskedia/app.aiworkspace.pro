@@ -127,23 +127,32 @@ export const Mention = Node.create({
           return {
             onStart: (props) => {
               const component = this.editor.options.element?.closest('.editor')
-                .__vueParentComponent.ctx
-              popup = component.renderMentionPopup(props)
+                ?.__vueParentComponent?.ctx
+              if (component?.renderMentionPopup) {
+                popup = component.renderMentionPopup(props)
+              }
             },
             onUpdate: (props) => {
               const component = this.editor.options.element?.closest('.editor')
-                .__vueParentComponent.ctx
-              component.updateMentionPopup(props)
+                ?.__vueParentComponent?.ctx
+              if (component?.updateMentionPopup) {
+                component.updateMentionPopup(props)
+              }
             },
             onKeyDown: (props) => {
               const component = this.editor.options.element?.closest('.editor')
-                .__vueParentComponent.ctx
-              return component.handleMentionKeydown(props)
+                ?.__vueParentComponent?.ctx
+              if (component?.handleMentionKeydown) {
+                return component.handleMentionKeydown(props)
+              }
+              return false
             },
             onExit: () => {
               const component = this.editor.options.element?.closest('.editor')
-                .__vueParentComponent.ctx
-              component.destroyMentionPopup()
+                ?.__vueParentComponent?.ctx
+              if (component?.destroyMentionPopup) {
+                component.destroyMentionPopup()
+              }
             },
           }
         }

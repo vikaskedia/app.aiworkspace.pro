@@ -135,7 +135,7 @@ export default {
 
         // Load user emails for each comment
         for (const comment of comments) {
-          if (!this.userEmails[comment.user_id]) {
+          if (!this.userEmails[comment.user_id] && comment.user_id) {
             const { data: userData } = await supabase
               .rpc('get_user_info_by_id', {
                 user_id: comment.user_id
@@ -303,7 +303,7 @@ Please provide assistance based on this context, the comment history, and the us
             switch (payload.eventType) {
               case 'INSERT':
                 // Load user email for new comment if not already cached
-                if (!this.userEmails[payload.new.user_id]) {
+                if (!this.userEmails[payload.new.user_id] && payload.new.user_id) {
                   const { data: userData } = await supabase
                     .rpc('get_user_info_by_id', {
                       user_id: payload.new.user_id
@@ -845,6 +845,11 @@ Please provide assistance based on this context, the comment history, the availa
         // Get user details for each shared user
         const userDetails = await Promise.all(
           users.map(async (user) => {
+            // Skip if shared_with_user_id is null
+            if (!user.shared_with_user_id) {
+              return null;
+            }
+            
             const { data } = await supabase
               .rpc('get_user_info_by_id', {
                 user_id: user.shared_with_user_id

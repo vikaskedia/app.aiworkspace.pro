@@ -477,16 +477,40 @@ export default {
       editingValue.value = task[field]
     }
 
-    const handleSubmit = (task) => {
-      if (editingValue.value !== task[editingField.value]) {
-        emit('update-task', { 
-          ...task, 
-          [editingField.value]: editingValue.value 
-        })
+    const handleSubmit = async (task) => {
+      try {
+        if (editingValue.value !== task[editingField.value]) {
+          // First emit the update to the parent component
+          emit('update-task', { 
+            ...task, 
+            [editingField.value]: editingValue.value 
+          })
+
+          // Then update Supabase
+          const { error } = await supabase
+            .from('tasks')
+            .update({ 
+              [editingField.value]: editingValue.value,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', task.id)
+
+          if (error) throw error
+
+          // Show success message
+          ElMessage.success('Task status updated successfully')
+        }
+      } catch (error) {
+        console.error('Error updating task:', error)
+        ElMessage.error('Failed to update task status')
+        // Revert the local state if the update failed
+        emit('update-task', task)
+      } finally {
+        // Clear editing state
+        editingTaskId.value = null
+        editingField.value = null
+        editingValue.value = ''
       }
-      editingTaskId.value = null
-      editingField.value = null
-      editingValue.value = ''
     }
 
     const cancelEditing = () => {
@@ -648,6 +672,7 @@ export default {
         <div class="task-group">
           <div 
             class="task-card"
+            :class="{ 'parent-task': hasChildren(task) }"
             @click="openComments(task)">
             <div class="task-main">
               <div 
@@ -689,13 +714,29 @@ export default {
               </div>
 
               <div class="task-metadata">
-                <el-tag
-                  :type="getStatusType(task)"
-                  size="small"
-                  class="status-tag clickable"
-                  @click.stop="startEditing(task, 'status')">
-                  <span>{{ formatStatus(task.status) }}</span>
-                </el-tag>
+                <template v-if="editingTaskId === task.id && editingField === 'status'">
+                  <el-select
+                    v-model="editingValue"
+                    size="small"
+                    @change="handleSubmit(task)"
+                    @blur="cancelEditing"
+                    @click.stop
+                    style="width: 120px">
+                    <el-option label="Not started" value="not_started" />
+                    <el-option label="In progress" value="in_progress" />
+                    <el-option label="Awaiting external factor" value="awaiting_external" />
+                    <el-option label="Completed" value="completed" />
+                  </el-select>
+                </template>
+                <template v-else>
+                  <el-tag
+                    :type="getStatusType(task)"
+                    size="small"
+                    class="status-tag clickable"
+                    @click.stop="startEditing(task, 'status')">
+                    <span>{{ formatStatus(task.status) }}</span>
+                  </el-tag>
+                </template>
 
                 <div class="assignee-wrapper">
                   <template v-if="task.assignee">
@@ -883,6 +924,10 @@ export default {
   background-color: #FBFBFB;
 }
 
+.parent-task {
+  padding-left: 0px !important;
+}
+
 .task-main {
   display: flex;
   align-items: center;
@@ -1066,7 +1111,7 @@ span.logged-hours i {
 
 .child-task {
   position: relative;
-  padding-left: 70px;
+  padding-left: 45px;
 }
 
 .child-task::before,

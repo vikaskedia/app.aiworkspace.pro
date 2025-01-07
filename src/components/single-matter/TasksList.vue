@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted } from 'vue'
@@ -17,7 +17,8 @@ export default {
     User,
     Timer,
     Delete,
-    Plus
+    Plus,
+    ArrowRight
   },
   props: {
     tasks: {
@@ -56,12 +57,14 @@ export default {
       editingAssignee: null,
       editingDueDate: null,
       hoveredTaskId: null,
+      expandedTasks: new Set(),
     }
   },
   computed: {
     filteredTasks() {
       let result = JSON.parse(JSON.stringify(this.tasks)) // Deep clone to avoid mutations
       
+      // Helper function to filter tasks recursively
       const filterTasksRecursively = (tasks, filterFn) => {
         return tasks.filter(task => {
           const matchesFilter = filterFn(task)
@@ -77,105 +80,103 @@ export default {
         }).filter(Boolean) // Remove null values
       }
 
-      // Search filter
+      // Apply filters
       if (this.filters.search) {
-        const query = this.filters.search.toLowerCase()
+        const searchTerm = this.filters.search.toLowerCase()
         result = filterTasksRecursively(result, task => 
-          task.title.toLowerCase().includes(query) ||
-          task.description?.toLowerCase().includes(query)
+          task.title.toLowerCase().includes(searchTerm)
         )
       }
 
-      // Status filter
       if (this.filters.status?.length) {
-        result = filterTasksRecursively(result, task => 
+        result = filterTasksRecursively(result, task =>
           this.filters.status.includes(task.status)
         )
       }
 
-      // Priority filter
-      if (this.filters.priority) {
-        result = filterTasksRecursively(result, task => 
-          task.priority === this.filters.priority
-        )
-      }
-
-      // Assignee filter
-      if (this.filters.assignee?.length) {
-        result = filterTasksRecursively(result, task => 
-          this.filters.assignee.includes(task.assignee)
-        )
-      }
-
-      // Due date filter
-      if (this.filters.dueDate) {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        
-        result = filterTasksRecursively(result, task => {
-          switch (this.filters.dueDate) {
-            case 'overdue':
-              return task.due_date && new Date(task.due_date) < today && task.status !== 'completed'
-            case 'today':
-              const dueDate = new Date(task.due_date)
-              dueDate.setHours(0, 0, 0, 0)
-              return dueDate.getTime() === today.getTime()
-            case 'week':
-              const nextWeek = new Date(today)
-              nextWeek.setDate(today.getDate() + 7)
-              return task.due_date && new Date(task.due_date) <= nextWeek
-            default:
-              return false
-          }
-        })
-      }
-
-      // Exclude status filter
       if (this.filters.excludeStatus?.length) {
-        result = filterTasksRecursively(result, task => 
+        result = filterTasksRecursively(result, task =>
           !this.filters.excludeStatus.includes(task.status)
         )
       }
 
-      // Apply sorting if set
+      if (this.filters.priority) {
+        result = filterTasksRecursively(result, task =>
+          task.priority === this.filters.priority
+        )
+      }
+
+      if (this.filters.assignee?.length) {
+        result = filterTasksRecursively(result, task =>
+          this.filters.assignee.includes(task.assignee)
+        )
+      }
+
+      if (this.filters.dueDate) {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const nextWeek = new Date(today)
+        nextWeek.setDate(nextWeek.getDate() + 7)
+
+        result = filterTasksRecursively(result, task => {
+          if (!task.due_date) return false
+          const dueDate = new Date(task.due_date)
+          switch (this.filters.dueDate) {
+            case 'overdue':
+              return dueDate < today && task.status !== 'completed'
+            case 'today':
+              return dueDate >= today && dueDate < tomorrow
+            case 'week':
+              return dueDate >= today && dueDate < nextWeek
+            default:
+              return true
+          }
+        })
+      }
+
+      if (this.filters.starred) {
+        result = filterTasksRecursively(result, task => task.starred)
+      }
+
+      // Sort tasks if needed
       if (this.sortBy) {
         const sortTasks = (tasks) => {
           return tasks.sort((a, b) => {
-            let aVal = a[this.sortBy];
-            let bVal = b[this.sortBy];
-
-            // Handle special cases
-            if (this.sortBy === 'assignee') {
-              aVal = this.sharedUsers.find(u => u.id === a.assignee)?.email || '';
-              bVal = this.sharedUsers.find(u => u.id === b.assignee)?.email || '';
+            let comparison = 0
+            switch (this.sortBy) {
+              case 'title':
+                comparison = a.title.localeCompare(b.title)
+                break
+              case 'due_date':
+                comparison = new Date(a.due_date || 0) - new Date(b.due_date || 0)
+                break
+              case 'priority':
+                const priorityOrder = { high: 3, medium: 2, low: 1 }
+                comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0)
+                break
+              default:
+                comparison = 0
             }
-
-            // Handle null values
-            if (aVal === null) return this.sortOrder === 'ascending' ? 1 : -1;
-            if (bVal === null) return this.sortOrder === 'ascending' ? -1 : 1;
-
-            // Compare values
-            if (aVal < bVal) return this.sortOrder === 'ascending' ? -1 : 1;
-            if (aVal > bVal) return this.sortOrder === 'ascending' ? 1 : -1;
-            return 0;
-          });
-        };
+            return this.sortOrder === 'ascending' ? comparison : -comparison
+          })
+        }
 
         // Sort root tasks and their children recursively
         const sortRecursively = (tasks) => {
-          const sorted = sortTasks(tasks);
+          const sorted = sortTasks(tasks)
           return sorted.map(task => {
             if (task.children?.length) {
-              task.children = sortRecursively(task.children);
+              task.children = sortRecursively(task.children)
             }
-            return task;
-          });
-        };
+            return task
+          })
+        }
 
-        result = sortRecursively(result);
+        result = sortRecursively(result)
       }
 
-      //console.log('Filtered and sorted tasks:', result);
       return result
     },
     hasActiveFilters() {
@@ -405,6 +406,37 @@ export default {
         if (!currentTask) break;
       }
       return indent;
+    },
+
+    toggleExpand(taskId) {
+      if (this.expandedTasks.has(taskId)) {
+        this.expandedTasks.delete(taskId)
+      } else {
+        this.expandedTasks.add(taskId)
+      }
+    },
+
+    isExpanded(taskId) {
+      return this.expandedTasks.has(taskId)
+    },
+
+    hasChildren(task) {
+      return task.children?.length > 0
+    },
+
+    expandAllParentTasks() {
+      const expandParentTasks = (tasks) => {
+        tasks.forEach(task => {
+          if (this.hasChildren(task)) {
+            this.expandedTasks.add(task.id);
+            if (task.children?.length) {
+              expandParentTasks(task.children);
+            }
+          }
+        });
+      };
+      
+      expandParentTasks(this.tasks);
     }
   },
   watch: {
@@ -413,6 +445,16 @@ export default {
       handler() {
         this.$emit('update:active-filters-count', this.activeFiltersCount);
         this.saveFilters();
+      }
+    },
+    tasks: {
+      immediate: true,
+      handler(newTasks) {
+        if (newTasks?.length) {
+          this.$nextTick(() => {
+            this.expandAllParentTasks();
+          });
+        }
       }
     }
   },
@@ -603,167 +645,68 @@ export default {
     <div class="tasks-hierarchy">
       <template v-for="task in filteredTasks" :key="task.id">
         <!-- Parent task -->
-        <div 
-          :class="['task-card', {'child-task': task.parent_task_id}]"
-          :style="{ marginLeft: task.parent_task_id ? '24px' : '0' }"
-          @click="openComments(task)">
-          
-          <div class="task-main">
-            <!-- Show connecting line for child tasks -->
-            <div v-if="task.parent_task_id" class="child-task-line"></div>
-            
-            <div class="task-title-container">
-              <template v-if="editingTaskId === task.id && editingField === 'title'">
-                <el-input
-                  v-model="editingValue"
-                  size="small"
-                  @keyup.enter="handleSubmit(task)"
-                  @keyup.esc="cancelEditing"
-                  v-focus
-                />
-              </template>
-              <div v-else class="title-hours-wrapper">
-                <div class="title-container">
-                  <span class="task-title" @dblclick="startEditing(task, 'title')">
-                    {{ task.title }}
-                  </span>
-                </div>
-                <span class="logged-hours" v-if="task.total_hours">
-                  <el-tag size="small" class="logged-hours-tag">
-                    <el-icon><Timer /></el-icon>
-                    {{ task.total_hours.toFixed(1) }}h
-                  </el-tag>
-                </span>
-              </div>
-              <div class="hover-actions" v-if="editingTaskId !== task.id">
-                <el-icon class="action-icon" @click.stop="startEditing(task, 'title')"><Edit /></el-icon>
-                <el-icon class="action-icon delete" @click.stop="handleAction('delete', task)"><Delete /></el-icon>
-              </div>
-            </div>
-
-            <div class="task-metadata">
-              <el-tag
-                :type="getStatusType(task)"
-                size="small"
-                class="status-tag clickable"
-                @click.stop="startEditing(task, 'status')">
-                <span>{{ formatStatus(task.status) }}</span>
-              </el-tag>
-
-              <div class="assignee-wrapper">
-                <template v-if="task.assignee">
-                  <el-tooltip
-                    :content="sharedUsers.find(u => u.id === task.assignee)?.email"
-                    placement="top">
-                    <div 
-                      class="assignee-badge clickable"
-                      :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
-                      @click.stop="startEditing(task, 'assignee')">
-                      {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
-                    </div>
-                  </el-tooltip>
-                </template>
-                <template v-else>
-                  <el-tooltip content="Assign task" placement="top">
-                    <div 
-                      class="assignee-badge unassigned clickable"
-                      @click.stop="startEditing(task, 'assignee')">
-                      <el-icon><Plus /></el-icon>
-                    </div>
-                  </el-tooltip>
-                </template>
-              </div>
-
-              <el-tag
-                :type="getPriorityType(task.priority)"
-                size="small"
-                class="priority-tag clickable"
-                @click.stop="startEditing(task, 'priority')">
-                <span>{{ task.priority || 'No priority' }}</span>
-              </el-tag>
-
-              <template v-if="task.due_date">
-                <el-tag
-                  :type="getDueDateType(task)"
-                  size="small"
-                  class="due-date-tag clickable"
-                  @click.stop="startEditing(task, 'due_date')">
-                  <el-icon><Calendar /></el-icon>
-                  {{ formatDueDate(task.due_date) }}
-                </el-tag>
-              </template>
-              <template v-else>
-                <div 
-                  class="due-date-empty clickable"
-                  @click.stop="startEditing(task, 'due_date')">
-                  <el-icon><Calendar /></el-icon>
-                  <span>No due date</span>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recursively render children -->
-        <template v-if="task.children && task.children.length">
+        <div class="task-group">
           <div 
-            v-for="childTask in task.children" 
-            :key="childTask.id"
-            :class="['task-card', 'child-task']"
-            :style="{ marginLeft: '48px' }"
-            @click="openComments(childTask)">
-            
+            class="task-card"
+            @click="openComments(task)">
             <div class="task-main">
-              <div class="child-task-line"></div>
-              <!-- Same task content structure as parent -->
+              <div 
+                v-if="hasChildren(task)"
+                class="expand-button"
+                @click.stop="toggleExpand(task.id)">
+                <el-icon :class="['expand-icon', { 'is-expanded': isExpanded(task.id) }]">
+                  <ArrowRight />
+                </el-icon>
+              </div>
+              
               <div class="task-title-container">
-                <template v-if="editingTaskId === childTask.id && editingField === 'title'">
+                <template v-if="editingTaskId === task.id && editingField === 'title'">
                   <el-input
                     v-model="editingValue"
                     size="small"
-                    @keyup.enter="handleSubmit(childTask)"
+                    @keyup.enter="handleSubmit(task)"
                     @keyup.esc="cancelEditing"
                     v-focus
                   />
                 </template>
                 <div v-else class="title-hours-wrapper">
                   <div class="title-container">
-                    <span class="task-title" @dblclick="startEditing(childTask, 'title')">
-                      {{ childTask.title }}
+                    <span class="task-title" @dblclick="startEditing(task, 'title')">
+                      {{ task.title }}
                     </span>
                   </div>
-                  <span class="logged-hours" v-if="childTask.total_hours">
+                  <span class="logged-hours" v-if="task.total_hours">
                     <el-tag size="small" class="logged-hours-tag">
                       <el-icon><Timer /></el-icon>
-                      {{ childTask.total_hours.toFixed(1) }}h
+                      {{ task.total_hours.toFixed(1) }}h
                     </el-tag>
                   </span>
                 </div>
-                <div class="hover-actions" v-if="editingTaskId !== childTask.id">
-                  <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
-                  <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
+                <div class="hover-actions" v-if="editingTaskId !== task.id">
+                  <el-icon class="action-icon" @click.stop="startEditing(task, 'title')"><Edit /></el-icon>
+                  <el-icon class="action-icon delete" @click.stop="handleAction('delete', task)"><Delete /></el-icon>
                 </div>
               </div>
 
               <div class="task-metadata">
                 <el-tag
-                  :type="getStatusType(childTask)"
+                  :type="getStatusType(task)"
                   size="small"
                   class="status-tag clickable"
-                  @click.stop="startEditing(childTask, 'status')">
-                  <span>{{ formatStatus(childTask.status) }}</span>
+                  @click.stop="startEditing(task, 'status')">
+                  <span>{{ formatStatus(task.status) }}</span>
                 </el-tag>
 
                 <div class="assignee-wrapper">
-                  <template v-if="childTask.assignee">
+                  <template v-if="task.assignee">
                     <el-tooltip
-                      :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
+                      :content="sharedUsers.find(u => u.id === task.assignee)?.email"
                       placement="top">
                       <div 
                         class="assignee-badge clickable"
-                        :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
-                        @click.stop="startEditing(childTask, 'assignee')">
-                        {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
+                        :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
+                        @click.stop="startEditing(task, 'assignee')">
+                        {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
                       </div>
                     </el-tooltip>
                   </template>
@@ -771,7 +714,7 @@ export default {
                     <el-tooltip content="Assign task" placement="top">
                       <div 
                         class="assignee-badge unassigned clickable"
-                        @click.stop="startEditing(childTask, 'assignee')">
+                        @click.stop="startEditing(task, 'assignee')">
                         <el-icon><Plus /></el-icon>
                       </div>
                     </el-tooltip>
@@ -779,27 +722,27 @@ export default {
                 </div>
 
                 <el-tag
-                  :type="getPriorityType(childTask.priority)"
+                  :type="getPriorityType(task.priority)"
                   size="small"
                   class="priority-tag clickable"
-                  @click.stop="startEditing(childTask, 'priority')">
-                  <span>{{ childTask.priority || 'No priority' }}</span>
+                  @click.stop="startEditing(task, 'priority')">
+                  <span>{{ task.priority || 'No priority' }}</span>
                 </el-tag>
 
-                <template v-if="childTask.due_date">
+                <template v-if="task.due_date">
                   <el-tag
-                    :type="getDueDateType(childTask)"
+                    :type="getDueDateType(task)"
                     size="small"
                     class="due-date-tag clickable"
-                    @click.stop="startEditing(childTask, 'due_date')">
+                    @click.stop="startEditing(task, 'due_date')">
                     <el-icon><Calendar /></el-icon>
-                    {{ formatDueDate(childTask.due_date) }}
+                    {{ formatDueDate(task.due_date) }}
                   </el-tag>
                 </template>
                 <template v-else>
                   <div 
                     class="due-date-empty clickable"
-                    @click.stop="startEditing(childTask, 'due_date')">
+                    @click.stop="startEditing(task, 'due_date')">
                     <el-icon><Calendar /></el-icon>
                     <span>No due date</span>
                   </div>
@@ -807,7 +750,112 @@ export default {
               </div>
             </div>
           </div>
-        </template>
+
+          <!-- Modified child tasks section -->
+          <el-collapse-transition>
+            <div 
+              v-if="hasChildren(task) && isExpanded(task.id)" 
+              class="child-tasks">
+              <div 
+                v-for="childTask in task.children" 
+                :key="childTask.id"
+                class="task-card child-task"
+                @click="openComments(childTask)">
+                <div class="task-main">
+                  <div class="task-title-container">
+                    <template v-if="editingTaskId === childTask.id && editingField === 'title'">
+                      <el-input
+                        v-model="editingValue"
+                        size="small"
+                        @keyup.enter="handleSubmit(childTask)"
+                        @keyup.esc="cancelEditing"
+                        v-focus
+                      />
+                    </template>
+                    <div v-else class="title-hours-wrapper">
+                      <div class="title-container">
+                        <span class="task-title" @dblclick="startEditing(childTask, 'title')">
+                          {{ childTask.title }}
+                        </span>
+                      </div>
+                      <span class="logged-hours" v-if="childTask.total_hours">
+                        <el-tag size="small" class="logged-hours-tag">
+                          <el-icon><Timer /></el-icon>
+                          {{ childTask.total_hours.toFixed(1) }}h
+                        </el-tag>
+                      </span>
+                    </div>
+                    <div class="hover-actions" v-if="editingTaskId !== childTask.id">
+                      <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
+                      <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
+                    </div>
+                  </div>
+
+                  <div class="task-metadata">
+                    <el-tag
+                      :type="getStatusType(childTask)"
+                      size="small"
+                      class="status-tag clickable"
+                      @click.stop="startEditing(childTask, 'status')">
+                      <span>{{ formatStatus(childTask.status) }}</span>
+                    </el-tag>
+
+                    <div class="assignee-wrapper">
+                      <template v-if="childTask.assignee">
+                        <el-tooltip
+                          :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
+                          placement="top">
+                          <div 
+                            class="assignee-badge clickable"
+                            :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
+                            @click.stop="startEditing(childTask, 'assignee')">
+                            {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
+                          </div>
+                        </el-tooltip>
+                      </template>
+                      <template v-else>
+                        <el-tooltip content="Assign task" placement="top">
+                          <div 
+                            class="assignee-badge unassigned clickable"
+                            @click.stop="startEditing(childTask, 'assignee')">
+                            <el-icon><Plus /></el-icon>
+                          </div>
+                        </el-tooltip>
+                      </template>
+                    </div>
+
+                    <el-tag
+                      :type="getPriorityType(childTask.priority)"
+                      size="small"
+                      class="priority-tag clickable"
+                      @click.stop="startEditing(childTask, 'priority')">
+                      <span>{{ childTask.priority || 'No priority' }}</span>
+                    </el-tag>
+
+                    <template v-if="childTask.due_date">
+                      <el-tag
+                        :type="getDueDateType(childTask)"
+                        size="small"
+                        class="due-date-tag clickable"
+                        @click.stop="startEditing(childTask, 'due_date')">
+                        <el-icon><Calendar /></el-icon>
+                        {{ formatDueDate(childTask.due_date) }}
+                      </el-tag>
+                    </template>
+                    <template v-else>
+                      <div 
+                        class="due-date-empty clickable"
+                        @click.stop="startEditing(childTask, 'due_date')">
+                        <el-icon><Calendar /></el-icon>
+                        <span>No due date</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-collapse-transition>
+        </div>
       </template>
     </div>
   </div>
@@ -826,14 +874,13 @@ export default {
   display: flex;
   padding: 8px 16px;
   background: white;
-  border-radius: 8px;
   transition: background-color 0.2s ease;
   cursor: pointer;
-  border: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .task-card:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: #FBFBFB;
 }
 
 .task-main {
@@ -925,12 +972,12 @@ export default {
 
 .hover-actions {
   position: absolute;
-  right: 8px;
+  right: 2px;
   top: 50%;
   transform: translateY(-50%);
   display: none;
   gap: 4px;
-  background-color: var(--el-fill-color-light);
+  background-color: #FBFBFB;
   padding: 2px;
   border-radius: 4px;
 }
@@ -1004,7 +1051,7 @@ span.logged-hours i {
   border-radius: 4px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  background-color: var(--el-fill-color-light);
+  background-color: #FBFBFB;
   transition: all 0.2s ease;
 }
 
@@ -1019,67 +1066,97 @@ span.logged-hours i {
 
 .child-task {
   position: relative;
-  border-left: 2px solid var(--el-border-color-lighter);
+  padding-left: 70px;
 }
 
-.child-task-line {
-  position: absolute;
-  left: -24px;
-  top: 50%;
-  width: 24px;
-  height: 2px;
-  background-color: var(--el-border-color-lighter);
-}
-
-.child-task::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background-color: var(--el-border-color-lighter);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.child-task:hover::before {
-  opacity: 1;
-  background-color: var(--el-color-primary);
-}
-
-.tasks-hierarchy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.child-task {
-  position: relative;
-}
-
-.child-task::before {
-  content: '';
-  position: absolute;
-  left: -24px;
-  top: 0;
-  height: 100%;
-  width: 2px;
-  background-color: var(--el-border-color-lighter);
-}
-
-.child-task-line {
-  position: absolute;
-  left: -24px;
-  top: 50%;
-  width: 24px;
-  height: 2px;
-  background-color: var(--el-border-color-lighter);
-}
-
+.child-task::before,
+.child-task-line,
 .child-task:hover::before,
 .child-task:hover .child-task-line {
-  background-color: var(--el-color-primary);
+  display: none;
+}
+
+.child-tasks {
+  display: flex;
+  flex-direction: column;
+  margin-left: 24px;
+}
+
+.expand-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.expand-button:hover {
+  background-color: var(--el-fill-color);
+}
+
+.expand-icon {
+  font-size: 16px;
+  transition: transform 0.2s;
+  color: var(--el-text-color-secondary);
+}
+
+.expand-icon.is-expanded {
+  transform: rotate(90deg);
+}
+
+/* Modify task-main to accommodate expand button */
+.task-main {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Add transition for child tasks */
+.child-tasks {
+  transition: all 0.3s ease-in-out;
+}
+
+.task-group {
+  display: flex;
+  flex-direction: column;
+  padding: 0px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  background-color: var(--el-fill-color-blank);
+  transition: border-color 0.2s;
+}
+
+.task-group:hover {
+  border-color: var(--el-border-color);
+}
+
+/* Update task-card styles to work within group */
+.task-card {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  margin: 0;  /* Remove any existing margins */
+}
+
+/* Adjust child tasks container */
+.child-tasks {
+  margin: 0px;
+  padding: 0px;
+}
+
+/* Update mobile styles */
+@media (max-width: 768px) {
+  .task-group {
+    padding: 4px;
+  }
+  
+  .child-tasks {
+    margin: 0px;
+    padding: 0px;
+  }
 }
 </style>
 
@@ -1226,7 +1303,7 @@ span.logged-hours i {
 <style>
 .filters-container {
   padding: 16px;
-  background-color: var(--el-fill-color-light);
+  background-color: #FBFBFB;
   border-radius: 4px;
   margin-bottom: 16px;
 }

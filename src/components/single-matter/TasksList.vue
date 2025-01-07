@@ -483,19 +483,6 @@ export default {
 <template>
   <div class="tasks-list">
     <!-- Column Headers -->
-    <div class="task-headers">
-      <div class="header-title">
-        <span>Title</span>
-      </div>
-      <div class="header-metadata">
-        <span>Status</span>
-        <span>Assignee</span>
-        <span>Priority</span>
-        <span>Due Date</span>
-      </div>
-    </div>
-
-    <!-- Filters -->
     <el-collapse-transition>
       <div v-show="showFilters" class="filters-container">
         <el-form :inline="true" class="filter-form">
@@ -532,6 +519,25 @@ export default {
               <el-option label="Low" value="low" />
             </el-select>
           </el-form-item>
+          <el-form-item label="Assignee">
+            <el-select 
+              v-model="filters.assignee" 
+              placeholder="Assignee" 
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              clearable
+              class="filter-item"
+              style="width: 200px">
+              <el-option
+                v-for="user in sharedUsers"
+                :key="user.id"
+                :label="user.email"
+                :value="user.id"
+              />
+            </el-select>
+          </el-form-item>
+          
           <el-form-item label="Due Date">
             <el-select
               v-model="filters.dueDate"
@@ -557,12 +563,42 @@ export default {
             </el-select>
           </el-form-item>
           <el-form-item>
+            <el-switch
+              v-model="filters.showDeleted"
+              class="filter-item"
+            active-text="Show Deleted Tasks"
+              @change="$emit('show-deleted-changed', $event)"
+              />
+          </el-form-item>
+          <el-form-item>
+          <el-switch
+            v-model="filters.starred"
+            class="filter-item"
+            active-text="Show Starred Tasks"
+            @change="saveFilters"
+            />
+          </el-form-item>
+          <el-form-item>
             <el-button @click="clearFilters">Clear</el-button>
           </el-form-item>
         </el-form>
       </div>
     </el-collapse-transition>
 
+    <div class="task-headers">
+      <div class="header-title">
+        <span>Title</span>
+      </div>
+      <div class="header-metadata">
+        <span>Status</span>
+        <span>Assignee</span>
+        <span>Priority</span>
+        <span>Due Date</span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    
     <!-- Tasks with Hierarchy -->
     <div class="tasks-hierarchy">
       <template v-for="task in filteredTasks" :key="task.id">

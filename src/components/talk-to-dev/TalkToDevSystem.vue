@@ -94,10 +94,10 @@
             </el-form-item>
             <el-form-item label="Description" required class="description-item">
               <TiptapEditor
+                ref="editorRef"
                 v-model="newTopic.description"
-                placeholder="Write a description..."
-                :task-title="newTopic.title || 'New Topic'"
-                :shared-users="[]"
+                placeholder="Enter topic description..."
+                :height="'400px'"
               />
             </el-form-item>
           </el-form>
@@ -131,22 +131,24 @@
               <TiptapEditor
                 v-model="editingTopic.description"
                 placeholder="Write a description..."
-                :task-title="editingTopic.title || 'Edit Topic'"
-                :shared-users="[]"
+                :height="'400px'"
               />
             </el-form-item>
           </el-form>
         </div>
         <template #footer>
-          <el-button link @click="showEditTopicDialog = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            @click="saveTopicEdit"
-            :loading="loading"
-            :disabled="!editingTopic.title.trim() || !editingTopic.description.trim()"
-          >
-            Save Changes
-          </el-button>
+          <div style="display: flex; justify-content: space-between; width: 100%">
+            <div>
+              <el-button link @click="showEditTopicDialog = false">Cancel</el-button>
+              <el-button
+                type="primary"
+                @click="saveTopicEdit"
+                :loading="loading"
+                :disabled="!editingTopic.title.trim() || !editingTopic.description.trim()">
+                Save Changes
+              </el-button>
+            </div>
+          </div>
         </template>
       </el-dialog>
 
@@ -177,11 +179,18 @@
 
 <script>
 import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import HeaderCt from '../HeaderCt.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
-import { Edit, ChatLineSquare, UserFilled, Delete } from '@element-plus/icons-vue'
+import { 
+  Edit,
+  ChatLineSquare,
+  UserFilled,
+  Delete
+} from '@element-plus/icons-vue'
+import axios from 'axios'
 
 export default {
   name: 'TalkToDevSystem',
@@ -215,6 +224,7 @@ export default {
     const replyLoading = ref({})
     const newReplies = ref({})
     const userNames = ref({})
+    const editorRef = ref(null)
 
     const isAdmin = computed(() => {
       return systemAdmins.value.some(admin => admin.id === currentUser.value?.id)
@@ -285,15 +295,56 @@ export default {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
         
-        const { error } = await supabase
-          .from('talktodevteam_topics')  // Updated table name
+        // Create topic first
+        const { data: topicData, error } = await supabase
+          .from('talktodevteam_topics')
           .insert({
             title: newTopic.value.title,
             description: newTopic.value.description,
             created_by: user.id
           })
+          .select()
+          .single()
 
         if (error) throw error
+
+        // Upload any temporary files to Gitea
+        if (editorRef.value?.temporaryFiles?.length > 0) {
+          const fileUrls = await Promise.all(
+            editorRef.value.temporaryFiles.map(async (file) => {
+              const formData = new FormData()
+              formData.append('file', file)
+              
+              try {
+                const response = await axios.post(
+                  `${process.env.VUE_APP_GITEA_API}/repos/${process.env.VUE_APP_GITEA_OWNER}/${process.env.VUE_APP_GITEA_REPO}/contents/talktodev/${topicData.id}/${file.name}`,
+                  formData,
+                  {
+                    headers: {
+                      'Authorization': `Bearer ${process.env.VUE_APP_GITEA_TOKEN}`,
+                      'Content-Type': 'multipart/form-data'
+                    }
+                  }
+                )
+                return response.data.content.download_url
+              } catch (error) {
+                console.error('Error uploading file to Gitea:', error)
+                return null
+              }
+            })
+          )
+
+          // Update topic description with new file URLs
+          const updatedDescription = editorRef.value.editor.getHTML().replace(
+            /href="#"/g, 
+            (_, index) => `href="${fileUrls[index]}"`
+          )
+
+          await supabase
+            .from('talktodevteam_topics')
+            .update({ description: updatedDescription })
+            .eq('id', topicData.id)
+        }
 
         showNewTopicDialog.value = false
         newTopic.value = { title: '', description: '' }
@@ -504,6 +555,56 @@ export default {
       }
     }
 
+    const confirmDeleteTopic = () => {
+      ElMessageBox.confirm(
+        'Are you sure you want to delete this topic? This action cannot be undone.',
+        'Delete Topic',
+        {
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }
+      )
+      .then(() => {
+        deleteTopic()
+      })
+      .catch(() => {})
+    }
+
+    const deleteTopic = async () => {
+      try {
+        loading.value = true
+        
+        // Delete associated files from storage first
+        const { data: files, error: filesError } = await supabase
+          .from('talk_to_dev_files')
+          .select('file_path')
+          .eq('topic_id', editingTopic.value.id)
+        
+        if (files?.length) {
+          await supabase.storage
+            .from('talktodev-files')
+            .remove(files.map(f => f.file_path))
+        }
+
+        // Delete topic and related records
+        const { error } = await supabase
+          .from('talktodevteam_topics')
+          .delete()
+          .eq('id', editingTopic.value.id)
+
+        if (error) throw error
+
+        showEditTopicDialog.value = false
+        await loadTopics()
+        ElMessage.success('Topic deleted successfully')
+      } catch (error) {
+        ElMessage.error('Error deleting topic: ' + error.message)
+      } finally {
+        loading.value = false
+      }
+    }
+
     // Rest of the setup function remains the same
     
     onMounted(async () => {
@@ -556,7 +657,9 @@ export default {
       newReplies,
       addReply,
       userNames,
-      removeAdmin
+      removeAdmin,
+      confirmDeleteTopic,
+      deleteTopic
     }
   }
 }
@@ -608,6 +711,23 @@ export default {
 
 .new-topic-form {
   padding: 20px;
+  width: 100%;
+}
+
+.description-item {
+  width: 100%;
+}
+
+:deep(.el-form-item__content) {
+  width: 90%;
+}
+
+:deep(.editor) {
+  width: 100%;
+}
+
+:deep(.editor-content-wrapper) {
+  width: 100%;
 }
 
 .topic-description {

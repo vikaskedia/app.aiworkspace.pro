@@ -57,8 +57,7 @@
           <TiptapEditor
             v-model="newReply"
             placeholder="Write a reply..."
-            :task-title="`Reply to: ${topic.title}`"
-            :shared-users="[]"
+            :height="'200px'"
           />
           <el-button 
             type="primary" 
@@ -76,7 +75,7 @@
         title="Edit Topic"
         width="600px">
         <div class="edit-topic-form">
-          <el-form>
+          <el-form label-position="top">
             <el-form-item label="Title">
               <el-input v-model="editedTopic.title" />
             </el-form-item>
@@ -84,20 +83,27 @@
               <TiptapEditor
                 v-model="editedTopic.description"
                 placeholder="Write your topic description..."
-                :task-title="editedTopic.title"
-                :shared-users="[]"
+                :height="'400px'"
               />
             </el-form-item>
           </el-form>
         </div>
         <template #footer>
-          <el-button link @click="showEditDialog = false">Cancel</el-button>
-          <el-button 
-            type="primary" 
-            @click="saveTopic"
-            :loading="loading">
-            Save Changes
-          </el-button>
+          <div style="display: flex; justify-content: space-between; width: 100%">
+            <el-button 
+              type="danger"
+              @click="confirmDeleteTopic"
+              :loading="loading">
+              Delete Topic
+            </el-button>
+            <el-button 
+              type="primary" 
+              @click="saveTopic"
+              :loading="loading"
+              :disabled="!editedTopic.title.trim() || !editedTopic.description.trim()">
+              Save Changes
+            </el-button>
+          </div>
         </template>
       </el-dialog>
 
@@ -109,8 +115,7 @@
           <TiptapEditor
             v-model="editedReply.content"
             placeholder="Edit your reply..."
-            :task-title="`Reply to: ${topic.title}`"
-            :shared-users="[]"
+            :height="'300px'"
           />
         </div>
         <template #footer>
@@ -131,10 +136,11 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import HeaderCt from '../HeaderCt.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
 import { Back, Edit } from '@element-plus/icons-vue'
+import axios from 'axios'
 
 export default {
   name: 'TalkToDevTopicDetails',
@@ -317,6 +323,65 @@ export default {
       }
     }
 
+    const confirmDeleteTopic = () => {
+      ElMessageBox.confirm(
+        'Are you sure you want to delete this topic? This action cannot be undone.',
+        'Delete Topic',
+        {
+          confirmButtonText: 'Delete',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }
+      )
+      .then(() => {
+        deleteTopic()
+      })
+      .catch(() => {})
+    }
+
+    const deleteTopic = async () => {
+      try {
+        loading.value = true
+        
+        // Get file paths from topic content
+        const fileUrls = topic.value.description.match(/href="[^"]+"/g) || []
+        const giteaFiles = fileUrls
+          .map(url => url.match(/href="([^"]+)"/)[1])
+          .filter(url => url.includes('gitea'))
+        
+        // Delete files from Gitea
+        if (giteaFiles.length) {
+          const deletePromises = giteaFiles.map(async (fileUrl) => {
+            try {
+              await axios.delete(fileUrl, {
+                headers: {
+                  Authorization: `Bearer ${process.env.VUE_APP_GITEA_TOKEN}`
+                }
+              })
+            } catch (error) {
+              console.error('Error deleting file from Gitea:', error)
+            }
+          })
+          await Promise.all(deletePromises)
+        }
+
+        // Delete topic
+        const { error } = await supabase
+          .from('talktodevteam_topics')
+          .delete()
+          .eq('id', route.params.id)
+
+        if (error) throw error
+
+        router.push('/talk-to-dev')
+        ElMessage.success('Topic deleted successfully')
+      } catch (error) {
+        ElMessage.error('Error deleting topic: ' + error.message)
+      } finally {
+        loading.value = false
+      }
+    }
+
     onMounted(async () => {
       const { data: { user } } = await supabase.auth.getUser()
       currentUser.value = user
@@ -340,7 +405,9 @@ export default {
       editedReply,
       editReply,
       saveReply,
-      userNames
+      userNames,
+      confirmDeleteTopic,
+      deleteTopic
     }
   }
 }

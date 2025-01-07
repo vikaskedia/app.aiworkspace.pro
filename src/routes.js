@@ -130,13 +130,13 @@ const routes = [
   {
     path: '/talk-to-dev',
     name: 'TalkToDev',
-    component: () => import('./components/single-matter/TalkToDevSystem.vue'),
+    component: () => import('./components/talk-to-dev/TalkToDevSystem.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/talk-to-dev/:id',
     name: 'TopicDetails',
-    component: () => import('./components/single-matter/TalkToDevTopicDetails.vue')
+    component: () => import('./components/talk-to-dev/TalkToDevTopicDetails.vue')
   }, 
   {
     path: '/',

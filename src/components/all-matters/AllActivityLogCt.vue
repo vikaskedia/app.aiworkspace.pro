@@ -41,7 +41,7 @@
             </div>
 
 
-            <!-- Grand Total Summary Row -->
+            <!-- Grand Total Summary Row section -->
         <div class="task-log-summary">
           <div class="task-title-section">
             <span class="summary-label">Grand Total</span>

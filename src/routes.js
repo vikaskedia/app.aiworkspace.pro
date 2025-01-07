@@ -139,6 +139,12 @@ const routes = [
     component: () => import('./components/talk-to-dev/TalkToDevTopicDetails.vue')
   }, 
   {
+    path: '/ai-attorney',
+    name: 'AIAttorney',
+    component: () => import('./components/AIAttorneyCt.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     redirect: '/login'
   }

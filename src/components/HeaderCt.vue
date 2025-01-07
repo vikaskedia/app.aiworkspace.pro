@@ -116,6 +116,9 @@ export default {
           // TODO: Implement talk to dev route
           this.$router.push('/talk-to-dev');
           break;
+        case 'ai_attorney':
+          this.$router.push('/ai-attorney');
+          break;
       }
     },
     handleMatterSelect(matter) {
@@ -323,6 +326,7 @@ export default {
             </el-dropdown-item>
             <el-dropdown-item divided command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
+            <el-dropdown-item divided command="ai_attorney">AI Attorney</el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>

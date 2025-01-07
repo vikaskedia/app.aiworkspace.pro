@@ -10,7 +10,7 @@
 3. Users can upload files.
 4. Task system.
 
-# Furure features:
+# Future features:
 1. Individual users can give feedback by clicking on their profile icon.
 2. Users have a forum that they can use to interact with each other.
 3. Notification system can realy messages to telegram.

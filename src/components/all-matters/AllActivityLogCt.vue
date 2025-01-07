@@ -39,10 +39,30 @@
                 </el-tag>
               </div>
             </div>
+
+
+            <!-- Grand Total Summary Row -->
+        <div class="task-log-summary">
+          <div class="task-title-section">
+            <span class="summary-label">Grand Total</span>
+            <span class="summary-details">
+              {{ groupedTimeLogs.length }} tasks, 
+              {{ getTotalTimeLogsCount }} time entries
+            </span>
+          </div>
+          <div class="matter-section"></div>
+          <div class="time-section">
+            <el-tag size="default" type="success" class="grand-total-tag">
+              {{ formatTime(grandTotalHours) }}
+            </el-tag>
+          </div>
+        </div>
+
+
           </div>
         </div>
       </div>
- 
+     
 
     <!-- Task Details Drawer -->
     <el-drawer
@@ -133,6 +153,7 @@ export default {
         const currentTotal = this.parseTime(groups[taskTitle].totalTime);
         const logTime = this.parseTime(log.time_taken);
         groups[taskTitle].totalTime = this.addTimes(currentTotal, logTime);
+        //log.grandTotalTime =  this.addTimes(currentTotal, logTime);
       });
       
       // Transform groups into tree structure
@@ -147,6 +168,17 @@ export default {
           isGroup: false
         }))
       }));
+    },
+    grandTotalHours() {
+      return this.groupedTimeLogs.reduce((total, group) => {
+
+        return this.addTimes(this.parseTime(total), this.parseTime(group.totalTime));
+      }, '00:00:00');
+    },
+    getTotalTimeLogsCount() {
+      return this.groupedTimeLogs.reduce((count, group) => {
+        return count + group.children.length;
+      }, 0);
     }
   },
   methods: {
@@ -412,6 +444,41 @@ export default {
   text-align: center;
 }
 
+
+.task-log-summary {
+  display: grid;
+  grid-template-columns: 1fr 200px 120px;
+  align-items: center;
+  padding: 16px;
+  /* margin-top: 16px; */
+  background: var(--el-fill-color-light);
+  /* border-top: 2px solid var(--el-border-color-darker); */
+  font-weight: 600;
+}
+
+.summary-label {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  display: block;
+}
+
+.summary-details {
+  display: block;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: normal;
+  margin-top: 4px;
+}
+
+.grand-total-tag {
+  font-weight: 600;
+  min-width: 80px;
+  text-align: center;
+  font-size: 14px;
+  background-color: var(--el-color-success-light-9);
+  border-color: var(--el-color-success);
+}
+
 @media (max-width: 768px) {
   .task-log-row {
     padding: 12px;
@@ -420,6 +487,15 @@ export default {
   .task-metadata {
     gap: 6px;
   }
+
+  .task-log-summary {
+    padding: 12px;
+  }
+  
+  .summary-details {
+    margin-top: 2px;
+  }
+
 }
 
 .drawer-header {

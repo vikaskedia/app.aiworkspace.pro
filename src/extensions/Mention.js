@@ -68,7 +68,7 @@ export const Mention = Node.create({
         pluginKey: MentionPluginKey,
         items: ({ query }) => {
           // Get shared users from editor's parent component
-          const component = this.editor.options.element.closest('.editor')
+          const component = this.editor.options.element?.closest('.editor')
             ?.__vueParentComponent?.ctx
           
           if (!component?.sharedUsers) return []
@@ -126,22 +126,22 @@ export const Mention = Node.create({
           let popup
           return {
             onStart: (props) => {
-              const component = this.editor.options.element.closest('.editor')
+              const component = this.editor.options.element?.closest('.editor')
                 .__vueParentComponent.ctx
               popup = component.renderMentionPopup(props)
             },
             onUpdate: (props) => {
-              const component = this.editor.options.element.closest('.editor')
+              const component = this.editor.options.element?.closest('.editor')
                 .__vueParentComponent.ctx
               component.updateMentionPopup(props)
             },
             onKeyDown: (props) => {
-              const component = this.editor.options.element.closest('.editor')
+              const component = this.editor.options.element?.closest('.editor')
                 .__vueParentComponent.ctx
               return component.handleMentionKeydown(props)
             },
             onExit: () => {
-              const component = this.editor.options.element.closest('.editor')
+              const component = this.editor.options.element?.closest('.editor')
                 .__vueParentComponent.ctx
               component.destroyMentionPopup()
             },

@@ -813,13 +813,31 @@ export default {
                   </template>
                 </div>
 
-                <el-tag
-                  :type="getPriorityType(task.priority)"
-                  size="small"
-                  class="priority-tag clickable"
-                  @click.stop="startEditing(task, 'priority')">
-                  <span>{{ task.priority || 'No priority' }}</span>
-                </el-tag>
+                <template v-if="editingTaskId === task.id && editingField === 'priority'">
+                  <el-select
+                    v-model="editingValue"
+                    size="small"
+                    @change="handleSubmit(task)"
+                    @blur="cancelEditing"
+                    @click.stop
+                    @keyup.esc="cancelEditing"
+                    ref="prioritySelect"
+                    style="width: 120px">
+                    <el-option label="High" value="high" />
+                    <el-option label="Medium" value="medium" />
+                    <el-option label="Low" value="low" />
+                    <el-option label="No priority" value="" />
+                  </el-select>
+                </template>
+                <template v-else>
+                  <el-tag
+                    :type="getPriorityType(task.priority)"
+                    size="small"
+                    class="priority-tag clickable"
+                    @click.stop="startEditing(task, 'priority')">
+                    <span>{{ task.priority || 'No priority' }}</span>
+                  </el-tag>
+                </template>
 
                 <template v-if="task.due_date">
                   <el-tag
@@ -935,13 +953,31 @@ export default {
                       </template>
                     </div>
 
-                    <el-tag
-                      :type="getPriorityType(childTask.priority)"
-                      size="small"
-                      class="priority-tag clickable"
-                      @click.stop="startEditing(childTask, 'priority')">
-                      <span>{{ childTask.priority || 'No priority' }}</span>
-                    </el-tag>
+                    <template v-if="editingTaskId === childTask.id && editingField === 'priority'">
+                      <el-select
+                        v-model="editingValue"
+                        size="small"
+                        @change="handleSubmit(childTask)"
+                        @blur="cancelEditing"
+                        @click.stop
+                        @keyup.esc="cancelEditing"
+                        ref="prioritySelect"
+                        style="width: 120px">
+                        <el-option label="High" value="high" />
+                        <el-option label="Medium" value="medium" />
+                        <el-option label="Low" value="low" />
+                        <el-option label="No priority" value="" />
+                      </el-select>
+                    </template>
+                    <template v-else>
+                      <el-tag
+                        :type="getPriorityType(childTask.priority)"
+                        size="small"
+                        class="priority-tag clickable"
+                        @click.stop="startEditing(childTask, 'priority')">
+                        <span>{{ childTask.priority || 'No priority' }}</span>
+                      </el-tag>
+                    </template>
 
                     <template v-if="childTask.due_date">
                       <el-tag

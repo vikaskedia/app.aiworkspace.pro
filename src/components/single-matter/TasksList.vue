@@ -3,7 +3,7 @@
 import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 export default {
   components: {
@@ -471,6 +471,23 @@ export default {
     const editingField = ref(null)
     const editingValue = ref('')
     
+    // Add event listener for ESC key when component is mounted
+    onMounted(() => {
+      document.addEventListener('keydown', handleEscKey)
+    })
+
+    // Remove event listener when component is unmounted
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleEscKey)
+    })
+
+    // Handle ESC key press
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape' && editingTaskId.value) {
+        cancelEditing()
+      }
+    }
+
     const startEditing = (task, field) => {
       editingTaskId.value = task.id
       editingField.value = field
@@ -525,6 +542,10 @@ export default {
       editingTaskId.value = null
       editingField.value = null
       editingValue.value = ''
+      // Force blur the active element to ensure dropdown closes
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
     }
 
     const toggleStar = (task) => {
@@ -729,6 +750,8 @@ export default {
                     @change="handleSubmit(task)"
                     @blur="cancelEditing"
                     @click.stop
+                    @keyup.esc="cancelEditing"
+                    ref="statusSelect"
                     style="width: 120px">
                     <el-option label="Not started" value="not_started" />
                     <el-option label="In progress" value="in_progress" />
@@ -754,6 +777,8 @@ export default {
                       @change="handleSubmit(task)"
                       @blur="cancelEditing"
                       @click.stop
+                      @keyup.esc="cancelEditing"
+                      ref="assigneeSelect"
                       style="width: 120px">
                       <el-option
                         v-for="user in sharedUsers"
@@ -875,6 +900,7 @@ export default {
                           @change="handleSubmit(childTask)"
                           @blur="cancelEditing"
                           @click.stop
+                          @keyup.esc="cancelEditing"
                           style="width: 120px">
                           <el-option
                             v-for="user in sharedUsers"

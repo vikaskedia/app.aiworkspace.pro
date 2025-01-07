@@ -122,6 +122,11 @@ export default {
 
         const sharesWithUserInfo = await Promise.all(
           shares.map(async (share) => {
+            // Skip if shared_with_user_id is null
+            if (!share.shared_with_user_id) {
+              return null;
+            }
+            
             const { data: userData } = await supabase
               .rpc('get_user_info_by_id', {
                 user_id: share.shared_with_user_id

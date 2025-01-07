@@ -497,12 +497,20 @@ export default {
 
           if (error) throw error
 
-          // Show success message
-          ElMessage.success('Task status updated successfully')
+          // Show appropriate success message based on the field being updated
+          const fieldMessages = {
+            status: 'Task status updated successfully',
+            assignee: 'Task assignee updated successfully',
+            title: 'Task title updated successfully',
+            due_date: 'Task due date updated successfully',
+            priority: 'Task priority updated successfully'
+          }
+          
+          ElMessage.success(fieldMessages[editingField.value] || 'Task updated successfully')
         }
       } catch (error) {
         console.error('Error updating task:', error)
-        ElMessage.error('Failed to update task status')
+        ElMessage.error('Failed to update task')
         // Revert the local state if the update failed
         emit('update-task', task)
       } finally {
@@ -739,26 +747,44 @@ export default {
                 </template>
 
                 <div class="assignee-wrapper">
-                  <template v-if="task.assignee">
-                    <el-tooltip
-                      :content="sharedUsers.find(u => u.id === task.assignee)?.email"
-                      placement="top">
-                      <div 
-                        class="assignee-badge clickable"
-                        :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
-                        @click.stop="startEditing(task, 'assignee')">
-                        {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
-                      </div>
-                    </el-tooltip>
+                  <template v-if="editingTaskId === task.id && editingField === 'assignee'">
+                    <el-select
+                      v-model="editingValue"
+                      size="small"
+                      @change="handleSubmit(task)"
+                      @blur="cancelEditing"
+                      @click.stop
+                      style="width: 120px">
+                      <el-option
+                        v-for="user in sharedUsers"
+                        :key="user.id"
+                        :label="user.email"
+                        :value="user.id"
+                      />
+                    </el-select>
                   </template>
                   <template v-else>
-                    <el-tooltip content="Assign task" placement="top">
-                      <div 
-                        class="assignee-badge unassigned clickable"
-                        @click.stop="startEditing(task, 'assignee')">
-                        <el-icon><Plus /></el-icon>
-                      </div>
-                    </el-tooltip>
+                    <template v-if="task.assignee">
+                      <el-tooltip
+                        :content="sharedUsers.find(u => u.id === task.assignee)?.email"
+                        placement="top">
+                        <div 
+                          class="assignee-badge clickable"
+                          :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
+                          @click.stop="startEditing(task, 'assignee')">
+                          {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
+                        </div>
+                      </el-tooltip>
+                    </template>
+                    <template v-else>
+                      <el-tooltip content="Assign task" placement="top">
+                        <div 
+                          class="assignee-badge unassigned clickable"
+                          @click.stop="startEditing(task, 'assignee')">
+                          <el-icon><Plus /></el-icon>
+                        </div>
+                      </el-tooltip>
+                    </template>
                   </template>
                 </div>
 
@@ -842,26 +868,44 @@ export default {
                     </el-tag>
 
                     <div class="assignee-wrapper">
-                      <template v-if="childTask.assignee">
-                        <el-tooltip
-                          :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
-                          placement="top">
-                          <div 
-                            class="assignee-badge clickable"
-                            :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
-                            @click.stop="startEditing(childTask, 'assignee')">
-                            {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
-                          </div>
-                        </el-tooltip>
+                      <template v-if="editingTaskId === childTask.id && editingField === 'assignee'">
+                        <el-select
+                          v-model="editingValue"
+                          size="small"
+                          @change="handleSubmit(childTask)"
+                          @blur="cancelEditing"
+                          @click.stop
+                          style="width: 120px">
+                          <el-option
+                            v-for="user in sharedUsers"
+                            :key="user.id"
+                            :label="user.email"
+                            :value="user.id"
+                          />
+                        </el-select>
                       </template>
                       <template v-else>
-                        <el-tooltip content="Assign task" placement="top">
-                          <div 
-                            class="assignee-badge unassigned clickable"
-                            @click.stop="startEditing(childTask, 'assignee')">
-                            <el-icon><Plus /></el-icon>
-                          </div>
-                        </el-tooltip>
+                        <template v-if="childTask.assignee">
+                          <el-tooltip
+                            :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
+                            placement="top">
+                            <div 
+                              class="assignee-badge clickable"
+                              :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
+                              @click.stop="startEditing(childTask, 'assignee')">
+                              {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
+                            </div>
+                          </el-tooltip>
+                        </template>
+                        <template v-else>
+                          <el-tooltip content="Assign task" placement="top">
+                            <div 
+                              class="assignee-badge unassigned clickable"
+                              @click.stop="startEditing(childTask, 'assignee')">
+                              <el-icon><Plus /></el-icon>
+                            </div>
+                          </el-tooltip>
+                        </template>
                       </template>
                     </div>
 
@@ -1009,10 +1053,45 @@ export default {
 }
 
 .assignee-wrapper {
+  position: relative;
   width: 40px;
   display: flex;
   justify-content: center;
   margin-left: 0;
+}
+
+.assignee-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--el-color-white);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.assignee-badge.unassigned {
+  background-color: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+.assignee-badge.unassigned:hover {
+  background-color: var(--el-fill-color-dark);
+  color: var(--el-text-color-primary);
+}
+
+.assignee-badge.clickable:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+/* Position the select dropdown */
+.assignee-wrapper :deep(.el-select) {
+  position: absolute;
+  z-index: 1;
 }
 
 .hover-actions {

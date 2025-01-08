@@ -246,7 +246,11 @@
             <TiptapEditor
               v-model="editingDescription"
               placeholder="Add a description..."
-              :autofocus="true"
+              :autofocus="true" 
+              :isTaskComment="false"
+              :sharedUsers="sharedUsers"
+              :taskId="String(task.id)"
+              :taskTitle="task.title"
             />
             <div class="description-edit-actions">
               <el-button @click="cancelDescriptionEdit" size="small">Cancel</el-button>

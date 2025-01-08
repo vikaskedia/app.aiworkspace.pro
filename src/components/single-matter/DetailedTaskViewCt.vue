@@ -34,7 +34,6 @@
       <div class="task-main-info">
         
         <div class="task-title-header">
-
           <div class="star-container">
             <el-icon 
               class="star-icon"
@@ -46,7 +45,37 @@
             </el-icon>
           </div>
           
-          <h2>{{ task?.title }}</h2>
+          <div class="title-wrapper">
+            <h2 
+              v-if="!isEditingTitle" 
+              @click="startTitleEdit"
+              class="editable-title"
+            >
+              {{ task?.title }}
+              <el-icon class="edit-icon"><Edit /></el-icon>
+            </h2>
+            <div v-else class="title-edit-wrapper">
+              <el-input
+                v-model="editingTitle"
+                ref="titleInput"
+                size="large"
+                @keyup.enter="saveTitleEdit"
+                @keyup.esc="cancelTitleEdit"
+              />
+              <div class="title-edit-actions">
+                <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
+                <el-button 
+                  type="primary" 
+                  @click="saveTitleEdit" 
+                  size="small"
+                  :disabled="!editingTitle.trim() || editingTitle === task?.title"
+                >
+                  Save
+                </el-button>
+              </div>
+            </div>
+          </div>
+
           <div class="edit-metadata">
             <span 
               v-if="task?.edit_history?.length" 
@@ -82,48 +111,168 @@
         </div>
 
         <div class="task-metadata">
+          <div class="metadata-grid">
+            <!-- Status Column -->
+            <div class="metadata-item">
+              <div class="metadata-label">
+                <el-icon><CircleCheck /></el-icon>
+                <span>Status</span>
+              </div>
+              <el-dropdown @command="handleStatusChange" trigger="click">
+                <el-tag :type="getStatusType(task)" class="status-tag">
+                  {{ formatStatus(task?.status) }}
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-tag>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="not_started">Not started</el-dropdown-item>
+                    <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
+                    <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
+                    <el-dropdown-item command="completed">Completed</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
 
-         
-          <span class="status">Status</span>
-          <el-dropdown @command="handleStatusChange" trigger="click">
-            <el-tag :type="getStatusType(task)" class="status-tag">
-              {{ formatStatus(task?.status) }}
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-tag>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="not_started">Not started</el-dropdown-item>
-                <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
-                <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
-                <el-dropdown-item command="completed">Completed</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          <span class="prority">Priority</span>
-          <el-dropdown @command="handlePriorityChange" trigger="click">
-            <el-tag :type="
-              task?.priority === 'high' ? 'danger' :
-              task?.priority === 'medium' ? 'warning' : 'info'
-            " class="priority-tag">
-              {{ task?.priority }}
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-tag>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="high">High</el-dropdown-item>
-                <el-dropdown-item command="medium">Medium</el-dropdown-item>
-                <el-dropdown-item command="low">Low</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-          <span class="due-date">
-            Due: {{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
-          </span>
-          <span class="assignee">
-            Assigned to: {{ assigneeEmail || 'Unassigned' }}
-          </span>
+            <!-- Priority Column -->
+            <div class="metadata-item">
+              <div class="metadata-label">
+                <el-icon><Warning /></el-icon>
+                <span>Priority</span>
+              </div>
+              <el-dropdown @command="handlePriorityChange" trigger="click">
+                <el-tag :type="
+                  task?.priority === 'high' ? 'danger' :
+                  task?.priority === 'medium' ? 'warning' : 'info'
+                " class="priority-tag">
+                  {{ task?.priority }}
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-tag>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="high">High</el-dropdown-item>
+                    <el-dropdown-item command="medium">Medium</el-dropdown-item>
+                    <el-dropdown-item command="low">Low</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+
+            <!-- Due Date Column -->
+            <div class="metadata-item">
+              <div class="metadata-label">
+                <el-icon><Calendar /></el-icon>
+                <span>Due Date</span>
+              </div>
+              <el-popover
+                placement="bottom"
+                trigger="click"
+                :width="300"
+                popper-class="due-date-popover"
+              >
+                <template #reference>
+                  <div class="due-date-display">
+                    <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
+                    <el-icon><Edit /></el-icon>
+                  </div>
+                </template>
+                <template #default>
+                  <div class="due-date-editor">
+                    <el-date-picker
+                      v-model="tempDueDate"
+                      type="date"
+                      placeholder="Select due date"
+                      style="width: 100%"
+                      @change="handleDueDateChange"
+                    />
+                    <div class="due-date-actions">
+                      <el-button @click="clearDueDate" link size="small">Clear</el-button>
+                    </div>
+                  </div>
+                </template>
+              </el-popover>
+            </div>
+
+            <!-- Assigned To Column -->
+            <div class="metadata-item">
+              <div class="metadata-label">
+                <el-icon><User /></el-icon>
+                <span>Assigned To</span>
+              </div>
+              <el-dropdown @command="handleAssigneeChange" trigger="click">
+                <div class="assignee-display">
+                  <div class="assignee-info">
+                    <el-avatar v-if="assigneeEmail" :size="24">
+                      {{ getInitials(assigneeEmail) }}
+                    </el-avatar>
+                    <span>{{ assigneeEmail || 'Unassigned' }}</span>
+                  </div>
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="">
+                      <el-icon><Close /></el-icon>
+                      Unassign
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      v-for="user in sharedUsers" 
+                      :key="user.id"
+                      :command="user.id"
+                    >
+                      <div class="user-option">
+                        <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
+                        <span>{{ user.email }}</span>
+                      </div>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
         </div>
-        <p class="description" v-html="formatCommentContent(task?.description || 'No description provided')"></p>
+        <div class="description-wrapper">
+          <div class="description-header">
+            <div class="metadata-label">
+              <el-icon><Document /></el-icon>
+              <span>Description</span>
+            </div>
+            <el-button 
+              v-if="!isEditingDescription" 
+              link 
+              @click="startDescriptionEdit"
+            >
+              <el-icon><Edit /></el-icon>
+              Edit
+            </el-button>
+          </div>
+
+          <div v-if="isEditingDescription" class="description-edit">
+            <TiptapEditor
+              v-model="editingDescription"
+              placeholder="Add a description..."
+              :autofocus="true"
+            />
+            <div class="description-edit-actions">
+              <el-button @click="cancelDescriptionEdit" size="small">Cancel</el-button>
+              <el-button 
+                type="primary" 
+                @click="saveDescriptionEdit" 
+                size="small"
+                :disabled="!editingDescription.trim() || editingDescription === task?.description"
+              >
+                Save
+              </el-button>
+            </div>
+          </div>
+
+          <p 
+            v-else 
+            class="description" 
+            v-html="formatCommentContent(task?.description || 'No description provided')"
+            @click="startDescriptionEdit"
+          ></p>
+        </div>
       </div>
 
       <div class="hours-logs" v-if="hoursLogs.length">
@@ -569,7 +718,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -588,7 +737,12 @@ export default {
     Star,
     StarFilled,
     Clock,
-    Timer
+    Timer,
+    User,
+    Calendar,
+    Edit,
+    CircleCheck,
+    Warning
   },
   setup() {
     const matterStore = useMatterStore();
@@ -644,6 +798,11 @@ export default {
       showAllLogs: false,
       displayedHoursLogs: [],
       showAllLogs: false,
+      tempDueDate: null,
+      isEditingTitle: false,
+      editingTitle: '',
+      isEditingDescription: false,
+      editingDescription: '',
     };
   },
   async created() {
@@ -660,7 +819,164 @@ export default {
       this.subscription.unsubscribe();
     }
   },
-  methods: {
+  methods: { 
+    async handleDueDateChange(date) {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          due_date: date ? date.toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      ElMessage.success('Due date updated successfully');
+    } catch (error) {
+      console.error('Error updating due date:', error);
+      ElMessage.error('Failed to update due date');
+      this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
+    }
+  },
+
+  async clearDueDate() {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          due_date: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      this.tempDueDate = null;
+      ElMessage.success('Due date cleared successfully');
+    } catch (error) {
+      console.error('Error clearing due date:', error);
+      ElMessage.error('Failed to clear due date');
+    }
+  },
+    startDescriptionEdit() {
+    this.editingDescription = this.task?.description || '';
+    this.isEditingDescription = true;
+  },
+
+  async saveDescriptionEdit() {
+    if (!this.editingDescription.trim() || this.editingDescription === this.task?.description) {
+      this.cancelDescriptionEdit();
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          description: this.editingDescription,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+      console.log(this.editingDescription);
+      this.task.description = this.editingDescription;
+
+      ElMessage.success('Task description updated successfully');
+      this.isEditingDescription = false;
+    } catch (error) {
+      console.error('Error updating task description:', error);
+      ElMessage.error('Failed to update task description');
+    }
+  },
+
+  cancelDescriptionEdit() {
+    this.isEditingDescription = false;
+    this.editingDescription = '';
+  },
+    startTitleEdit() {
+    this.editingTitle = this.task?.title || '';
+    this.isEditingTitle = true;
+    this.$nextTick(() => {
+      this.$refs.titleInput?.focus();
+    });
+  },
+
+  async saveTitleEdit() {
+    if (!this.editingTitle.trim() || this.editingTitle === this.task?.title) {
+      this.cancelTitleEdit();
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          title: this.editingTitle,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      ElMessage.success('Task title updated successfully');
+      this.isEditingTitle = false;
+    } catch (error) {
+      console.error('Error updating task title:', error);
+      ElMessage.error('Failed to update task title');
+    }
+  },
+
+  cancelTitleEdit() {
+    this.isEditingTitle = false;
+    this.editingTitle = '';
+  },
+    async updateDueDate() {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ due_date: this.tempDueDate })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      ElMessage.success('Due date updated successfully');
+      this.closeDueDatePopover();
+    } catch (error) {
+      console.error('Error updating due date:', error);
+      ElMessage.error('Failed to update due date');
+    }
+  },
+
+  clearDueDate() {
+    this.tempDueDate = null;
+    this.updateDueDate();
+  },
+
+  closeDueDatePopover() {
+    // Reset temp date and close popover
+    this.tempDueDate = this.task?.due_date || null;
+    const popover = document.querySelector('.due-date-popover');
+    if (popover) {
+      popover._instance.hide();
+    }
+  },
+    async handleAssigneeChange(userId) {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ assignee: userId || null })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      ElMessage.success(userId ? 'Task assigned successfully' : 'Task unassigned successfully');
+    } catch (error) {
+      console.error('Error updating assignee:', error);
+      ElMessage.error('Failed to update assignee');
+    }
+  },
     toggleShowMore() {
     this.showAllLogs = !this.showAllLogs;
   },
@@ -1729,6 +2045,64 @@ export default {
       this.showAllLogs = !this.showAllLogs;
       this.displayedHoursLogs = this.showAllLogs ? this.hoursLogs : this.hoursLogs.slice(0, 3);
     },
+
+    async handleAssigneeChange(userId) {
+      try {
+        this.loading = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+          .from('tasks')
+          .update({ assignee: userId })
+          .eq('id', this.task.id);
+
+        if (error) throw error;
+
+        this.task.assignee = userId;
+        this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
+        ElMessage.success('Assignee updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating assignee: ' + error.message);
+      } finally {
+        this.loading = false;
+      }
+    },
+    updateDueDate() {
+      this.task.due_date = this.tempDueDate;
+      this.closeDueDatePopover();
+    },
+    clearDueDate() {
+      this.tempDueDate = null;
+      this.closeDueDatePopover();
+    },
+    closeDueDatePopover() {
+      this.$refs.dueDatePopover.close();
+    },
+    startTitleEdit() {
+      this.isEditingTitle = true;
+      this.editingTitle = this.task?.title || '';
+    },
+    saveTitleEdit() {
+      this.isEditingTitle = false;
+      this.task.title = this.editingTitle;
+      this.editingTitle = '';
+    },
+    cancelTitleEdit() {
+      this.isEditingTitle = false;
+      this.editingTitle = '';
+    },
+    startDescriptionEdit() {
+      this.isEditingDescription = true;
+      this.editingDescription = this.task?.description || '';
+    },
+    cancelDescriptionEdit() {
+      this.isEditingDescription = false;
+      this.editingDescription = '';
+    },
+    handleDueDateChange(date) {
+      this.tempDueDate = date;
+      this.updateDueDate();
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -1788,6 +2162,232 @@ export default {
 
 <style scoped>
 
+.description-wrapper {
+  margin-top: 24px;
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.description-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.description {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  margin: 0;
+}
+
+.description:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.description-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.description-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.title-wrapper {
+  flex: 1;
+}
+
+.editable-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 0;
+}
+
+.editable-title:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.editable-title .edit-icon {
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 16px;
+  color: var(--el-text-color-secondary);
+}
+
+.editable-title:hover .edit-icon {
+  opacity: 1;
+}
+
+.title-edit-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.title-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.task-metadata {
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 16px 0;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.metadata-label .el-icon {
+  font-size: 16px;
+}
+
+.status-tag,
+.priority-tag,
+.due-date-display,
+.assignee-display {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.due-date-display,
+.assignee-display {
+  padding: 5px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.due-date-display:hover,
+.assignee-display:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+
+.assignee-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .metadata-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+.due-date-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.due-date-display:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+
+.due-date-editor {
+  padding: 8px;
+}
+
+.due-date-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  gap: 8px;
+}
+
+:deep(.el-popover.due-date-popover) {
+  padding: 16px;
+}
+.assignee-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.assignee-display:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+}
+
+.assignee-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+:deep(.el-dropdown-menu__item) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.el-avatar) {
+  background-color: var(--el-color-primary);
+  color: white;
+  font-size: 12px;
+}
 .hours-logs {
   margin-top: 24px;
   background: #fff;
@@ -2422,5 +3022,46 @@ table.editor-table {
   padding: 20px;
   max-width: 800px;
   margin: 0 auto;
+}
+</style>
+
+<style scoped>
+.description-wrapper {
+  margin-top: 24px;
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.description-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.description {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  margin: 0;
+}
+
+.description:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.description-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.description-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

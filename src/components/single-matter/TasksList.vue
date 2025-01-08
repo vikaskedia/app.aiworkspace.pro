@@ -3,7 +3,7 @@
 import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 
 export default {
   name: 'TasksList',
@@ -502,6 +502,29 @@ export default {
       { label: 'No priority', value: '' }
     ]
 
+    const shortcuts = [
+      {
+        text: 'Today',
+        value: new Date(),
+      },
+      {
+        text: 'Tomorrow',
+        value: () => {
+          const date = new Date()
+          date.setTime(date.getTime() + 3600 * 1000 * 24)
+          return date
+        },
+      },
+      {
+        text: 'Next week',
+        value: () => {
+          const date = new Date()
+          date.setTime(date.getTime() + 3600 * 1000 * 24 * 7)
+          return date
+        },
+      }
+    ]
+
     // Add handleSubmit function
     const handleSubmit = (task) => {
       if (!task) return
@@ -512,9 +535,26 @@ export default {
       cancelEditing()
     }
 
-    const handlePopupSelect = (value) => {
-      editingValue.value = value
-      handleSubmit(props.tasks.find(t => t.id === editingTaskId.value))
+    const handlePopupSelect = async (value) => {
+      console.log('handlePopupSelect called with value:', value)
+      const task = props.tasks.find(t => t.id === editingTaskId.value)
+      
+      if (task) {
+        // Format the date value to YYYY-MM-DD if it exists
+        const formattedValue = value ? new Date(value).toISOString().split('T')[0] : null
+        
+        // Create updated task object with new due date
+        const updatedTask = {
+          ...task,
+          due_date: formattedValue
+        }
+        console.log('Updated task:', updatedTask)
+        // Call parent's updateTask method
+        emit('update-task', updatedTask)
+        editingValue.value = formattedValue
+      }
+      
+      cancelEditing()
     }
 
     // Add event listener for ESC key when component is mounted
@@ -542,24 +582,23 @@ export default {
     }
 
     const startEditing = (task, field, event) => {
-      // If clicking the same field that's already being edited, close it
       if (editingTaskId.value === task.id && editingField.value === field) {
         cancelEditing()
         return
       }
 
       if (event) {
-        // Get the click coordinates relative to the viewport
-        const x = event.clientX
-        const y = event.clientY
-        const scrollTop = window.scrollY || document.documentElement.scrollTop
-        
-        // Position the popup at the click location
-        popupPosition.value = {
-          top: `${y + scrollTop}px`,
-          left: `${x}px`,
-          transform: 'translate(-50%, -100%)', // Center horizontally and position above click
-          maxHeight: '200px'
+        const clickedElement = event.target.closest('.clickable')
+        if (clickedElement) {
+          const rect = clickedElement.getBoundingClientRect()
+          const scrollTop = window.scrollY || document.documentElement.scrollTop
+          
+          popupPosition.value = {
+            top: `${rect.bottom + scrollTop}px`,
+            left: `${rect.left}px`,
+            transform: 'none',
+            maxHeight: '300px'
+          }
         }
       }
       editingTaskId.value = task.id
@@ -576,6 +615,15 @@ export default {
       }
     }
 
+    const focusDatePicker = () => {
+      nextTick(() => {
+        const input = document.querySelector('.due-date-popup .el-input__inner')
+        if (input) {
+          input.click()
+        }
+      })
+    }
+
     return {
       editingTaskId,
       editingField,
@@ -586,7 +634,9 @@ export default {
       startEditing,
       handlePopupSelect,
       handleSubmit,
-      cancelEditing
+      cancelEditing,
+      focusDatePicker,
+      shortcuts,
     }
   },
   directives: {
@@ -815,7 +865,7 @@ export default {
                     :type="getDueDateType(task)"
                     size="small"
                     class="due-date-tag clickable"
-                    @click.stop="startEditing(task, 'due_date')">
+                    @click.stop="startEditing(task, 'due_date', $event)">
                     <el-icon><Calendar /></el-icon>
                     {{ formatDueDate(task.due_date) }}
                   </el-tag>
@@ -823,7 +873,7 @@ export default {
                 <template v-else>
                   <div 
                     class="due-date-empty clickable"
-                    @click.stop="startEditing(task, 'due_date')">
+                    @click.stop="startEditing(task, 'due_date', $event)">
                     <el-icon><Calendar /></el-icon>
                     <span>No due date</span>
                   </div>
@@ -955,7 +1005,7 @@ export default {
                         :type="getDueDateType(childTask)"
                         size="small"
                         class="due-date-tag clickable"
-                        @click.stop="startEditing(childTask, 'due_date')">
+                        @click.stop="startEditing(childTask, 'due_date', $event)">
                         <el-icon><Calendar /></el-icon>
                         {{ formatDueDate(childTask.due_date) }}
                       </el-tag>
@@ -963,7 +1013,7 @@ export default {
                     <template v-else>
                       <div 
                         class="due-date-empty clickable"
-                        @click.stop="startEditing(childTask, 'due_date')">
+                        @click.stop="startEditing(childTask, 'due_date', $event)">
                         <el-icon><Calendar /></el-icon>
                         <span>No due date</span>
                       </div>
@@ -987,9 +1037,6 @@ export default {
     <div class="popup-menu-content">
       <!-- Status options -->
       <template v-if="editingField === 'status'">
-        <div class="popup-item popup-header">
-          <span>Select status</span>
-        </div>
         <div 
           v-for="status in statusOptions" 
           :key="status.value"
@@ -997,9 +1044,14 @@ export default {
           :class="{ 'selected': editingValue === status.value }"
           @click="handlePopupSelect(status.value)">
           <div class="popup-option">
-            <el-tag :type="getStatusType(status.value)" size="small">
-              {{ status.label }}
-            </el-tag>
+            <div class="status-option">
+              <el-tag 
+                :type="getStatusType({ status: status.value })" 
+                size="small"
+                class="status-tag">
+                {{ status.label }}
+              </el-tag>
+            </div>
             <el-icon v-if="editingValue === status.value"><Check /></el-icon>
           </div>
         </div>
@@ -1007,9 +1059,6 @@ export default {
 
       <!-- Priority options -->
       <template v-if="editingField === 'priority'">
-        <div class="popup-item popup-header">
-          <span>Select priority</span>
-        </div>
         <div 
           v-for="priority in priorityOptions" 
           :key="priority.value"
@@ -1027,9 +1076,6 @@ export default {
 
       <!-- Assignee options -->
       <template v-if="editingField === 'assignee'">
-        <div class="popup-item popup-header">
-          <span>Select assignee</span>
-        </div>
         <div 
           v-for="user in sharedUsers" 
           :key="user.id"
@@ -1050,29 +1096,31 @@ export default {
         </div>
       </template>
 
-      <!-- Due date options -->
+      <!-- Due Date picker -->
       <template v-if="editingField === 'due_date'">
-        <div class="popup-item popup-header">
-          <span>Select due date</span>
-        </div>
         <div class="popup-item">
-          <el-date-picker
-            v-model="editingValue"
-            type="date"
-            placeholder="Select due date"
-            @change="handlePopupSelect"
-            :clearable="false"
-            :editable="false"
-            :popper-options="{ boundariesElement: 'body' }"
-            :popper-append-to-body="false"
-            :popper-class="'date-picker-popper'"
-            :prefix-icon="Calendar"
-            :style="{ width: '100%' }"
-            v-focus
-          />
-        </div>
-        <div class="popup-item">
-          <el-button size="small" @click="handlePopupSelect(null)">Clear</el-button>
+          <div class="date-picker-wrapper">
+            <el-date-picker
+              ref="datePicker"
+              v-model="editingValue"
+              type="date"
+              size="default"
+              value-format="YYYY-MM-DD"
+              @change="handlePopupSelect"
+              @input="handlePopupSelect"
+              :clearable="false"
+              :placeholder="'Select due date'"
+              :shortcuts="shortcuts"
+              :visible="true"
+              :placement="'bottom'"
+            />
+          </div>
+          <div 
+            v-if="editingValue"
+            class="clear-date"
+            @click="handlePopupSelect(null)">
+            Clear date
+          </div>
         </div>
       </template>
     </div>
@@ -1431,7 +1479,8 @@ span.logged-hours i {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  padding: 0 16px;
+  gap: 8px;
 }
 
 .popup-item.selected {
@@ -1440,7 +1489,37 @@ span.logged-hours i {
 
 .popup-option .el-icon {
   color: var(--el-color-primary);
-  margin-left: 8px;
+}
+
+.assignee-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.assignee-option span {
+  font-size: 14px;
+}
+
+.date-picker-wrapper {
+  padding: 8px;
+}
+
+.date-picker-wrapper :deep(.el-date-picker) {
+  border: none;
+  box-shadow: none;
+  width: 100% !important;
+}
+
+.clear-date {
+  color: var(--el-color-danger);
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.clear-date:hover {
+  background-color: var(--el-fill-color-light);
 }
 </style>
 
@@ -1622,28 +1701,110 @@ span.logged-hours i {
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
   z-index: 2000;
-  min-width: 150px;
+  min-width: 200px;
+  max-height: 300px;
   overflow-y: auto;
-  margin-top: -10px; /* Small offset from cursor */
 }
 
 .popup-menu-content {
-  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .popup-item {
-  padding: 8px 16px;
+  padding: 8px 0;
   cursor: pointer;
-  transition: background-color 0.2s;
 }
 
 .popup-item:hover {
   background-color: var(--el-fill-color-light);
 }
 
-.assignee-option {
+.popup-header {
+  padding: 8px 16px;
+  color: var(--el-text-color-primary);
+  font-weight: 500;
+  cursor: default;
+}
+
+.popup-header:hover {
+  background-color: transparent;
+}
+
+.popup-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.popup-item.selected {
+  background-color: var(--el-fill-color-light);
+}
+
+.popup-option .el-icon {
+  color: var(--el-color-primary);
+}
+
+.date-picker-wrapper {
+  padding: 8px;
+}
+
+.date-picker-wrapper :deep(.el-date-picker) {
+  border: none;
+  box-shadow: none;
+  width: 100% !important;
+}
+
+.clear-date {
+  color: var(--el-color-danger);
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.clear-date:hover {
+  background-color: var(--el-fill-color-light);
+}
+</style>
+
+<style scoped>
+.status-option {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-tag {
+  min-width: 120px;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Override element-plus tag colors for each status */
+:deep(.el-tag--success) {
+  --el-tag-bg-color: var(--el-color-success-light-9);
+  --el-tag-border-color: var(--el-color-success-light-5);
+  --el-tag-text-color: var(--el-color-success);
+}
+
+:deep(.el-tag--primary) {
+  --el-tag-bg-color: var(--el-color-primary-light-9);
+  --el-tag-border-color: var(--el-color-primary-light-5);
+  --el-tag-text-color: var(--el-color-primary);
+}
+
+:deep(.el-tag--info) {
+  --el-tag-bg-color: var(--el-color-info-light-9);
+  --el-tag-border-color: var(--el-color-info-light-5);
+  --el-tag-text-color: var(--el-color-info);
+}
+
+:deep(.el-tag--warning) {
+  --el-tag-bg-color: var(--el-color-warning-light-9);
+  --el-tag-border-color: var(--el-color-warning-light-5);
+  --el-tag-text-color: var(--el-color-warning);
 }
 </style>

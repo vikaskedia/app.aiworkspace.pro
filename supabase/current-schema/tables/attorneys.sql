@@ -20,17 +20,21 @@ create policy "Attorneys are viewable by authenticated users"
   to authenticated
   using (true);
 
-create policy "Attorneys are insertable by authenticated users"
+
+create policy "Only system admins can create attorneys"
   on attorneys for insert
   to authenticated
-  with check (auth.uid() = created_by);
+  with check ((created_by IN ( SELECT system_admins.user_id
+   FROM system_admins)) AND (created_by = auth.uid()));
 
-create policy "Attorneys are updatable by creator"
+create policy "Only system admins can update an attorney"
   on attorneys for update
   to authenticated
-  using (auth.uid() = created_by);
+  using (auth.uid() IN ( SELECT system_admins.user_id
+   FROM system_admins));
 
-create policy "Attorneys are deletable by creator"
+create policy "Only system admins can delete an attorney"
   on attorneys for delete
   to authenticated
-  using (auth.uid() = created_by); 
+  using (auth.uid() IN ( SELECT system_admins.user_id
+   FROM system_admins)); 

@@ -33,7 +33,13 @@ const routes = [
       {
         path: 'tasks',
         name: 'AllTasksPage',
-        component: () => import('./components/all-matters/AllTasksCt.vue')
+        component: () => import('./components/all-matters/AllTasksCt.vue'),
+        children: [
+          {
+            path: 'saved-filters/:filterId',
+            component: () => import('./components/all-matters/AllTasksCt.vue')
+          }
+        ]
       },
       {
         path: 'goals',

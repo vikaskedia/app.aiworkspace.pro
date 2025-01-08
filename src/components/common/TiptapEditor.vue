@@ -400,7 +400,6 @@ export default {
                   this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
                   return true
                 case 'Tab':
-                case 'Enter':
                   if (this.showTypeahead) {
                     event.preventDefault()
                     this.applySuggestion(
@@ -411,6 +410,10 @@ export default {
                     return true
                   }
                   break
+                case 'Enter':
+                  // Don't prevent default - let Enter create new line
+                  this.showTypeahead = false
+                  return false
                 case 'Escape':
                   if (this.showTypeahead) {
                     event.preventDefault()
@@ -689,6 +692,10 @@ export default {
         case 'ArrowUp':
           event.preventDefault()
           this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
+          break
+        case 'Enter':
+          // Don't prevent default - let Enter create new line
+          this.showTypeahead = false
           break
         case 'Escape':
           event.preventDefault()

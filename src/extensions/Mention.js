@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import Suggestion from '@tiptap/suggestion'
+import { supabase } from '../supabase'
 
 export const MentionPluginKey = new PluginKey('mention')
 
@@ -66,42 +67,61 @@ export const Mention = Node.create({
         editor: this.editor,
         char: '@',
         pluginKey: MentionPluginKey,
-        items: ({ query }) => {
-          // Get shared users from editor's parent component
-          const component = this.editor.options.element?.closest('.editor')
-            ?.__vueParentComponent?.ctx
+        items: async ({ query }) => {
+          const component = this.editor.options.element?.closest('.editor')?.__vueParentComponent?.ctx;
+          if (!component) return [];
           
-          if (!component?.sharedUsers) return []
+          const normalizedQuery = query?.toLowerCase() || '';
           
-          const normalizedQuery = query?.toLowerCase() || ''
-          console.log('Filtering with query:', normalizedQuery)
+          let suggestions = [];
           
-          // Instant filtering of users
-          const filteredUsers = component.sharedUsers
-            .filter(user => {
-              const username = user.username?.toLowerCase() || ''
-              const fullName = user.fullName?.toLowerCase() || ''
-              const email = user.email?.toLowerCase() || ''
-              
-              // Prioritize exact matches, then starts with, then includes
-              return username === normalizedQuery ||
-                     fullName === normalizedQuery ||
-                     email === normalizedQuery ||
-                     username.startsWith(normalizedQuery) ||
-                     fullName.startsWith(normalizedQuery) ||
-                     email.startsWith(normalizedQuery) ||
-                     username.includes(normalizedQuery) ||
-                     fullName.includes(normalizedQuery) ||
-                     email.includes(normalizedQuery)
-            })
-            .slice(0, 5) // Limit to 5 suggestions for performance
-            .map(user => ({
-              id: user.id,
-              label: user.username || user.fullName || user.email.split('@')[0]
-            }))
+          // Only include AI attorneys if we're in a task comment
+          if (component.isTaskComment) {
+            // Get AI Attorneys from Supabase
+            let attorneys = [];
+            try {
+              const { data } = await supabase
+                .from('attorneys')
+                .select('id, name, specialty, system_prompt');
+              attorneys = data || [];
+            } catch (error) {
+              console.error('Error loading attorneys:', error);
+            }
 
-          console.log('Filtered results:', filteredUsers)
-          return filteredUsers
+            suggestions = [
+              // AI attorneys with special type
+              ...attorneys.map(attorney => ({
+                id: attorney.id,
+                label: attorney.name,
+                type: 'ai_attorney',
+                systemPrompt: attorney.system_prompt
+              })),
+              
+              // Default AI Attorney
+              {
+                id: 'aiAttorney',
+                label: 'AI Attorney',
+                type: 'default_ai'
+              }
+            ];
+          }
+          
+          // Always include regular users
+          suggestions = [
+            ...suggestions,
+            ...component.sharedUsers.map(user => ({
+              id: user.id,
+              label: user.email,
+              type: 'user'
+            }))
+          ];
+
+          return suggestions
+            .filter(item => {
+              const label = item.label.toLowerCase();
+              return label.includes(normalizedQuery);
+            })
+            .slice(0, 10);
         },
         command: ({ editor, range, props }) => {
           editor

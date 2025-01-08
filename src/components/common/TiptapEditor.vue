@@ -316,6 +316,10 @@ export default {
     taskTitle: {
       type: String,
       required: true
+    },
+    isTaskComment: {
+      type: Boolean,
+      default: false
     }
   },
   data() {

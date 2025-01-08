@@ -69,7 +69,14 @@ export const Mention = Node.create({
         pluginKey: MentionPluginKey,
         items: async ({ query }) => {
           const component = this.editor.options.element?.closest('.editor')?.__vueParentComponent?.ctx;
-          if (!component) return [];
+          if (!component) {
+            console.error('Failed to find editor component:', {
+              element: this.editor.options.element,
+              closestEditor: this.editor.options.element?.closest('.editor'),
+              vueParent: this.editor.options.element?.closest('.editor')?.__vueParentComponent
+            });
+            return [];
+          } 
           
           const normalizedQuery = query?.toLowerCase() || '';
           

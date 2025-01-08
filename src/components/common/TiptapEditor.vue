@@ -481,26 +481,50 @@ export default {
               let popup
               return {
                 onStart: (props) => {
-                  popup = tippy('body', {
-                    getReferenceClientRect: props.clientRect,
-                    appendTo: () => document.body,
-                    content: this.renderPopup(props),
-                    showOnCreate: true,
-                    interactive: true,
-                    trigger: 'manual',
-                    placement: 'bottom-start',
-                  })
+                  try {
+                    popup = tippy('body', {
+                      getReferenceClientRect: props.clientRect,
+                      appendTo: document.body,
+                      content: document.createElement('div'),
+                      showOnCreate: true,
+                      interactive: true,
+                      trigger: 'manual',
+                      placement: 'bottom-start',
+                      onMount: (instance) => {
+                        const component = this.editor.options.element?.closest('.editor')
+                          ?.__vueParentComponent?.ctx;
+                        if (component?.renderMentionPopup) {
+                          instance.setContent(component.renderMentionPopup(props));
+                        }
+                      }
+                    })[0];
+                  } catch (error) {
+                    console.error('Error creating mention popup:', error);
+                  }
                 },
                 onUpdate: (props) => {
-                  const content = this.renderPopup(props)
-                  popup[0].setProps({ content })
-                },
-                onKeyDown: (props) => {
-                  return this.handleMentionKeydown(props)
+                  try {
+                    if (popup) {
+                      const component = this.editor.options.element?.closest('.editor')
+                        ?.__vueParentComponent?.ctx;
+                      if (component?.renderMentionPopup) {
+                        popup.setContent(component.renderMentionPopup(props));
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error updating mention popup:', error);
+                  }
                 },
                 onExit: () => {
-                  popup[0].destroy()
-                },
+                  try {
+                    if (popup) {
+                      popup.destroy();
+                      popup = null;
+                    }
+                  } catch (error) {
+                    console.error('Error destroying mention popup:', error);
+                  }
+                }
               }
             },
           },

@@ -161,11 +161,7 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        // Check for @aiAttorney mention
-        const aiMentionRegex = /@aiAttorney\s*(.*?)(?=@|$)/gi;
-        const aiMentions = this.newComment.match(aiMentionRegex);
-
-        // First post the user's comment as is
+        // First post the user's comment
         const { data, error } = await supabase
           .from('task_comments')
           .insert({
@@ -177,26 +173,40 @@ export default {
 
         if (error) throw error;
 
-        // If there are AI mentions, get responses and post them as separate comments
-        if (aiMentions) {
-          for (const mention of aiMentions) {
-            const prompt = mention.replace('@aiAttorney', '').trim();
-            const aiResponse = await this.getAIResponse(prompt);
-            
-            // Post AI response as a separate comment
-            await this.postAIResponse(aiResponse);
-          }
-        }
+        // Handle AI Attorney mentions
+        const aiMentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
+        const mentions = [...this.newComment.matchAll(aiMentionRegex)];
 
-        // Handle other mentions notifications...
-        const mentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
-        const mentions = [...this.newComment.matchAll(mentionRegex)];
-        
         for (const mention of mentions) {
-          const userId = mention[1];
-          if (userId && userId !== user.id) {
+          const mentionId = mention[1];
+          const mentionName = mention[2];
+          
+          if (mentionId === 'aiAttorney') {
+            // Handle default AI Attorney
+            const prompt = this.newComment.replace(mention[0], '').trim();
+            const aiResponse = await this.getAIResponse(prompt);
+            await this.postAIResponse(aiResponse);
+          } else if (!mentionId.includes('-')) { // Check if it's a UUID (user) or number (AI attorney)
+            // Handle specific AI Attorney
+            try {
+              const { data: attorney } = await supabase
+                .from('attorneys')
+                .select('system_prompt')
+                .eq('id', mentionId)
+                .single();
+
+              if (attorney) {
+                const prompt = this.newComment.replace(mention[0], '').trim();
+                const aiResponse = await this.getAIResponse(prompt, attorney.system_prompt);
+                await this.postAIResponse(aiResponse, mentionName);
+              }
+            } catch (error) {
+              console.error('Error getting attorney:', error);
+            }
+          } else {
+            // Handle user mentions
             await this.createNotification(
-              userId,
+              mentionId,
               'mention',
               { 
                 task_id: this.task.id, 
@@ -217,18 +227,18 @@ export default {
       }
     },
 
-    async postAIResponse(response) {
+    async postAIResponse(response, attorneyName = null) {
       try {
         const { error } = await supabase
           .from('task_comments')
           .insert({
             task_id: this.task.id,
-            user_id: null,  // Using null for system/AI user
+            user_id: null,
             content: response,
             type: 'ai_response',
             metadata: {
               is_ai: true,
-              ai_name: 'AI Attorney'
+              ai_name: attorneyName || 'AI Attorney'
             }
           });
 
@@ -239,26 +249,18 @@ export default {
       }
     },
 
-    async getAIResponse(prompt) {
+    async getAIResponse(prompt, customSystemPrompt = null) {
       try {
-        // Get comment history for context
         const commentsHistory = this.comments.map(comment => {
           const timestamp = comment.updated_at || comment.created_at;
           const formattedDate = new Date(timestamp).toLocaleString();
           return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
         }).join('\n\n');
 
-        // Create system prompt
-        const systemPrompt = `You are an AI legal assistant helping with a task titled "${this.task.title}". ${
-          this.task.description 
-            ? `The task description is: ${this.task.description}\n\n`
-            : ''
-        }
+        const taskContext = `Task Title: "${this.task.title}"
+        ${this.task.description ? `\nTask Description: ${this.task.description}` : ''}`;
 
-Comment History:
-${commentsHistory}
-
-Please provide assistance based on this context, the comment history, and the user's prompt.`;
+        const systemPrompt = customSystemPrompt || `You are an AI legal assistant helping with the following task:`;
 
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
           method: 'POST',
@@ -267,15 +269,13 @@ Please provide assistance based on this context, the comment history, and the us
           },
           body: JSON.stringify({
             prompt,
-            systemPrompt,
+            systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
             matterId: this.task.matter_id
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to get AI response');
-        }
+        if (!response.ok) throw new Error('Failed to get AI response');
 
         const data = await response.json();
         return data.response;
@@ -1056,11 +1056,11 @@ Please provide assistance based on this context, the comment history, the availa
               <div class="comment-header">
                 <div class="comment-author-info">
                   <div class="author-avatar">
-                    {{ comment.type === 'ai_response' ? 'AI' : userEmails[comment.user_id]?.charAt(0).toUpperCase() }}
+                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name?.charAt(0).toUpperCase() || 'AI' : userEmails[comment.user_id]?.charAt(0).toUpperCase() }}
                   </div>
                   <div class="author-details">
                     <span class="comment-author">
-                      {{ comment.type === 'ai_response' ? 'AI Attorney' : userEmails[comment.user_id] }}
+                      {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
                     </span>
                     <span class="comment-date">
                       {{ comment.updated_at 
@@ -1182,6 +1182,8 @@ Please provide assistance based on this context, the comment history, the availa
           @keyup.ctrl.enter="addComment" 
           :shared-users="sharedUsers"
           :task-title="task.title || 'New Task'"
+          :task-id="String(task.id)"
+          :isTaskComment="true"
         />
         
         <el-button

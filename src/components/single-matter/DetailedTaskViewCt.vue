@@ -853,6 +853,7 @@ export default {
 
       if (error) throw error;
 
+      this.task.title = this.editingTitle;
       ElMessage.success('Task title updated successfully');
       this.isEditingTitle = false;
     } catch (error) {
@@ -2014,11 +2015,6 @@ export default {
     startTitleEdit() {
       this.isEditingTitle = true;
       this.editingTitle = this.task?.title || '';
-    },
-    saveTitleEdit() {
-      this.isEditingTitle = false;
-      this.task.title = this.editingTitle;
-      this.editingTitle = '';
     },
     cancelTitleEdit() {
       this.isEditingTitle = false;

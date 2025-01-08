@@ -164,7 +164,8 @@
         <el-table-column 
           prop="title" 
           label="Title"
-          min-width="200">
+          min-width="200"
+          align="left">
           <template #default="scope">
             <div class="title-with-star">
               <el-icon
@@ -746,6 +747,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  text-align: left;
 }
 
 .star-icon {
@@ -765,16 +767,29 @@ export default {
 }
 
 .title-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-hours-container {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.clickable-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logged-hours {
-  background-color: var(--el-color-info-light-9);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 0.9em;
 }
 
 :deep(.el-table__expand-icon) {

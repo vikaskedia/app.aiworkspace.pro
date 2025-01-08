@@ -1276,7 +1276,7 @@ export default {
       font-size: 0.9em;
     }
 
-    // Table styles
+    // Table styles.
     table {
       border-collapse: collapse;
       margin: 1em 0;

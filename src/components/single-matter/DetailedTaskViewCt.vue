@@ -12,11 +12,6 @@
       </div>
       <div class="header-actions">
         <el-button 
-          type="primary"
-          @click="editDialogVisible = true">
-          Edit Task
-        </el-button>
-        <el-button 
           type="info"
           @click="shareDialogVisible = true">
           Share Task
@@ -481,73 +476,7 @@
         </div>
       </div>
     </div>
-
-    <!-- Edit Task Dialog -->
-    <el-dialog
-      v-model="editDialogVisible"
-      title="Edit Task"
-      width="500px">
-      <el-form v-if="editingTask" :model="editingTask" label-position="top">
-        <el-form-item label="Title" required>
-          <el-input v-model="editingTask.title" />
-        </el-form-item>
-        <el-form-item label="Description">
-          <TiptapEditor
-            v-model="editingTask.description"
-            placeholder="Write a description..."
-            :taskId="String(task.id)"
-            :taskTitle="task.title"
-            :sharedUsers="sharedUsers"
-            :isTaskComment="false"
-          />
-        </el-form-item>
-        <el-form-item label="Status">
-          <el-select v-model="editingTask.status" style="width: 100%">
-            <el-option label="Not started" value="not_started" />
-            <el-option label="In Progress" value="in_progress" />
-            <el-option label="Awaiting external factor" value="awaiting_external" />
-            <el-option label="Completed" value="completed" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Priority">
-          <el-select v-model="editingTask.priority" style="width: 100%">
-            <el-option label="High" value="high" />
-            <el-option label="Medium" value="medium" />
-            <el-option label="Low" value="low" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Due Date">
-          <el-date-picker
-            v-model="editingTask.due_date"
-            type="date"
-            style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="Assignee">
-          <el-select 
-            v-model="editingTask.assignee" 
-            style="width: 100%"
-            clearable>
-            <el-option
-              v-for="user in sharedUsers"
-              :key="user.id"
-              :label="user.email"
-              :value="user.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="editDialogVisible = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            @click="updateTask"
-            :disabled="!editingTask?.title">
-            Update
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
+    
     <!-- Add this new Share Task Dialog after the Edit Task Dialog -->
     <el-dialog
       v-model="shareDialogVisible"

@@ -601,6 +601,7 @@ export default {
         if (filter) {
           this.filters = { ...filter.filters };
           this.loadTasks();
+          this.router.push(`/all-matters/tasks/saved-filters/${filterId}`);
           ElMessage.success('Filters loaded successfully');
         }
       }
@@ -609,6 +610,7 @@ export default {
     async loadSavedFilter(filter) {
       this.filters = { ...filter.filters };
       this.savedFiltersDialogVisible = false;
+      this.router.push(`/all-matters/tasks/saved-filters/${filter.id}`);
       ElMessage.success('Filters loaded successfully');
     },
 
@@ -676,6 +678,20 @@ export default {
 
       return rootTasks;
     },
+
+    async loadFilterFromUrl() {
+      const path = this.router.currentRoute.value.path;
+      const match = path.match(/\/saved-filters\/([^\/]+)/);
+      if (match) {
+        const filterId = match[1];
+        await this.loadSavedFilters(); // Make sure we have the filters loaded
+        const filter = this.savedFilters.find(f => f.id === filterId);
+        if (filter) {
+          this.filters = { ...filter.filters };
+          this.loadTasks();
+        }
+      }
+    },
   },
   mounted() {
     this.loadSavedFilters();
@@ -684,8 +700,25 @@ export default {
     });
     this.loadMatters();
     this.loadTasks();
+    this.loadFilterFromUrl();
   },
   watch: {
+    '$route'(to, from) {
+      // Handle navigation between tasks and saved filters views
+      if (to.path.includes('/saved-filters/')) {
+        // Going to saved filters view
+        const filterId = to.path.split('/saved-filters/')[1];
+        const filter = this.savedFilters.find(f => f.id === filterId);
+        if (filter) {
+          this.filters = { ...filter.filters };
+          this.loadTasks();
+        }
+      } else if (to.path === '/all-matters/tasks' && from.path.includes('/saved-filters/')) {
+        // Going back to main tasks view
+        this.clearFilters();
+        this.loadTasks();
+      }
+    },
     filters: {
       deep: true,
       handler() {

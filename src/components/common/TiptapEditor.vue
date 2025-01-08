@@ -392,17 +392,17 @@ export default {
             // Handle navigation keys
             if (this.showTypeahead && this.typeaheadSuggestions.length) {
               switch (event.key) {
-                case 'ArrowDown':
-                  event.preventDefault()
-                  this.typeaheadSelectedIndex = Math.min(
-                    (this.typeaheadSelectedIndex + 1),
-                    this.typeaheadSuggestions.length - 1
-                  )
-                  return true
-                case 'ArrowUp':
-                  event.preventDefault()
-                  this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
-                  return true
+                // case 'ArrowDown':
+                //   event.preventDefault()
+                //   this.typeaheadSelectedIndex = Math.min(
+                //     (this.typeaheadSelectedIndex + 1),
+                //     this.typeaheadSuggestions.length - 1
+                //   )
+                //   return true
+                // case 'ArrowUp':
+                //   event.preventDefault()
+                //   this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
+                //   return true
                 case 'Tab':
                   if (this.showTypeahead) {
                     event.preventDefault()

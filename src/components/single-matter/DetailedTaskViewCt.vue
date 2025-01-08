@@ -69,15 +69,47 @@
         </div>
 
         <div class="task-metadata">
-          <el-tag :type="getStatusType(task)">
-            {{ formatStatus(task?.status) }}
-          </el-tag>
-          <el-tag :type="
-            task?.priority === 'high' ? 'danger' :
-            task?.priority === 'medium' ? 'warning' : 'info'
-          ">
-            {{ task?.priority }}
-          </el-tag>
+
+          <div class="star-container">
+            <el-icon 
+              class="star-icon"
+              :class="{ 'starred': isTaskStarred }"
+              @click="toggleTaskStar"
+            >
+              <Star v-if="!isTaskStarred" />
+              <StarFilled v-else />
+            </el-icon>
+          </div>
+          <el-dropdown @command="handleStatusChange" trigger="click">
+            <el-tag :type="getStatusType(task)" class="status-tag">
+              {{ formatStatus(task?.status) }}
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-tag>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="not_started">Not started</el-dropdown-item>
+                <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
+                <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
+                <el-dropdown-item command="completed">Completed</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-dropdown @command="handlePriorityChange" trigger="click">
+            <el-tag :type="
+              task?.priority === 'high' ? 'danger' :
+              task?.priority === 'medium' ? 'warning' : 'info'
+            " class="priority-tag">
+              {{ task?.priority }}
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-tag>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="high">High</el-dropdown-item>
+                <el-dropdown-item command="medium">Medium</el-dropdown-item>
+                <el-dropdown-item command="low">Low</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <span class="due-date">
             Due: {{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
           </span>
@@ -448,7 +480,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -462,7 +494,10 @@ export default {
     Folder,
     Close,
     Document,
-    TiptapEditor
+    TiptapEditor,
+    ArrowDown,
+    Star,
+    StarFilled
   },
   setup() {
     const matterStore = useMatterStore();
@@ -532,6 +567,73 @@ export default {
     }
   },
   methods: {
+    async handlePriorityChange(priority) {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ priority })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      // Update local task priority
+      this.task.priority = priority;
+      ElMessage.success('Task priority updated successfully');
+
+    } catch (error) {
+      ElMessage.error('Error updating task priority: ' + error.message);
+    }
+  },
+    async handleStatusChange(status) {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status })
+        .eq('id', this.task.id);
+
+      if (error) throw error;
+
+      // Update local task status
+      this.task.status = status;
+      ElMessage.success('Task status updated successfully');
+
+    } catch (error) {
+      ElMessage.error('Error updating task status: ' + error.message);
+    }
+  },
+    async toggleTaskStar() {
+    try {
+      const isStarred = this.isTaskStarred;
+
+      if (isStarred) {
+        // Remove star
+        const { error } = await supabase
+          .from('task_stars')
+          .delete()
+          .eq('task_id', this.task.id)
+          .eq('user_id', this.currentUser.id);
+
+        if (error) throw error;
+        this.task.task_stars = this.task.task_stars.filter(star => star.user_id !== this.currentUser.id);
+      } else {
+        // Add star
+        const { data, error } = await supabase
+          .from('task_stars')
+          .insert({
+            task_id: this.task.id,
+            user_id: this.currentUser.id
+          })
+          .select();
+
+        if (error) throw error;
+        this.task.task_stars = [...(this.task.task_stars || []), data[0]];
+      }
+
+      ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
+    } catch (error) {
+      ElMessage.error('Error toggling star: ' + error.message);
+    }
+  },
     async loadTask(taskId) {
       try {
         this.loading = true;
@@ -1491,7 +1593,26 @@ export default {
       }
     }
   },
-  computed: {
+  computed: { 
+    isTaskStarred() {
+    return this.task?.task_stars?.some(star => star.user_id === this.currentUser?.id) || false;
+  },
+  starredByText() {
+    if (!this.task?.task_stars?.length) return '';
+    
+    const starredUsers = this.task.task_stars.map(star => {
+      return this.userEmails[star.user_id] || 'Unknown user';
+    });
+
+    if (starredUsers.length === 1) {
+      return `Starred by ${starredUsers[0]}`;
+    } else if (starredUsers.length === 2) {
+      return `Starred by ${starredUsers.join(' and ')}`;
+    } else {
+      const othersCount = starredUsers.length - 2;
+      return `Starred by ${starredUsers[0]}, ${starredUsers[1]} and ${othersCount} other${othersCount > 1 ? 's' : ''}`;
+    }
+  },
     filteredFiles() {
       const items = [...this.folders, ...this.files];
       if (!this.fileSearchQuery) return items;
@@ -1519,6 +1640,48 @@ export default {
 </script>
 
 <style scoped>
+.priority-tag {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 12px;
+}
+
+.priority-tag:hover {
+  opacity: 0.8;
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 28px;
+  color: #909399;
+  transition: color 0.3s;
+}
+.star-icon.starred {
+  color: #f0c541;
+  font-size: 28px;
+}
+
+.star-container {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.star-button {
+  margin-right: 4px;
+}
+
+.star-button :deep(.el-icon) {
+  font-size: 16px;
+}
+
+.star-count {
+  font-size: 14px;
+  color: #606266;
+  cursor: default;
+}
 .single-task-view {
   padding: 20px;
 }

@@ -796,7 +796,7 @@ export default {
       timeError: '',
       hoursLogs: [],
       showAllLogs: false,
-      displayedHoursLogs: [],
+      //displayedHoursLogs: [],
       showAllLogs: false,
       tempDueDate: null,
       isEditingTitle: false,

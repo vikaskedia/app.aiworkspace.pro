@@ -32,7 +32,20 @@
 
     <div class="task-content" v-loading="loading">
       <div class="task-main-info">
+        
         <div class="task-title-header">
+
+          <div class="star-container">
+            <el-icon 
+              class="star-icon"
+              :class="{ 'starred': isTaskStarred }"
+              @click="toggleTaskStar"
+            >
+              <Star v-if="!isTaskStarred" />
+              <StarFilled v-else />
+            </el-icon>
+          </div>
+          
           <h2>{{ task?.title }}</h2>
           <div class="edit-metadata">
             <span 
@@ -70,16 +83,8 @@
 
         <div class="task-metadata">
 
-          <div class="star-container">
-            <el-icon 
-              class="star-icon"
-              :class="{ 'starred': isTaskStarred }"
-              @click="toggleTaskStar"
-            >
-              <Star v-if="!isTaskStarred" />
-              <StarFilled v-else />
-            </el-icon>
-          </div>
+         
+          <span class="status">Status</span>
           <el-dropdown @command="handleStatusChange" trigger="click">
             <el-tag :type="getStatusType(task)" class="status-tag">
               {{ formatStatus(task?.status) }}
@@ -94,6 +99,7 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
+          <span class="prority">Priority</span>
           <el-dropdown @command="handlePriorityChange" trigger="click">
             <el-tag :type="
               task?.priority === 'high' ? 'danger' :
@@ -121,24 +127,107 @@
       </div>
 
       <div class="hours-logs" v-if="hoursLogs.length">
-        <h3>Hours Logged</h3>
-        <div class="total-hours">
-          Total Hours: {{ formatTotalTime }}
+        <div class="hours-header">
+          <h3>Hours Logged</h3>
+          <div class="total-hours">
+            <el-tag type="success" size="large" effect="plain">
+              <el-icon><Clock /></el-icon>
+              <span class="total-time">Total Hours: {{ formatTotalTime }}</span>
+            </el-tag>
+          </div>
         </div>
-        <el-table :data="hoursLogs" style="width: 100%">
-          <el-table-column prop="time_taken" label="Time Taken" width="100" />
-          <el-table-column prop="comment" label="Comment" />
-          <el-table-column label="Logged By" width="200">
+        
+        <el-table 
+          :data="displayedHoursLogs" 
+          style="width: 100%"
+          :stripe="true"
+          :border="true"
+          class="hours-table"
+          row-class-name="hours-table-row"
+        >
+          <el-table-column 
+            prop="time_taken" 
+            label="Time Logged" 
+            width="140"
+            align="center"
+            fixed
+          >
             <template #default="scope">
-              {{ userEmails[scope.row.user_id] }}
+              <div class="time-wrapper">
+                <el-icon><Timer /></el-icon>
+                <span class="time-cell">{{ formatTime(scope.row.time_taken) }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column prop="created_at" label="Date" width="150">
+
+          <el-table-column 
+            prop="comment" 
+            label="Work Description"
+            min-width="300"
+            show-overflow-tooltip
+          >
             <template #default="scope">
-              {{ new Date(scope.row.created_at).toLocaleDateString() }}
+              <div class="comment-cell">
+                <span v-if="scope.row.comment">{{ scope.row.comment }}</span>
+                <span v-else class="no-comment">No description provided</span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            label="Logged By" 
+            width="200"
+            align="center"
+          >
+            <template #default="scope">
+              <el-tooltip 
+                :content="userEmails[scope.row.user_id]"
+                placement="top"
+                effect="light"
+              >
+                <div class="user-wrapper">
+                  <el-avatar 
+                    :size="24" 
+                    class="user-avatar"
+                  >
+                    {{ getInitials(userEmails[scope.row.user_id]) }}
+                  </el-avatar>
+                  <span class="user-cell">{{ formatEmail(userEmails[scope.row.user_id]) }}</span>
+                </div>
+              </el-tooltip>
+            </template>
+          </el-table-column>
+
+          <el-table-column 
+            label="Date & Time" 
+            width="200"
+            align="center"
+          >
+            <template #default="scope">
+              <el-tooltip 
+                :content="formatDateTime(scope.row.created_at)"
+                placement="top"
+                effect="light"
+              >
+                <div class="date-wrapper">
+                  <span class="date-cell">{{ formatDate(scope.row.created_at) }}</span>
+                  <span class="time-stamp">{{ formatTimeOnly(scope.row.created_at) }}</span>
+                </div>
+              </el-tooltip>
             </template>
           </el-table-column>
         </el-table>
+
+        <div v-if="hoursLogs.length > 3" class="show-more-container">
+          <el-button 
+            link 
+            type="primary" 
+            @click="toggleShowMore"
+            class="show-more-button"
+          >
+            {{ showAllLogs ? 'Show Less' : `Show More` }}
+          </el-button>
+        </div>
       </div>
 
       <div class="task-comments">
@@ -480,7 +569,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -497,7 +586,9 @@ export default {
     TiptapEditor,
     ArrowDown,
     Star,
-    StarFilled
+    StarFilled,
+    Clock,
+    Timer
   },
   setup() {
     const matterStore = useMatterStore();
@@ -550,6 +641,9 @@ export default {
       minutes: '',
       timeError: '',
       hoursLogs: [],
+      showAllLogs: false,
+      displayedHoursLogs: [],
+      showAllLogs: false,
     };
   },
   async created() {
@@ -567,6 +661,51 @@ export default {
     }
   },
   methods: {
+    toggleShowMore() {
+    this.showAllLogs = !this.showAllLogs;
+  },
+    formatTime(time) {
+      if (!time) return '0:00';
+      const [hours, minutes] = time.split(':');
+      return `${parseInt(hours)}h ${minutes}m`;
+    },
+
+    formatEmail(email) {
+      if (!email) return 'Unknown';
+      const [name] = email.split('@');
+      return name.length > 15 ? name.substring(0, 12) + '...' : name;
+    },
+
+    formatDate(dateString) {
+      return new Date(dateString).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    },
+
+    formatTimeOnly(dateString) {
+      return new Date(dateString).toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+
+    formatDateTime(dateString) {
+      return new Date(dateString).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+
+    getInitials(email) {
+      if (!email) return '?';
+      const [name] = email.split('@');
+      return name.substring(0, 2).toUpperCase();
+    },
     async handlePriorityChange(priority) {
     try {
       const { error } = await supabase
@@ -1585,6 +1724,11 @@ export default {
         this.$refs.minutesInput.$el.querySelector('input').focus();
       }
     },
+
+    toggleShowMore() {
+      this.showAllLogs = !this.showAllLogs;
+      this.displayedHoursLogs = this.showAllLogs ? this.hoursLogs : this.hoursLogs.slice(0, 3);
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -1594,6 +1738,9 @@ export default {
     }
   },
   computed: { 
+    displayedHoursLogs() {
+    return this.showAllLogs ? this.hoursLogs : this.hoursLogs.slice(0, 3);
+  },
     isTaskStarred() {
     return this.task?.task_stars?.some(star => star.user_id === this.currentUser?.id) || false;
   },
@@ -1640,6 +1787,130 @@ export default {
 </script>
 
 <style scoped>
+
+.hours-logs {
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.hours-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.hours-header h3 {
+  margin: 0;
+  color: #303133;
+  font-size: 18px;
+}
+
+.total-hours .el-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+}
+
+.total-time {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.hours-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.time-wrapper,
+.user-wrapper,
+.date-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.time-cell {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  /* color: #409EFF; */
+  font-weight: 500;
+}
+
+.comment-cell {
+  padding: 8px 0;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.no-comment {
+  color: #909399;
+  font-style: italic;
+}
+
+.user-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  background: #409EFF;
+  font-size: 12px;
+}
+
+.user-cell {
+  color: #606266;
+  font-weight: 500;
+}
+
+.date-wrapper {
+  /* display: flex; */
+  /* flex-direction: column; */
+  align-items: center;
+}
+
+.date-cell {
+  color: #606266;
+  font-weight: 500;
+}
+
+.time-stamp {
+  color: #909399;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+:deep(.el-table) {
+  --el-table-border-color: #EBEEF5;
+  --el-table-header-bg-color: #F5F7FA;
+  --el-table-row-hover-bg-color: #F5F7FA;
+}
+
+:deep(.el-table th) {
+  font-weight: 600;
+  color: #303133;
+  background: var(--el-table-header-bg-color);
+  padding: 12px 0;
+}
+
+:deep(.el-table td) {
+  padding: 1px 0;
+}
+
+:deep(.hours-table-row:hover) td {
+  background-color: #F5F7FA !important;
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background: #FAFAFA;
+}
+
 .priority-tag {
   cursor: pointer;
   display: flex;
@@ -1654,13 +1925,13 @@ export default {
 
 .star-icon {
   cursor: pointer;
-  font-size: 28px;
+  font-size: 18px;
   color: #909399;
   transition: color 0.3s;
 }
 .star-icon.starred {
   color: #f0c541;
-  font-size: 28px;
+  font-size: 18px;
 }
 
 .star-container {

@@ -12,6 +12,12 @@ export const Mention = Node.create({
   selectable: false,
   atom: true,
 
+  addOptions() {
+    return {
+      vueComponent: null,
+    }
+  },
+
   addAttributes() {
     return {
       id: {
@@ -68,21 +74,15 @@ export const Mention = Node.create({
         char: '@',
         pluginKey: MentionPluginKey,
         items: async ({ query }) => {
-          const component = this.editor.options.element?.closest('.editor')?.__vueParentComponent?.ctx;
+          const component = this.options.vueComponent;
           if (!component) {
-            console.error('Failed to find editor component:', {
-              element: this.editor.options.element,
-              closestEditor: this.editor.options.element?.closest('.editor'),
-              vueParent: this.editor.options.element?.closest('.editor')?.__vueParentComponent
-            });
+            console.error('Vue component reference not found');
             return [];
-          } 
+          }
           
           const normalizedQuery = query?.toLowerCase() || '';
-          
           let suggestions = [];
           
-          // Only include AI attorneys if we're in a task comment
           if (component.isTaskComment) {
             // Get AI Attorneys from Supabase
             let attorneys = [];
@@ -153,30 +153,26 @@ export const Mention = Node.create({
           let popup
           return {
             onStart: (props) => {
-              const component = this.editor.options.element?.closest('.editor')
-                ?.__vueParentComponent?.ctx
+              const component = this.options.vueComponent;
               if (component?.renderMentionPopup) {
                 popup = component.renderMentionPopup(props)
               }
             },
             onUpdate: (props) => {
-              const component = this.editor.options.element?.closest('.editor')
-                ?.__vueParentComponent?.ctx
+              const component = this.options.vueComponent;
               if (component?.updateMentionPopup) {
                 component.updateMentionPopup(props)
               }
             },
             onKeyDown: (props) => {
-              const component = this.editor.options.element?.closest('.editor')
-                ?.__vueParentComponent?.ctx
+              const component = this.options.vueComponent;
               if (component?.handleMentionKeydown) {
                 return component.handleMentionKeydown(props)
               }
               return false
             },
             onExit: () => {
-              const component = this.editor.options.element?.closest('.editor')
-                ?.__vueParentComponent?.ctx
+              const component = this.options.vueComponent;
               if (component?.destroyMentionPopup) {
                 component.destroyMentionPopup()
               }

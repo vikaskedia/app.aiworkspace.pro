@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import { ref, onMounted, onUnmounted } from 'vue'
 
 export default {
+  name: 'TasksList',
   components: {
     ArrowUp,
     ArrowDown,
@@ -35,10 +36,26 @@ export default {
     },
     showFilters: {
       type: Boolean,
-      required: true
+      default: false
+    },
+    'active-filters-count': {
+      type: Number,
+      default: 0
     }
   },
-  emits: ['edit', 'update-title', 'view-comments', 'update:show-filters', 'delete', 'restore', 'show-deleted-changed', 'update:active-filters-count', 'update-task'],
+  emits: [
+    'update:active-filters-count',
+    'update-status',
+    'update-task',
+    'edit',
+    'view-comments',
+    'delete',
+    'restore',
+    'star-toggled',
+    'loadTasks',
+    'updateTitle',
+    'show-deleted-changed'
+  ],
   data() {
     return {
       filters: {
@@ -186,17 +203,6 @@ export default {
         this.filters.priority ||
         this.filters.assignee ||
         this.filters.dueDate
-    },
-    activeFiltersCount() {
-      let count = 0;
-      if (this.filters.search) count++;
-      if (this.filters.status) count++;
-      if (this.filters.excludeStatus?.length) count++;
-      if (this.filters.priority) count++;
-      if (this.filters.assignee) count++;
-      if (this.filters.dueDate) count++;
-      if (this.filters.starred) count++;
-      return count;
     }
   },
   methods: {
@@ -443,7 +449,16 @@ export default {
     filters: {
       deep: true,
       handler() {
-        this.$emit('update:active-filters-count', this.activeFiltersCount);
+        let count = 0;
+        if (this.filters.search) count++;
+        if (this.filters.status) count++;
+        if (this.filters.excludeStatus?.length) count++;
+        if (this.filters.priority) count++;
+        if (this.filters.assignee) count++;
+        if (this.filters.dueDate) count++;
+        if (this.filters.starred) count++;
+        
+        this.$emit('update:active-filters-count', count);
         this.saveFilters();
       }
     },
@@ -470,99 +485,101 @@ export default {
     const editingTaskId = ref(null)
     const editingField = ref(null)
     const editingValue = ref('')
-    
+    const popupPosition = ref({ top: '0px', left: '0px' })
+
+    const statusOptions = [
+      { label: 'Not started', value: 'not_started' },
+      { label: 'In progress', value: 'in_progress' },
+      { label: 'Awaiting external factor', value: 'awaiting_external' },
+      { label: 'Completed', value: 'completed' }
+    ]
+
+    const priorityOptions = [
+      { label: 'High', value: 'high' },
+      { label: 'Medium', value: 'medium' },
+      { label: 'Low', value: 'low' },
+      { label: 'No priority', value: '' }
+    ]
+
+    // Add handleSubmit function
+    const handleSubmit = (task) => {
+      if (!task) return
+      emit('update-task', { 
+        ...task, 
+        [editingField.value]: editingValue.value 
+      })
+      cancelEditing()
+    }
+
+    const handlePopupSelect = (value) => {
+      editingValue.value = value
+      handleSubmit(props.tasks.find(t => t.id === editingTaskId.value))
+    }
+
     // Add event listener for ESC key when component is mounted
     onMounted(() => {
       document.addEventListener('keydown', handleEscKey)
+      document.addEventListener('click', handleClickOutside)
     })
 
     // Remove event listener when component is unmounted
     onUnmounted(() => {
       document.removeEventListener('keydown', handleEscKey)
+      document.removeEventListener('click', handleClickOutside)
     })
 
-    // Handle ESC key press
     const handleEscKey = (event) => {
       if (event.key === 'Escape' && editingTaskId.value) {
         cancelEditing()
       }
     }
 
-    const startEditing = (task, field) => {
+    const handleClickOutside = (event) => {
+      if (editingTaskId.value && !event.target.closest('.popup-menu')) {
+        cancelEditing()
+      }
+    }
+
+    const startEditing = (task, field, event) => {
+      if (event) {
+        // Get the click coordinates relative to the viewport
+        const x = event.clientX
+        const y = event.clientY
+        const scrollTop = window.scrollY || document.documentElement.scrollTop
+        
+        // Position the popup at the click location
+        popupPosition.value = {
+          top: `${y + scrollTop}px`,
+          left: `${x}px`,
+          transform: 'translate(-50%, -100%)', // Center horizontally and position above click
+          maxHeight: '200px'
+        }
+      }
       editingTaskId.value = task.id
       editingField.value = field
       editingValue.value = task[field]
-    }
-
-    const handleSubmit = async (task) => {
-      try {
-        if (editingValue.value !== task[editingField.value]) {
-          // First emit the update to the parent component
-          emit('update-task', { 
-            ...task, 
-            [editingField.value]: editingValue.value 
-          })
-
-          // Then update Supabase
-          const { error } = await supabase
-            .from('tasks')
-            .update({ 
-              [editingField.value]: editingValue.value,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', task.id)
-
-          if (error) throw error
-
-          // Show appropriate success message based on the field being updated
-          const fieldMessages = {
-            status: 'Task status updated successfully',
-            assignee: 'Task assignee updated successfully',
-            title: 'Task title updated successfully',
-            due_date: 'Task due date updated successfully',
-            priority: 'Task priority updated successfully'
-          }
-          
-          ElMessage.success(fieldMessages[editingField.value] || 'Task updated successfully')
-        }
-      } catch (error) {
-        console.error('Error updating task:', error)
-        ElMessage.error('Failed to update task')
-        // Revert the local state if the update failed
-        emit('update-task', task)
-      } finally {
-        // Clear editing state
-        editingTaskId.value = null
-        editingField.value = null
-        editingValue.value = ''
-      }
     }
 
     const cancelEditing = () => {
       editingTaskId.value = null
       editingField.value = null
       editingValue.value = ''
-      // Force blur the active element to ensure dropdown closes
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
       }
-    }
-
-    const toggleStar = (task) => {
-      emit('update-task', {
-        ...task,
-        starred: !task.starred
-      })
     }
 
     return {
       editingTaskId,
       editingField,
       editingValue,
+      popupPosition,
+      statusOptions,
+      priorityOptions,
       startEditing,
+      handlePopupSelect,
       handleSubmit,
-      cancelEditing,
-      toggleStar
+      cancelEditing
     }
   },
   directives: {
@@ -743,101 +760,48 @@ export default {
               </div>
 
               <div class="task-metadata">
-                <template v-if="editingTaskId === task.id && editingField === 'status'">
-                  <el-select
-                    v-model="editingValue"
-                    size="small"
-                    @change="handleSubmit(task)"
-                    @blur="cancelEditing"
-                    @click.stop
-                    @keyup.esc="cancelEditing"
-                    ref="statusSelect"
-                    style="width: 120px">
-                    <el-option label="Not started" value="not_started" />
-                    <el-option label="In progress" value="in_progress" />
-                    <el-option label="Awaiting external factor" value="awaiting_external" />
-                    <el-option label="Completed" value="completed" />
-                  </el-select>
-                </template>
-                <template v-else>
-                  <el-tag
-                    :type="getStatusType(task)"
-                    size="small"
-                    class="status-tag clickable"
-                    @click.stop="startEditing(task, 'status')">
-                    <span>{{ formatStatus(task.status) }}</span>
-                  </el-tag>
-                </template>
+                <!-- Status -->
+                <el-tag
+                  :type="getStatusType(task)"
+                  size="small"
+                  class="status-tag clickable"
+                  @click.stop="startEditing(task, 'status', $event)">
+                  <span>{{ formatStatus(task.status) }}</span>
+                </el-tag>
 
+                <!-- Assignee -->
                 <div class="assignee-wrapper">
-                  <template v-if="editingTaskId === task.id && editingField === 'assignee'">
-                    <el-select
-                      v-model="editingValue"
-                      size="small"
-                      @change="handleSubmit(task)"
-                      @blur="cancelEditing"
-                      @click.stop
-                      @keyup.esc="cancelEditing"
-                      ref="assigneeSelect"
-                      style="width: 120px">
-                      <el-option
-                        v-for="user in sharedUsers"
-                        :key="user.id"
-                        :label="user.email"
-                        :value="user.id"
-                      />
-                    </el-select>
+                  <template v-if="task.assignee">
+                    <el-tooltip
+                      :content="sharedUsers.find(u => u.id === task.assignee)?.email"
+                      placement="top">
+                      <div 
+                        class="assignee-badge clickable"
+                        :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
+                        @click.stop="startEditing(task, 'assignee', $event)">
+                        {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
+                      </div>
+                    </el-tooltip>
                   </template>
                   <template v-else>
-                    <template v-if="task.assignee">
-                      <el-tooltip
-                        :content="sharedUsers.find(u => u.id === task.assignee)?.email"
-                        placement="top">
-                        <div 
-                          class="assignee-badge clickable"
-                          :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
-                          @click.stop="startEditing(task, 'assignee')">
-                          {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
-                        </div>
-                      </el-tooltip>
-                    </template>
-                    <template v-else>
-                      <el-tooltip content="Assign task" placement="top">
-                        <div 
-                          class="assignee-badge unassigned clickable"
-                          @click.stop="startEditing(task, 'assignee')">
-                          <el-icon><Plus /></el-icon>
-                        </div>
-                      </el-tooltip>
-                    </template>
+                    <el-tooltip content="Assign task" placement="top">
+                      <div 
+                        class="assignee-badge unassigned clickable"
+                        @click.stop="startEditing(task, 'assignee', $event)">
+                        <el-icon><Plus /></el-icon>
+                      </div>
+                    </el-tooltip>
                   </template>
                 </div>
 
-                <template v-if="editingTaskId === task.id && editingField === 'priority'">
-                  <el-select
-                    v-model="editingValue"
-                    size="small"
-                    @change="handleSubmit(task)"
-                    @blur="cancelEditing"
-                    @click.stop
-                    @keyup.esc="cancelEditing"
-                    ref="prioritySelect"
-                    style="width: 120px">
-                    <el-option label="High" value="high" />
-                    <el-option label="Medium" value="medium" />
-                    <el-option label="Low" value="low" />
-                    <el-option label="No priority" value="" />
-                  </el-select>
-                </template>
-                <template v-else>
-                  <el-tag
-                    :type="getPriorityType(task.priority)"
-                    size="small"
-                    class="priority-tag clickable"
-                    @click.stop="startEditing(task, 'priority')">
-                    <span>{{ task.priority || 'No priority' }}</span>
-                  </el-tag>
-                </template>
+                <!-- Priority -->
+                <el-tag
+                  :type="getPriorityType(task.priority)"
+                  size="small"
+                  class="priority-tag clickable"
+                  @click.stop="startEditing(task, 'priority', $event)">
+                  <span>{{ task.priority || 'No priority' }}</span>
+                </el-tag>
 
                 <template v-if="task.due_date">
                   <el-tag
@@ -1002,6 +966,59 @@ export default {
               </div>
             </div>
           </el-collapse-transition>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Add this right after your main template root element -->
+  <div 
+    v-if="editingTaskId && editingField"
+    class="popup-menu"
+    :style="popupPosition"
+    @click.stop>
+    <div class="popup-menu-content">
+      <!-- Status options -->
+      <template v-if="editingField === 'status'">
+        <div 
+          v-for="status in statusOptions" 
+          :key="status.value"
+          class="popup-item"
+          @click="handlePopupSelect(status.value)">
+          <el-tag :type="getStatusType({ status: status.value })" size="small">
+            {{ status.label }}
+          </el-tag>
+        </div>
+      </template>
+
+      <!-- Assignee options -->
+      <template v-if="editingField === 'assignee'">
+        <div 
+          v-for="user in sharedUsers" 
+          :key="user.id"
+          class="popup-item"
+          @click="handlePopupSelect(user.id)">
+          <div class="assignee-option">
+            <div 
+              class="assignee-badge"
+              :style="{ backgroundColor: getAssigneeColor(user.id) }">
+              {{ user.email.charAt(0).toUpperCase() }}
+            </div>
+            <span>{{ user.email }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Priority options -->
+      <template v-if="editingField === 'priority'">
+        <div 
+          v-for="priority in priorityOptions" 
+          :key="priority.value"
+          class="popup-item"
+          @click="handlePopupSelect(priority.value)">
+          <el-tag :type="getPriorityType(priority.value)" size="small">
+            {{ priority.label }}
+          </el-tag>
         </div>
       </template>
     </div>
@@ -1514,5 +1531,38 @@ span.logged-hours i {
 .title-container {
   display: flex;
   min-width: 0;
+}
+</style>
+
+<style scoped>
+.popup-menu {
+  position: fixed;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  z-index: 2000;
+  min-width: 150px;
+  overflow-y: auto;
+  margin-top: -10px; /* Small offset from cursor */
+}
+
+.popup-menu-content {
+  padding: 4px 0;
+}
+
+.popup-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.popup-item:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.assignee-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

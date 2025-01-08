@@ -347,6 +347,7 @@ export default {
             title: task.title,
             assignee: task.assignee,
             status: task.status,
+            priority: task.priority,  // Add this line
             due_date: task.due_date,
             parent_task_id: parent_task_id  // Use the converted value
           })
@@ -422,6 +423,9 @@ export default {
           const newParent = this.flattenedTasks.find(t => t.id === task.parent_task_id)?.title || 'no parent';
           changes.push(`parent task from "${oldParent}" to "${newParent}"`);
         }
+        if (originalTask.priority !== task.priority) {
+          changes.push(`priority from "${originalTask.priority || 'no priority'}" to "${task.priority || 'no priority'}"`);
+        }
 
         if (changes.length > 0) {
           await supabase
@@ -453,6 +457,10 @@ export default {
                   parent_task_id: task.parent_task_id !== originalTask.parent_task_id ? {
                     from: originalTask.parent_task_id,
                     to: task.parent_task_id
+                  } : null,
+                  priority: task.priority !== originalTask.priority ? {
+                    from: originalTask.priority,
+                    to: task.priority
                   } : null
                 }
               }
@@ -1213,6 +1221,11 @@ export default {
         }"
         @delete="deleteTask"
         @restore="restoreTask"
+        @update-task="updateTask"
+        @update:active-filters-count="activeFiltersCount = $event"
+        @update-status="updateTask"
+        @loadTasks="loadTasks"
+        @updateTitle="updateTaskTitle"
       />
 
       <!-- Create Task Dialog -->

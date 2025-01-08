@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted, onUnmounted } from 'vue'
@@ -19,7 +19,8 @@ export default {
     Timer,
     Delete,
     Plus,
-    ArrowRight
+    ArrowRight,
+    Check
   },
   props: {
     tasks: {
@@ -541,6 +542,12 @@ export default {
     }
 
     const startEditing = (task, field, event) => {
+      // If clicking the same field that's already being edited, close it
+      if (editingTaskId.value === task.id && editingField.value === field) {
+        cancelEditing()
+        return
+      }
+
       if (event) {
         // Get the click coordinates relative to the viewport
         const x = event.clientX
@@ -980,45 +987,92 @@ export default {
     <div class="popup-menu-content">
       <!-- Status options -->
       <template v-if="editingField === 'status'">
+        <div class="popup-item popup-header">
+          <span>Select status</span>
+        </div>
         <div 
           v-for="status in statusOptions" 
           :key="status.value"
           class="popup-item"
+          :class="{ 'selected': editingValue === status.value }"
           @click="handlePopupSelect(status.value)">
-          <el-tag :type="getStatusType({ status: status.value })" size="small">
-            {{ status.label }}
-          </el-tag>
-        </div>
-      </template>
-
-      <!-- Assignee options -->
-      <template v-if="editingField === 'assignee'">
-        <div 
-          v-for="user in sharedUsers" 
-          :key="user.id"
-          class="popup-item"
-          @click="handlePopupSelect(user.id)">
-          <div class="assignee-option">
-            <div 
-              class="assignee-badge"
-              :style="{ backgroundColor: getAssigneeColor(user.id) }">
-              {{ user.email.charAt(0).toUpperCase() }}
-            </div>
-            <span>{{ user.email }}</span>
+          <div class="popup-option">
+            <el-tag :type="getStatusType(status.value)" size="small">
+              {{ status.label }}
+            </el-tag>
+            <el-icon v-if="editingValue === status.value"><Check /></el-icon>
           </div>
         </div>
       </template>
 
       <!-- Priority options -->
       <template v-if="editingField === 'priority'">
+        <div class="popup-item popup-header">
+          <span>Select priority</span>
+        </div>
         <div 
           v-for="priority in priorityOptions" 
           :key="priority.value"
           class="popup-item"
+          :class="{ 'selected': editingValue === priority.value }"
           @click="handlePopupSelect(priority.value)">
-          <el-tag :type="getPriorityType(priority.value)" size="small">
-            {{ priority.label }}
-          </el-tag>
+          <div class="popup-option">
+            <el-tag :type="getPriorityType(priority.value)" size="small">
+              {{ priority.label }}
+            </el-tag>
+            <el-icon v-if="editingValue === priority.value"><Check /></el-icon>
+          </div>
+        </div>
+      </template>
+
+      <!-- Assignee options -->
+      <template v-if="editingField === 'assignee'">
+        <div class="popup-item popup-header">
+          <span>Select assignee</span>
+        </div>
+        <div 
+          v-for="user in sharedUsers" 
+          :key="user.id"
+          class="popup-item"
+          :class="{ 'selected': editingValue === user.id }"
+          @click="handlePopupSelect(user.id)">
+          <div class="popup-option">
+            <div class="assignee-option">
+              <div 
+                class="assignee-badge"
+                :style="{ backgroundColor: getAssigneeColor(user.id) }">
+                {{ user.email.charAt(0).toUpperCase() }}
+              </div>
+              <span>{{ user.email }}</span>
+            </div>
+            <el-icon v-if="editingValue === user.id"><Check /></el-icon>
+          </div>
+        </div>
+      </template>
+
+      <!-- Due date options -->
+      <template v-if="editingField === 'due_date'">
+        <div class="popup-item popup-header">
+          <span>Select due date</span>
+        </div>
+        <div class="popup-item">
+          <el-date-picker
+            v-model="editingValue"
+            type="date"
+            placeholder="Select due date"
+            @change="handlePopupSelect"
+            :clearable="false"
+            :editable="false"
+            :popper-options="{ boundariesElement: 'body' }"
+            :popper-append-to-body="false"
+            :popper-class="'date-picker-popper'"
+            :prefix-icon="Calendar"
+            :style="{ width: '100%' }"
+            v-focus
+          />
+        </div>
+        <div class="popup-item">
+          <el-button size="small" @click="handlePopupSelect(null)">Clear</el-button>
         </div>
       </template>
     </div>
@@ -1360,6 +1414,33 @@ span.logged-hours i {
     margin: 0px;
     padding: 0px;
   }
+}
+
+.popup-header {
+  padding: 8px 16px;
+  color: var(--el-text-color-primary);
+  font-weight: 500;
+  cursor: default;
+}
+
+.popup-header:hover {
+  background-color: transparent;
+}
+
+.popup-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.popup-item.selected {
+  background-color: var(--el-fill-color-light);
+}
+
+.popup-option .el-icon {
+  color: var(--el-color-primary);
+  margin-left: 8px;
 }
 </style>
 

@@ -266,6 +266,12 @@
       </el-table-column>
     </el-table>
   </el-dialog>
+
+  <QuickTaskViewCt
+    v-if="selectedTask"
+    v-model:visible="quickViewVisible"
+    :task="selectedTask"
+  />
 </template>
 
 <script>
@@ -273,6 +279,7 @@ import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { ArrowUp, ArrowDown, Star, StarFilled } from '@element-plus/icons-vue';
+import QuickTaskViewCt from '../single-matter/QuickTaskViewCt.vue';
 
 export default {
   name: 'AllTasksCt',
@@ -280,7 +287,8 @@ export default {
     ArrowUp,
     ArrowDown,
     Star,
-    StarFilled
+    StarFilled,
+    QuickTaskViewCt
   },
   setup() {
     const router = useRouter();
@@ -307,6 +315,8 @@ export default {
       savedFiltersDialogVisible: false,
       filteredAssignees: [],
       assigneeSearchQuery: '',
+      selectedTask: null,
+      quickViewVisible: false,
     };
   },
   computed: {
@@ -442,7 +452,8 @@ export default {
     },
 
     navigateToTask(task) {
-      this.router.push(`/single-matter/${task.matter_id}/tasks`);
+      this.selectedTask = task;
+      this.quickViewVisible = true;
     },
 
     navigateToMatter(matterId) {

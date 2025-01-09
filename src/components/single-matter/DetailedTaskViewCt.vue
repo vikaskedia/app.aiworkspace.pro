@@ -25,458 +25,426 @@
       </div>
     </div>
 
-    <div class="task-content" v-loading="loading">
-      <div class="task-main-info">
-        
-        <div class="task-title-header">
-          <div class="star-container">
-            <el-icon 
-              class="star-icon"
-              :class="{ 'starred': isTaskStarred }"
-              @click="toggleTaskStar"
-            >
-              <Star v-if="!isTaskStarred" />
-              <StarFilled v-else />
-            </el-icon>
-          </div>
+    <div class="task-content-wrapper" v-loading="loading">
+      <!-- Main Content -->
+      <div class="task-main-content">
+        <div class="task-main-info">
           
-          <div class="title-wrapper">
-            <h2 
-              v-if="!isEditingTitle" 
-              @click="startTitleEdit"
-              class="editable-title"
-            >
-              {{ task?.title }}
-              <el-icon class="edit-icon"><Edit /></el-icon>
-            </h2>
-            <div v-else class="title-edit-wrapper">
-              <el-input
-                v-model="editingTitle"
-                ref="titleInput"
-                size="large"
-                @keyup.enter="saveTitleEdit"
-                @keyup.esc="cancelTitleEdit"
-              />
-              <div class="title-edit-actions">
-                <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
-                <el-button 
-                  type="primary" 
-                  @click="saveTitleEdit" 
-                  size="small"
-                  :disabled="!editingTitle.trim() || editingTitle === task?.title"
-                >
-                  Save
-                </el-button>
-              </div>
-            </div>
-          </div>
-
-          <div class="edit-metadata">
-            <span 
-              v-if="task?.edit_history?.length" 
-              class="edited-marker"
-              @click="toggleTaskHistory"
-            >
-              (edited {{ task.edit_history.length }} times)
-            </span>
-          </div>
-        </div>
-
-        <div v-if="showTaskHistory" class="edit-history">
-          <div 
-            v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
-            :key="index" 
-            class="edit-history-entry"
-          >
-            <div class="edit-history-header">Changed {{ historyEntry.field_name }}:</div>
-            <div class="previous-content">
-              {{ historyEntry.previous_value || 'No previous content' }}
-            </div>
-            <div class="edit-metadata">
-              Edited by {{ userEmails[historyEntry.edited_by] }}
-              on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
-                year: 'numeric',
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }) }}
-            </div>
-          </div>
-        </div>
-
-        <div class="task-metadata">
-          <div class="metadata-grid">
-            <!-- Status Column -->
-            <div class="metadata-item">
-              <div class="metadata-label">
-                <el-icon><CircleCheck /></el-icon>
-                <span>Status</span>
-              </div>
-              <el-dropdown @command="handleStatusChange" trigger="click">
-                <el-tag :type="getStatusType(task)" class="status-tag">
-                  {{ formatStatus(task?.status) }}
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </el-tag>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="not_started">Not started</el-dropdown-item>
-                    <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
-                    <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
-                    <el-dropdown-item command="completed">Completed</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-
-            <!-- Priority Column -->
-            <div class="metadata-item">
-              <div class="metadata-label">
-                <el-icon><Warning /></el-icon>
-                <span>Priority</span>
-              </div>
-              <el-dropdown @command="handlePriorityChange" trigger="click">
-                <el-tag :type="
-                  task?.priority === 'high' ? 'danger' :
-                  task?.priority === 'medium' ? 'warning' : 'info'
-                " class="priority-tag">
-                  {{ task?.priority }}
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </el-tag>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="high">High</el-dropdown-item>
-                    <el-dropdown-item command="medium">Medium</el-dropdown-item>
-                    <el-dropdown-item command="low">Low</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-
-            <!-- Due Date Column -->
-            <div class="metadata-item">
-              <div class="metadata-label">
-                <el-icon><Calendar /></el-icon>
-                <span>Due Date</span>
-              </div>
-              <el-popover
-                placement="bottom"
-                trigger="click"
-                :width="300"
-                popper-class="due-date-popover"
+          <div class="task-title-header">
+            <div class="star-container">
+              <el-icon 
+                class="star-icon"
+                :class="{ 'starred': isTaskStarred }"
+                @click="toggleTaskStar"
               >
-                <template #reference>
-                  <div class="due-date-display">
-                    <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
-                    <el-icon><Edit /></el-icon>
-                  </div>
-                </template>
-                <template #default>
-                  <div class="due-date-editor">
-                    <el-date-picker
-                      v-model="tempDueDate"
-                      type="date"
-                      placeholder="Select due date"
-                      style="width: 100%"
-                      @change="handleDueDateChange"
-                    />
-                    <div class="due-date-actions">
-                      <el-button @click="clearDueDate" link size="small">Clear</el-button>
-                    </div>
-                  </div>
-                </template>
-              </el-popover>
+                <Star v-if="!isTaskStarred" />
+                <StarFilled v-else />
+              </el-icon>
             </div>
-
-            <!-- Assigned To Column -->
-            <div class="metadata-item">
-              <div class="metadata-label">
-                <el-icon><User /></el-icon>
-                <span>Assigned To</span>
-              </div>
-              <el-dropdown @command="handleAssigneeChange" trigger="click">
-                <div class="assignee-display">
-                  <div class="assignee-info">
-                    <el-avatar v-if="assigneeEmail" :size="24">
-                      {{ getInitials(assigneeEmail) }}
-                    </el-avatar>
-                    <span>{{ assigneeEmail || 'Unassigned' }}</span>
-                  </div>
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </div>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="">
-                      <el-icon><Close /></el-icon>
-                      Unassign
-                    </el-dropdown-item>
-                    <el-dropdown-item 
-                      v-for="user in sharedUsers" 
-                      :key="user.id"
-                      :command="user.id"
-                    >
-                      <div class="user-option">
-                        <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
-                        <span>{{ user.email }}</span>
-                      </div>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </div>
-        </div>
-        <div class="description-wrapper">
-          <div class="description-header">
-            <div class="metadata-label">
-              <el-icon><Document /></el-icon>
-              <span>Description</span>
-            </div>
-            <el-button 
-              v-if="!isEditingDescription" 
-              link 
-              @click="startDescriptionEdit"
-            >
-              <el-icon><Edit /></el-icon>
-              Edit
-            </el-button>
-          </div>
-
-          <div v-if="isEditingDescription" class="description-edit">
-            <TiptapEditor
-              v-model="editingDescription"
-              placeholder="Add a description..."
-              :autofocus="true" 
-              :isTaskComment="false"
-              :sharedUsers="sharedUsers"
-              :taskId="String(task.id)"
-              :taskTitle="task.title"
-            />
-            <div class="description-edit-actions">
-              <el-button @click="cancelDescriptionEdit" size="small">Cancel</el-button>
-              <el-button 
-                type="primary" 
-                @click="saveDescriptionEdit" 
-                size="small"
-                :disabled="!editingDescription.trim() || editingDescription === task?.description"
+            
+            <div class="title-wrapper">
+              <h2 
+                v-if="!isEditingTitle" 
+                @click="startTitleEdit"
+                class="editable-title"
               >
-                Save
-              </el-button>
-            </div>
-          </div>
-
-          <p 
-            v-else 
-            class="description" 
-            v-html="formatCommentContent(task?.description || 'No description provided')"
-            @click="startDescriptionEdit"
-          ></p>
-        </div>
-      </div>
-
-      <div class="hours-logs" v-if="hoursLogs.length">
-        <div class="hours-header">
-          <h3>Hours Logged</h3>
-          <div class="total-hours">
-            <el-tag type="success" size="large" effect="plain">
-              <el-icon><Clock /></el-icon>
-              <span class="total-time">Total Hours: {{ formatTotalTime }}</span>
-            </el-tag>
-          </div>
-        </div>
-        
-        <el-table 
-          :data="displayedHoursLogs" 
-          style="width: 100%"
-          :stripe="true"
-          :border="true"
-          class="hours-table"
-          row-class-name="hours-table-row"
-        >
-          <el-table-column 
-            prop="time_taken" 
-            label="Time Logged" 
-            width="140"
-            align="center"
-            fixed
-          >
-            <template #default="scope">
-              <div class="time-wrapper">
-                <el-icon><Timer /></el-icon>
-                <span class="time-cell">{{ formatTime(scope.row.time_taken) }}</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            prop="comment" 
-            label="Work Description"
-            min-width="300"
-            show-overflow-tooltip
-          >
-            <template #default="scope">
-              <div class="comment-cell">
-                <span v-if="scope.row.comment">{{ scope.row.comment }}</span>
-                <span v-else class="no-comment">No description provided</span>
-              </div>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            label="Logged By" 
-            width="200"
-            align="center"
-          >
-            <template #default="scope">
-              <el-tooltip 
-                :content="userEmails[scope.row.user_id]"
-                placement="top"
-                effect="light"
-              >
-                <div class="user-wrapper">
-                  <el-avatar 
-                    :size="24" 
-                    class="user-avatar"
-                  >
-                    {{ getInitials(userEmails[scope.row.user_id]) }}
-                  </el-avatar>
-                  <span class="user-cell">{{ formatEmail(userEmails[scope.row.user_id]) }}</span>
-                </div>
-              </el-tooltip>
-            </template>
-          </el-table-column>
-
-          <el-table-column 
-            label="Date & Time" 
-            width="200"
-            align="center"
-          >
-            <template #default="scope">
-              <el-tooltip 
-                :content="formatDateTime(scope.row.created_at)"
-                placement="top"
-                effect="light"
-              >
-                <div class="date-wrapper">
-                  <span class="date-cell">{{ formatDate(scope.row.created_at) }}</span>
-                  <span class="time-stamp">{{ formatTimeOnly(scope.row.created_at) }}</span>
-                </div>
-              </el-tooltip>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <div v-if="hoursLogs.length > 3" class="show-more-container">
-          <el-button 
-            link 
-            type="primary" 
-            @click="toggleShowMore"
-            class="show-more-button"
-          >
-            {{ showAllLogs ? 'Show Less' : `Show More` }}
-          </el-button>
-        </div>
-      </div>
-
-      <div class="task-comments">
-        <h3>Comments</h3>
-        <div class="comments-list">
-          <div v-for="comment in comments" :key="comment.id" :class="['comment-item', { 'ai-response': comment.type === 'ai_response' }]">
-            <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
-              <div class="comment-header">
-                <span class="comment-author">
-                  {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
-                </span>
-                <div class="comment-actions">
-                  <span class="comment-date">
-                    {{ comment.updated_at 
-                      ? new Date(comment.updated_at).toLocaleString(undefined, { 
-                          year: 'numeric', 
-                          month: 'numeric', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
-                      : new Date(comment.created_at).toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'numeric',
-                          day: 'numeric', 
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
-                    }}
-                    <span 
-                      v-if="comment.comment_edit_history?.length" 
-                      class="edited-marker"
-                      :data-comment-id="comment.id"
-                      @click="toggleHistory(comment.id)"
-                    >(edited {{ comment.comment_edit_history.length }} times)</span>
-                  </span>
-                  <el-button 
-                    v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
-                    link
-                    @click="startEditing(comment)"
-                  >
-                    Edit
-                  </el-button>
-                </div>
-              </div>
-              <div v-if="editingCommentId === comment.id">
+                {{ task?.title }}
+                <el-icon class="edit-icon"><Edit /></el-icon>
+              </h2>
+              <div v-else class="title-edit-wrapper">
                 <el-input
-                  v-model="editingCommentText"
-                  type="textarea"
-                  :rows="3"
+                  v-model="editingTitle"
+                  ref="titleInput"
+                  size="large"
+                  @keyup.enter="saveTitleEdit"
+                  @keyup.esc="cancelTitleEdit"
                 />
-                <div class="edit-actions">
-                  <el-button @click="cancelEdit">Cancel</el-button>
+                <div class="title-edit-actions">
+                  <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
                   <el-button 
-                    type="primary"
-                    @click="saveEdit(comment)"
-                    :disabled="!editingCommentText.trim()"
+                    type="primary" 
+                    @click="saveTitleEdit" 
+                    size="small"
+                    :disabled="!editingTitle.trim() || editingTitle === task?.title"
                   >
                     Save
                   </el-button>
                 </div>
               </div>
-              <div v-else class="comment-text">
-                <span v-html="formatCommentContent(comment.content)"></span>
-                <div v-if="expandedCommentHistories.has(comment.id)" class="edit-history">
-                  <div v-for="(historyEntry, index) in comment.comment_edit_history" :key="index" class="edit-history-entry">
-                    <div class="edit-history-header">Version {{ index + 1 }}:</div>
-                    <div class="previous-content" v-html="formatCommentContent(historyEntry.previous_content)"></div>
-                    <div class="edit-metadata">
-                      Edited by {{ userEmails[historyEntry.edited_by] }}
-                      on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      }) }}
+            </div>
+
+            <div class="edit-metadata">
+              <span 
+                v-if="task?.edit_history?.length" 
+                class="edited-marker"
+                @click="toggleTaskHistory"
+              >
+                (edited {{ task.edit_history.length }} times)
+              </span>
+            </div>
+          </div>
+
+          <div v-if="showTaskHistory" class="edit-history">
+            <div 
+              v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
+              :key="index" 
+              class="edit-history-entry"
+            >
+              <div class="edit-history-header">Changed {{ historyEntry.field_name }}:</div>
+              <div class="previous-content">
+                {{ historyEntry.previous_value || 'No previous content' }}
+              </div>
+              <div class="edit-metadata">
+                Edited by {{ userEmails[historyEntry.edited_by] }}
+                on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                  year: 'numeric',
+                  month: 'numeric',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="task-metadata">
+            <div class="metadata-grid">
+              <!-- Status Column -->
+              <div class="metadata-item status-item">
+                <div class="metadata-label">
+                  <el-icon><CircleCheck /></el-icon>
+                  <span>Status</span>
+                </div>
+                <el-dropdown @command="handleStatusChange" trigger="click">
+                  <el-tag :type="getStatusType(task)" class="status-tag">
+                    {{ formatStatus(task?.status) }}
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-tag>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="not_started">Not started</el-dropdown-item>
+                      <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
+                      <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
+                      <el-dropdown-item command="completed">Completed</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+
+              <!-- Priority Column -->
+              <div class="metadata-item priority-item">
+                <div class="metadata-label">
+                  <el-icon><Warning /></el-icon>
+                  <span>Priority</span>
+                </div>
+                <el-dropdown @command="handlePriorityChange" trigger="click">
+                  <el-tag :type="
+                    task?.priority === 'high' ? 'danger' :
+                    task?.priority === 'medium' ? 'warning' : 'info'
+                  " class="priority-tag">
+                    {{ task?.priority }}
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-tag>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="high">High</el-dropdown-item>
+                      <el-dropdown-item command="medium">Medium</el-dropdown-item>
+                      <el-dropdown-item command="low">Low</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+
+              <!-- Due Date Column -->
+              <div class="metadata-item due-date-item">
+                <div class="metadata-label">
+                  <el-icon><Calendar /></el-icon>
+                  <span>Due Date</span>
+                </div>
+                <el-popover
+                  placement="bottom"
+                  trigger="click"
+                  :width="300"
+                  popper-class="due-date-popover"
+                >
+                  <template #reference>
+                    <div class="due-date-display">
+                      <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
+                      <el-icon><Edit /></el-icon>
                     </div>
+                  </template>
+                  <template #default>
+                    <div class="due-date-editor">
+                      <el-date-picker
+                        v-model="tempDueDate"
+                        type="date"
+                        placeholder="Select due date"
+                        style="width: 100%"
+                        @change="handleDueDateChange"
+                      />
+                      <div class="due-date-actions">
+                        <el-button @click="clearDueDate" link size="small">Clear</el-button>
+                      </div>
+                    </div>
+                  </template>
+                </el-popover>
+              </div>
+
+              
+              <!-- Assigned To Column -->
+              <div class="metadata-item assigned-to-item">
+                <div class="metadata-label">
+                  <el-icon><User /></el-icon>
+                  <span>Assigned To</span>
+                </div>
+                <el-dropdown @command="handleAssigneeChange" trigger="click">
+                  <div class="assignee-display">
+                    <div class="assignee-info">
+                      <el-avatar v-if="assigneeEmail" :size="24">
+                        {{ getInitials(assigneeEmail) }}
+                      </el-avatar>
+                      <span>{{ assigneeEmail || 'Unassigned' }}</span>
+                    </div>
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
                   </div>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="">
+                        <el-icon><Close /></el-icon>
+                        Unassign
+                      </el-dropdown-item>
+                      <el-dropdown-item 
+                        v-for="user in sharedUsers" 
+                        :key="user.id"
+                        :command="user.id"
+                      >
+                        <div class="user-option">
+                          <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
+                          <span>{{ user.email }}</span>
+                        </div>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </div>
+          </div>
+          <div class="description-wrapper">
+            <div class="description-header">
+              <div class="metadata-label">
+                <el-icon><Document /></el-icon>
+                <span>Description</span>
+              </div>
+              <el-button 
+                v-if="!isEditingDescription" 
+                link 
+                @click="startDescriptionEdit"
+              >
+                <el-icon><Edit /></el-icon>
+                Edit
+              </el-button>
+            </div>
+
+            <div v-if="isEditingDescription" class="description-edit">
+              <TiptapEditor
+                v-model="editingDescription"
+                placeholder="Add a description..."
+                :autofocus="true" 
+                :isTaskComment="false"
+                :sharedUsers="sharedUsers"
+                :taskId="String(task.id)"
+                :taskTitle="task.title"
+              />
+              <div class="description-edit-actions">
+                <el-button @click="cancelDescriptionEdit" size="small">Cancel</el-button>
+                <el-button 
+                  type="primary" 
+                  @click="saveDescriptionEdit" 
+                  size="small"
+                  :disabled="!editingDescription.trim() || editingDescription === task?.description"
+                >
+                  Save
+                </el-button>
+              </div>
+            </div>
+
+            <p 
+              v-else 
+              class="description" 
+              v-html="formatCommentContent(task?.description || 'No description provided')"
+              @click="startDescriptionEdit"
+            ></p>
+          </div>
+        </div>
+
+        <div class="hours-logs" v-if="hoursLogs.length">
+          <div class="hours-header">
+            <h3>Hours Logged</h3>
+            <div class="total-hours">
+              <el-tag type="success" size="large" effect="plain">
+                <el-icon><Clock /></el-icon>
+                <span class="total-time">Total Hours: {{ formatTotalTime }}</span>
+              </el-tag>
+            </div>
+          </div>
+          
+          <el-table 
+            :data="displayedHoursLogs" 
+            style="width: 100%"
+            :stripe="true"
+            :border="true"
+            class="hours-table"
+            row-class-name="hours-table-row"
+          >
+            <el-table-column 
+              prop="time_taken" 
+              label="Time Logged" 
+              width="140"
+              align="center"
+              fixed
+            >
+              <template #default="scope">
+                <div class="time-wrapper">
+                  <el-icon><Timer /></el-icon>
+                  <span class="time-cell">{{ formatTime(scope.row.time_taken) }}</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column 
+              prop="comment" 
+              label="Work Description"
+              min-width="300"
+              show-overflow-tooltip
+            >
+              <template #default="scope">
+                <div class="comment-cell">
+                  <span v-if="scope.row.comment">{{ scope.row.comment }}</span>
+                  <span v-else class="no-comment">No description provided</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column 
+              label="Logged By" 
+              width="200"
+              align="center"
+            >
+              <template #default="scope">
+                <el-tooltip 
+                  :content="userEmails[scope.row.user_id]"
+                  placement="top"
+                  effect="light"
+                >
+                  <div class="user-wrapper">
+                    <el-avatar 
+                      :size="24" 
+                      class="user-avatar"
+                    >
+                      {{ getInitials(userEmails[scope.row.user_id]) }}
+                    </el-avatar>
+                    <span class="user-cell">{{ formatEmail(userEmails[scope.row.user_id]) }}</span>
+                  </div>
+                </el-tooltip>
+              </template>
+            </el-table-column>
+
+            <el-table-column 
+              label="Date & Time" 
+              width="200"
+              align="center"
+            >
+              <template #default="scope">
+                <el-tooltip 
+                  :content="formatDateTime(scope.row.created_at)"
+                  placement="top"
+                  effect="light"
+                >
+                  <div class="date-wrapper">
+                    <span class="date-cell">{{ formatDate(scope.row.created_at) }}</span>
+                    <span class="time-stamp">{{ formatTimeOnly(scope.row.created_at) }}</span>
+                  </div>
+                </el-tooltip>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div v-if="hoursLogs.length > 3" class="show-more-container">
+            <el-button 
+              link 
+              type="primary" 
+              @click="toggleShowMore"
+              class="show-more-button"
+            >
+              {{ showAllLogs ? 'Show Less' : `Show More` }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="task-comments-section">
+        <div class="task-comments">
+          <h3>Comments</h3>
+          <div class="comments-list">
+            <div v-for="comment in comments" :key="comment.id" :class="['comment-item', { 'ai-response': comment.type === 'ai_response' }]">
+              <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
+                <div class="comment-header">
+                  <span class="comment-author">
+                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
+                  </span>
+                  <div class="comment-actions">
+                    <span class="comment-date">
+                      {{ comment.updated_at 
+                        ? new Date(comment.updated_at).toLocaleString(undefined, { 
+                            year: 'numeric', 
+                            month: 'numeric', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : new Date(comment.created_at).toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric', 
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                      }}
+                    </span>
+                    <el-button 
+                      v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
+                      link
+                      @click="startEditing(comment)"
+                    >
+                      Edit
+                    </el-button>
+                  </div>
+                </div>
+                <div class="comment-text">
+                  <span v-html="formatCommentContent(comment.content)"></span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="comment-input">
-          <TiptapEditor
-            v-model="newComment"
-            placeholder="Write a comment..."
-            :taskId="String(task.id)"
-            :taskTitle="task.title"
-            :sharedUsers="sharedUsers"
-            :isTaskComment="true"
-          />
-          <el-button
-            type="primary"
-            :disabled="!newComment.trim()"
-            @click="addComment"
-            style="margin-top: 10px">
-            Add Comment
-          </el-button>
+          <div class="comment-input">
+            <TiptapEditor
+              v-model="newComment"
+              placeholder="Write a comment..."
+              :taskId="String(task.id)"
+              :taskTitle="task.title"
+              :sharedUsers="sharedUsers"
+              :isTaskComment="true"
+            />
+            <el-button
+              type="primary"
+              :disabled="!newComment.trim()"
+              @click="addComment"
+              style="margin-top: 10px">
+              Add Comment
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -2080,6 +2048,10 @@ export default {
 
 <style scoped>
 
+.status-item, .priority-item, .due-date-item{
+  width: 100px;
+}
+
 .description-wrapper {
   margin-top: 24px;
   background: var(--el-bg-color);
@@ -2244,6 +2216,7 @@ export default {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
+  color: var(--el-text-color-secondary);
 }
 
 .due-date-display:hover {
@@ -2981,5 +2954,113 @@ table.editor-table {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+</style>
+
+<style scoped>
+.task-content-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.task-main-content {
+  min-width: 0; /* Prevents content overflow */
+}
+
+.task-comments-section {
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-light);
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.task-comments {
+  padding: 20px;
+}
+
+.comments-list {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.comment-item {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--el-fill-color-light);
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+.comment-date {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.comment-text {
+  color: var(--el-text-color-regular);
+  line-height: 1.5;
+}
+
+.comment-input {
+  border-top: 1px solid var(--el-border-color-lighter);
+  padding-top: 16px;
+}
+
+/* Mobile Responsive Layout */
+@media (max-width: 1024px) {
+  .task-content-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .task-comments-section {
+    position: static;
+    margin-top: 24px;
+  }
+
+  .comments-list {
+    max-height: 500px;
+  }
+}
+
+/* Tablet Layout */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .task-content-wrapper {
+    grid-template-columns: 1fr 350px;
+  }
+}
+
+/* Scrollbar Styling */
+.comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: var(--el-fill-color-lighter);
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: var(--el-border-color-darker);
 }
 </style>

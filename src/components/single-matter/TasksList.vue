@@ -631,14 +631,22 @@ export default {
       }
 
       if (event) {
+        // Get the clicked element and its position
         const clickedElement = event.target.closest('.clickable')
         if (clickedElement) {
           const rect = clickedElement.getBoundingClientRect()
+          
+          // Calculate scroll position considering parent containers
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
+          
+          // Adjust position based on whether it's a child task
+          const isChildTask = task.parent_task_id !== null
+          const childOffset = isChildTask ? clickedElement.offsetLeft : 0
           
           popupPosition.value = {
             top: `${rect.bottom + scrollTop}px`,
-            left: `${rect.left}px`,
+            left: `${rect.left + scrollLeft - childOffset}px`,
             transform: 'none',
             maxHeight: '300px'
           }

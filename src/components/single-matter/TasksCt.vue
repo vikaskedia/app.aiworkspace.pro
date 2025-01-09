@@ -333,13 +333,28 @@ export default {
     async updateTask(task) {
       try {
         this.loading = true;
-        const originalTask = this.tasks.find(t => t.id === task.id);
+        
+        // Helper function to find task in hierarchical structure
+        const findTaskInHierarchy = (tasks, taskId) => {
+          for (const t of tasks) {
+            if (t.id === taskId) return t;
+            if (t.children?.length) {
+              const found = findTaskInHierarchy(t.children, taskId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        const originalTask = findTaskInHierarchy(this.tasks, task.id);
+        if (!originalTask) {
+          throw new Error('Task not found');
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
         
         // Convert undefined to null for parent_task_id
         const parent_task_id = task.parent_task_id === undefined ? null : task.parent_task_id;
-        
-        console.log('Updating task with parent_task_id:', parent_task_id);
         
         const { data, error } = await supabase
           .from('tasks')
@@ -347,9 +362,9 @@ export default {
             title: task.title,
             assignee: task.assignee,
             status: task.status,
-            priority: task.priority,  // Add this line
+            priority: task.priority,
             due_date: task.due_date,
-            parent_task_id: parent_task_id  // Use the converted value
+            parent_task_id: parent_task_id
           })
           .eq('id', task.id)
           .select();

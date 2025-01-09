@@ -764,7 +764,8 @@ export default {
         .eq('id', this.task.id);
 
       if (error) throw error;
-
+      this.tempDueDate = date;
+      this.task.due_date = date;
       ElMessage.success('Due date updated successfully');
     } catch (error) {
       console.error('Error updating due date:', error);
@@ -784,7 +785,7 @@ export default {
         .eq('id', this.task.id);
 
       if (error) throw error;
-
+      this.task.due_date = null;
       this.tempDueDate = null;
       ElMessage.success('Due date cleared successfully');
     } catch (error) {
@@ -883,10 +884,6 @@ export default {
     }
   },
 
-  clearDueDate() {
-    this.tempDueDate = null;
-    this.updateDueDate();
-  },
 
   closeDueDatePopover() {
     // Reset temp date and close popover
@@ -2005,10 +2002,6 @@ export default {
       this.task.due_date = this.tempDueDate;
       this.closeDueDatePopover();
     },
-    clearDueDate() {
-      this.tempDueDate = null;
-      this.closeDueDatePopover();
-    },
     closeDueDatePopover() {
       this.$refs.dueDatePopover.close();
     },
@@ -2027,10 +2020,6 @@ export default {
     cancelDescriptionEdit() {
       this.isEditingDescription = false;
       this.editingDescription = '';
-    },
-    handleDueDateChange(date) {
-      this.tempDueDate = date;
-      this.updateDueDate();
     },
   },
   watch: {

@@ -2170,7 +2170,7 @@ export default {
 
 .metadata-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
 }
 
@@ -2205,7 +2205,7 @@ export default {
 
 .due-date-display,
 .assignee-display {
-  padding: 5px 12px;
+  padding: 5px 3px;
   border: 1px solid var(--el-border-color);
   border-radius: 4px;
   transition: all 0.3s;
@@ -2239,7 +2239,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 6px 3px;
   border: 1px solid var(--el-border-color);
   border-radius: 4px;
   cursor: pointer;
@@ -2270,7 +2270,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 3px 6px;
   border: 1px solid var(--el-border-color);
   border-radius: 4px;
   cursor: pointer;

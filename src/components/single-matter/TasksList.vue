@@ -636,17 +636,14 @@ export default {
         if (clickedElement) {
           const rect = clickedElement.getBoundingClientRect()
           
-          // Calculate scroll position considering parent containers
+          // Calculate scroll position
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop
           const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
           
-          // Adjust position based on whether it's a child task
-          const isChildTask = task.parent_task_id !== null
-          const childOffset = isChildTask ? clickedElement.offsetLeft : 0
-          
+          // Calculate position based on the clicked element
           popupPosition.value = {
             top: `${rect.bottom + scrollTop}px`,
-            left: `${rect.left + scrollLeft - childOffset}px`,
+            left: `${rect.left + scrollLeft}px`,
             transform: 'none',
             maxHeight: '300px'
           }
@@ -987,7 +984,7 @@ export default {
                         :type="getStatusType(childTask)"
                         size="small"
                         class="status-tag clickable"
-                        @click.stop="startEditing(childTask, 'status')">
+                        @click.stop="startEditing(childTask, 'status', $event)">
                         <span>{{ formatStatus(childTask.status) }}</span>
                       </el-tag>
 
@@ -1017,7 +1014,7 @@ export default {
                               <div 
                                 class="assignee-badge clickable"
                                 :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
-                                @click.stop="startEditing(childTask, 'assignee')">
+                                @click.stop="startEditing(childTask, 'assignee', $event)">
                                 {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
                               </div>
                             </el-tooltip>
@@ -1026,7 +1023,7 @@ export default {
                             <el-tooltip content="Assign task" placement="top">
                               <div 
                                 class="assignee-badge unassigned clickable"
-                                @click.stop="startEditing(childTask, 'assignee')">
+                                @click.stop="startEditing(childTask, 'assignee', $event)">
                                 <el-icon><Plus /></el-icon>
                               </div>
                             </el-tooltip>
@@ -1055,7 +1052,7 @@ export default {
                           :type="getPriorityType(childTask.priority)"
                           size="small"
                           class="priority-tag clickable"
-                          @click.stop="startEditing(childTask, 'priority')">
+                          @click.stop="startEditing(childTask, 'priority', $event)">
                           <span>{{ childTask.priority || 'No priority' }}</span>
                         </el-tag>
                       </template>
@@ -2034,14 +2031,6 @@ span.logged-hours i {
 </style>
 
 <style>
-.metadata-scroll-container {
-  position: relative;
-  width: 30%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
 
 .metadata-scroll-container::-webkit-scrollbar {
   display: none;

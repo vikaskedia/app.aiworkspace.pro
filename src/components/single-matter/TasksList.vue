@@ -328,10 +328,17 @@ export default {
       }
     },
     async updateStatus(task, checked) {
-      this.$emit('update-status', {
+      // Create a complete task update object with all required fields
+      const updatedTask = {
         ...task,
-        status: checked ? 'completed' : 'not_started'
-      });
+        status: checked ? 'completed' : 'not_started',
+        assignee: task.assignee || null,
+        priority: task.priority || null,
+        due_date: task.due_date || null,
+        parent_task_id: task.parent_task_id || null
+      };
+      
+      this.$emit('update-task', updatedTask);
     },
     handleAction(command, task) {
       switch (command) {
@@ -549,19 +556,43 @@ export default {
 
     const handlePopupSelect = async (value) => {
       console.log('handlePopupSelect called with value:', value)
-      const task = props.tasks.find(t => t.id === editingTaskId.value)
+      // Find task in both main tasks and child tasks
+      let task = props.tasks.find(t => t.id === editingTaskId.value)
+      
+      if (!task) {
+        // Search in child tasks if not found in main tasks
+        for (const parentTask of props.tasks) {
+          if (parentTask.children) {
+            task = parentTask.children.find(t => t.id === editingTaskId.value)
+            if (task) break
+          }
+        }
+      }
       
       if (task) {
-        // Format the date value to YYYY-MM-DD if it exists
-        const formattedValue = value ? new Date(value).toISOString().split('T')[0] : null
+        let formattedValue = null
         
-        // Create updated task object with new due date
+        if (editingField.value === 'due_date') {
+          if (value != null && value !== '') {
+            try {
+              const date = new Date(value)
+              if (!isNaN(date.getTime())) {
+                formattedValue = date.toISOString().split('T')[0]
+              }
+            } catch (error) {
+              console.error('Error formatting date:', error)
+            }
+          }
+        } else {
+          formattedValue = value
+        }
+        
         const updatedTask = {
           ...task,
-          due_date: formattedValue
+          [editingField.value]: formattedValue
         }
+        
         console.log('Updated task:', updatedTask)
-        // Call parent's updateTask method
         emit('update-task', updatedTask)
         editingValue.value = formattedValue
       }
@@ -603,7 +634,7 @@ export default {
         const clickedElement = event.target.closest('.clickable')
         if (clickedElement) {
           const rect = clickedElement.getBoundingClientRect()
-          const scrollTop = window.scrollY || document.documentElement.scrollTop
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop
           
           popupPosition.value = {
             top: `${rect.bottom + scrollTop}px`,
@@ -613,6 +644,7 @@ export default {
           }
         }
       }
+      
       editingTaskId.value = task.id
       editingField.value = field
       editingValue.value = task[field]

@@ -1829,6 +1829,15 @@ span.logged-hours i {
 </style>
 
 <style>
+  .scroll-arrow {
+    width: 20px;
+    float: right;
+    position: absolute;
+    top: -24px;
+    right: 0;
+    z-index: 2;
+    display: none;
+  }
 @media (max-width: 768px) {
   .tasks-hierarchy {
     width: 100%;
@@ -1887,6 +1896,7 @@ span.logged-hours i {
     top: -24px;
     right: 0;
     z-index: 2;
+    display: none;
   }
 
   .task-metadata {

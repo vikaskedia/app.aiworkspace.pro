@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check, ArrowLeft } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
@@ -20,7 +20,8 @@ export default {
     Delete,
     Plus,
     ArrowRight,
-    Check
+    Check,
+    ArrowLeft
   },
   props: {
     tasks: {
@@ -444,6 +445,17 @@ export default {
       };
       
       expandParentTasks(this.tasks);
+    },
+
+    scrollMetadata(direction) {
+      const container = event.target.closest('.metadata-scroll-container');
+      const scrollAmount = 100; // Adjust this value as needed
+      
+      if (direction === 'left') {
+        container.scrollLeft -= scrollAmount;
+      } else {
+        container.scrollLeft += scrollAmount;
+      }
     }
   },
   watch: {
@@ -816,68 +828,75 @@ export default {
                 </div>
               </div>
 
-              <div class="task-metadata">
-                <!-- Status -->
-                <el-tag
-                  :type="getStatusType(task)"
-                  size="small"
-                  class="status-tag clickable"
-                  @click.stop="startEditing(task, 'status', $event)">
-                  <span>{{ formatStatus(task.status) }}</span>
-                </el-tag>
+              <div class="metadata-scroll-container">
+                <div class="scroll-arrow" @click.stop="scrollMetadata('right')">
+                  <div class="scroll-arrow-icon">
+                    <el-icon><ArrowRight /></el-icon>
+                  </div>
+                </div>
+                <div class="task-metadata">
+                  <!-- Status -->
+                  <el-tag
+                    :type="getStatusType(task)"
+                    size="small"
+                    class="status-tag clickable"
+                    @click.stop="startEditing(task, 'status', $event)">
+                    <span>{{ formatStatus(task.status) }}</span>
+                  </el-tag>
 
-                <!-- Assignee -->
-                <div class="assignee-wrapper">
-                  <template v-if="task.assignee">
-                    <el-tooltip
-                      :content="sharedUsers.find(u => u.id === task.assignee)?.email"
-                      placement="top">
-                      <div 
-                        class="assignee-badge clickable"
-                        :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
-                        @click.stop="startEditing(task, 'assignee', $event)">
-                        {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
-                      </div>
-                    </el-tooltip>
+                  <!-- Assignee -->
+                  <div class="assignee-wrapper">
+                    <template v-if="task.assignee">
+                      <el-tooltip
+                        :content="sharedUsers.find(u => u.id === task.assignee)?.email"
+                        placement="top">
+                        <div 
+                          class="assignee-badge clickable"
+                          :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
+                          @click.stop="startEditing(task, 'assignee', $event)">
+                          {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
+                        </div>
+                      </el-tooltip>
+                    </template>
+                    <template v-else>
+                      <el-tooltip content="Assign task" placement="top">
+                        <div 
+                          class="assignee-badge unassigned clickable"
+                          @click.stop="startEditing(task, 'assignee', $event)">
+                          <el-icon><Plus /></el-icon>
+                        </div>
+                      </el-tooltip>
+                    </template>
+                  </div>
+
+                  <!-- Priority -->
+                  <el-tag
+                    :type="getPriorityType(task.priority)"
+                    size="small"
+                    class="priority-tag clickable"
+                    @click.stop="startEditing(task, 'priority', $event)">
+                    <span>{{ task.priority || 'No priority' }}</span>
+                  </el-tag>
+
+                  <template v-if="task.due_date">
+                    <el-tag
+                      :type="getDueDateType(task)"
+                      size="small"
+                      class="due-date-tag clickable"
+                      @click.stop="startEditing(task, 'due_date', $event)">
+                      <el-icon><Calendar /></el-icon>
+                      {{ formatDueDate(task.due_date) }}
+                    </el-tag>
                   </template>
                   <template v-else>
-                    <el-tooltip content="Assign task" placement="top">
-                      <div 
-                        class="assignee-badge unassigned clickable"
-                        @click.stop="startEditing(task, 'assignee', $event)">
-                        <el-icon><Plus /></el-icon>
-                      </div>
-                    </el-tooltip>
+                    <div 
+                      class="due-date-empty clickable"
+                      @click.stop="startEditing(task, 'due_date', $event)">
+                      <el-icon><Calendar /></el-icon>
+                      <span>No due date</span>
+                    </div>
                   </template>
                 </div>
-
-                <!-- Priority -->
-                <el-tag
-                  :type="getPriorityType(task.priority)"
-                  size="small"
-                  class="priority-tag clickable"
-                  @click.stop="startEditing(task, 'priority', $event)">
-                  <span>{{ task.priority || 'No priority' }}</span>
-                </el-tag>
-
-                <template v-if="task.due_date">
-                  <el-tag
-                    :type="getDueDateType(task)"
-                    size="small"
-                    class="due-date-tag clickable"
-                    @click.stop="startEditing(task, 'due_date', $event)">
-                    <el-icon><Calendar /></el-icon>
-                    {{ formatDueDate(task.due_date) }}
-                  </el-tag>
-                </template>
-                <template v-else>
-                  <div 
-                    class="due-date-empty clickable"
-                    @click.stop="startEditing(task, 'due_date', $event)">
-                    <el-icon><Calendar /></el-icon>
-                    <span>No due date</span>
-                  </div>
-                </template>
               </div>
             </div>
           </div>
@@ -922,17 +941,60 @@ export default {
                     </div>
                   </div>
 
-                  <div class="task-metadata">
-                    <el-tag
-                      :type="getStatusType(childTask)"
-                      size="small"
-                      class="status-tag clickable"
-                      @click.stop="startEditing(childTask, 'status')">
-                      <span>{{ formatStatus(childTask.status) }}</span>
-                    </el-tag>
+                  <div class="metadata-scroll-container">
+                    <div class="task-metadata">
+                      <el-tag
+                        :type="getStatusType(childTask)"
+                        size="small"
+                        class="status-tag clickable"
+                        @click.stop="startEditing(childTask, 'status')">
+                        <span>{{ formatStatus(childTask.status) }}</span>
+                      </el-tag>
 
-                    <div class="assignee-wrapper">
-                      <template v-if="editingTaskId === childTask.id && editingField === 'assignee'">
+                      <div class="assignee-wrapper">
+                        <template v-if="editingTaskId === childTask.id && editingField === 'assignee'">
+                          <el-select
+                            v-model="editingValue"
+                            size="small"
+                            @change="handleSubmit(childTask)"
+                            @blur="cancelEditing"
+                            @click.stop
+                            @keyup.esc="cancelEditing"
+                            style="width: 120px">
+                            <el-option
+                              v-for="user in sharedUsers"
+                              :key="user.id"
+                              :label="user.email"
+                              :value="user.id"
+                            />
+                          </el-select>
+                        </template>
+                        <template v-else>
+                          <template v-if="childTask.assignee">
+                            <el-tooltip
+                              :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
+                              placement="top">
+                              <div 
+                                class="assignee-badge clickable"
+                                :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
+                                @click.stop="startEditing(childTask, 'assignee')">
+                                {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
+                              </div>
+                            </el-tooltip>
+                          </template>
+                          <template v-else>
+                            <el-tooltip content="Assign task" placement="top">
+                              <div 
+                                class="assignee-badge unassigned clickable"
+                                @click.stop="startEditing(childTask, 'assignee')">
+                                <el-icon><Plus /></el-icon>
+                              </div>
+                            </el-tooltip>
+                          </template>
+                        </template>
+                      </div>
+
+                      <template v-if="editingTaskId === childTask.id && editingField === 'priority'">
                         <el-select
                           v-model="editingValue"
                           size="small"
@@ -940,84 +1002,43 @@ export default {
                           @blur="cancelEditing"
                           @click.stop
                           @keyup.esc="cancelEditing"
+                          ref="prioritySelect"
                           style="width: 120px">
-                          <el-option
-                            v-for="user in sharedUsers"
-                            :key="user.id"
-                            :label="user.email"
-                            :value="user.id"
-                          />
+                          <el-option label="High" value="high" />
+                          <el-option label="Medium" value="medium" />
+                          <el-option label="Low" value="low" />
+                          <el-option label="No priority" value="" />
                         </el-select>
                       </template>
                       <template v-else>
-                        <template v-if="childTask.assignee">
-                          <el-tooltip
-                            :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
-                            placement="top">
-                            <div 
-                              class="assignee-badge clickable"
-                              :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
-                              @click.stop="startEditing(childTask, 'assignee')">
-                              {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
-                            </div>
-                          </el-tooltip>
-                        </template>
-                        <template v-else>
-                          <el-tooltip content="Assign task" placement="top">
-                            <div 
-                              class="assignee-badge unassigned clickable"
-                              @click.stop="startEditing(childTask, 'assignee')">
-                              <el-icon><Plus /></el-icon>
-                            </div>
-                          </el-tooltip>
-                        </template>
+                        <el-tag
+                          :type="getPriorityType(childTask.priority)"
+                          size="small"
+                          class="priority-tag clickable"
+                          @click.stop="startEditing(childTask, 'priority')">
+                          <span>{{ childTask.priority || 'No priority' }}</span>
+                        </el-tag>
+                      </template>
+
+                      <template v-if="childTask.due_date">
+                        <el-tag
+                          :type="getDueDateType(childTask)"
+                          size="small"
+                          class="due-date-tag clickable"
+                          @click.stop="startEditing(childTask, 'due_date', $event)">
+                          <el-icon><Calendar /></el-icon>
+                          {{ formatDueDate(childTask.due_date) }}
+                        </el-tag>
+                      </template>
+                      <template v-else>
+                        <div 
+                          class="due-date-empty clickable"
+                          @click.stop="startEditing(childTask, 'due_date', $event)">
+                          <el-icon><Calendar /></el-icon>
+                          <span>No due date</span>
+                        </div>
                       </template>
                     </div>
-
-                    <template v-if="editingTaskId === childTask.id && editingField === 'priority'">
-                      <el-select
-                        v-model="editingValue"
-                        size="small"
-                        @change="handleSubmit(childTask)"
-                        @blur="cancelEditing"
-                        @click.stop
-                        @keyup.esc="cancelEditing"
-                        ref="prioritySelect"
-                        style="width: 120px">
-                        <el-option label="High" value="high" />
-                        <el-option label="Medium" value="medium" />
-                        <el-option label="Low" value="low" />
-                        <el-option label="No priority" value="" />
-                      </el-select>
-                    </template>
-                    <template v-else>
-                      <el-tag
-                        :type="getPriorityType(childTask.priority)"
-                        size="small"
-                        class="priority-tag clickable"
-                        @click.stop="startEditing(childTask, 'priority')">
-                        <span>{{ childTask.priority || 'No priority' }}</span>
-                      </el-tag>
-                    </template>
-
-                    <template v-if="childTask.due_date">
-                      <el-tag
-                        :type="getDueDateType(childTask)"
-                        size="small"
-                        class="due-date-tag clickable"
-                        @click.stop="startEditing(childTask, 'due_date', $event)">
-                        <el-icon><Calendar /></el-icon>
-                        {{ formatDueDate(childTask.due_date) }}
-                      </el-tag>
-                    </template>
-                    <template v-else>
-                      <div 
-                        class="due-date-empty clickable"
-                        @click.stop="startEditing(childTask, 'due_date', $event)">
-                        <el-icon><Calendar /></el-icon>
-                        <span>No due date</span>
-                      </div>
-                    </template>
                   </div>
                 </div>
               </div>
@@ -1565,7 +1586,6 @@ span.logged-hours i {
 
 <style>
 @media (max-width: 768px) {
-
   .task-card {
     padding: 12px;
   }
@@ -1719,7 +1739,6 @@ span.logged-hours i {
 .popup-item:hover {
   background-color: var(--el-fill-color-light);
 }
-
 .popup-header {
   padding: 8px 16px;
   color: var(--el-text-color-primary);
@@ -1808,3 +1827,181 @@ span.logged-hours i {
   --el-tag-text-color: var(--el-color-warning);
 }
 </style>
+
+<style>
+@media (max-width: 768px) {
+  .tasks-hierarchy {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .task-headers {
+    width: 100%;
+    padding: 0;
+    display: flex;
+  }
+
+  .header-title {
+    width: 70%;
+    flex: none;
+    position: sticky;
+    left: 0;
+    background: var(--el-fill-color-light);
+    z-index: 1;
+    padding: 0 8px;
+  }
+
+  .header-metadata {
+    width: 30%;
+    flex: none;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-right: 8px;
+  }
+
+  .header-metadata::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Add a container for synchronized scrolling */
+  .metadata-scroll-container {
+    width: 30%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .metadata-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scroll-arrow {
+    width: 20px;
+    float: right;
+    position: absolute;
+    top: -24px;
+    right: 0;
+    z-index: 2;
+  }
+
+  .task-metadata {
+    min-width: max-content;
+    display: flex;
+    gap: 6px;
+    padding-right: 8px;
+  }
+
+  /* Ensure all metadata items have consistent widths */
+  .task-metadata > * {
+    flex-shrink: 0;
+  }
+
+  .task-metadata .status-tag {
+    width: 100px;
+  }
+
+  .task-metadata .priority-tag {
+    width: 80px;
+  }
+
+  .task-metadata .due-date-tag,
+  .task-metadata .due-date-empty {
+    width: 85px;
+  }
+
+  .task-metadata .assignee-wrapper {
+    width: 115px;
+  }
+
+  .task-card {
+    display: flex;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .task-main {
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .task-title-container {
+    width: 70%;
+    flex: none;
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 1;
+    padding: 0 8px;
+  }
+
+  /* Create a scrollable container for all task metadata */
+  .tasks-metadata-container {
+    width: 30%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tasks-metadata-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  .task-metadata {
+    min-width: max-content;
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Ensure all metadata items have consistent widths */
+  .task-metadata > * {
+    flex-shrink: 0;
+  }
+
+  .task-metadata .status-tag {
+    width: 100px;
+  }
+
+  .task-metadata .priority-tag {
+    width: 80px;
+  }
+
+  .task-metadata .due-date-tag,
+  .task-metadata .due-date-empty {
+    width: 85px;
+  }
+
+  .task-metadata .assignee-wrapper {
+    width: 115px;
+  }
+}
+</style>
+
+<style>
+.metadata-scroll-container {
+  position: relative;
+  width: 30%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.metadata-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.task-metadata {
+  min-width: max-content;
+  display: flex;
+  gap: 6px;
+  padding-right: 8px;
+}
+</style>
+

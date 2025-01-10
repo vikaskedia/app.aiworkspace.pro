@@ -57,14 +57,16 @@
       
       <!-- PDF Preview -->
       <template v-else-if="file.type === 'application/pdf'">
-        <div class="pdf-viewer">
-          <vue-pdf-embed
-            :source="file.download_url"
-            :page="currentPage"
-            @loaded="handlePdfLoad"
-            @error="handleError"
-            style="width: 100%;"
-          />
+        <div class="pdf-viewer" ref="pdfViewerRef">
+          <div v-for="page in numPages" :key="page" class="pdf-page" ref="pdfPages">
+            <vue-pdf-embed
+              :source="file.download_url"
+              :page="page"
+              @loaded="handlePdfLoad"
+              @error="handleError"
+              style="width: 100%;"
+            />
+          </div>
           <div v-if="loading" class="loading-indicator">
             Loading PDF...
           </div>
@@ -140,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { Close, Edit, Document, Warning } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import VuePdfEmbed from 'vue-pdf-embed'
@@ -167,6 +169,10 @@ const currentPage = ref(1);
 const markdownContent = ref('');
 const saving = ref(false);
 const isLoadingPdf = ref(false);
+const pdfViewerRef = ref(null);
+const pdfPages = ref([]);
+const observers = ref([]);
+const isScrolling = ref(false);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -212,7 +218,6 @@ function handleImageError(e) {
 }
 
 async function handlePdfLoad(pdfDocument) {
-  // Guard against recursive calls
   if (isLoadingPdf.value) return;
   
   try {
@@ -220,29 +225,28 @@ async function handlePdfLoad(pdfDocument) {
     loading.value = true;
     error.value = null;
     
-    // If pdfDocument is a number, it's the total pages from vue-pdf-embed
     if (typeof pdfDocument === 'number') {
       numPages.value = pdfDocument;
       currentPage.value = 1;
-      console.log('PDF loaded with pages:', numPages.value);
+      await nextTick();
+      setupIntersectionObserver();
       return;
     }
     
-    // Don't try to load the PDF document again if we already have the page count
     if (numPages.value > 1) {
-      //loading.value = false;
+      loading.value = false;
       return;
     } else {
       console.log('PDF loaded with pages:::', numPages.value);
       loading.value = false;
     }
 
-    // If we get here, we need to load the PDF document to get the page count
     const loadingTask = window.pdfjsLib.getDocument(props.file.download_url);
     const pdf = await loadingTask.promise;
     numPages.value = pdf.numPages;
     currentPage.value = 1;
-    console.log('PDF loaded with pages:', numPages.value);
+    await nextTick();
+    setupIntersectionObserver();
     
   } catch (err) {
     console.error('Error loading PDF:', err);
@@ -426,7 +430,57 @@ function handleMarkdownChange(newContent) {
 }
 
 function handlePageChange(newPage) {
+  isScrolling.value = true;
   currentPage.value = newPage;
+  
+  const targetPage = pdfPages.value[newPage - 1];
+  if (targetPage) {
+    targetPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Reset scrolling flag after animation
+    setTimeout(() => {
+      isScrolling.value = false;
+    }, 500);
+  }
+}
+
+function setupIntersectionObserver() {
+  // Clear existing observers
+  observers.value.forEach(observer => observer.disconnect());
+  observers.value = [];
+
+  // Wait for PDF pages to be rendered
+  nextTick(() => {
+    const options = {
+      root: pdfViewerRef.value,
+      threshold: 0.5 // Page is considered visible when 50% is in view
+    };
+
+    const callback = (entries) => {
+      if (isScrolling.value) return;
+
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const pageNum = parseInt(entry.target.getAttribute('data-page'));
+          if (pageNum !== currentPage.value) {
+            currentPage.value = pageNum;
+          }
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(callback, options);
+
+    // Observe each PDF page
+    const pages = pdfPages.value;
+    pages.forEach((page, index) => {
+      if (page) {
+        page.setAttribute('data-page', index + 1);
+        observer.observe(page);
+        observers.value.push(observer);
+      }
+    });
+  });
 }
 
 // Initialize PDF when file changes
@@ -488,6 +542,13 @@ watch(() => props.file, async (newFile) => {
   flex-direction: column;
   align-items: center;
   overflow: auto;
+  scroll-behavior: smooth;
+}
+
+.pdf-page {
+  width: 100%;
+  margin-bottom: 16px;
+  scroll-snap-align: start;
 }
 
 .pdf-controls {

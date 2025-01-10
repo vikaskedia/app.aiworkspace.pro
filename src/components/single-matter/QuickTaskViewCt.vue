@@ -1277,6 +1277,10 @@ Please provide assistance based on this context, the comment history, the availa
   pointer-events: none;
 }
 
+div.description-content>p>a {
+  color: #409EFF;
+  text-decoration: none;
+}
 .description-content:deep(a) {
   color: #409EFF;
   text-decoration: none;
@@ -1394,6 +1398,10 @@ Please provide assistance based on this context, the comment history, the availa
   white-space: pre-wrap;
 }
 
+div.comment-text>span>p>a {
+  color: #409EFF;
+  text-decoration: none;
+}
 .comment-text>span:deep(a) {
   color: #409EFF;
   text-decoration: none;

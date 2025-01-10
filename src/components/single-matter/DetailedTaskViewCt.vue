@@ -3231,109 +3231,26 @@ table.editor-table {
 
 <style scoped>
 .task-content-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 24px;
-  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
 .task-main-content {
-  min-width: 0; /* Prevents content overflow */
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 2rem;
 }
 
 .task-comments-section {
-  background: var(--el-bg-color);
+  background: white;
   border-radius: 8px;
-  border: 1px solid var(--el-border-color-light);
-  height: fit-content;
-  position: sticky;
-  top: 20px;
-}
-
-.task-comments {
-  padding: 20px;
-}
-
-.comments-list {
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
-  margin-bottom: 20px;
-}
-
-.comment-item {
-  margin-bottom: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--el-fill-color-light);
-}
-
-.comment-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.comment-author {
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-.comment-date {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.comment-text {
-  color: var(--el-text-color-regular);
-  line-height: 1.5;
-}
-
-.comment-input {
-  border-top: 1px solid var(--el-border-color-lighter);
-  padding-top: 16px;
-}
-
-/* Mobile Responsive Layout */
-@media (max-width: 1024px) {
-  .task-content-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .task-comments-section {
-    position: static;
-    margin-top: 24px;
-  }
-
-  .comments-list {
-    max-height: 500px;
-  }
-}
-
-/* Tablet Layout */
-@media (min-width: 1025px) and (max-width: 1280px) {
-  .task-content-wrapper {
-    grid-template-columns: 1fr 350px;
-  }
-}
-
-/* Scrollbar Styling */
-.comments-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.comments-list::-webkit-scrollbar-track {
-  background: var(--el-fill-color-lighter);
-  border-radius: 3px;
-}
-
-.comments-list::-webkit-scrollbar-thumb {
-  background: var(--el-border-color);
-  border-radius: 3px;
-}
-
-.comments-list::-webkit-scrollbar-thumb:hover {
-  background: var(--el-border-color-darker);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 2rem;
 }
 </style>
 

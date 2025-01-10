@@ -18,7 +18,7 @@
         </el-button>
         <el-button 
           type="warning"
-          @click="logHoursDialogVisible = true"
+          @click="logHoursDialogVisible"
           style="margin-right: 10px">
           Log Hours
         </el-button>
@@ -403,9 +403,26 @@
       <!-- Comments Section -->
       <div class="task-comments-section">
         <div class="task-comments">
-          <h3>Comments</h3>
+          <div class="comments-header">
+            <h3>Comments</h3>
+            <el-switch
+              v-model="showArchivedComments"
+              active-text="Show archived"
+              @change="loadComments"
+            />
+          </div>
           <div class="comments-list">
-            <div v-for="comment in comments" :key="comment.id" :class="['comment-item', { 'ai-response': comment.type === 'ai_response' }]">
+            <div 
+              v-for="comment in comments" 
+              :key="comment.id" 
+              :class="[
+                'comment-item', 
+                { 
+                  'ai-response': comment.type === 'ai_response',
+                  'archived': comment.archived 
+                }
+              ]"
+            >
               <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
                 <div class="comment-header">
                   <span class="comment-author">
@@ -430,13 +447,22 @@
                           })
                       }}
                     </span>
-                    <el-button 
-                      v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
-                      link
-                      @click="startEditing(comment)"
-                    >
-                      Edit
-                    </el-button>
+                    <div class="comment-action-buttons">
+                      <el-button 
+                        v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
+                        link
+                        @click="startEditing(comment)"
+                      >
+                        Edit
+                      </el-button>
+                      <el-button 
+                        v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
+                        link
+                        @click="toggleArchiveComment(comment)"
+                      >
+                        {{ comment.archived ? 'Unarchive' : 'Archive' }}
+                      </el-button>
+                    </div>
                   </div>
                 </div>
                 <div class="comment-text">
@@ -746,6 +772,8 @@ export default {
       editingTitle: '',
       isEditingDescription: false,
       editingDescription: '',
+      showArchivedComments: false,
+      filteredComments: [],
     };
   },
   async created() {
@@ -1080,7 +1108,10 @@ export default {
           }
         }
 
-        this.comments = comments;
+        // Filter comments based on archived status
+        this.comments = comments.filter(comment => 
+          this.showArchivedComments ? true : !comment.archived
+        );
       } catch (error) {
         ElMessage.error('Error loading comments: ' + error.message);
       } finally {
@@ -2118,7 +2149,30 @@ export default {
       }
 
       return rootTasks;
-    }
+    },
+    async toggleArchiveComment(comment) {
+      try {
+        const newArchivedState = !comment.archived;
+        const { error } = await supabase
+          .from('task_comments')
+          .update({ 
+            archived: newArchivedState,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', comment.id);
+
+        if (error) throw error;
+
+        // Update local comment
+        comment.archived = newArchivedState;
+        ElMessage.success(`Comment ${newArchivedState ? 'archived' : 'unarchived'} successfully`);
+        
+        await this.loadComments();
+      } catch (error) {
+        console.error('Error toggling comment archive:', error);
+        ElMessage.error('Failed to update comment archive status');
+      }
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2787,6 +2841,7 @@ h4 {
   text-decoration: none;
 }
 
+
 .comments-list {
   display: flex;
   flex-direction: column;
@@ -3338,5 +3393,38 @@ table.editor-table {
 
 .comment-text {
   margin-top: 8px;
+}
+</style>
+
+<style scoped>
+/* Add to existing styles */
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.comment-item.archived {
+  opacity: 0.7;
+  background-color: #f5f7fa;
+}
+</style>
+
+<style scoped>
+.comment-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-item.archived {
+  opacity: 0.7;
+  background-color: #f5f7fa;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 </style>

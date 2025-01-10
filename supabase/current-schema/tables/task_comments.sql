@@ -64,4 +64,5 @@ USING (
   )
 );
 
-
+ALTER TABLE task_comments
+ADD COLUMN archived BOOLEAN DEFAULT false;

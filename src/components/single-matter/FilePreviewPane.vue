@@ -2,7 +2,7 @@
   <div class="file-preview-pane" v-if="file">
     <div class="preview-header">
       <h3>{{ file.name }}</h3>
-      <div class="header-actions">
+      <!-- <div class="header-actions">
         <el-button 
           type="primary" 
           link 
@@ -13,7 +13,7 @@
         <el-button type="primary" link @click="$emit('close')">
           <el-icon><Close /></el-icon>
         </el-button>
-      </div>
+      </div> -->
     </div>
     
     <el-dialog
@@ -56,15 +56,25 @@
       </div>
       
       <!-- PDF Preview -->
-      <iframe
-        v-else-if="file.type === 'application/pdf'"
-        :src="file.download_url"
-        class="pdf-viewer"
-        @load="handlePdfLoad"
-        @error="handleError"
-        sandbox="allow-same-origin allow-scripts allow-forms"
-        type="application/pdf"
-      ></iframe>
+      <template v-else-if="file.type === 'application/pdf'">
+        <div class="pdf-viewer">
+          <vue-pdf-embed
+            :source="file.download_url"
+            :page="currentPage"
+            @loaded="handlePdfLoad"
+            @error="handleError"
+            style="width: 100%;"
+          />
+          <div class="pdf-controls" v-if="numPages > 1">
+            <el-pagination
+              v-model:current-page="currentPage"
+              :page-size="1"
+              :total="numPages"
+              layout="prev, pager, next"
+            />
+          </div>
+        </div>
+      </template>
       
       <!-- Image Preview -->
       <template v-if="file.type.startsWith('image/')">
@@ -91,8 +101,30 @@
         <pre>{{ textContent }}</pre>
       </div>
       
+      <!-- Markdown Preview -->
+      <div
+        v-else-if="file.type === 'text/markdown'"
+        class="markdown-preview"
+      >
+        <MarkDownEditor
+          v-model="markdownContent"
+          :placeholder="'Edit markdown content...'"
+          class="markdown-editor"
+          @update:modelValue="handleMarkdownChange"
+        />
+        <div class="markdown-actions">
+          <el-button 
+            type="primary" 
+            :loading="saving" 
+            @click="saveMarkdownContent"
+          >
+            Save Changes
+          </el-button>
+        </div>
+      </div>
+      
       <!-- Fallback -->
-      <div v-else class="no-preview">
+      <div v-else-if="file.type !== 'application/pdf'" class="no-preview">
         <el-icon class="no-preview-icon"><Document /></el-icon>
         <p>Preview not available for this file type</p>
         <el-button type="primary" @click="downloadFile">
@@ -107,6 +139,8 @@
 import { ref, onMounted, watch } from 'vue';
 import { Close, Edit, Document, Warning } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import VuePdfEmbed from 'vue-pdf-embed'
+import MarkDownEditor from '../common/MarkDownEditor.vue'
 
 const props = defineProps({
   file: {
@@ -123,6 +157,11 @@ const renameDialogVisible = ref(false);
 const renameForm = ref({ newName: '' });
 const renaming = ref(false);
 const emit = defineEmits(['close', 'update:file']);
+
+const numPages = ref(1);
+const currentPage = ref(1);
+const markdownContent = ref('');
+const saving = ref(false);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -167,9 +206,10 @@ function handleImageError(e) {
   error.value = 'Failed to load image';
 }
 
-function handlePdfLoad() {
+function handlePdfLoad(totalPages) {
   loading.value = false;
   error.value = null;
+  numPages.value = totalPages;
 }
 
 function showRenameDialog() {
@@ -270,17 +310,91 @@ async function handleRename() {
   }
 }
 
+async function loadMarkdownContent() {
+  if (props.file.type === 'text/markdown') {
+    try {
+      loading.value = true;
+      error.value = null;
+      const response = await fetch(props.file.download_url);
+      if (!response.ok) throw new Error('Failed to load file content');
+      markdownContent.value = await response.text();
+    } catch (err) {
+      error.value = 'Failed to load markdown content';
+      console.error('Error loading markdown content:', err);
+    } finally {
+      loading.value = false;
+    }
+  }
+}
+
+async function saveMarkdownContent() {
+  if (!markdownContent.value) return;
+
+  try {
+    saving.value = true;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    
+    // Convert content to base64
+    const base64Content = btoa(markdownContent.value);
+
+    // Update file in Gitea
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `token ${giteaToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Update ${props.file.name}`,
+          content: base64Content,
+          sha: props.file.id,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!response.ok) throw new Error('Failed to save changes');
+
+    const newFileData = await response.json();
+    
+    // Update the file object
+    const updatedFile = {
+      ...props.file,
+      id: newFileData.content.sha,
+      download_url: newFileData.content.download_url
+    };
+
+    // Emit the updated file
+    emit('update:file', updatedFile);
+    
+    ElMessage.success('Changes saved successfully');
+  } catch (error) {
+    console.error('Error saving markdown:', error);
+    ElMessage.error('Failed to save changes: ' + error.message);
+  } finally {
+    saving.value = false;
+  }
+}
+
+function handleMarkdownChange(newContent) {
+  markdownContent.value = newContent;
+}
+
+// Initialize PDF when file changes
 watch(() => props.file, async (newFile) => {
   if (newFile) {
     loading.value = true;
     error.value = null;
     
-    // Only fetch content for text files
     if (newFile.type === 'text/plain') {
       await loadTextContent();
-    }
-    // For images and PDFs, loading state will be managed by their respective @load events
-    else if (!newFile.type.startsWith('image/') && newFile.type !== 'application/pdf') {
+    } else if (newFile.type === 'text/markdown') {
+      await loadMarkdownContent();
+    } else if (!newFile.type.startsWith('image/')) {
       loading.value = false;
     }
   }
@@ -297,7 +411,7 @@ watch(() => props.file, async (newFile) => {
 }
 
 .preview-header {
-  padding: 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid #dcdfe6;
   display: flex;
   justify-content: space-between;
@@ -324,8 +438,30 @@ watch(() => props.file, async (newFile) => {
 .pdf-viewer {
   width: 100%;
   height: 100%;
-  border: none;
-  display: block;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+}
+
+.pdf-controls {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding: 8px;
+  border-top: 1px solid #dcdfe6;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Style for each PDF page */
+.pdf-viewer >>> canvas {
+  max-width: 100%;
+  height: auto !important;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .image-preview {
@@ -381,5 +517,26 @@ watch(() => props.file, async (newFile) => {
 
 .folder-navigation .clickable:hover {
   text-decoration: underline;
+}
+
+.markdown-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-editor {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+}
+
+.markdown-actions {
+  padding: 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #dcdfe6;
 }
 </style> 

@@ -34,6 +34,10 @@ const filters = ref({
   type: null,
   showFilters: false
 });
+const splitViews = ref([]);
+const maxSplits = 10;
+const splitFiles = ref([]);
+const splitFolders = ref([]);
 
 // Expose these refs to make them accessible from parent
 defineExpose({
@@ -47,7 +51,8 @@ const FILE_TYPES = {
   PDF: 'application/pdf',
   WORD: 'application/msword',
   TEXT: 'text/plain',
-  IMAGE: ['image/jpeg', 'image/png', 'image/gif']
+  IMAGE: ['image/jpeg', 'image/png', 'image/gif'],
+  MD: 'text/markdown'
 };
 
 const activeFiltersCount = computed(() => {
@@ -58,7 +63,11 @@ const activeFiltersCount = computed(() => {
 });
 
 const filteredItems = computed(() => {
-  let result = [...folders.value, ...files.value];
+  // Use different source arrays based on whether we're in a split view
+  const sourceFiles = splitViews.value.length > 0 ? splitFiles.value : files.value;
+  const sourceFolders = splitViews.value.length > 0 ? splitFolders.value : folders.value;
+  
+  let result = [...sourceFolders, ...sourceFiles];
   
   if (filters.value.search) {
     const query = filters.value.search.toLowerCase();
@@ -68,9 +77,7 @@ const filteredItems = computed(() => {
   }
   
   if (filters.value.type) {
-    console.log('Filter type:', filters.value.type);
     result = result.filter(item => {
-      console.log('Item type:', item.type);
       if (filters.value.type === FILE_TYPES.FOLDER) {
         return item.type === 'dir';
       }
@@ -140,29 +147,20 @@ async function loadFiles() {
     const path = currentFolder.value?.path || '';
     
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
-    console.log('Making request to:', apiUrl);
-    console.log('Environment:', {
-      VITE_GITEA_HOST: import.meta.env.VITE_GITEA_HOST,
-      hasToken: !!giteaToken
-    });
-
+    
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: getGiteaHeaders(giteaToken),
       credentials: 'same-origin'
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
     if (!response.ok) {
       const text = await response.text();
-      console.error('Error response body:', text);
       throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
     }
 
     const contents = await response.json();
-    files.value = contents
+    const fileItems = contents
       .filter(item => item.type === 'file' && item.name !== '.gitkeep')
       .map(file => ({
         id: file.sha,
@@ -177,8 +175,20 @@ async function loadFiles() {
         download_url: file.download_url
       }));
 
+    // Update the appropriate array based on context
+    if (splitViews.value.length > 0) {
+      splitFiles.value = fileItems;
+    } else {
+      files.value = fileItems;
+    }
+
   } catch (error) {
     ElMessage.error('Error loading files: ' + error.message);
+    if (splitViews.value.length > 0) {
+      splitFiles.value = [];
+    } else {
+      files.value = [];
+    }
   } finally {
     loading.value = false;
   }
@@ -195,6 +205,7 @@ function getFileType(filename) {
     jpg: 'image/jpeg', 
     jpeg: 'image/jpeg',
     gif: 'image/gif',  
+    md: 'text/markdown'
   };
   return mimeTypes[ext] || 'application/octet-stream';
 }
@@ -353,7 +364,6 @@ async function loadFolders() {
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const path = currentFolder.value?.path || '';
     
-    // Construct the URL properly
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
     
     const response = await fetch(apiUrl, {
@@ -364,13 +374,11 @@ async function loadFolders() {
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error('Error response body:', text);
       throw new Error(`Failed to fetch folders: ${response.status} ${response.statusText}`);
     }
 
     const contents = await response.json();
-    folders.value = contents
+    const folderItems = contents
       .filter(item => item.type === 'dir')
       .map(folder => ({
         id: folder.sha,
@@ -379,10 +387,21 @@ async function loadFolders() {
         type: 'dir'
       }));
 
+    // Update the appropriate array based on context
+    if (splitViews.value.length > 0) {
+      splitFolders.value = folderItems;
+    } else {
+      folders.value = folderItems;
+    }
+
   } catch (error) {
     console.error('Folder loading error:', error);
     ElMessage.error('Error loading folders: ' + error.message);
-    folders.value = [];
+    if (splitViews.value.length > 0) {
+      splitFolders.value = [];
+    } else {
+      folders.value = [];
+    }
   } finally {
     loading.value = false;
   }
@@ -439,59 +458,66 @@ async function createFolder() {
   }
 }
 
-async function navigateToFolder(folder) {
+async function navigateToFolder(folder, splitIndex = null) {
   try {
     loading.value = true;
     
-    if (!folder) {
-      // Reset to root
-      currentFolder.value = null;
-      folderBreadcrumbs.value = [];
-    } else if (folder.id === currentFolder.value?.id) {
-      // Clicking current folder - do nothing
-      return;
-    } else {
-      // Find if folder exists in current breadcrumbs
-      const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
-      
-      if (existingIndex >= 0) {
-        // Clicking a folder in breadcrumbs - truncate to that point
-        folderBreadcrumbs.value = folderBreadcrumbs.value.slice(0, existingIndex + 1);
+    if (splitIndex !== null) {
+      const split = splitViews.value[splitIndex];
+      // Always reset to root when initializing a new split view
+      if (!folder) {
+        split.currentFolder = null;
+        split.folderBreadcrumbs = [];
+        currentFolder.value = null;
       } else {
-        // New folder - add to breadcrumbs
-        folderBreadcrumbs.value.push(folder);
+        // Normal folder navigation within the split view
+        if (folder.id === split.currentFolder?.id) {
+          return; // Clicking current folder - do nothing
+        }
+        
+        const existingIndex = split.folderBreadcrumbs.findIndex(f => f.id === folder.id);
+        
+        if (existingIndex >= 0) {
+          split.folderBreadcrumbs = split.folderBreadcrumbs.slice(0, existingIndex + 1);
+        } else {
+          split.folderBreadcrumbs.push(folder);
+        }
+        split.currentFolder = folder;
+        currentFolder.value = folder;
       }
-      currentFolder.value = folder;
-    }
-
-    // Load both folders and files, handle errors individually
-    const [foldersError, filesError] = await Promise.all([
-      loadFolders().catch(error => error),
-      loadFiles().catch(error => error)
-    ]);
-
-    // Handle errors
-    if (foldersError) {
-      ElMessage.warning('Could not load folders, but files are available');
-      console.error('Folder loading error:', foldersError);
-    }
-
-    if (filesError) {
-      ElMessage.error('Error loading files');
-      console.error('File loading error:', filesError);
-      // Revert navigation if both operations failed
-      if (foldersError) {
+    } else {
+      // Main view navigation remains unchanged
+      if (!folder) {
         currentFolder.value = null;
         folderBreadcrumbs.value = [];
-        throw new Error('Failed to navigate to folder');
+      } else if (folder.id === currentFolder.value?.id) {
+        return;
+      } else {
+        const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
+        
+        if (existingIndex >= 0) {
+          folderBreadcrumbs.value = folderBreadcrumbs.value.slice(0, existingIndex + 1);
+        } else {
+          folderBreadcrumbs.value.push(folder);
+        }
+        currentFolder.value = folder;
       }
     }
+
+    // Load both folders and files
+    await Promise.all([loadFolders(), loadFiles()]);
 
   } catch (error) {
     ElMessage.error('Error navigating to folder: ' + error.message);
-    // Reset to previous state
-    currentFolder.value = null;
-    folderBreadcrumbs.value = [];
+    // Reset navigation state based on context
+    if (splitIndex !== null) {
+      splitViews.value[splitIndex].currentFolder = null;
+      splitViews.value[splitIndex].folderBreadcrumbs = [];
+      currentFolder.value = null;
+    } else {
+      currentFolder.value = null;
+      folderBreadcrumbs.value = [];
+    }
   } finally {
     loading.value = false;
   }
@@ -546,24 +572,72 @@ function logRequestDetails(url, options) {
   console.log('Mode:', options.mode);
   console.groupEnd();
 }
+
+const canAddSplit = computed(() => splitViews.value.length < maxSplits);
+
+function addSplitView() {
+  if (canAddSplit.value) {
+    loading.value = true;
+    
+    // Reset split view arrays first
+    splitFiles.value = [];
+    splitFolders.value = [];
+    
+    splitViews.value.push({
+      selectedFile: null,
+      showFileBrowser: true,
+      currentFolder: null,
+      folderBreadcrumbs: []
+    });
+    
+    // Reset current folder and load files for split view
+    currentFolder.value = null;
+    
+    // Load files and folders immediately
+    Promise.all([loadFolders(), loadFiles()])
+      .finally(() => {
+        loading.value = false;
+      });
+  }
+}
+
+function removeSplitView(index) {
+  splitViews.value.splice(index, 1);
+  // If no more splits, show the file system again
+  if (splitViews.value.length === 0) {
+    selectedFile.value = null;
+  }
+}
+
+function handleSplitFileSelect(file, splitIndex) {
+  splitViews.value[splitIndex].selectedFile = file;
+  splitViews.value[splitIndex].showFileBrowser = false;
+}
+
+function toggleFileBrowser(splitIndex) {
+  splitViews.value[splitIndex].showFileBrowser = 
+    !splitViews.value[splitIndex].showFileBrowser;
+}
 </script>
 
 <template>
   <div class="manage-files">
-    <div class="content" :class="{ 'with-preview': selectedFile }">
-      <div class="files-section">
+    <!-- <div class="content" :class="{ 'split-view': splitViews.length > 0 }"> -->
+    <div class="content" :class="{ 'split-view': selectedFile }">
+      <!-- File system - Only show when no splits are active -->
+      <div class="files-section" v-if="!splitViews.length">
         <div class="header">
           <div class="breadcrumbs">
             <el-breadcrumb separator="/">
               <el-breadcrumb-item 
-                @click="navigateToFolder(null)"
+                @click="navigateToFolder(null, null)"
                 :class="{ clickable: currentFolder }">
                 Root
               </el-breadcrumb-item>
               <el-breadcrumb-item 
                 v-for="folder in folderBreadcrumbs" 
                 :key="folder.id"
-                @click="navigateToFolder(folder)"
+                @click="navigateToFolder(folder, null)"
                 :class="{ clickable: folder.id !== currentFolder?.id }">
                 {{ folder.name }}
               </el-breadcrumb-item>
@@ -643,7 +717,7 @@ function logRequestDetails(url, options) {
                 <el-icon v-if="scope.row.type === 'dir'"><Folder /></el-icon>
                 <span 
                   class="clickable-filename"
-                  @click="scope.row.type === 'dir' ? navigateToFolder(scope.row) : selectedFile = scope.row">
+                  @click="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : selectedFile = scope.row">
                   {{ scope.row.name }}
                 </span>
               </div>
@@ -672,13 +746,98 @@ function logRequestDetails(url, options) {
           </el-table-column>
         </el-table>
       </div>
-      
-      <FilePreviewPane
-        v-if="selectedFile"
-        v-model:file="selectedFile"
-        @close="selectedFile = null"
-        @update:file="handleFileUpdate"
-      />
+
+      <!-- Main preview pane -->
+      <template v-if="selectedFile">
+        <div class="preview-container">
+          <div class="preview-actions">
+            <el-button
+                type="primary"
+                @click="addSplitView"
+                size="small">
+                Split Page
+              </el-button>
+          </div>
+          <FilePreviewPane
+            v-model:file="selectedFile"
+            @close="selectedFile = null"
+            @update:file="handleFileUpdate"
+          />
+        </div>
+
+        <!-- Split views - show file browser by default -->
+        <template v-for="(split, index) in splitViews" :key="index">
+          <div class="preview-container split">
+            <div class="preview-actions">
+              <el-button 
+                v-if="split.selectedFile"
+                type="primary"
+                @click="split.showFileBrowser = true"
+                size="small">
+                Browse Files
+              </el-button>
+              <el-button 
+                type="danger"
+                @click="removeSplitView(index)"
+                size="small">
+                Close Split
+              </el-button>
+            </div>
+            
+            <template v-if="split.showFileBrowser">
+              <div class="file-browser">
+                <div class="folder-navigation">
+                  <el-breadcrumb separator="/">
+                    <el-breadcrumb-item 
+                      @click="navigateToFolder(null, index)"
+                      :class="{ clickable: split.currentFolder }">
+                      Root
+                    </el-breadcrumb-item>
+                    <el-breadcrumb-item 
+                      v-for="folder in split.folderBreadcrumbs" 
+                      :key="folder.id"
+                      @click="navigateToFolder(folder, index)"
+                      :class="{ clickable: folder.id !== split.currentFolder?.id }">
+                      {{ folder.name }}
+                    </el-breadcrumb-item>
+                  </el-breadcrumb>
+                </div>
+
+                <el-table
+                  v-loading="loading"
+                  :data="filteredItems"
+                  style="width: 100%"
+                  @sort-change="handleSort">
+                  <el-table-column prop="name" label="Name" sortable="custom">
+                    <template #default="scope">
+                      <div class="name-cell">
+                        <el-icon v-if="scope.row.type === 'dir'">
+                          <Folder />
+                        </el-icon>
+                        <span 
+                          class="clickable-filename"
+                          @click="scope.row.type === 'dir' ? 
+                            navigateToFolder(scope.row, index) : 
+                            handleSplitFileSelect(scope.row, index)">
+                          {{ scope.row.name }}
+                        </span>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </template>
+            
+            <template v-else-if="split.selectedFile">
+              <FilePreviewPane
+                v-model:file="split.selectedFile"
+                @close="split.selectedFile = null"
+                @update:file="(file) => split.selectedFile = file"
+              />
+            </template>
+          </div>
+        </template>
+      </template>
     </div>
 
     <!-- Upload Dialog -->
@@ -814,7 +973,7 @@ function logRequestDetails(url, options) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  padding: 1rem;
 }
 
 .header h2 {
@@ -955,5 +1114,75 @@ function logRequestDetails(url, options) {
   .filter-form :deep(.el-select) {
     width: 100%;
   }
+}
+
+/* Add these styles to your existing styles */
+.content.split-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  max-width: none;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcdfe6;
+  background: white;
+  height: calc(100vh - 2rem);
+}
+
+.file-browser {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: white;
+}
+
+.files-section {
+  background: white;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+}
+
+.folder-navigation {
+  padding: 8px 16px;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.clickable {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+}
+
+.preview-actions {
+  padding: 8px;
+  border-bottom: 1px solid #dcdfe6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .content.split-view {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<style>
+.matter-content.matter-content--files {
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+.el-breadcrumb {
+  margin-bottom: 0 !important;
 }
 </style>

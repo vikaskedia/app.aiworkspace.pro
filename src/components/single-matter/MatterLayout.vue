@@ -6,7 +6,7 @@
       :context="currentContext"
       @action="handleQuickAction"
     />
-    <div class="matter-content">
+    <div class="matter-content" :class="`matter-content--${currentContext}`">
       <router-view v-slot="{ Component }">
         <component :is="Component" ref="currentComponent" />
       </router-view>

@@ -1051,12 +1051,14 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 15px;
   
   .suggestion-text {
     color: var(--el-text-color-disabled);
     font-family: monospace;
     white-space: pre;
+    height: 15px;
+    line-height: 15px;
   }
   
   .suggestion-controls {
@@ -1065,6 +1067,7 @@ export default {
     display: flex;
     align-items: center;
     gap: 4px;
+    height: 15px;
     
     kbd {
       background: var(--el-fill-color-lighter);

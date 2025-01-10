@@ -84,6 +84,25 @@
             </div>
           </div>
 
+          <!-- Add this after the task title section -->
+          <div class="task-parent">
+            <h4>Parent Task</h4>
+            <el-select
+              v-model="task.parent_task_id"
+              style="width: 100%"
+              :disabled="!canEditTask"
+              placeholder="Select parent task"
+              @change="updateParentTask"
+            >
+              <el-option
+                v-for="parentTask in flattenedTasks"
+                :key="parentTask.id ?? 'no-parent'"
+                :label="parentTask.title"
+                :value="parentTask.id ?? ''"
+              />
+            </el-select>
+          </div>
+
           <div v-if="showTaskHistory" class="edit-history">
             <div 
               v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
@@ -622,6 +641,7 @@
 import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
+import { useCacheStore } from '../../store/cache';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
@@ -647,8 +667,9 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
+    const cacheStore = useCacheStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    return { currentMatter, cacheStore };
   },
   data() {
     return {
@@ -2022,6 +2043,77 @@ export default {
       this.isEditingDescription = false;
       this.editingDescription = '';
     },
+    async updateParentTask(parentTaskId) {
+      try {
+        if (!this.canEditTask) {
+          ElMessage.warning('You do not have permission to modify this task');
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Convert empty string to null for database
+        const newParentTaskId = parentTaskId === '' ? null : parentTaskId;
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({ 
+            parent_task_id: newParentTaskId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id);
+
+        if (error) throw error;
+
+        // Update local task data
+        this.task.parent_task_id = newParentTaskId;
+        
+        // Create activity log
+        const newParentTask = this.flattenedTasks.find(t => t.id === parentTaskId);
+        const activityMessage = parentTaskId 
+          ? `Set parent task to "${newParentTask.title}"`
+          : 'Removed parent task';
+
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: activityMessage,
+            type: 'activity',
+            metadata: {
+              action: 'update',
+              changes: {
+                parent_task_id: {
+                  from: this.task.parent_task_id,
+                  to: newParentTaskId
+                }
+              }
+            }
+          });
+
+        ElMessage.success(activityMessage);
+      } catch (error) {
+        console.error('Error updating parent task:', error);
+        ElMessage.error('Failed to update parent task');
+      }
+    },
+    organizeTasksHierarchy(tasks) {
+      // Create a map of all tasks
+      const taskMap = new Map(tasks.map(task => [task.id, { ...task, children: [] }]));
+      const rootTasks = [];
+
+      // Organize tasks into hierarchy
+      for (const task of taskMap.values()) {
+        if (task.parent_task_id && taskMap.has(task.parent_task_id)) {
+          taskMap.get(task.parent_task_id).children.push(task);
+        } else {
+          rootTasks.push(task);
+        }
+      }
+
+      return rootTasks;
+    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2074,6 +2166,78 @@ export default {
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  },
+    canEditTask() {
+      if (!this.currentMatter || !this.currentUser) return false;
+      const userAccess = this.sharedUsers.find(u => u.id === this.currentUser.id);
+      return userAccess?.access_type === 'edit';
+    },
+    
+    flattenedTasks() {
+      const flattened = [{
+        id: '',
+        title: '- no parent -'
+      }];
+      
+      // Helper function to get all predecessor task IDs
+      const getPredecessorIds = (taskId, taskMap, visited = new Set()) => {
+        if (visited.has(taskId)) return [];
+        visited.add(taskId);
+        
+        const task = taskMap.get(taskId);
+        if (!task) return [];
+        
+        const predecessors = [taskId];
+        if (task.parent_task_id) {
+          predecessors.push(...getPredecessorIds(task.parent_task_id, taskMap, visited));
+        }
+        return predecessors;
+      };
+
+      // Helper function to get all descendant task IDs
+      const getDescendantIds = (taskId, taskMap) => {
+        const descendants = [];
+        const task = taskMap.get(taskId);
+        if (!task) return descendants;
+
+        for (const [id, t] of taskMap.entries()) {
+          if (t.parent_task_id === taskId) {
+            descendants.push(id);
+            descendants.push(...getDescendantIds(id, taskMap));
+          }
+        }
+        return descendants;
+      };
+
+      const flatten = (tasks, depth = 0) => {
+        const taskMap = new Map(tasks.map(task => [task.id, task]));
+        
+        // Get all invalid task IDs (current task, predecessors, and descendants)
+        const invalidTaskIds = new Set([
+          this.task?.id,
+          ...getPredecessorIds(this.task?.id, taskMap),
+          ...getDescendantIds(this.task?.id, taskMap)
+        ]);
+
+        for (const task of tasks) {
+          // Only include tasks that aren't in the invalid set
+          if (!invalidTaskIds.has(task.id)) {
+            flattened.push({
+              id: task.id || '',
+              title: '  '.repeat(depth) + task.title
+            });
+            if (task.children?.length) {
+              flatten(task.children, depth + 1);
+            }
+          }
+        }
+      };
+      
+      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
+      const organizedTasks = this.organizeTasksHierarchy(cachedTasks);
+      flatten(organizedTasks);
+      
+      return flattened;
   }
   }
 };
@@ -3096,5 +3260,51 @@ table.editor-table {
 
 .comments-list::-webkit-scrollbar-thumb:hover {
   background: var(--el-border-color-darker);
+}
+</style>
+
+<style scoped>
+.task-parent {
+  margin-top: 16px;
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.task-parent h4 {
+  margin: 0;
+  color: #606266;
+}
+
+.task-parent .el-select {
+  width: 100%;
+}
+</style>
+
+<style scoped>
+/* Add to your existing styles */
+.task-parent {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: var(--el-bg-color);
+  border-radius: 8px;
+}
+
+.task-parent h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--el-text-color-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-parent :deep(.el-select) {
+  width: 100%;
+}
+
+.task-parent :deep(.el-select.is-disabled .el-input) {
+  opacity: 0.7;
 }
 </style>

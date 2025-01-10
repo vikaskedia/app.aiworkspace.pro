@@ -2109,7 +2109,7 @@ export default {
 }
 
 .description:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--el-bg-color);
 }
 
 .description-edit {
@@ -2971,10 +2971,11 @@ table.editor-table {
   border-radius: 4px;
   transition: background-color 0.3s;
   margin: 0;
+  font-size: 15px;
 }
 
 .description:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--el-bg-color);
 }
 
 .description-edit {

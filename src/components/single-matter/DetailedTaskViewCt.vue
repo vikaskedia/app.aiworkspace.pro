@@ -447,22 +447,19 @@
                           })
                       }}
                     </span>
-                    <div class="comment-action-buttons">
-                      <el-button 
-                        v-if="comment.type !== 'activity'"
-                        link
-                        @click="startEditing(comment)"
-                      >
-                        Edit
+                    <el-dropdown v-if="comment.type !== 'activity'" trigger="click">
+                      <el-button link>
+                        <el-icon><MoreFilled /></el-icon>
                       </el-button>
-                      <el-button 
-                        v-if="comment.type !== 'activity'"
-                        link
-                        @click="toggleArchiveComment(comment)"
-                      >
-                        {{ comment.archived ? 'Unarchive' : 'Archive' }}
-                      </el-button>
-                    </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click="startEditing(comment)">Edit</el-dropdown-item>
+                          <el-dropdown-item @click="toggleArchiveComment(comment)">
+                            {{ comment.archived ? 'Unarchive' : 'Archive' }}
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </div>
                 </div>
                 <div class="comment-text">
@@ -685,7 +682,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, MoreFilled } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { useCacheStore } from '../../store/cache';
@@ -710,7 +707,10 @@ export default {
     Calendar,
     Edit,
     CircleCheck,
-    Warning
+    Warning,
+    Delete,
+    More,
+    MoreFilled
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2911,6 +2911,20 @@ h4 {
   gap: 8px;
 }
 
+.comment-actions .el-dropdown {
+  margin-left: 4px;
+}
+
+.comment-actions .el-button {
+  padding: 4px;
+  height: auto;
+}
+
+.comment-actions .el-icon {
+  font-size: 16px;
+  color: #909399;
+}
+
 .edited-marker {
   font-size: 0.9em;
   color: #909399;
@@ -3334,14 +3348,28 @@ table.editor-table {
   gap: 8px;
 }
 
-.comment-item.archived {
-  opacity: 0.7;
-  background-color: #f5f7fa;
+.comment-action-buttons .el-button {
+  font-size: 12px;
+  color: #909399;
+  padding: 4px 8px;
+  height: auto;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.comment-action-buttons .el-button .el-icon {
+  font-size: 14px;
+  margin-right: 2px;
+}
+
+.comment-action-buttons .el-button:hover {
+  color: var(--el-color-primary);
+  background: transparent;
+}
+
+.comment-action-buttons .el-button + .el-button {
+  margin-left: 0;
 }
 </style>

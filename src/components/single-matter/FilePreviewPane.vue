@@ -65,12 +65,16 @@
             @error="handleError"
             style="width: 100%;"
           />
-          <div class="pdf-controls" v-if="numPages > 1">
+          <div v-if="loading" class="loading-indicator">
+            Loading PDF...
+          </div>
+          <div class="pdf-controls" v-show="numPages > 1">
             <el-pagination
               v-model:current-page="currentPage"
               :page-size="1"
               :total="numPages"
               layout="prev, pager, next"
+              @current-change="handlePageChange"
             />
           </div>
         </div>
@@ -162,6 +166,7 @@ const numPages = ref(1);
 const currentPage = ref(1);
 const markdownContent = ref('');
 const saving = ref(false);
+const isLoadingPdf = ref(false);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -206,10 +211,46 @@ function handleImageError(e) {
   error.value = 'Failed to load image';
 }
 
-function handlePdfLoad(totalPages) {
-  loading.value = false;
-  error.value = null;
-  numPages.value = totalPages;
+async function handlePdfLoad(pdfDocument) {
+  // Guard against recursive calls
+  if (isLoadingPdf.value) return;
+  
+  try {
+    isLoadingPdf.value = true;
+    loading.value = true;
+    error.value = null;
+    
+    // If pdfDocument is a number, it's the total pages from vue-pdf-embed
+    if (typeof pdfDocument === 'number') {
+      numPages.value = pdfDocument;
+      currentPage.value = 1;
+      console.log('PDF loaded with pages:', numPages.value);
+      return;
+    }
+    
+    // Don't try to load the PDF document again if we already have the page count
+    if (numPages.value > 1) {
+      //loading.value = false;
+      return;
+    } else {
+      console.log('PDF loaded with pages:::', numPages.value);
+      loading.value = false;
+    }
+
+    // If we get here, we need to load the PDF document to get the page count
+    const loadingTask = window.pdfjsLib.getDocument(props.file.download_url);
+    const pdf = await loadingTask.promise;
+    numPages.value = pdf.numPages;
+    currentPage.value = 1;
+    console.log('PDF loaded with pages:', numPages.value);
+    
+  } catch (err) {
+    console.error('Error loading PDF:', err);
+    error.value = 'Error loading PDF document';
+  } finally {
+    loading.value = false;
+    isLoadingPdf.value = false;
+  }
 }
 
 function showRenameDialog() {
@@ -384,6 +425,10 @@ function handleMarkdownChange(newContent) {
   markdownContent.value = newContent;
 }
 
+function handlePageChange(newPage) {
+  currentPage.value = newPage;
+}
+
 // Initialize PDF when file changes
 watch(() => props.file, async (newFile) => {
   if (newFile) {
@@ -436,13 +481,13 @@ watch(() => props.file, async (newFile) => {
 }
 
 .pdf-viewer {
+  position: relative;
   width: 100%;
   height: 100%;
-  overflow: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px;
+  overflow: auto;
 }
 
 .pdf-controls {
@@ -454,10 +499,11 @@ watch(() => props.file, async (newFile) => {
   width: 100%;
   display: flex;
   justify-content: center;
+  z-index: 1;
 }
 
-/* Style for each PDF page */
-.pdf-viewer >>> canvas {
+/* Style for PDF pages */
+.pdf-viewer :deep(canvas) {
   max-width: 100%;
   height: auto !important;
   margin-bottom: 16px;
@@ -538,5 +584,16 @@ watch(() => props.file, async (newFile) => {
   display: flex;
   justify-content: flex-end;
   border-top: 1px solid #dcdfe6;
+}
+
+.loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style> 

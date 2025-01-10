@@ -49,13 +49,13 @@ WITH CHECK (
   )
 );
 
-CREATE POLICY "Users can update their own comments" 
+-- Replace the existing update policy with this one
+CREATE POLICY "Users can update any comments on tasks they have access to" 
 ON task_comments
 AS PERMISSIVE
 FOR UPDATE 
 TO authenticated 
 USING (
-  user_id = auth.uid() AND
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (

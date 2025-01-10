@@ -449,14 +449,14 @@
                     </span>
                     <div class="comment-action-buttons">
                       <el-button 
-                        v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
+                        v-if="comment.type !== 'activity'"
                         link
                         @click="startEditing(comment)"
                       >
                         Edit
                       </el-button>
                       <el-button 
-                        v-if="comment.user_id === currentUser?.id && comment.type !== 'activity'"
+                        v-if="comment.type !== 'activity'"
                         link
                         @click="toggleArchiveComment(comment)"
                       >

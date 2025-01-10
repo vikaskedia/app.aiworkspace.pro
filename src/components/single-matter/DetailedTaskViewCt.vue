@@ -2773,6 +2773,20 @@ h4 {
   text-decoration: underline;
 }
 
+.comment-text:deep(a) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
+.description:deep(a) {
+  color: #409EFF;
+  text-decoration: none;
+}
+.description-edit:deep(a) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
 .comments-list {
   display: flex;
   flex-direction: column;

@@ -1277,6 +1277,11 @@ Please provide assistance based on this context, the comment history, the availa
   pointer-events: none;
 }
 
+.description-content:deep(a) {
+  color: #409EFF;
+  text-decoration: none;
+}
+
 .description-toggle {
   display: flex;
   justify-content: center;
@@ -1387,6 +1392,11 @@ Please provide assistance based on this context, the comment history, the availa
   line-height: 1.5;
   color: #303133;
   white-space: pre-wrap;
+}
+
+.comment-text>span:deep(a) {
+  color: #409EFF;
+  text-decoration: none;
 }
 
 .edited-marker {

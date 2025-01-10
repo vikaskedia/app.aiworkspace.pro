@@ -273,6 +273,8 @@ import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import { Grid as TableIcon } from '@element-plus/icons-vue'
+import { Extension } from '@tiptap/core'
+import { Link } from '@tiptap/extension-link'
 
 export default {
   components: {
@@ -368,13 +370,23 @@ export default {
     
     this.editor = new Editor({
       extensions: [
-        StarterKit,
+        StarterKit.configure({
+          // Disable the link extension from StarterKit since we'll add our own
+          link: false,
+        }),
         TaskList,
         TaskItem,
         TextAlign.configure({
           types: ['heading', 'paragraph']
         }),
         FileUpload,
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            target: '_blank',
+            rel: 'noopener noreferrer',
+          },
+        }),
         Typeahead.configure({
           onKeyDown: ({ text, cursorPosition, event }) => {
             // Get the last word
@@ -453,6 +465,53 @@ export default {
         TableRow,
         TableCell,
         TableHeader,
+        Extension.create({
+          addProseMirrorPlugins() {
+            return [
+              new Plugin({
+                props: {
+                  handleTextInput: (view, from, to, text) => {
+                    if (text === ' ') { // Check when space is typed
+                      const { state } = view
+                      
+                      // Get text from start of document to cursor
+                      const textBefore = state.doc.textBetween(0, from)
+                      
+                      // Updated URL regex to handle both http and https
+                      const urlRegex = /(https?):\/\/[^\s]+$/
+                      const match = textBefore.match(urlRegex)
+                      
+                      if (match) {
+                        const start = from - match[0].length
+                        const tr = state.tr
+                        
+                        // Remove the plain text URL and space
+                        tr.delete(start, from + 1)
+                        
+                        // Insert the URL text first
+                        tr.insertText(match[0], start)
+                        
+                        // Add the link mark only to the URL portion
+                        const mark = state.schema.marks.link.create({ 
+                          href: match[0] 
+                        })
+                        tr.addMark(start, start + match[0].length, mark)
+                        
+                        // Insert space after without any marks
+                        tr.setStoredMarks([])  // Clear any active marks
+                        tr.insertText(' ', start + match[0].length)
+                        
+                        view.dispatch(tr)
+                        return true
+                      }
+                    }
+                    return false
+                  }
+                }
+              })
+            ]
+          }
+        })
       ],
       content: this.modelValue,
       onUpdate: ({ editor }) => {
@@ -576,7 +635,7 @@ export default {
 
     async getTypeaheadSuggestions(text, cursorPosition) {
       try {
-        console.log('Getting suggestions for:', { text, cursorPosition })
+        //console.log('Getting suggestions for:', { text, cursorPosition })
         
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
           method: 'POST',
@@ -599,7 +658,7 @@ export default {
         }
         
         const data = await response.json()
-        console.log('Received suggestions:', data)
+        //console.log('Received suggestions:', data)
         
         if (data.suggestions?.length) {
           this.typeaheadSuggestions = data.suggestions
@@ -1249,6 +1308,16 @@ export default {
 
     .selectedCell {
       background: var(--el-color-primary-light-9);
+    }
+
+    a {
+      color: var(--el-color-primary);
+      text-decoration: none;
+      cursor: pointer;
+      
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 }

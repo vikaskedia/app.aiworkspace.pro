@@ -440,7 +440,29 @@
                   </div>
                 </div>
                 <div class="comment-text">
-                  <span v-html="formatCommentContent(comment.content)"></span>
+                  <div v-if="editingCommentId === comment.id">
+                    <TiptapEditor
+                      v-model="editingCommentText"
+                      placeholder="Edit your comment..."
+                      :taskId="String(task.id)"
+                      :taskTitle="task.title"
+                      :sharedUsers="sharedUsers"
+                      :isTaskComment="true"
+                      :autofocus="true"
+                    />
+                    <div class="comment-edit-actions">
+                      <el-button @click="cancelEditing" size="small">Cancel</el-button>
+                      <el-button 
+                        type="primary" 
+                        @click="saveCommentEdit(comment)" 
+                        size="small"
+                        :disabled="!editingCommentText.trim() || editingCommentText === comment.content"
+                      >
+                        Save
+                      </el-button>
+                    </div>
+                  </div>
+                  <span v-else v-html="formatCommentContent(comment.content)"></span>
                 </div>
               </div>
             </div>
@@ -1641,62 +1663,51 @@ export default {
     },
 
     startEditing(comment) {
-      // Don't allow editing of activity type comments
-      if (comment.type === 'activity') {
-        ElMessage.warning('System-generated activity comments cannot be edited');
-        return;
-      }
-
-      // Only allow editing of own comments
-      if (comment.user_id !== this.currentUser?.id) {
-        ElMessage.warning('You can only edit your own comments');
-        return;
-      }
-      
       this.editingCommentId = comment.id;
       this.editingCommentText = comment.content;
     },
 
-    async saveEdit(comment) {
+    cancelEditing() {
+      this.editingCommentId = null;
+      this.editingCommentText = '';
+    },
+
+    async saveCommentEdit(comment) {
       try {
-        this.loading = true;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Prepare edit history entry
-        const historyEntry = {
-          previous_content: comment.content,
-          edited_at: new Date().toISOString(),
-          edited_by: user.id
-        };
-
-        // Update comment with new content and history
         const { error } = await supabase
           .from('task_comments')
-          .update({
-            content: this.editingCommentText.trim(),
-            comment_edit_history: comment.comment_edit_history 
-              ? [...comment.comment_edit_history, historyEntry]
-              : [historyEntry],
-            updated_at: new Date().toISOString()
+          .update({ 
+            content: this.editingCommentText,
+            updated_at: new Date().toISOString(),
+            comment_edit_history: [
+              ...(comment.comment_edit_history || []),
+              {
+                previous_content: comment.content,
+                edited_at: new Date().toISOString(),
+                edited_by: this.currentUser.id
+              }
+            ]
           })
           .eq('id', comment.id);
 
         if (error) throw error;
 
-        this.editingCommentId = null;
-        this.editingCommentText = '';
-        await this.loadComments();
+        // Update local comment
+        const commentIndex = this.comments.findIndex(c => c.id === comment.id);
+        if (commentIndex !== -1) {
+          this.comments[commentIndex] = {
+            ...comment,
+            content: this.editingCommentText,
+            updated_at: new Date().toISOString()
+          };
+        }
+
+        this.cancelEditing();
         ElMessage.success('Comment updated successfully');
       } catch (error) {
-        ElMessage.error('Error updating comment: ' + error.message);
-      } finally {
-        this.loading = false;
+        console.error('Error updating comment:', error);
+        ElMessage.error('Failed to update comment');
       }
-    },
-
-    cancelEdit() {
-      this.editingCommentId = null;
-      this.editingCommentText = '';
     },
 
     toggleHistory(commentId) {
@@ -3300,5 +3311,18 @@ table.editor-table {
 
 .task-parent :deep(.el-select.is-disabled .el-input) {
   opacity: 0.7;
+}
+</style>
+
+<style scoped>
+.comment-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.comment-text {
+  margin-top: 8px;
 }
 </style>

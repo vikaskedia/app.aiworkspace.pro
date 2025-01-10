@@ -1051,6 +1051,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 10px;
   
   .suggestion-text {
     color: var(--el-text-color-disabled);
@@ -1146,14 +1147,14 @@ export default {
 .editor {
   :deep(.ProseMirror) {
     min-height: 200px;
-    padding: 20px;
+    padding: 2px;
     outline: none;
     line-height: 1.6;
     font-size: 15px;
     color: var(--el-text-color-primary);
     
     p {
-      margin: 1em 0;
+      margin: 0.5em 0;
     }
     
     &:focus {

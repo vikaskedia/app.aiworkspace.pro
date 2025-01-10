@@ -90,7 +90,6 @@
             <el-select
               v-model="task.parent_task_id"
               style="width: 100%"
-              :disabled="!canEditTask"
               placeholder="Select parent task"
               @change="updateParentTask"
             >
@@ -2045,11 +2044,6 @@ export default {
     },
     async updateParentTask(parentTaskId) {
       try {
-        if (!this.canEditTask) {
-          ElMessage.warning('You do not have permission to modify this task');
-          return;
-        }
-
         const { data: { user } } = await supabase.auth.getUser();
         
         // Convert empty string to null for database

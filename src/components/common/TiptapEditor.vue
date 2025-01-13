@@ -387,11 +387,13 @@ export default {
         }),
         FileUpload,
         Link.configure({
-          openOnClick: false,
+          openOnClick: true,
           HTMLAttributes: {
             target: '_blank',
             rel: 'noopener noreferrer',
+            class: 'editor-link'
           },
+          validate: href => /^https?:\/\//.test(href),
         }),
         Typeahead.configure({
           onKeyDown: ({ text, cursorPosition, event }) => {
@@ -1341,6 +1343,18 @@ export default {
       &:hover {
         text-decoration: underline;
       }
+    }
+  }
+}
+
+.ProseMirror {
+  .editor-link {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+    
+    &:hover {
+      color: var(--el-color-primary-light-3);
     }
   }
 }

@@ -1120,6 +1120,7 @@ export default {
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 4px;
+  opacity: 0.7;
   
   .suggestion-list {
     display: flex;
@@ -1231,7 +1232,7 @@ export default {
 .editor {
   :deep(.ProseMirror) {
     min-height: 200px;
-    padding: 2px;
+    padding: 2px 5px;
     outline: none;
     line-height: 1.6;
     font-size: 15px;

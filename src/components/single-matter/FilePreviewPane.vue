@@ -115,13 +115,17 @@
         <MarkDownEditor
           v-model="markdownContent"
           :placeholder="'Edit markdown content...'"
+          :storage-key="`markdown-${file.id}`"
           class="markdown-editor"
           @update:modelValue="handleMarkdownChange"
+          @unsaved-changes="handleUnsavedChanges"
+          ref="markdownEditor"
         />
         <div class="markdown-actions">
           <el-button 
             type="primary" 
             :loading="saving" 
+            :disabled="!hasUnsavedChanges"
             @click="saveMarkdownContent"
           >
             Save Changes
@@ -173,6 +177,7 @@ const pdfViewerRef = ref(null);
 const pdfPages = ref([]);
 const observers = ref([]);
 const isScrolling = ref(false);
+const hasUnsavedChanges = ref(false);
 
 async function loadTextContent() {
   if (props.file.type === 'text/plain') {
@@ -355,35 +360,16 @@ async function handleRename() {
   }
 }
 
-async function loadMarkdownContent() {
-  if (props.file.type === 'text/markdown') {
-    try {
-      loading.value = true;
-      error.value = null;
-      const response = await fetch(props.file.download_url);
-      if (!response.ok) throw new Error('Failed to load file content');
-      markdownContent.value = await response.text();
-    } catch (err) {
-      error.value = 'Failed to load markdown content';
-      console.error('Error loading markdown content:', err);
-    } finally {
-      loading.value = false;
-    }
-  }
-}
-
 async function saveMarkdownContent() {
-  if (!markdownContent.value) return;
+  if (!markdownContent.value || !hasUnsavedChanges.value) return;
 
   try {
     saving.value = true;
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     
-    // Convert content to base64
     const base64Content = btoa(markdownContent.value);
 
-    // Update file in Gitea with proper CORS headers
     const response = await fetch(
       `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
@@ -421,18 +407,23 @@ async function saveMarkdownContent() {
     
     // Update the content and file data
     markdownContent.value = await contentResponse.text();
+
+    // Clear local storage after successful save
+    const markdownEditor = ref(null);
+    markdownEditor.value?.clearLocalStorage();
     
-    // Update the file object
+    // Update the file object and content
     const updatedFile = {
       ...props.file,
       id: newFileData.content.sha,
       download_url: newFileData.content.download_url
     };
 
-    // Emit the updated file
-    emit('update:file', updatedFile);
-    
+    //emit('update:file', updatedFile);
     ElMessage.success('Changes saved successfully');
+
+    // After successful save
+    hasUnsavedChanges.value = false;
   } catch (error) {
     console.error('Error saving markdown:', error);
     ElMessage.error('Failed to save changes: ' + error.message);
@@ -443,6 +434,13 @@ async function saveMarkdownContent() {
 
 function handleMarkdownChange(newContent) {
   markdownContent.value = newContent;
+  // Compare with original content to determine if there are unsaved changes
+  const originalContent = props.file.content || '';
+  hasUnsavedChanges.value = newContent !== originalContent;
+}
+
+function handleUnsavedChanges(hasChanges) {
+  hasUnsavedChanges.value = hasChanges;
 }
 
 function handlePageChange(newPage) {
@@ -508,12 +506,44 @@ watch(() => props.file, async (newFile) => {
     if (newFile.type === 'text/plain') {
       await loadTextContent();
     } else if (newFile.type === 'text/markdown') {
-      await loadMarkdownContent();
+      try {
+        loading.value = true;
+        error.value = null;
+        
+        // First load the original content
+        const response = await fetch(newFile.download_url);
+        if (!response.ok) throw new Error('Failed to load file content');
+        const originalContent = await response.text();
+        
+        // Store original content for comparison
+        markdownContent.value = originalContent;
+        
+        // After loading original content, check local storage
+        const storageKey = `markdown-${newFile.id}`;
+        const savedContent = localStorage.getItem(storageKey);
+        
+        if (savedContent) {
+          // If there's saved content, use it and set unsaved changes flag
+          markdownContent.value = savedContent;
+          hasUnsavedChanges.value = savedContent !== originalContent;
+        }
+        
+      } catch (err) {
+        error.value = 'Failed to load markdown content';
+        console.error('Error loading markdown content:', err);
+      } finally {
+        loading.value = false;
+      }
     } else if (!newFile.type.startsWith('image/')) {
       loading.value = false;
     }
   }
 }, { immediate: true });
+
+// Add watch for file changes to reset unsaved changes state
+watch(() => props.file, () => {
+  hasUnsavedChanges.value = false;
+});
 </script>
 
 <style scoped>

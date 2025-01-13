@@ -129,12 +129,41 @@ export default {
     placeholder: {
       type: String,
       default: 'Write something...'
+    },
+    storageKey: {
+      type: String,
+      required: true
     }
   },
 
   data() {
     return {
-      editor: null
+      editor: null,
+      autoSaveInterval: null
+    }
+  },
+
+  methods: {
+    saveToLocalStorage() {
+      if (this.editor) {
+        const content = this.editor.getHTML()
+        localStorage.setItem(this.storageKey, content)
+        this.$emit('unsaved-changes', true)
+      }
+    },
+
+    loadFromLocalStorage() {
+      const savedContent = localStorage.getItem(this.storageKey)
+      if (savedContent && this.editor) {
+        this.editor.commands.setContent(savedContent)
+        this.$emit('update:modelValue', savedContent)
+        this.$emit('unsaved-changes', true)
+      }
+    },
+
+    clearLocalStorage() {
+      localStorage.removeItem(this.storageKey)
+      this.$emit('unsaved-changes', false)
     }
   },
 
@@ -148,18 +177,29 @@ export default {
   },
 
   mounted() {
+    this.loadFromLocalStorage()
+
     this.editor = new Editor({
       extensions: [
         StarterKit
       ],
       content: this.modelValue,
       onUpdate: ({ editor }) => {
-        this.$emit('update:modelValue', editor.getHTML())
+        const content = editor.getHTML()
+        this.$emit('update:modelValue', content)
+        this.saveToLocalStorage()
       }
     })
+
+    this.autoSaveInterval = setInterval(() => {
+      this.saveToLocalStorage()
+    }, 30000)
   },
 
   beforeUnmount() {
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval)
+    }
     this.editor?.destroy()
   }
 }

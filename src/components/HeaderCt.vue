@@ -67,6 +67,9 @@ export default {
     },
     isTalkToDevRoute() {
       return this.$route.path.includes('/talk-to-dev')
+    },
+    isInitialConsultationRoute() {
+      return this.$route.path.includes('/initial-consultation')
     }
   },
   async mounted() {
@@ -119,6 +122,12 @@ export default {
         case 'ai_attorney':
           this.$router.push('/ai-attorney');
           break;
+        case 'initial_consultation':
+          this.$router.push('/initial-consultation')
+          break
+        case 'all_matters':
+          this.$router.push('/all-matters');
+          break
       }
     },
     handleMatterSelect(matter) {
@@ -266,7 +275,10 @@ export default {
     
     <div class="header-center">
       <template v-if="isTalkToDevRoute">
-        <h2 class="talk-to-dev-title">Talk to Dev</h2>
+        <h2 class="section-title">Talk to Dev</h2>
+      </template>
+      <template v-else-if="isInitialConsultationRoute">
+        <h2 class="section-title">Initial Consultation</h2>
       </template>
       <template v-else>
         <MatterSelector @matter-selected="handleMatterSelect" />
@@ -324,9 +336,13 @@ export default {
                 :hidden="unreadCount === 0" 
                 class="notification-badge" />
             </el-dropdown-item>
-            <el-dropdown-item divided command="talktodev">Talk to Dev</el-dropdown-item>
+            <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
+            <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
             <el-dropdown-item divided command="ai_attorney">AI Attorney</el-dropdown-item>
+            <el-dropdown-item command="initial_consultation">
+              Initial Consultation
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -615,7 +631,7 @@ export default {
   padding: 16px;
 }
 
-.talk-to-dev-title {
+.section-title {
   font-size: 1.2rem;
   font-weight: 500;
   color: #1a1a1a;

@@ -12,6 +12,7 @@ import MatterLayout from './components/single-matter/MatterLayout.vue';
 import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
 import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
+import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
 
 const routes = [
   {
@@ -148,6 +149,12 @@ const routes = [
     path: '/ai-attorney',
     name: 'AIAttorney',
     component: () => import('./components/AIAttorneyCt.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/initial-consultation',
+    name: 'InitialConsultation',
+    component: InitialConsultationCt,
     meta: { requiresAuth: true }
   },
   {

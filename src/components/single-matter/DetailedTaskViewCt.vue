@@ -405,13 +405,47 @@
         <div class="task-comments">
           <div class="comments-header">
             <h3>Comments</h3>
-            <div class="comments-controls">
-              <el-switch v-model="showSystemComments" />
-              <span class="control-label">Show system comments</span>
-              <span class="divider">|</span>
-              <el-switch v-model="showArchivedComments" @change="loadComments" />
-              <span class="control-label">Show archived</span>
-            </div>
+            <el-dropdown trigger="click">
+              <el-button link>
+                <el-icon><Setting /></el-icon>
+                <!-- el-icon><VerticalDotsIcon /></el-icon -->
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item>
+                    <div class="dropdown-item-content">
+                      <el-switch
+                        v-model="showSystemComments"
+                        size="small"
+                        active-text="Show system comments"
+                      />
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item>
+                    <div class="dropdown-item-content">
+                      <el-switch
+                        v-model="showArchivedComments"
+                        size="small"
+                        active-text="Show archived"
+                        @change="loadComments"
+                      />
+                    </div>
+                  </el-dropdown-item>
+                  <!-- el-dropdown-item>
+                    <div class="dropdown-item-content" @click="showSystemComments = !showSystemComments">
+                      <el-switch size="small" v-model="showSystemComments" />
+                      <span class="system-comments-label">Show system comments</span>
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item>
+                    <div class="dropdown-item-content" @click="toggleArchived">
+                      <el-switch size="small" v-model="showArchivedComments" @change="loadComments" />
+                      <span class="archived-comments-label">Show archived</span>
+                    </div>
+                  </el-dropdown-item -->
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
           <div class="comments-list">
             <div 
@@ -708,7 +742,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -737,7 +771,8 @@ export default {
     Warning,
     Delete,
     More,
-    VerticalDotsIcon
+    VerticalDotsIcon,
+    Setting
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2207,6 +2242,10 @@ export default {
       } else {
         this.expandedCommentHistories.add(comment.id);
       }
+    },
+    toggleArchived() {
+      this.showArchivedComments = !this.showArchivedComments;
+      this.loadComments();
     }
   },
   watch: {
@@ -3515,5 +3554,38 @@ table.editor-table {
 .divider {
   color: var(--el-border-color);
   margin: 0 8px;
+}
+</style>
+
+<style scoped>
+.dropdown-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px;
+}
+
+:deep(.el-dropdown-menu__item:focus),
+:deep(.el-dropdown-menu__item:not(.is-disabled):hover) {
+  background-color: transparent;
+}
+
+:deep(.el-dropdown-menu__item) {
+  padding: 8px 12px;
+}
+</style>
+
+<style scoped>
+.system-comments-label,
+.archived-comments-label {
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.dropdown-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

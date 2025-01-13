@@ -184,7 +184,11 @@ async function loadTextContent() {
     try {
       loading.value = true;
       error.value = null;
-      const response = await fetch(props.file.download_url);
+      const response = await fetch(`${props.file.download_url}?t=${Date.now()}`, {
+        headers: getGiteaHeaders(import.meta.env.VITE_GITEA_TOKEN),
+        credentials: 'include',
+        mode: 'cors'
+      });
       if (!response.ok) throw new Error('Failed to load file content');
       textContent.value = await response.text();
     } catch (err) {
@@ -370,16 +374,14 @@ async function saveMarkdownContent() {
     
     const base64Content = btoa(markdownContent.value);
 
+    // Save changes with updated headers
     const response = await fetch(
       `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
         method: 'PUT',
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
+        mode: 'cors',
         body: JSON.stringify({
           message: `Update ${props.file.name}`,
           content: base64Content,
@@ -393,43 +395,40 @@ async function saveMarkdownContent() {
 
     const newFileData = await response.json();
     
-    // Force a fresh fetch of the content after saving
-    const contentResponse = await fetch(newFileData.content.download_url, {
-      headers: {
-        'Authorization': `token ${giteaToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache',
-      },
-    });
-    
-    if (!contentResponse.ok) throw new Error('Failed to fetch updated content');
-    
-    // Update the content and file data
-    markdownContent.value = await contentResponse.text();
+    // Update the file object with new SHA and download URL
+    const updatedFile = {
+      ...props.file,
+      id: newFileData.content.sha,
+      download_url: `${newFileData.content.download_url}?t=${Date.now()}`,
+      content: markdownContent.value
+    };
 
+    // Emit the updated file to parent
+    emit('update:file', updatedFile);
+    
     // Clear local storage after successful save
     const markdownEditor = ref(null);
     markdownEditor.value?.clearLocalStorage();
     
-    // Update the file object and content
-    const updatedFile = {
-      ...props.file,
-      id: newFileData.content.sha,
-      download_url: newFileData.content.download_url
-    };
-
-    //emit('update:file', updatedFile);
     ElMessage.success('Changes saved successfully');
-
-    // After successful save
     hasUnsavedChanges.value = false;
+
   } catch (error) {
     console.error('Error saving markdown:', error);
     ElMessage.error('Failed to save changes: ' + error.message);
   } finally {
     saving.value = false;
   }
+}
+
+// Add the getGiteaHeaders helper function
+function getGiteaHeaders(token) {
+  return {
+    'Authorization': `token ${token}`,
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache'
+  };
 }
 
 function handleMarkdownChange(newContent) {
@@ -510,8 +509,13 @@ watch(() => props.file, async (newFile) => {
         loading.value = true;
         error.value = null;
         
-        // First load the original content
-        const response = await fetch(newFile.download_url);
+        // First load the original content with cache busting
+        const response = await fetch(`${newFile.download_url}?t=${Date.now()}`, {
+          headers: getGiteaHeaders(import.meta.env.VITE_GITEA_TOKEN),
+          credentials: 'include',
+          mode: 'cors'
+        });
+        
         if (!response.ok) throw new Error('Failed to load file content');
         const originalContent = await response.text();
         

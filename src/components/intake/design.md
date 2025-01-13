@@ -18,18 +18,11 @@ The intake system uses AI to conduct an interactive interview with users to gath
 
 ### 1. AI Interview System
 - Uses a conversational AI model to dynamically generate and ask relevant questions
-- Questions adapt based on user responses
 - Core question areas:
-  - Legal matter details and background
-  - Relevant documents in possession
-  - Fact pattern collection
-  - Timeline of events
-  - Desired outcomes
-
-### 2. Document Collection
-- Allows users to upload relevant legal documents during interview
-- AI analyzes documents to extract key information
-- Documents are stored securely and linked to the matter
+    -- Events
+    -- Documents
+    -- Goals
+    
 
 ### 3. Database Schema (Supabase)
 
@@ -43,14 +36,23 @@ createdAt
 updatedAt
 
 What does the plan consist of?
-1. Goals with priority
-2. Tasks with priority
+Goals with priority and below each goal:
+    -- Tasks with priority
 
 Once the user agrees on the plan below the matter the following are created:
-1. Goals  
-2. Tasks 
+1. Events
+2. Files
+3. Goals  
+4. Tasks 
 
-During the interview the following below the matter is created:
-1. Files
-2. Events for the timneline
+During the intake questions there is a button to access "Shared board" in the shared board the user can see the:
+1. Events
+2. Files
+3. Goals  
+4. Tasks 
+5. Possible Outcome 
+That has been generated during the intake interview.
 
+As the user answers the questions the shared board is updated with the new information.
+
+The user can go to shared board and edit the previous answers.

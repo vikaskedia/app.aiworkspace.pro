@@ -167,8 +167,14 @@
         v-if="showTypeahead && typeaheadSuggestions.length" 
         class="inline-suggestions"
         :style="typeaheadPosition">
-        <div class="suggestion-text">
-          {{ typeaheadSuggestions[typeaheadSelectedIndex >= 0 ? typeaheadSelectedIndex : 0] }}
+        <div class="suggestion-list">
+          <div 
+            v-for="(suggestion, index) in typeaheadSuggestions" 
+            :key="index"
+            :class="['suggestion-item', { 'selected': index === typeaheadSelectedIndex }]"
+          >
+            {{ suggestion }}
+          </div>
         </div>
         <div class="suggestion-controls">
           <kbd>Tab</kbd> to accept
@@ -404,17 +410,17 @@ export default {
             // Handle navigation keys
             if (this.showTypeahead && this.typeaheadSuggestions.length) {
               switch (event.key) {
-                // case 'ArrowDown':
-                //   event.preventDefault()
-                //   this.typeaheadSelectedIndex = Math.min(
-                //     (this.typeaheadSelectedIndex + 1),
-                //     this.typeaheadSuggestions.length - 1
-                //   )
-                //   return true
-                // case 'ArrowUp':
-                //   event.preventDefault()
-                //   this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
-                //   return true
+                case 'ArrowDown':
+                  event.preventDefault()
+                  this.typeaheadSelectedIndex = Math.min(
+                    (this.typeaheadSelectedIndex + 1),
+                    this.typeaheadSuggestions.length - 1
+                  )
+                  return true
+                case 'ArrowUp':
+                  event.preventDefault()
+                  this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
+                  return true
                 case 'Tab':
                   if (this.showTypeahead) {
                     event.preventDefault()
@@ -441,7 +447,7 @@ export default {
             }
 
             // Check for typeahead trigger
-            if (lastWord && lastWord.length > 2 && !lastWord.startsWith('@')) {
+            if (lastWord && lastWord.length > 1 && !lastWord.startsWith('@')) {
               if (this.typeaheadTimer) {
                 clearTimeout(this.typeaheadTimer)
               }
@@ -635,7 +641,7 @@ export default {
 
     async getTypeaheadSuggestions(text, cursorPosition) {
       try {
-        //console.log('Getting suggestions for:', { text, cursorPosition })
+        console.log('Getting suggestions for:', { text, cursorPosition })
         
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
           method: 'POST',
@@ -675,34 +681,33 @@ export default {
     },
 
     handleTypeaheadNavigation(event) {
-      if (!this.showTypeahead || !this.typeaheadSuggestions.length) return
+      if (!this.showTypeahead || !this.typeaheadSuggestions.length) return;
 
       switch (event.key) {
-        case 'Tab':
-          event.preventDefault()
-          this.applySuggestion(this.typeaheadSuggestions[
-            this.typeaheadSelectedIndex >= 0 ? this.typeaheadSelectedIndex : 0
-          ])
-          break
         case 'ArrowDown':
-          event.preventDefault()
+          event.preventDefault();
           this.typeaheadSelectedIndex = Math.min(
-            this.typeaheadSelectedIndex + 1,
+            (this.typeaheadSelectedIndex + 1),
             this.typeaheadSuggestions.length - 1
-          )
-          break
+          );
+          break;
         case 'ArrowUp':
-          event.preventDefault()
-          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
-          break
-        case 'Enter':
-          // Don't prevent default - let Enter create new line
-          this.showTypeahead = false
-          break
+          event.preventDefault();
+          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0);
+          break;
+        case 'Tab':
+          event.preventDefault();
+          if (this.typeaheadSelectedIndex >= 0) {
+            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
+          } else {
+            // If no selection, select the first suggestion
+            this.applySuggestion(this.typeaheadSuggestions[0]);
+          }
+          break;
         case 'Escape':
-          event.preventDefault()
-          this.showTypeahead = false
-          break
+          event.preventDefault();
+          this.showTypeahead = false;
+          break;
       }
     },
 
@@ -1108,16 +1113,32 @@ export default {
   position: absolute;
   pointer-events: none;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 15px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 4px;
   
-  .suggestion-text {
-    color: var(--el-text-color-disabled);
+  .suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .suggestion-item {
+    color: var(--el-text-color-regular);
     font-family: monospace;
     white-space: pre;
-    height: 15px;
-    line-height: 15px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    cursor: pointer;
+    
+    &.selected {
+      background: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+    }
   }
   
   .suggestion-controls {
@@ -1126,7 +1147,8 @@ export default {
     display: flex;
     align-items: center;
     gap: 4px;
-    height: 15px;
+    padding: 2px 8px;
+    border-left: 1px solid var(--el-border-color-lighter);
     
     kbd {
       background: var(--el-fill-color-lighter);

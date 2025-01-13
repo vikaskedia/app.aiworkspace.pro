@@ -3,6 +3,17 @@
 ## Overview
 The intake system uses AI to conduct an interactive interview with users to gather information about their legal matter and create a structured plan of action.
 
+## Tech implementation
+
+- accessed from route /intake
+- user has to be logged in
+- once user is logged in there are 3 possibilites:
+  -- 0 matter ->            system detects if there is no matter then it automatically sends the user to /intake.
+  -- 1 matter ->            if there is a single matter then the user is sent to https://app.associateattorney.ai/matter/40/dashboard
+  -- more than 1 matter ->  if there is more than one matter the user is sent to https://app.associateattorney.ai/all-matters/dashboard
+- Intake can also be accessed by clicking on profile icon and then clicking on Intake.
+
+
 ## System Components
 
 ### 1. AI Interview System

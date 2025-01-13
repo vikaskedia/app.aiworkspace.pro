@@ -405,21 +405,24 @@
         <div class="task-comments">
           <div class="comments-header">
             <h3>Comments</h3>
-            <el-switch
-              v-model="showArchivedComments"
-              active-text="Show archived"
-              @change="loadComments"
-            />
+            <div class="comments-controls">
+              <el-switch v-model="showSystemComments" />
+              <span class="control-label">Show system comments</span>
+              <span class="divider">|</span>
+              <el-switch v-model="showArchivedComments" @change="loadComments" />
+              <span class="control-label">Show archived</span>
+            </div>
           </div>
           <div class="comments-list">
             <div 
-              v-for="comment in comments" 
-              :key="comment.id" 
+              v-for="comment in filteredComments" 
+              :key="comment.id"
               :class="[
-                'comment-item', 
-                { 
+                'comment-item',
+                {
                   'ai-response': comment.type === 'ai_response',
-                  'archived': comment.archived 
+                  'archived': comment.archived,
+                  'system-comment': comment.type === 'activity'
                 }
               ]"
             >
@@ -798,6 +801,7 @@ export default {
       editingDescription: '',
       showArchivedComments: false,
       filteredComments: [],
+      showSystemComments: false,
     };
   },
   async created() {
@@ -2328,7 +2332,22 @@ export default {
       flatten(organizedTasks);
       
       return flattened;
-  }
+  },
+    filteredComments() {
+      return this.comments.filter(comment => {
+        // Handle archived comments
+        if (!this.showArchivedComments && comment.archived) {
+          return false;
+        }
+        
+        // Handle system comments
+        if (!this.showSystemComments && comment.type === 'activity') {
+          return false;
+        }
+        
+        return true;
+      });
+    }
   }
 };
 </script>
@@ -3478,5 +3497,23 @@ table.editor-table {
 .edit-metadata {
   font-size: 0.8em;
   color: var(--el-text-color-secondary);
+}
+</style>
+
+<style scoped>
+.comments-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+}
+
+.divider {
+  color: var(--el-border-color);
+  margin: 0 8px;
 }
 </style>

@@ -94,10 +94,15 @@ const filteredItems = computed(() => {
 // Load files when matter changes
 watch(currentMatter, async (newMatter) => {
   if (newMatter?.id) {
+    // Clear split views when matter changes
+    splitViews.value = [];
+    selectedFile.value = null;
     await Promise.all([loadFolders(), loadFiles()]);
   } else {
     files.value = [];
     folders.value = [];
+    splitViews.value = [];
+    selectedFile.value = null;
   }
 }, { immediate: true });
 

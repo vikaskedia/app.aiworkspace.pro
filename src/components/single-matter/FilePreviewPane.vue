@@ -383,7 +383,7 @@ async function saveMarkdownContent() {
     // Convert content to base64
     const base64Content = btoa(markdownContent.value);
 
-    // Update file in Gitea
+    // Update file in Gitea with proper CORS headers
     const response = await fetch(
       `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
@@ -392,6 +392,7 @@ async function saveMarkdownContent() {
           'Authorization': `token ${giteaToken}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
           message: `Update ${props.file.name}`,
@@ -405,6 +406,21 @@ async function saveMarkdownContent() {
     if (!response.ok) throw new Error('Failed to save changes');
 
     const newFileData = await response.json();
+    
+    // Force a fresh fetch of the content after saving
+    const contentResponse = await fetch(newFileData.content.download_url, {
+      headers: {
+        'Authorization': `token ${giteaToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+    });
+    
+    if (!contentResponse.ok) throw new Error('Failed to fetch updated content');
+    
+    // Update the content and file data
+    markdownContent.value = await contentResponse.text();
     
     // Update the file object
     const updatedFile = {

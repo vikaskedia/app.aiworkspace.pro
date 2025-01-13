@@ -449,11 +449,14 @@
                     </span>
                     <el-dropdown v-if="comment.type !== 'activity'" trigger="click">
                       <el-button link>
-                        <el-icon><MoreFilled /></el-icon>
+                        <el-icon><VerticalDotsIcon /></el-icon>
                       </el-button>
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item @click="startEditing(comment)">Edit</el-dropdown-item>
+                          <el-dropdown-item @click="toggleCommentHistory(comment)" v-if="comment.comment_edit_history?.length">
+                            {{ expandedCommentHistories.has(comment.id) ? 'Close History' : `Show History (${comment.comment_edit_history.length})` }}
+                          </el-dropdown-item>
                           <el-dropdown-item @click="toggleArchiveComment(comment)">
                             {{ comment.archived ? 'Unarchive' : 'Archive' }}
                           </el-dropdown-item>
@@ -486,6 +489,26 @@
                     </div>
                   </div>
                   <span v-else v-html="formatCommentContent(comment.content)"></span>
+                  
+                  <!-- Add this new history section -->
+                  <div v-if="expandedCommentHistories.has(comment.id) && comment.comment_edit_history?.length" class="comment-history">
+                    <div class="history-header">Edit History</div>
+                    <div v-for="(historyEntry, index) in comment.comment_edit_history.slice().reverse()" 
+                         :key="index" 
+                         class="history-entry">
+                      <div class="previous-content">{{ historyEntry.previous_content }}</div>
+                      <div class="edit-metadata">
+                        Edited by {{ userEmails[historyEntry.edited_by] }}
+                        on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                          year: 'numeric',
+                          month: 'numeric',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) }}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -682,7 +705,8 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, MoreFilled } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More } from '@element-plus/icons-vue';
+import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { useCacheStore } from '../../store/cache';
@@ -710,7 +734,7 @@ export default {
     Warning,
     Delete,
     More,
-    MoreFilled
+    VerticalDotsIcon
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2173,6 +2197,13 @@ export default {
         ElMessage.error('Failed to update comment archive status');
       }
     },
+    toggleCommentHistory(comment) {
+      if (this.expandedCommentHistories.has(comment.id)) {
+        this.expandedCommentHistories.delete(comment.id);
+      } else {
+        this.expandedCommentHistories.add(comment.id);
+      }
+    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -3371,5 +3402,81 @@ table.editor-table {
 
 .comment-action-buttons .el-button + .el-button {
   margin-left: 0;
+}
+</style>
+
+<style scoped>
+/* Update these styles */
+.el-dropdown-menu__item {
+  font-size: 10px !important;
+  color: #909399 !important;
+  padding: 6px 12px !important;
+  height: 28px !important;
+  line-height: 16px !important;
+}
+
+.el-dropdown-menu__item:hover {
+  color: #409EFF !important;
+  background-color: #f5f7fa !important;
+}
+
+/* Make the icon inside dropdown items smaller */
+.el-dropdown-menu__item .el-icon {
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* Make the dropdown button more compact */
+.comment-actions .el-button.el-button--default {
+  padding: 4px !important;
+  height: 24px !important;
+  width: 24px !important;
+}
+
+.comment-actions .el-button .el-icon {
+  font-size: 14px;
+}
+</style>
+
+<style scoped>
+.comment-history {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--el-bg-color-page);
+  border-radius: 4px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.history-header {
+  font-weight: 500;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 8px;
+  font-size: 0.9em;
+}
+
+.history-entry {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.history-entry:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.previous-content {
+  background: var(--el-fill-color-lighter);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+  font-size: 0.95em;
+}
+
+.edit-metadata {
+  font-size: 0.8em;
+  color: var(--el-text-color-secondary);
 }
 </style>

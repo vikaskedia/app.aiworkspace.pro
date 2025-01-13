@@ -26,7 +26,7 @@ The intake system uses AI to conduct an interactive interview with users to gath
 
 ### 3. Database Schema (Supabase)
 
-#### intake-interviews Table
+#### initial-consultation Table
 userID
 intakeInterviewID -> Since one user can have multiple intake interviews, we need to store the interview ID
 matterID -> While the intake is happening the user may get some files. We need to store the files under the matterID

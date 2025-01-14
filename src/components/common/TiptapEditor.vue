@@ -633,6 +633,12 @@ export default {
         return true;
       }
 
+      if (event.key === 'Tab' && this.showTypeahead && this.typeaheadSuggestions.length) {
+        event.preventDefault();
+        this.applySuggestion(this.typeaheadSuggestions[0]);
+        return true;
+      }
+
       // Rest of the existing code...
     },
 

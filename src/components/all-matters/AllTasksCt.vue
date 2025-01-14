@@ -22,8 +22,14 @@
                   <el-dropdown-item 
                     v-for="filter in savedFilters" 
                     :key="filter.id" 
-                    :command="['load', filter.id]">
-                    {{ filter.filter_name }}
+                    :command="['load', filter.id]"
+                    :class="{ 'active-filter': isFilterApplied(filter) }">
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                      <span>{{ filter.filter_name }}</span>
+                      <el-icon v-if="isFilterApplied(filter)" style="color: var(--el-color-primary)">
+                        <Check />
+                      </el-icon>
+                    </div>
                   </el-dropdown-item>
                 </template>
               </el-dropdown-menu>
@@ -278,7 +284,7 @@
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { ArrowUp, ArrowDown, Star, StarFilled } from '@element-plus/icons-vue';
+import { ArrowUp, ArrowDown, Star, StarFilled, Check } from '@element-plus/icons-vue';
 import QuickTaskViewCt from '../single-matter/QuickTaskViewCt.vue';
 
 export default {
@@ -288,6 +294,7 @@ export default {
     ArrowDown,
     Star,
     StarFilled,
+    Check,
     QuickTaskViewCt
   },
   setup() {
@@ -692,6 +699,23 @@ export default {
         }
       }
     },
+
+    isFilterApplied(filter) {
+      if (!filter.filters) return false;
+      
+      // Deep compare the current filters with the saved filter
+      const currentFilters = this.filters;
+      return Object.keys(filter.filters).every(key => {
+        // Handle arrays
+        if (Array.isArray(filter.filters[key])) {
+          if (!Array.isArray(currentFilters[key])) return false;
+          if (filter.filters[key].length !== currentFilters[key].length) return false;
+          return filter.filters[key].every(item => currentFilters[key].includes(item));
+        }
+        // Handle other types
+        return filter.filters[key] === currentFilters[key];
+      });
+    },
   },
   mounted() {
     this.loadSavedFilters();
@@ -847,5 +871,26 @@ export default {
 
 :deep(.el-table__indent) {
   padding-left: 15px !important;
+}
+</style>
+
+<style lang="scss">
+.el-dropdown-menu__item {
+  padding: 8px 16px !important;
+}
+
+.el-dropdown-menu__item.active-filter {
+  background-color: var(--el-color-primary-light-3);
+  color: white;
+  
+  &:hover {
+    background-color: var(--el-color-primary-light-3);
+    color: white !important;
+  }
+}
+
+/* Override hover effect for non-active filters */
+.el-dropdown-menu__item:not(.active-filter):hover {
+  background-color: var(--el-fill-color-light);
 }
 </style> 

@@ -18,7 +18,7 @@
         </el-button>
         <el-button 
           type="warning"
-          @click="logHoursDialogVisible"
+          @click="logHoursDialogVisible = true"
           style="margin-right: 10px">
           Log Hours
         </el-button>

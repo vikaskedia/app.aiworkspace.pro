@@ -163,7 +163,7 @@ export default {
   setup() {
     const consultationId = ref(null)
     
-    const currentQuestion = ref('What legal matter brings you here today?')
+    const currentQuestion = ref('Welcome! I\'m your AI legal assistant. To help you better, could you please tell me about the legal matter that brought you here today?')
     const userResponse = ref('')
     const loading = ref(false)
     const showNotepad = ref(false)
@@ -338,6 +338,12 @@ export default {
           throw new Error('User not authenticated');
         }
 
+        // Get user's display name
+        const userName = user.user_metadata?.name || 
+                        user.user_metadata?.user_name || 
+                        user.user_metadata?.full_name ||
+                        user.email?.split('@')[0];
+
         // Generate consultation ID if not exists
         if (!consultationId.value) {
           consultationId.value = crypto.randomUUID();
@@ -355,7 +361,8 @@ export default {
             },
             body: JSON.stringify({
               userId: user.id,
-              consultationId: consultationId.value
+              consultationId: consultationId.value,
+              userName: userName
             })
           })
 

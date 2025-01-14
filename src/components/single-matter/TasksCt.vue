@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue'
-import { ArrowDown, Close, Folder, Loading } from '@element-plus/icons-vue'
+import { ArrowDown, Close, Folder, Loading, Check } from '@element-plus/icons-vue'
 import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
 
@@ -25,7 +25,8 @@ export default {
     QuickActionDrawer,
     Folder,
     Loading,
-    TiptapEditor
+    TiptapEditor,
+    Check
   },
   data() {
     return {
@@ -1112,6 +1113,24 @@ export default {
         assignee: null
       };
     },
+
+    isFilterApplied(filter) {
+      const tasksList = this.$refs.tasksList;
+      if (!tasksList || !filter.filters) return false;
+      
+      // Deep compare the current filters with the saved filter
+      const currentFilters = tasksList.filters;
+      return Object.keys(filter.filters).every(key => {
+        // Handle arrays
+        if (Array.isArray(filter.filters[key])) {
+          if (!Array.isArray(currentFilters[key])) return false;
+          if (filter.filters[key].length !== currentFilters[key].length) return false;
+          return filter.filters[key].every(item => currentFilters[key].includes(item));
+        }
+        // Handle other types
+        return filter.filters[key] === currentFilters[key];
+      });
+    },
   },
 
   mounted() {
@@ -1209,8 +1228,14 @@ export default {
                 <el-dropdown-item 
                   v-for="filter in savedFilters" 
                   :key="filter.id" 
-                  :command="['load', filter.id]">
-                  {{ filter.filter_name }}
+                  :command="['load', filter.id]"
+                  :class="{ 'active-filter': isFilterApplied(filter) }">
+                  <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <span>{{ filter.filter_name }}</span>
+                    <el-icon v-if="isFilterApplied(filter)" style="color: var(--el-color-primary)">
+                      <Check />
+                    </el-icon>
+                  </div>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -1743,5 +1768,50 @@ label.el-checkbox.task-checkbox {
       font-size: 20px;
     }
   }
+}
+
+.applied-filter {
+  background-color: var(--el-color-success-light-9);
+  border-radius: 4px;
+}
+
+/* Override element-plus dropdown item hover effect for applied filters */
+.el-dropdown-menu__item.is-disabled .applied-filter {
+  background-color: var(--el-color-success-light-9);
+  opacity: 1;
+  cursor: default;
+}
+
+.el-dropdown-menu__item.highlighted-filter {
+  background-color: var(--el-color-warning-light-9);
+  
+  &:hover {
+    background-color: var(--el-color-warning-light-8);
+  }
+}
+
+/* Remove default hover background for highlighted items */
+.el-dropdown-menu__item.highlighted-filter:not(.is-disabled):hover {
+  background-color: var(--el-color-warning-light-8);
+}
+
+/* Override element-plus dropdown item styles */
+.el-dropdown-menu__item {
+  padding: 8px 16px !important;
+}
+
+.el-dropdown-menu__item.active-filter {
+  background-color: var(--el-color-primary-light-3);
+  color: white;
+  
+  &:hover {
+    background-color: var(--el-color-primary-light-4);
+    color: white;
+  }
+}
+
+/* Override hover effect for non-active filters */
+.el-dropdown-menu__item:not(.active-filter):hover {
+  background-color: var(--el-fill-color-light);
 }
 </style> 

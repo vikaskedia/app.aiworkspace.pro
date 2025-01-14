@@ -1253,35 +1253,21 @@ export default {
     async getAIResponse(prompt, customSystemPrompt = null) {
       try {
         // Extract hyperlinks to txt files using regex
-        const txtLinkRegex =  /\[([^\]]+\.txt)\]\(([^)]+\.txt)\)/g;
-        const txtLinks = [...prompt.matchAll(txtLinkRegex)];
-        let fileContents = '';
-        console.log('prompt:', prompt, 'txtLinks:', txtLinks);
-
+        const jpgLinkRegex = /\[([^\]]+\.jpg)\]\(([^)]+\.jpg)\)/g;
+        const jpgLinks = [...prompt.matchAll(jpgLinkRegex)];
+        
         // Clean the prompt by removing markdown file links
-        const cleanPrompt = prompt.replace(txtLinkRegex, '').trim();
+        const cleanPrompt = prompt.replace(jpgLinkRegex, '').trim();
 
-        // Fetch content for each txt file link
-        if (txtLinks.length > 0) {
-          for (const match of txtLinks) {
-            const fileUrl = match[2];
-            console.log('fileUrl:', fileUrl);
-            try {
-              const response = await fetch(fileUrl);
-              if (!response.ok) throw new Error('Failed to fetch file');
-              const content = await response.text();
-              //fileContents += `\nFile Content from ${fileUrl}:\n${content}\n`;
-              fileContents += `\n\n${content}\n`;
-            } catch (fileError) {
-              console.error('Error fetching file content:', fileError);
-            }
-          }
+        // Get the first image URL if available
+        let imageUrl = null;
+        if (jpgLinks.length > 0) {
+          imageUrl = jpgLinks[0][2]; // Get URL from first match
         }
 
         const commentsHistory = this.comments.map(comment => {
           const timestamp = comment.updated_at || comment.created_at;
           const formattedDate = new Date(timestamp).toLocaleString();
-          //console.log('contextWithFiles:', contextWithFiles);
           return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
         }).join('\n\n');
 
@@ -1290,20 +1276,17 @@ export default {
 
         const systemPrompt = customSystemPrompt || `You are an AI legal assistant helping with the following task:`;
 
-
-        // Add file contents to the context if any files were referenced
-        const contextWithFiles = fileContents ? 
-              `${taskContext}\n${fileContents}` : 
-              taskContext;
-
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: cleanPrompt,
-            systemPrompt: systemPrompt + `\n\n${contextWithFiles}` + `\n\nComment History:\n${commentsHistory}`,
+            prompt: imageUrl ? {
+              text: cleanPrompt,
+              image_url: imageUrl
+            } : cleanPrompt,
+            systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
             matterId: this.task.matter_id
           })

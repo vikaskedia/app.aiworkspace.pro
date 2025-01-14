@@ -70,6 +70,12 @@ export default {
     },
     isInitialConsultationRoute() {
       return this.$route.path.includes('/initial-consultation')
+    },
+    isActivityLogRoute() {
+      return this.$route.path.includes('/all-matters/activity-log')
+    },
+    isAIAttorneyRoute() {
+      return this.$route.path.includes('/ai-attorney')
     }
   },
   async mounted() {
@@ -279,6 +285,12 @@ export default {
       </template>
       <template v-else-if="isInitialConsultationRoute">
         <h2 class="section-title">Initial Consultation</h2>
+      </template>
+      <template v-else-if="isActivityLogRoute">
+        <h2 class="section-title">Activity Log</h2>
+      </template>
+      <template v-else-if="isAIAttorneyRoute">
+        <h2 class="section-title">AI Attorney</h2>
       </template>
       <template v-else>
         <MatterSelector @matter-selected="handleMatterSelect" />

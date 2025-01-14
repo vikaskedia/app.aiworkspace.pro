@@ -484,35 +484,39 @@ export default {
               new Plugin({
                 props: {
                   handleTextInput: (view, from, to, text) => {
-                    if (text === ' ') { // Check when space is typed
+                    if (text === ' ') {
                       const { state } = view
-                      
-                      // Get text from start of document to cursor
                       const textBefore = state.doc.textBetween(0, from)
                       
-                      // Updated URL regex to handle both http and https
-                      const urlRegex = /(https?):\/\/[^\s]+$/
-                      const match = textBefore.match(urlRegex)
+                      // Check for heading pattern
+                      const headingMatch = /(?:^|\n)(#{1,3})$/.exec(textBefore)
+                      if (headingMatch) {
+                        const level = headingMatch[1].length
+                        const start = from - headingMatch[1].length
+                        
+                        const tr = state.tr
+                          .delete(start, from + 1)
+                          .setBlockType(start, start, state.schema.nodes.heading, { level })
+                        
+                        view.dispatch(tr)
+                        return true
+                      }
                       
-                      if (match) {
-                        const start = from - match[0].length
+                      // Keep existing URL handling
+                      const urlRegex = /(https?):\/\/[^\s]+$/
+                      const urlMatch = textBefore.match(urlRegex)
+                      if (urlMatch) {
+                        const start = from - urlMatch[0].length
                         const tr = state.tr
                         
-                        // Remove the plain text URL and space
                         tr.delete(start, from + 1)
+                        tr.insertText(urlMatch[0], start)
                         
-                        // Insert the URL text first
-                        tr.insertText(match[0], start)
+                        const mark = state.schema.marks.link.create({ href: urlMatch[0] })
+                        tr.addMark(start, start + urlMatch[0].length, mark)
                         
-                        // Add the link mark only to the URL portion
-                        const mark = state.schema.marks.link.create({ 
-                          href: match[0] 
-                        })
-                        tr.addMark(start, start + match[0].length, mark)
-                        
-                        // Insert space after without any marks
-                        tr.setStoredMarks([])  // Clear any active marks
-                        tr.insertText(' ', start + match[0].length)
+                        tr.setStoredMarks([])
+                        tr.insertText(' ', start + urlMatch[0].length)
                         
                         view.dispatch(tr)
                         return true

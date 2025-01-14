@@ -239,7 +239,13 @@ export default {
         loading.value = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const fullPrompt = promptText + formatQuestionHistory(questionHistory.value);
+        // Get system prompt from initial consultant attorney
+        const systemPrompt = await getInitialConsultantPrompt();
+        if (!systemPrompt) {
+          throw new Error('No initial consultant system prompt found');
+        }
+
+        const fullPrompt = systemPrompt + formatQuestionHistory(questionHistory.value);
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -382,7 +388,13 @@ export default {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
 
-        const fullPrompt = promptText + formatQuestionHistory(questionHistory.value);
+        // Get system prompt from initial consultant attorney
+        const systemPrompt = await getInitialConsultantPrompt();
+        if (!systemPrompt) {
+          throw new Error('No initial consultant system prompt found');
+        }
+
+        const fullPrompt = systemPrompt + formatQuestionHistory(questionHistory.value);
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -555,6 +567,23 @@ export default {
         user.value = userData
       } catch (error) {
         console.error('Error fetching user:', error)
+      }
+    }
+
+    const getInitialConsultantPrompt = async () => {
+      try {
+        const { data: attorney, error } = await supabase
+          .from('attorneys')
+          .select('system_prompt')
+          .eq('is_initial_consultant', true)
+          .single();
+
+        if (error) throw error;
+        return attorney?.system_prompt || '';
+      } catch (error) {
+        console.error('Error fetching initial consultant prompt:', error);
+        ElMessage.error('Error loading consultation system');
+        return '';
       }
     }
 

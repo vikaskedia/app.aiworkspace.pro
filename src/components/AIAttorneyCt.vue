@@ -44,6 +44,13 @@
                 <el-icon><VideoPlay /></el-icon>
                 Watch Intro
               </el-button>
+              <el-button
+                :type="attorney.is_initial_consultant ? 'warning' : 'info'"
+                @click="toggleInitialConsultant(attorney)"
+                size="small">
+                <el-icon><Star /></el-icon>
+                {{ attorney.is_initial_consultant ? 'Remove as IC' : 'Set as IC' }}
+              </el-button>
             </div>
           </el-card>
         </div>
@@ -138,11 +145,11 @@
   import { supabase } from '../supabase';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import HeaderCt from './HeaderCt.vue';
-  import { Plus, Edit, Delete, VideoPlay } from '@element-plus/icons-vue';
+  import { Plus, Edit, Delete, VideoPlay, Star } from '@element-plus/icons-vue';
   
   export default {
     name: 'AIAttorneyCt',
-    components: { HeaderCt, Plus, Edit, Delete, VideoPlay },
+    components: { HeaderCt, Plus, Edit, Delete, VideoPlay, Star },
     
     setup() {
       const attorneys = ref([]);
@@ -324,6 +331,36 @@
         });
       };
   
+      const toggleInitialConsultant = async (attorney) => {
+        try {
+          // First, remove initial consultant status from all attorneys
+          if (!attorney.is_initial_consultant) {
+            const { error: resetError } = await supabase
+              .from('attorneys')
+              .update({ is_initial_consultant: false })
+              .eq('is_initial_consultant', true);
+
+            if (resetError) throw resetError;
+          }
+
+          // Then update the selected attorney
+          const { error: updateError } = await supabase
+            .from('attorneys')
+            .update({ is_initial_consultant: !attorney.is_initial_consultant })
+            .eq('id', attorney.id);
+
+          if (updateError) throw updateError;
+
+          // Refresh the attorneys list
+          await loadAttorneys();
+          
+          ElMessage.success(`${attorney.name} ${attorney.is_initial_consultant ? 
+            'removed as' : 'set as'} initial consultant`);
+        } catch (error) {
+          ElMessage.error('Error updating initial consultant: ' + error.message);
+        }
+      };
+  
       onMounted(() => {
         loadAttorneys();
       });
@@ -343,7 +380,8 @@
         editingAttorney,
         editAttorney,
         resetForm,
-        confirmDelete
+        confirmDelete,
+        toggleInitialConsultant
       };
     },
   
@@ -380,6 +418,7 @@
   }
   
   .attorney-card {
+    position: relative;
     transition: all 0.3s ease;
     height: 100%;
     display: flex;
@@ -463,6 +502,19 @@
   .video-preview {
     max-width: 100%;
     max-height: 200px;
+  }
+  
+  .initial-consultant-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: #fbbf24;
+    color: #92400e;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    z-index: 10;
   }
   
   @media (max-width: 640px) {

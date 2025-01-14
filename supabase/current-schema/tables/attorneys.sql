@@ -38,3 +38,11 @@ create policy "Only system admins can delete an attorney"
   to authenticated
   using (auth.uid() IN ( SELECT system_admins.user_id
    FROM system_admins)); 
+
+ALTER TABLE attorneys 
+ADD COLUMN is_initial_consultant boolean DEFAULT false;
+
+-- Create a unique partial index to ensure only one initial consultant
+CREATE UNIQUE INDEX one_initial_consultant_idx 
+ON attorneys ((true))
+WHERE is_initial_consultant = true;

@@ -13,7 +13,25 @@ export const Typeahead = Extension.create({
         props: {
           handleKeyDown: (view, event) => {
             // Handle navigation keys for suggestions
-            if (['ArrowUp', 'ArrowDown', 'Tab', 'Escape'].includes(event.key)) {
+            if (event.key === 'Escape') {
+              const hasActiveSuggestions = this.options.onKeyDown?.({
+                text: '',
+                cursorPosition: 0,
+                event,
+                shouldHideTypeahead: true,
+                preventFetch: true
+              })
+              
+              // Only stop propagation if we handled the suggestions
+              if (hasActiveSuggestions) {
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+              }
+              return false;
+            }
+
+            if (['ArrowUp', 'ArrowDown', 'Tab'].includes(event.key)) {
               const { state } = view
               const { selection } = state
               const currentText = state.doc.textBetween(0, selection.from, '\n')

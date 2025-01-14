@@ -177,7 +177,12 @@
           </div>
         </div>
         <div class="suggestion-controls">
-          <kbd>Tab</kbd> to accept
+          <div class="controls-left">
+            <kbd>Tab</kbd> to accept
+          </div>
+          <div class="controls-right">
+            <kbd>Esc</kbd> to cancel
+          </div>
         </div>
       </div>
     </div>
@@ -614,7 +619,19 @@ export default {
       }
     },
 
-    handleEditorKeyDown({ text, cursorPosition, event }) {
+    handleEditorKeyDown({ text, cursorPosition, event, shouldHideTypeahead, preventFetch }) {
+      if (shouldHideTypeahead || (this.showTypeahead && event.key === 'Escape')) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.showTypeahead = false;
+        this.typeaheadSuggestions = [];
+        
+        // If preventFetch is true, return early without fetching suggestions
+        if (preventFetch) {
+          return true;
+        }
+      }
+
       if (!this.showTypeahead) {
         // Check if we should show typeahead
         const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
@@ -759,9 +776,13 @@ export default {
         const relativeTop = coords.top - editorContainer.top
         const relativeLeft = coords.left - editorContainer.left
         
+        // Set the cap triangle position using CSS variable
+        const root = document.documentElement
+        root.style.setProperty('--cap-left', `${relativeLeft}px`)
+        
         this.typeaheadPosition = {
           top: `${relativeTop}px`,
-          left: `${relativeLeft}px`
+          // left position is now handled by CSS
         }
       })
     },
@@ -1113,30 +1134,80 @@ export default {
 
 .inline-suggestions {
   position: absolute;
-  pointer-events: none;
+  pointer-events: auto;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 15px;
-  background: white;
+  margin-top: 25px;
+  background: #f0ecec;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 4px;
-  opacity: 0.7;
+  opacity: 1;
+  width: 400px;
+  left: 20px;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: var(--cap-left, 20px);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #f0ecec;
+    transform: translateX(-50%);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -9px;
+    left: var(--cap-left, 20px);
+    width: 0;
+    height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-bottom: 9px solid rgba(0, 0, 0, 0.1);
+    transform: translateX(-50%);
+    z-index: -1;
+  }
   
   .suggestion-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    max-height: 300px;
+    overflow-y: auto;
+    width: 100%;
+    pointer-events: auto;
+    
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: var(--el-fill-color-lighter);
+      border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: var(--el-border-color);
+      border-radius: 3px;
+    }
   }
-  
+
   .suggestion-item {
     color: var(--el-text-color-regular);
     font-family: monospace;
-    white-space: pre;
+    white-space: pre-wrap;
     padding: 2px 8px;
     border-radius: 2px;
     cursor: pointer;
+    width: 100%;
+    overflow-wrap: break-word;
+    pointer-events: auto;
     
     &.selected {
       background: var(--el-color-primary-light-9);
@@ -1149,18 +1220,54 @@ export default {
     color: var(--el-text-color-secondary);
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-left: 1px solid var(--el-border-color-lighter);
+    justify-content: space-between;
+    border-top: 1px solid var(--el-border-color-lighter);
+    width: 100%;
+    background: var(--el-fill-color-lighter);
+    border-radius: 0 0 4px 4px;
+    
+    .controls-left,
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
     
     kbd {
-      background: var(--el-fill-color-lighter);
+      background: var(--el-fill-color-light);
       border: 1px solid var(--el-border-color);
       border-radius: 3px;
       padding: 1px 4px;
       font-size: 11px;
       line-height: 1;
+      cursor: pointer;
+      
+      &:hover {
+        background: var(--el-fill-color);
+      }
     }
+  }
+}
+
+.suggestion-controls {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  width: 100%;
+  background: var(--el-fill-color-lighter);
+  border-radius: 0 0 4px 4px;
+  
+  kbd {
+    background: var(--el-fill-color-light);
+    border: 1px solid var(--el-border-color);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+    line-height: 1;
   }
 }
 

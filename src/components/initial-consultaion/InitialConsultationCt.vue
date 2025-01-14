@@ -10,40 +10,80 @@
         </div>
 
         <div class="question">
-          <div class="avatar attorney">AI</div>
+          <div class="avatar attorney">A</div>
           <div class="message">
             {{ isViewingHistory ? questionHistory[currentIndex].question : currentQuestion }}
           </div>
         </div>
         
         <div class="answer">
-          <div class="avatar user">U</div>
-          <div class="message-container">
-            <el-input
-              v-model="currentAnswer"
-              type="textarea"
-              :rows="3"
-              placeholder="Type your answer here..."
-              :disabled="loading"
-              @keyup.enter.ctrl="handleCurrentAnswer"
+          <div class="avatar user">
+            <el-avatar 
+              :size="40"
+              :src="user?.user_metadata?.avatar_url"
+              :icon="!user?.user_metadata?.avatar_url ? 'UserFilled' : undefined"
             />
-            <div class="input-actions">
-              <span class="hint">Press Ctrl + Enter to send</span>
-              <div class="button-group">
-                <el-button 
-                  v-if="isViewingHistory"
-                  @click="cancelEdit">
-                  Cancel
-                </el-button>
-                <el-button 
-                  type="primary" 
-                  @click="handleCurrentAnswer"
-                  :loading="loading"
-                  :disabled="!currentAnswer.trim()">
-                  {{ isViewingHistory ? 'Save & Regenerate' : 'Send' }}
-                </el-button>
+          </div>
+          <div class="message-container">
+            <!-- Current question edit box -->
+            <div v-if="!isViewingHistory" class="answer-edit-mode">
+              <el-input
+                v-model="currentAnswer"
+                type="textarea"
+                :rows="3"
+                placeholder="Type your answer here..."
+                :disabled="loading"
+                @keyup.enter.ctrl="handleCurrentAnswer"
+              />
+              <div class="input-actions">
+                <span class="hint">Press Ctrl + Enter to send</span>
+                <div class="button-group">
+                  <el-button 
+                    type="primary" 
+                    @click="handleCurrentAnswer"
+                    :loading="loading"
+                    :disabled="!currentAnswer.trim()">
+                    Submit
+                  </el-button>
+                </div>
               </div>
             </div>
+
+            <!-- Previous answers display/edit -->
+            <template v-else>
+              <div v-if="!isEditing" class="answer-display">
+                <div class="answer-text">{{ currentAnswer }}</div>
+                <button class="edit-button" @click="startEditing">
+                  <el-icon><Edit /></el-icon>
+                </button>
+              </div>
+              
+              <div v-else class="answer-edit-mode">
+                <el-input
+                  v-model="currentAnswer"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="Type your answer here..."
+                  :disabled="loading"
+                  @keyup.enter.ctrl="handleCurrentAnswer"
+                />
+                <div class="input-actions">
+                  <span class="hint">Press Ctrl + Enter to send</span>
+                  <div class="button-group">
+                    <el-button @click="cancelEdit">
+                      Cancel
+                    </el-button>
+                    <el-button 
+                      type="primary" 
+                      @click="handleCurrentAnswer"
+                      :loading="loading"
+                      :disabled="!currentAnswer.trim()">
+                      Save & Regenerate
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -61,8 +101,7 @@
     <el-button
       class="notepad-button"
       type="info"
-      @click="showNotepad = true"
-      icon="Notebook">
+      @click="showNotepad = true">
       Shared Notepad
     </el-button>
 
@@ -97,7 +136,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
-import { Loading, ArrowLeft, Check, Notebook, ArrowRight, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit } from '@element-plus/icons-vue'
 import { supabase } from '../../supabase'
 import promptText from './prompt.txt?raw'
 
@@ -110,10 +149,10 @@ export default {
     Loading,
     ArrowLeft,
     Check,
-    Notebook,
     ArrowRight,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    Edit
   },
 
   setup() {
@@ -140,6 +179,8 @@ export default {
       tasks: [],
       possibleOutcome: []
     })
+
+    const user = ref(null)
 
     const formatSectionTitle = (key) => {
       return key.split('_')
@@ -312,14 +353,14 @@ export default {
     };
 
     const startEditing = () => {
-      editedAnswer.value = questionHistory.value[currentIndex.value].answer
       isEditing.value = true
     }
 
     const cancelEdit = () => {
-      isViewingHistory.value = false
-      currentAnswer.value = ''
-      currentIndex.value = questionHistory.value.length - 1
+      isEditing.value = false
+      if (isViewingHistory.value) {
+        currentAnswer.value = questionHistory.value[currentIndex.value].answer
+      }
     }
 
     const handleEdit = async () => {
@@ -392,6 +433,7 @@ export default {
       } else {
         await handleSubmit()
       }
+      isEditing.value = false
     }
 
     let touchStartY = 0
@@ -491,6 +533,15 @@ export default {
       }
     }
 
+    const fetchUser = async () => {
+      try {
+        const { data: { user: userData } } = await supabase.auth.getUser()
+        user.value = userData
+      } catch (error) {
+        console.error('Error fetching user:', error)
+      }
+    }
+
     onMounted(async () => {
       await initializeConsultation();
       const qaDisplay = document.querySelector('.qa-display')
@@ -498,6 +549,7 @@ export default {
         qaDisplay.addEventListener('touchstart', handleTouchStart)
         qaDisplay.addEventListener('touchend', handleTouchEnd)
       }
+      fetchUser()
     });
 
     onUnmounted(() => {
@@ -535,7 +587,8 @@ export default {
       handleTouchStart,
       handleTouchEnd,
       saveConsultationState,
-      loadConsultationState
+      loadConsultationState,
+      user,
     }
   }
 }
@@ -544,16 +597,17 @@ export default {
 <style scoped>
 .consultation-container {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 2rem 1rem;
 }
 
 .content {
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 800px;
+  margin: 2rem auto 0 auto;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
 }
 
 .conversation-history {
@@ -596,12 +650,13 @@ export default {
 .avatar.attorney {
   background-color: #626aef;
   color: white;
+  border-radius: 50%;
 }
 
-.avatar.user {
+/* .avatar.user {
   background-color: #10b981;
   color: white;
-}
+} */
 
 .message {
   padding: 0.5rem;
@@ -658,11 +713,30 @@ export default {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  z-index: 100;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--el-text-color-primary);
+}
+
+.notepad-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.notepad-dialog {
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .notepad-content {
-  padding: 1rem;
+  padding: 2rem;
 }
 
 .section {
@@ -670,14 +744,16 @@ export default {
 }
 
 .section h4 {
-  margin-bottom: 0.5rem;
-  color: #303133;
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin-bottom: 1rem;
+  font-weight: 500;
 }
 
 .section-content {
-  background: #f5f7fa;
-  border-radius: 4px;
-  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
 }
 
 .empty-section {
@@ -696,68 +772,78 @@ export default {
   display: none;
 }
 
-.navigation-arrow {
+.qa-display {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  position: relative;
+  gap: 1.5rem;
+}
+
+.navigation-arrow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
   align-items: center;
-  padding: 0.5rem;
+  justify-content: center;
   cursor: pointer;
-  color: #626aef;
   transition: all 0.2s ease;
-}
-
-.navigation-arrow.disabled {
-  color: #c0c4cc;
-  cursor: not-allowed;
-}
-
-.navigation-arrow:not(.disabled):hover {
-  color: #4318ff;
-  transform: scale(1.1);
+  color: #4f46e5;
+  z-index: 10;
 }
 
 .navigation-arrow.up {
-  margin-bottom: 0.5rem;
+  top: -20px;
 }
 
 .navigation-arrow.down {
-  margin-top: 0.5rem;
+  bottom: -20px;
+}
+
+.navigation-arrow:not(.disabled):hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  background: #4f46e5;
+  color: white;
+}
+
+.navigation-arrow.disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .question-counter {
-  text-align: center;
-  color: #606266;
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
+  position: absolute;
+  right: 1rem;
+  top: -1.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 @media (max-width: 640px) {
-  .qa-display {
-    position: relative;
-    touch-action: none;
+  .consultation-container {
+    padding: 1rem 0.5rem;
   }
-
-  .navigation-arrow {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  .content {
+    padding: 1.5rem 1rem;
   }
-
-  .navigation-arrow.up {
-    top: -20px;
+  
+  .question, .answer {
+    padding: 1rem;
   }
-
-  .navigation-arrow.down {
-    bottom: -20px;
-  }
-
-  .navigation-arrow:not(.disabled):hover {
-    transform: translateX(-50%);
+  
+  .notepad-button {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.75rem 1rem;
   }
 }
 
@@ -787,29 +873,141 @@ export default {
 }
 
 .section-content {
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
   padding: 1rem;
-
-  ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-
-    li {
-      padding: 0.5rem 0;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-  }
 }
 
 .empty-section {
   color: #909399;
   font-style: italic;
   padding: 0.5rem 0;
+}
+
+.qa-display {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  position: relative;
+}
+
+.question {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.answer {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.avatar.attorney {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+}
+
+/* .avatar.user {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: white;
+} */
+
+/* Add padding to content to accommodate navigation arrows */
+.content {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.answer-display {
+  position: relative;
+  padding: 0.5rem;
+  min-height: 40px;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.answer-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.edit-button {
+  opacity: 0;
+  position: absolute;
+  right: 0.5rem;
+  top: 0.5rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.edit-button:hover {
+  background: #f3f4f6;
+  color: #4f46e5;
+}
+
+.answer-display:hover .edit-button {
+  opacity: 1;
+}
+
+.answer-edit-mode {
+  padding: 0.5rem;
+}
+
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.avatar.user {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.el-avatar) {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-sizing: border-box;
 }
 </style>

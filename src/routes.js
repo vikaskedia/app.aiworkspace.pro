@@ -180,20 +180,48 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
+  // If authenticated, check matter count and handle redirects
+  if (session && to.path !== '/initial-consultation') {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: matters, error } = await supabase
+        .from('matters')
+        .select(`
+          *,
+          matter_access!inner (
+            access_type,
+            shared_with_user_id
+          )
+        `)
+        .eq('deleted', false)
+        .eq('matter_access.shared_with_user_id', user.id);
+
+      if (error) throw error;
+
+      // Handle the 3 scenarios
+      if (matters.length === 0) {
+        next('/initial-consultation');
+        return;
+      } else if (matters.length === 1 && to.path === '/') {
+        next(`/single-matter/${matters[0].id}/dashboard`);
+        return;
+      } else if (matters.length > 1 && to.path === '/') {
+        next('/all-matters/dashboard');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking matters:', error);
+    }
+  }
+
   // Handle root path
   if (to.path === '/') {
     next(session ? '/all-matters' : '/login');
     return;
   }
 
-  // Handle invalid matter routes
+  // Rest of your existing navigation guard code
   if (to.path.startsWith('/single-matter/') && (!to.params.matterId || to.params.matterId === '')) {
-    next('/all-matters');
-    return;
-  }
-
-  // Redirect from login if already authenticated
-  if (to.path === '/login' && session) {
     next('/all-matters');
     return;
   }

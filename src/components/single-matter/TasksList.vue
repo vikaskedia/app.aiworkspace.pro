@@ -4,6 +4,7 @@ import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer
 import { supabase } from '../../supabase'
 import { ElMessage } from 'element-plus'
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'TasksList',
@@ -463,6 +464,11 @@ export default {
       } else {
         container.scrollLeft += scrollAmount;
       }
+    },
+
+    navigateToDetailedView(task) {
+      // Implement the navigation method here
+      console.log('Navigating to detailed view for task:', task);
     }
   },
   watch: {
@@ -502,6 +508,7 @@ export default {
     }
   },
   setup(props, { emit }) {
+    const router = useRouter();
     const editingTaskId = ref(null)
     const editingField = ref(null)
     const editingValue = ref('')
@@ -673,6 +680,10 @@ export default {
       })
     }
 
+    const navigateToDetailedView = (task) => {
+      router.push(`/single-matter/${task.matter_id}/tasks/${task.id}`);
+    };
+
     return {
       editingTaskId,
       editingField,
@@ -686,6 +697,7 @@ export default {
       cancelEditing,
       focusDatePicker,
       shortcuts,
+      navigateToDetailedView,
     }
   },
   directives: {
@@ -825,7 +837,8 @@ export default {
           <div 
             class="task-card"
             :class="{ 'parent-task': hasChildren(task) }"
-            @click="openComments(task)">
+            @click="openComments(task)"
+            @contextmenu.prevent="navigateToDetailedView(task)">
             <div class="task-main">
               <div 
                 v-if="hasChildren(task)"
@@ -947,7 +960,8 @@ export default {
                 v-for="childTask in task.children" 
                 :key="childTask.id"
                 class="task-card child-task"
-                @click="openComments(childTask)">
+                @click="openComments(childTask)"
+                @contextmenu.prevent="navigateToDetailedView(childTask)">
                 <div class="task-main">
                   <div class="task-title-container">
                     <template v-if="editingTaskId === childTask.id && editingField === 'title'">

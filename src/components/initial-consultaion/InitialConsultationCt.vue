@@ -36,7 +36,10 @@
                 @keyup.enter.ctrl="handleCurrentAnswer"
               />
               <div class="input-actions">
-                <span class="hint">Press Ctrl + Enter to send</span>
+                <span class="hint">
+                  <!-- Press Ctrl + Enter to send -->
+                  &nbsp;
+                </span>
                 <div class="button-group">
                   <el-button 
                     type="primary" 
@@ -68,7 +71,9 @@
                   @keyup.enter.ctrl="handleCurrentAnswer"
                 />
                 <div class="input-actions">
-                  <span class="hint">Press Ctrl + Enter to send</span>
+                  <span class="hint">
+                    &nbsp;
+                  </span>
                   <div class="button-group">
                     <el-button @click="cancelEdit">
                       Cancel
@@ -78,7 +83,7 @@
                       @click="handleCurrentAnswer"
                       :loading="loading"
                       :disabled="!currentAnswer.trim()">
-                      Save & Regenerate
+                      Save
                     </el-button>
                   </div>
                 </div>
@@ -735,31 +740,108 @@ export default {
   overflow: hidden;
 }
 
+:deep(.el-dialog__header) {
+  padding: 24px 32px;
+  margin: 0;
+  border-bottom: 1px solid var(--el-border-color-light);
+  background: linear-gradient(to right, #f8fafc, #f1f5f9);
+}
+
+:deep(.el-dialog__title) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+:deep(.el-dialog__body) {
+  padding: 0;
+}
+
 .notepad-content {
-  padding: 2rem;
+  padding: 32px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .section {
-  margin-bottom: 2rem;
+  margin-bottom: 32px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+}
+
+.section:hover {
+  transform: translateY(-2px);
 }
 
 .section h4 {
   font-size: 1.1rem;
   color: #1e293b;
-  margin-bottom: 1rem;
-  font-weight: 500;
+  margin: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .section-content {
+  padding: 20px 24px;
   background: #f8fafc;
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 0 0 12px 12px;
+}
+
+.section-content ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section-content li {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.section-content li:hover {
+  border-color: var(--el-color-primary-light-5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .empty-section {
-  color: #909399;
-  font-style: italic;
-  padding: 0.5rem 0;
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px dashed var(--el-border-color);
+}
+
+.notepad-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notepad-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.notepad-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.notepad-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .loading-container {

@@ -227,10 +227,19 @@ export default {
       });
     }
 
+    const formatQuestionHistory = (history) => {
+      if (!history || history.length === 0) return '';
+      
+      return '\n\nPrevious Questions and Answers:\n' + 
+        history.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
+    }
+
     const handleSubmit = async () => {
       try {
         loading.value = true;
         const { data: { user } } = await supabase.auth.getUser();
+
+        const fullPrompt = promptText + formatQuestionHistory(questionHistory.value);
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -242,8 +251,8 @@ export default {
             consultationId: consultationId.value,
             currentQuestion: currentQuestion.value,
             answer: currentAnswer.value,
-            systemPrompt: promptText,
-            previousData: notepadData.value // Send existing data for context
+            systemPrompt: fullPrompt,
+            previousData: notepadData.value
           })
         });
 
@@ -373,6 +382,8 @@ export default {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
 
+        const fullPrompt = promptText + formatQuestionHistory(questionHistory.value);
+
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
           headers: {
@@ -383,7 +394,7 @@ export default {
             consultationId: consultationId.value,
             currentQuestion: questionHistory.value[currentIndex.value].question,
             answer: currentAnswer.value,
-            systemPrompt: promptText,
+            systemPrompt: fullPrompt,
             editIndex: currentIndex.value
           })
         })

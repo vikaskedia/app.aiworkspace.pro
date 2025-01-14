@@ -223,6 +223,8 @@ export default {
         totalQuestions.value = questionHistory.value.length + (data.nextQuestion ? 1 : 0)
         isViewingHistory.value = false
 
+        await saveConsultationState()
+
       } catch (error) {
         ElMessage.error('Error processing your response: ' + error.message)
       } finally {
@@ -280,26 +282,32 @@ export default {
           consultationId.value = crypto.randomUUID();
         }
 
-        const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            consultationId: consultationId.value
-          })
-        });
+        // Load existing consultation state if any
+        await loadConsultationState()
 
-        if (!response.ok) throw new Error('Failed to start consultation');
-        
-        const data = await response.json();
-        currentQuestion.value = data.firstQuestion;
+        // Only fetch first question if we don't have any history
+        if (questionHistory.value.length === 0) {
+          const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              consultationId: consultationId.value
+            })
+          })
+
+          if (!response.ok) throw new Error('Failed to start consultation')
+          
+          const data = await response.json()
+          currentQuestion.value = data.firstQuestion
+        }
 
       } catch (error) {
-        ElMessage.error('Error starting consultation: ' + error.message);
+        ElMessage.error('Error starting consultation: ' + error.message)
       } finally {
-        loading.value = false;
+        loading.value = false
       }
     };
 
@@ -357,6 +365,8 @@ export default {
           currentAnswer.value = ''
         }
 
+        await saveConsultationState()
+
       } catch (error) {
         ElMessage.error('Error processing your edit: ' + error.message)
       } finally {
@@ -407,6 +417,80 @@ export default {
       }
     }
 
+    const saveConsultationState = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        // Prepare the Q&A data
+        const interviewData = {
+          questions: questionHistory.value.map(qa => ({
+            question: qa.question,
+            answer: qa.answer
+          })),
+          currentQuestion: currentQuestion.value
+        }
+
+        // Update consultation record
+        const { error } = await supabase
+          .from('initial_consultation')
+          .upsert({
+            id: consultationId.value,
+            user_id: user.id,
+            json_of_interview_qna: interviewData,
+            plan_accepted_by_user_json: notepadData.value,
+            updated_at: new Date().toISOString()
+          })
+
+        if (error) throw error
+      } catch (error) {
+        console.error('Error saving consultation state:', error)
+        ElMessage.error('Failed to save consultation state')
+      }
+    }
+
+    const loadConsultationState = async () => {
+      try {
+        loading.value = true
+        const { data: { user } } = await supabase.auth.getUser()
+
+        // Get most recent consultation for this user
+        const { data, error } = await supabase
+          .from('initial_consultation')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          const consultation = data[0]
+          consultationId.value = consultation.id
+
+          // Restore Q&A history
+          const interviewData = consultation.json_of_interview_qna
+          questionHistory.value = interviewData.questions || []
+          currentQuestion.value = interviewData.currentQuestion
+          currentIndex.value = questionHistory.value.length
+
+          // Restore notepad data
+          if (consultation.plan_accepted_by_user_json) {
+            notepadData.value = consultation.plan_accepted_by_user_json
+          }
+
+          totalQuestions.value = questionHistory.value.length + (currentQuestion.value ? 1 : 0)
+        } else {
+          // No existing consultation found - generate new ID
+          consultationId.value = crypto.randomUUID()
+        }
+      } catch (error) {
+        console.error('Error loading consultation state:', error)
+        ElMessage.error('Failed to load consultation state')
+      } finally {
+        loading.value = false
+      }
+    }
+
     onMounted(async () => {
       await initializeConsultation();
       const qaDisplay = document.querySelector('.qa-display')
@@ -449,7 +533,9 @@ export default {
       totalQuestions,
       handleCurrentAnswer,
       handleTouchStart,
-      handleTouchEnd
+      handleTouchEnd,
+      saveConsultationState,
+      loadConsultationState
     }
   }
 }

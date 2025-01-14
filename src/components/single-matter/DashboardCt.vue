@@ -61,49 +61,20 @@
           View All Tasks
         </el-button>
       </div>
-      <el-table
-        v-loading="loadingTasks"
-        :data="recentTasks"
-        style="width: 100%">
-        <el-table-column 
-          prop="title" 
-          label="Title"
-          min-width="200">
-          <template #default="scope">
-            <span 
-              class="clickable-title"
-              @click="navigateToTask(scope.row)">
-              {{ scope.row.title }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          v-if="!currentMatter"
-          prop="matter_title" 
-          label="Matter"
-          min-width="150" />
-        <el-table-column 
-          prop="status" 
-          label="Status"
-          width="120">
-          <template #default="scope">
-            <el-tag :type="
-              scope.row.status === 'completed' ? 'success' :
-              scope.row.status === 'in_progress' ? 'warning' : 'info'
-            ">
-              {{ formatStatus(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="due_date" 
-          label="Due Date"
-          width="150">
-          <template #default="scope">
-            {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="recent-task" v-for="task in recentTasks" :key="task.id" 
+           @click="navigateToTask(task)" 
+           style="cursor: pointer">
+        <div class="task-title">{{ task.title }}</div>
+        <div class="task-timestamps">
+          <el-tooltip>
+            <template #content>
+              Created: {{ new Date(task.created_at).toLocaleString() }}<br>
+              Latest Activity: {{ new Date(task.latest_activity_time).toLocaleString() }}
+            </template>
+            <span class="time-ago">{{ task.latestActivityTimeAgo }}</span>
+          </el-tooltip>
+        </div>
+      </div>
     </div>
 
     <!-- Events Section -->
@@ -220,21 +191,34 @@ export default {
 
     async loadRecentTasks() {
       try {
-        this.loadingTasks = true;
-        const { data: tasks, error } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('matter_id', this.currentMatter.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
+        const { data: recentTasks, error } = await supabase
+          .rpc('get_recent_tasks_with_activity', {
+            p_matter_id: this.currentMatter.id
+          });
 
         if (error) throw error;
-        this.recentTasks = tasks;
+        
+        // Add relative time for both creation and latest activity
+        this.recentTasks = recentTasks.map(task => ({
+          ...task,
+          createdTimeAgo: this.getRelativeTime(task.created_at),
+          latestActivityTimeAgo: this.getRelativeTime(task.latest_activity_time)
+        }));
       } catch (error) {
-        ElMessage.error('Error loading tasks: ' + error.message);
-      } finally {
-        this.loadingTasks = false;
+        ElMessage.error('Error loading recent tasks: ' + error.message);
       }
+    },
+
+    getRelativeTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffInSeconds = Math.floor((now - date) / 1000);
+      
+      if (diffInSeconds < 60) return 'just now';
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+      if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+      return date.toLocaleDateString();
     },
 
     async loadUpcomingEvents() {
@@ -268,7 +252,13 @@ export default {
     },
 
     navigateToTask(task) {
-      this.$router.push(`/single-matter/${this.currentMatter.id}/tasks/${task.id}`);
+      this.$router.push({
+        name: 'SingleTaskPage',
+        params: {
+          matterId: task.matter_id,
+          taskId: task.id
+        }
+      });
     }
   }
 };
@@ -327,5 +317,37 @@ export default {
 
 .clickable-title:hover {
   text-decoration: underline;
+}
+
+.recent-task {
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #EBEEF5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recent-task:hover {
+  background-color: #F5F7FA;
+  border-color: #DCDFE6;
+  transform: translateX(2px);
+}
+
+.task-title {
+  color: #409EFF;
+  font-weight: 500;
+}
+
+.task-timestamps {
+  color: #909399;
+  font-size: 0.9em;
+}
+
+.time-ago {
+  color: #909399;
 }
 </style>

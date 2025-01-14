@@ -12,7 +12,11 @@ export const Typeahead = Extension.create({
         key: new PluginKey('typeahead'),
         props: {
           handleKeyDown: (view, event) => {
-            // Handle navigation keys for suggestions
+            // Skip suggestion fetching for navigation keys
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+              return false;
+            }
+
             if (event.key === 'Escape') {
               const hasActiveSuggestions = this.options.onKeyDown?.({
                 text: '',
@@ -22,7 +26,6 @@ export const Typeahead = Extension.create({
                 preventFetch: true
               })
               
-              // Only stop propagation if we handled the suggestions
               if (hasActiveSuggestions) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -31,7 +34,7 @@ export const Typeahead = Extension.create({
               return false;
             }
 
-            if (['ArrowUp', 'ArrowDown', 'Tab'].includes(event.key)) {
+            if (event.key === 'Tab') {
               const { state } = view
               const { selection } = state
               const currentText = state.doc.textBetween(0, selection.from, '\n')

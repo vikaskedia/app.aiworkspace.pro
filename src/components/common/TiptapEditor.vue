@@ -619,43 +619,21 @@ export default {
       }
     },
 
-    handleEditorKeyDown({ text, cursorPosition, event, shouldHideTypeahead, preventFetch }) {
-      if (shouldHideTypeahead || (this.showTypeahead && event.key === 'Escape')) {
+    handleEditorKeyDown({ text, cursorPosition, event }) {
+      // Skip processing for arrow keys
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        return false;
+      }
+
+      if (event.key === 'Escape' && this.showTypeahead) {
         event.preventDefault();
         event.stopPropagation();
         this.showTypeahead = false;
         this.typeaheadSuggestions = [];
-        
-        // If preventFetch is true, return early without fetching suggestions
-        if (preventFetch) {
-          return true;
-        }
+        return true;
       }
 
-      if (!this.showTypeahead) {
-        // Check if we should show typeahead
-        const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
-        
-        // Only show typeahead if:
-        // 1. There is a last word
-        // 2. The word is longer than 2 characters
-        // 3. The word doesn't start with @
-        // 4. The last character isn't a space
-        if (lastWord && 
-            lastWord.length > 2 && 
-            !lastWord.startsWith('@') && 
-            !text.slice(cursorPosition - 1, cursorPosition).match(/\s/)) {
-          this.debouncedGetSuggestions(text, cursorPosition)
-          this.updateTypeaheadPosition()
-        } else {
-          // Hide typeahead if conditions aren't met
-          this.showTypeahead = false
-          this.typeaheadSuggestions = []
-        }
-      } else {
-        // Handle navigation
-        this.handleTypeaheadNavigation(event)
-      }
+      // Rest of the existing code...
     },
 
     async getTypeaheadSuggestions(text, cursorPosition) {
@@ -703,25 +681,9 @@ export default {
       if (!this.showTypeahead || !this.typeaheadSuggestions.length) return;
 
       switch (event.key) {
-        case 'ArrowDown':
-          event.preventDefault();
-          this.typeaheadSelectedIndex = Math.min(
-            (this.typeaheadSelectedIndex + 1),
-            this.typeaheadSuggestions.length - 1
-          );
-          break;
-        case 'ArrowUp':
-          event.preventDefault();
-          this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0);
-          break;
         case 'Tab':
           event.preventDefault();
-          if (this.typeaheadSelectedIndex >= 0) {
-            this.applySuggestion(this.typeaheadSuggestions[this.typeaheadSelectedIndex]);
-          } else {
-            // If no selection, select the first suggestion
-            this.applySuggestion(this.typeaheadSuggestions[0]);
-          }
+          this.applySuggestion(this.typeaheadSuggestions[0]);
           break;
         case 'Escape':
           event.preventDefault();

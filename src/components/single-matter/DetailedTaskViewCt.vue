@@ -1252,17 +1252,17 @@ export default {
     },
     async getAIResponse(prompt, customSystemPrompt = null) {
       try {
-        // Extract hyperlinks to txt files using regex
-        const jpgLinkRegex = /\[([^\]]+\.jpg)\]\(([^)]+\.jpg)\)/g;
-        const jpgLinks = [...prompt.matchAll(jpgLinkRegex)];
+        // Extract hyperlinks to image files using regex
+        const imageLinkRegex = /\[([^\]]+\.(jpg|jpeg|png|gif|webp))\]\(([^)]+\.(jpg|jpeg|png|gif|webp))\)/gi;
+        const imageLinks = [...prompt.matchAll(imageLinkRegex)];
         
-        // Clean the prompt by removing markdown file links
-        const cleanPrompt = prompt.replace(jpgLinkRegex, '').trim();
+        // Clean the prompt by removing markdown image links
+        const cleanPrompt = prompt.replace(imageLinkRegex, '').trim();
 
         // Get the first image URL if available
         let imageUrl = null;
-        if (jpgLinks.length > 0) {
-          imageUrl = jpgLinks[0][2]; // Get URL from first match
+        if (imageLinks.length > 0) {
+          imageUrl = imageLinks[0][3]; // Get URL from first match
         }
 
         const commentsHistory = this.comments.map(comment => {
@@ -1282,10 +1282,10 @@ export default {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: imageUrl ? {
+            prompt: {
               text: cleanPrompt,
               image_url: imageUrl
-            } : cleanPrompt,
+            },
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
             matterId: this.task.matter_id

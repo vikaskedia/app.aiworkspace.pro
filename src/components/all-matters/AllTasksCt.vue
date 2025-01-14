@@ -154,7 +154,8 @@
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         default-expand-all
         style="width: 100%"
-        @row-click="navigateToTask">
+        @row-click="navigateToTask"
+        @row-contextmenu="handleContextMenu">
         <el-table-column 
           prop="matter_title" 
           label="Matter"
@@ -716,6 +717,16 @@ export default {
         return filter.filters[key] === currentFilters[key];
       });
     },
+
+    handleContextMenu(row, column, event) {
+      event.preventDefault();
+      this.navigateToDetailedView(row);
+    },
+
+    navigateToDetailedView(row) {
+      if (!row || !row.matter_id) return;
+      this.router.push(`/single-matter/${row.matter_id}/tasks/${row.id}`);
+    }
   },
   mounted() {
     this.loadSavedFilters();

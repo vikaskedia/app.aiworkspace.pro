@@ -330,12 +330,12 @@ export default {
     activeFiltersCount() {
       let count = 0;
       if (this.filters.search) count++;
-      if (this.filters.status) count++;
+      if (this.filters.status?.length) count++;
       if (this.filters.excludeStatus?.length) count++;
       if (this.filters.priority) count++;
       if (this.filters.dueDate) count++;
       if (this.filters.matter) count++;
-      if (this.filters.assignee) count++;
+      if (this.filters.assignee?.length) count++;
       if (this.filters.starred) count++;
       return count;
     }

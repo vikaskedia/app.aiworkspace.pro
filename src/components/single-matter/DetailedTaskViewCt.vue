@@ -133,8 +133,8 @@
                   <el-icon><CircleCheck /></el-icon>
                   <span>Status</span>
                 </div>
-                <el-dropdown @command="handleStatusChange" trigger="click">
-                  <el-tag :type="getStatusType(task)" class="status-tag">
+                <el-dropdown @command="handleStatusChange" trigger="click" size="small">
+                  <el-tag :type="getStatusType(task)" class="status-tag" size="small">
                     {{ formatStatus(task?.status) }}
                     <el-icon class="el-icon--right"><ArrowDown /></el-icon>
                   </el-tag>
@@ -155,11 +155,11 @@
                   <el-icon><Warning /></el-icon>
                   <span>Priority</span>
                 </div>
-                <el-dropdown @command="handlePriorityChange" trigger="click">
-                  <el-tag :type="
-                    task?.priority === 'high' ? 'danger' :
-                    task?.priority === 'medium' ? 'warning' : 'info'
-                  " class="priority-tag">
+                <el-dropdown @command="handlePriorityChange" trigger="click" size="small">
+                  <el-tag 
+                    :type="task?.priority === 'high' ? 'danger' : task?.priority === 'medium' ? 'warning' : 'info'" 
+                    class="priority-tag"
+                    size="small">
                     {{ task?.priority }}
                     <el-icon class="el-icon--right"><ArrowDown /></el-icon>
                   </el-tag>
@@ -182,11 +182,10 @@
                 <el-popover
                   placement="bottom"
                   trigger="click"
-                  :width="300"
-                  popper-class="due-date-popover"
-                >
+                  :width="240"
+                  popper-class="due-date-popover">
                   <template #reference>
-                    <div class="due-date-display">
+                    <div class="due-date-display" style="padding: 3px 6px;">
                       <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
                       <el-icon><Edit /></el-icon>
                     </div>
@@ -198,6 +197,7 @@
                         type="date"
                         placeholder="Select due date"
                         style="width: 100%"
+                        size="small"
                         @change="handleDueDateChange"
                       />
                       <div class="due-date-actions">
@@ -215,10 +215,10 @@
                   <el-icon><User /></el-icon>
                   <span>Assigned To</span>
                 </div>
-                <el-dropdown @command="handleAssigneeChange" trigger="click">
-                  <div class="assignee-display">
+                <el-dropdown @command="handleAssigneeChange" trigger="click" size="small">
+                  <div class="assignee-display" style="padding: 3px 6px;">
                     <div class="assignee-info">
-                      <el-avatar v-if="assigneeEmail" :size="24">
+                      <el-avatar v-if="assigneeEmail" :size="20">
                         {{ getInitials(assigneeEmail) }}
                       </el-avatar>
                       <span>{{ assigneeEmail || 'Unassigned' }}</span>
@@ -234,10 +234,9 @@
                       <el-dropdown-item 
                         v-for="user in sharedUsers" 
                         :key="user.id"
-                        :command="user.id"
-                      >
+                        :command="user.id">
                         <div class="user-option">
-                          <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
+                          <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
                           <span>{{ user.email }}</span>
                         </div>
                       </el-dropdown-item>
@@ -2401,6 +2400,21 @@ export default {
   border-radius: 4px;
   transition: background-color 0.3s;
   margin: 0;
+  font-size: 15px;
+  /* Add these properties for better text wrapping */
+  white-space: pre-wrap;       /* Preserve whitespace and wrapping */
+  word-wrap: break-word;       /* Break words that are too long */
+  word-break: break-word;      /* Break words at appropriate points */
+  overflow-wrap: break-word;   /* Ensure long words don't overflow */
+  max-width: 100%;            /* Ensure content doesn't exceed container */
+}
+
+/* Add mobile-specific adjustments */
+@media (max-width: 768px) {
+  .description {
+    padding: 8px 4px;         /* Reduce padding on mobile */
+    font-size: 14px;          /* Slightly smaller font on mobile */
+  }
 }
 
 .description:hover {
@@ -2461,23 +2475,27 @@ export default {
   gap: 8px;
 }
 .task-metadata {
-  background: var(--el-bg-color);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 16px 0;
   border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  padding: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .metadata-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin: 1rem 0;
 }
 
 .metadata-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
+  min-width: 0; /* Add this to allow shrinking */
 }
 
 .metadata-label {
@@ -2497,10 +2515,12 @@ export default {
 .due-date-display,
 .assignee-display {
   width: 100%;
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  overflow: hidden; /* Add this to prevent overflow */
 }
 
 .due-date-display,
@@ -2531,8 +2551,13 @@ export default {
 
 @media (max-width: 768px) {
   .metadata-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metadata-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
   }
 }
 .due-date-display {
@@ -3330,6 +3355,9 @@ table.editor-table {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .task-comments-section {
@@ -3337,6 +3365,44 @@ table.editor-table {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .task-content-wrapper {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .task-main-content {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .task-metadata {
+    width: 100%;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .metadata-grid {
+    width: 100%;
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+
+  .metadata-item {
+    width: 100%;
+  }
+
+  .task-comments-section {
+    border-radius: 0;
+    box-shadow: none;
+    padding: 1rem;
+  }
 }
 </style>
 

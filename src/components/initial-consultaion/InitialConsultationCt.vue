@@ -194,6 +194,70 @@ export default {
 
     const user = ref(null)
 
+    const userMatters = ref([]);
+
+    const getSharedMatters = async (userId) => {
+      try {
+        // Get matters shared with the user
+        const { data: sharedMatters, error } = await supabase
+          .from('matters')
+          .select(`
+            *,
+            matter_access!inner (
+              access_type,
+              shared_with_user_id
+            ),
+            tasks (
+              id,
+              title,
+              description,
+              status,
+              priority
+            )
+          `)
+          .eq('deleted', false)
+          .eq('matter_access.shared_with_user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return sharedMatters || [];
+      } catch (error) {
+        console.error('Error fetching shared matters:', error);
+        return [];
+      }
+    };
+
+    const loadUserMatters = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: sharedMatters, error } = await supabase
+          .from('matters')
+          .select(`
+            *,
+            matter_access!inner (
+              access_type,
+              shared_with_user_id
+            ),
+            tasks (
+              id,
+              title,
+              description,
+              status,
+              priority
+            )
+          `)
+          .eq('deleted', false)
+          .eq('matter_access.shared_with_user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        userMatters.value = sharedMatters || [];
+      } catch (error) {
+        console.error('Error fetching shared matters:', error);
+        userMatters.value = [];
+      }
+    };
+
     const formatSectionTitle = (key) => {
       return key.split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -241,18 +305,48 @@ export default {
         history.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
     }
 
+    const preparePrompt = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Get system prompt from initial consultant attorney
+      const { systemPrompt, attorneyData } = await getInitialConsultantPrompt();
+      if (!systemPrompt) {
+        throw new Error('No initial consultant system prompt found');
+      }
+
+      // Format shared matters information
+      const sharedMattersInfo = userMatters.value.length > 0 
+        ? `\n\nShared Legal Matters:\n${userMatters.value.map(matter => `
+- Matter: ${matter.title}
+  Description: ${matter.description || 'No description'}
+  Tasks:${matter.tasks?.length ? matter.tasks.map(task => `
+    • ${task.title} (${task.priority} priority) - ${task.status}`).join('') : '\n    • No tasks yet'}`).join('\n')}`
+        : '\n\nShared Legal Matters: None';
+
+      // Add user information section with shared matters
+      const userInfoSection = `Information known about the user:
+- Name: ${user.user_metadata?.name || 
+         user.user_metadata?.user_name || 
+         user.user_metadata?.full_name ||
+         user.email?.split('@')[0]}
+- Email: ${user.email}
+- Phone: ${user.user_metadata?.phone || 'Not provided'}
+- Preferred Language: ${user.user_metadata?.preferred_language || 'Not specified'}${sharedMattersInfo}
+`;
+
+      const fullPrompt = systemPrompt + '\n\n' + userInfoSection + formatQuestionHistory(questionHistory.value);
+      
+      return {
+        fullPrompt,
+        user,
+        attorneyData
+      };
+    };
+
     const handleSubmit = async () => {
       try {
         loading.value = true;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Get system prompt from initial consultant attorney
-        const systemPrompt = await getInitialConsultantPrompt();
-        if (!systemPrompt) {
-          throw new Error('No initial consultant system prompt found');
-        }
-
-        const fullPrompt = systemPrompt + formatQuestionHistory(questionHistory.value);
+        const { fullPrompt, user } = await preparePrompt();
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -422,15 +516,7 @@ export default {
     const handleEdit = async () => {
       try {
         loading.value = true
-        const { data: { user } } = await supabase.auth.getUser()
-
-        // Get system prompt from initial consultant attorney
-        const systemPrompt = await getInitialConsultantPrompt();
-        if (!systemPrompt) {
-          throw new Error('No initial consultant system prompt found');
-        }
-
-        const fullPrompt = systemPrompt + formatQuestionHistory(questionHistory.value);
+        const { fullPrompt, user } = await preparePrompt();
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -630,13 +716,16 @@ export default {
     }
 
     onMounted(async () => {
-      await initializeConsultation();
-      const qaDisplay = document.querySelector('.qa-display')
+      await Promise.all([
+        initializeConsultation(),
+        loadUserMatters()
+      ]);
+      const qaDisplay = document.querySelector('.qa-display');
       if (qaDisplay) {
-        qaDisplay.addEventListener('touchstart', handleTouchStart)
-        qaDisplay.addEventListener('touchend', handleTouchEnd)
+        qaDisplay.addEventListener('touchstart', handleTouchStart);
+        qaDisplay.addEventListener('touchend', handleTouchEnd);
       }
-      fetchUser()
+      fetchUser();
     });
 
     onUnmounted(() => {
@@ -676,6 +765,8 @@ export default {
       saveConsultationState,
       loadConsultationState,
       user,
+      userMatters,
+      loadUserMatters,
     }
   }
 }

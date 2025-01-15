@@ -439,38 +439,34 @@ export default {
           throw new Error('User not authenticated');
         }
 
-        // Get attorney data and system prompt
-        const { systemPrompt, attorneyData } = await getInitialConsultantPrompt();
-        if (!systemPrompt) {
-          throw new Error('No initial consultant system prompt found');
-        }
-
         // Generate consultation ID if not exists
         if (!consultationId.value) {
           consultationId.value = crypto.randomUUID();
         }
 
         // Load existing consultation state if any
-        await loadConsultationState()
+        await loadConsultationState();
 
         // Only fetch first question if we don't have any history
         if (questionHistory.value.length === 0) {
+          const { fullPrompt, user: userData, attorneyData } = await preparePrompt();
+
           const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              userId: user.id,
+              userId: userData.id,
               consultationId: consultationId.value,
               userData: {
-                name: user.user_metadata?.name || 
-                      user.user_metadata?.user_name || 
-                      user.user_metadata?.full_name ||
-                      user.email?.split('@')[0],
-                email: user.email,
-                phone: user.user_metadata?.phone,
-                preferredLanguage: user.user_metadata?.preferred_language,
+                name: userData.user_metadata?.name || 
+                      userData.user_metadata?.user_name || 
+                      userData.user_metadata?.full_name ||
+                      userData.email?.split('@')[0],
+                email: userData.email,
+                phone: userData.user_metadata?.phone,
+                preferredLanguage: userData.user_metadata?.preferred_language,
               },
               attorneyData: {
                 name: attorneyData?.name || 'Associate Attorney',
@@ -478,27 +474,27 @@ export default {
                 barNumber: attorneyData?.bar_number,
                 firmName: attorneyData?.firm_name,
               },
-              systemPrompt
+              systemPrompt: fullPrompt
             })
-          })
+          });
 
-          if (!response.ok) throw new Error('Failed to start consultation')
+          if (!response.ok) throw new Error('Failed to start consultation');
           
-          const data = await response.json()
-          currentQuestion.value = data.firstQuestion
+          const data = await response.json();
+          currentQuestion.value = data.firstQuestion;
           notepadData.value = {
-              events: [],
-              files: [],
-              goals: [],
-              tasks: [],
-              possibleOutcome: []
-          }
+            events: [],
+            files: [],
+            goals: [],
+            tasks: [],
+            possibleOutcome: []
+          };
         }
 
       } catch (error) {
-        ElMessage.error('Error starting consultation: ' + error.message)
+        ElMessage.error('Error starting consultation: ' + error.message);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     };
 

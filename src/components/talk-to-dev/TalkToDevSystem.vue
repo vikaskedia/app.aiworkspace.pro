@@ -423,7 +423,7 @@ export default {
       try {
         // First get all admins
         const { data: admins, error: adminsError } = await supabase
-          .from('talktodevteam_system_admins')
+          .from('system_admins')
           .select('*')
           .order('granted_at', { ascending: false })
 

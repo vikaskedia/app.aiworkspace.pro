@@ -31,44 +31,47 @@
         <div class="task-main-info">
           
           <div class="task-title-header">
-            <div class="star-container">
-              <el-icon 
-                class="star-icon"
-                :class="{ 'starred': isTaskStarred }"
-                @click="toggleTaskStar"
-              >
-                <Star v-if="!isTaskStarred" />
-                <StarFilled v-else />
-              </el-icon>
-            </div>
-            
-            <div class="title-wrapper">
-              <h2 
-                v-if="!isEditingTitle" 
-                @click="startTitleEdit"
-                class="editable-title"
-              >
-                {{ task?.title }}
-                <el-icon class="edit-icon"><Edit /></el-icon>
-              </h2>
-              <div v-else class="title-edit-wrapper">
-                <el-input
-                  v-model="editingTitle"
-                  ref="titleInput"
-                  size="large"
-                  @keyup.enter="saveTitleEdit"
-                  @keyup.esc="cancelTitleEdit"
-                />
-                <div class="title-edit-actions">
-                  <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
-                  <el-button 
-                    type="primary" 
-                    @click="saveTitleEdit" 
-                    size="small"
-                    :disabled="!editingTitle.trim() || editingTitle === task?.title"
+            <div class="title-main-section">
+              <div class="title-wrapper">
+                <div class="star-container">
+                  <el-icon 
+                    class="star-icon"
+                    :class="{ 'starred': isTaskStarred }"
+                    @click.stop="toggleTaskStar"
                   >
-                    Save
-                  </el-button>
+                    <Star v-if="!isTaskStarred" />
+                    <StarFilled v-else />
+                  </el-icon>
+                </div>
+                
+                <h2 
+                  v-if="!isEditingTitle" 
+                  @click="startTitleEdit"
+                  class="editable-title"
+                >
+                  {{ task?.title }}
+                  <el-icon class="edit-icon"><Edit /></el-icon>
+                </h2>
+                
+                <div v-else class="title-edit-wrapper">
+                  <el-input
+                    v-model="editingTitle"
+                    ref="titleInput"
+                    size="large"
+                    @keyup.enter="saveTitleEdit"
+                    @keyup.esc="cancelTitleEdit"
+                  />
+                  <div class="title-edit-actions">
+                    <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
+                    <el-button 
+                      type="primary" 
+                      @click="saveTitleEdit" 
+                      size="small"
+                      :disabled="!editingTitle.trim() || editingTitle === task?.title"
+                    >
+                      Save
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2435,6 +2438,25 @@ export default {
 
 .title-wrapper {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.star-container {
+  display: inline-flex;
+  align-items: center;
+  padding-top: 4px; /* Align with title text */
+}
+
+.title-edit-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+  min-width: 0;
 }
 
 .editable-title {
@@ -2460,13 +2482,6 @@ export default {
 
 .editable-title:hover .edit-icon {
   opacity: 1;
-}
-
-.title-edit-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px;
 }
 
 .title-edit-actions {
@@ -2778,12 +2793,6 @@ export default {
   font-size: 18px;
 }
 
-.star-container {
-  display: flex;
-  align-items: center;
-  margin-right: 12px;
-}
-
 .star-button {
   margin-right: 4px;
 }
@@ -3072,8 +3081,56 @@ h4 {
 
 .task-title-header {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title-main-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.editable-title {
+  display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 0;
+  min-width: 0;
+}
+
+.star-container {
+  display: inline-flex;  /* Change from flex to inline-flex */
+  align-items: center;
+  margin-right: -4px;  /* Add negative margin to reduce space */
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 16px;  /* Reduce from 18px to 16px */
+  color: #909399;
+  transition: color 0.3s;
+  padding: 4px;  /* Add padding for better click target while maintaining visual compactness */
+}
+
+.star-icon.starred {
+  color: #f0c541;
+}
+
+.edit-metadata {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .edited-marker {
@@ -3086,144 +3143,15 @@ h4 {
   text-decoration: underline;
 }
 
-.edit-history {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
-}
-
-.edit-history-entry {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eee;
-}
-
-.edit-history-entry:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.edit-history-header {
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #606266;
-}
-
-.previous-content {
-  background: #f5f7fa;
-  padding: 8px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  white-space: pre-wrap;
-}
-
-.edit-metadata {
-  font-size: 0.8em;
-  color: #909399;
-}
-.file-link {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-.file-link:hover {
-  text-decoration: underline;
-}
-
-.description-input-container {
-  position: relative;
-  width: 100%;
-}
-
-.description-input {
-  width: 100%;
-}
-
-:deep(.el-textarea__inner) {
-  width: 100%;
-  resize: vertical;
-}
-
-.typeahead-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
-}
-
-.suggestion-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background-color: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-}
-
-.time-input-container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.time-input-group {
-  display: inline-flex;
-  align-items: center;
-  background-color: var(--el-fill-color-blank);
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-  padding: 2px 8px;
-  width: fit-content;
-}
-
-.time-separator {
-  padding: 0 4px;
-  color: var(--el-text-color-regular);
-  font-weight: bold;
-}
-
-.time-unit {
-  margin-left: 8px;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.time-input-group-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-:deep(.el-input__wrapper) {
-  box-shadow: none !important;
-  padding: 0 4px;
-}
-
-:deep(.el-input__inner) {
-  text-align: center;
-}
-
-.time-input-help {
-  color: #909399;
-  font-size: 12px;
-}
-
-.error-text {
-  color: #f56c6c;
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .task-title-header {
+    flex-direction: column;
+  }
+  
+  .edit-metadata {
+    align-self: flex-end;
+  }
 }
 </style> 
 

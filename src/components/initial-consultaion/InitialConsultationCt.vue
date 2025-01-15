@@ -12,7 +12,12 @@
         <div class="question">
           <div class="avatar attorney">A</div>
           <div class="message">
-            {{ isViewingHistory ? questionHistory[currentIndex].question : currentQuestion }}
+            <template v-if="loading && !currentQuestion">
+              <el-skeleton :rows="2" animated />
+            </template>
+            <template v-else>
+              {{ isViewingHistory ? questionHistory[currentIndex].question : currentQuestion }}
+            </template>
           </div>
         </div>
         
@@ -142,6 +147,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
 import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit } from '@element-plus/icons-vue'
+import { ElSkeleton } from 'element-plus'
 import { supabase } from '../../supabase'
 import promptText from './prompt.txt?raw'
 
@@ -157,13 +163,14 @@ export default {
     ArrowRight,
     ArrowUp,
     ArrowDown,
-    Edit
+    Edit,
+    ElSkeleton
   },
 
   setup() {
     const consultationId = ref(null)
     
-    const currentQuestion = ref('Welcome! I\'m your AI legal assistant. To help you better, could you please tell me about the legal matter that brought you here today?')
+    const currentQuestion = ref('')
     const userResponse = ref('')
     const loading = ref(false)
     const showNotepad = ref(false)
@@ -338,11 +345,11 @@ export default {
           throw new Error('User not authenticated');
         }
 
-        // Get user's display name
-        const userName = user.user_metadata?.name || 
-                        user.user_metadata?.user_name || 
-                        user.user_metadata?.full_name ||
-                        user.email?.split('@')[0];
+        // Get attorney data and system prompt
+        const { systemPrompt, attorneyData } = await getInitialConsultantPrompt();
+        if (!systemPrompt) {
+          throw new Error('No initial consultant system prompt found');
+        }
 
         // Generate consultation ID if not exists
         if (!consultationId.value) {
@@ -362,7 +369,22 @@ export default {
             body: JSON.stringify({
               userId: user.id,
               consultationId: consultationId.value,
-              userName: userName
+              userData: {
+                name: user.user_metadata?.name || 
+                      user.user_metadata?.user_name || 
+                      user.user_metadata?.full_name ||
+                      user.email?.split('@')[0],
+                email: user.email,
+                phone: user.user_metadata?.phone,
+                preferredLanguage: user.user_metadata?.preferred_language,
+              },
+              attorneyData: {
+                name: attorneyData?.name || 'Associate Attorney',
+                specialization: attorneyData?.specialization,
+                barNumber: attorneyData?.bar_number,
+                firmName: attorneyData?.firm_name,
+              },
+              systemPrompt
             })
           })
 
@@ -370,6 +392,13 @@ export default {
           
           const data = await response.json()
           currentQuestion.value = data.firstQuestion
+          notepadData.value = {
+              events: [],
+              files: [],
+              goals: [],
+              tasks: [],
+              possibleOutcome: []
+          }
         }
 
       } catch (error) {
@@ -581,16 +610,22 @@ export default {
       try {
         const { data: attorney, error } = await supabase
           .from('attorneys')
-          .select('system_prompt')
+          .select('*')
           .eq('is_initial_consultant', true)
           .single();
 
         if (error) throw error;
-        return attorney?.system_prompt || '';
+        return {
+          systemPrompt: attorney?.system_prompt || '',
+          attorneyData: attorney || null
+        };
       } catch (error) {
         console.error('Error fetching initial consultant prompt:', error);
         ElMessage.error('Error loading consultation system');
-        return '';
+        return {
+          systemPrompt: '',
+          attorneyData: null
+        };
       }
     }
 

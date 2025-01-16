@@ -4,7 +4,7 @@
       <div class="header-actions">
         <el-switch
           v-model="showDeleted"
-          active-text="Show Deleted"
+          active-text="Show Archived"
           inactive-text="Show Active"
         />
         <el-button type="primary" @click="createMatterDialog = true">
@@ -28,7 +28,7 @@
                   <template v-if="!showDeleted">
                     <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
                     <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>Delete</el-dropdown-item>
+                    <el-dropdown-item command="delete" divided>Archive</el-dropdown-item>
                   </template>
                   <template v-else>
                     <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
@@ -344,9 +344,9 @@ export default {
         if (error) throw error;
 
         this.matters = this.matters.filter(m => m.id !== matter.id);
-        ElMessage.success('Matter deleted successfully');
+        ElMessage.success('Matter archived successfully');
       } catch (error) {
-        ElMessage.error('Error deleting matter: ' + error.message);
+        ElMessage.error('Error archiving matter: ' + error.message);
       }
     },
 
@@ -386,10 +386,10 @@ export default {
           break;
         case 'delete':
           ElMessageBox.confirm(
-            'Are you sure you want to delete this matter? You can restore it later from the deleted matters section.',
+            'Are you sure you want to archive this matter? You can restore it later from the archived matters section.',
             'Warning',
             {
-              confirmButtonText: 'Delete',
+              confirmButtonText: 'Archive',
               cancelButtonText: 'Cancel',
               type: 'warning'
             }

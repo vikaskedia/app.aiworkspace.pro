@@ -16,7 +16,7 @@
               <el-skeleton :rows="2" animated />
             </template>
             <template v-else>
-              {{ isViewingHistory ? questionHistory[currentIndex].question : currentQuestion }}
+              <div v-html="formatText(isViewingHistory ? questionHistory[currentIndex].question : currentQuestion)"></div>
             </template>
           </div>
         </div>
@@ -729,6 +729,11 @@ export default {
       }
     }
 
+    const formatText = (text) => {
+      if (!text) return '';
+      return text.split('\n').map(line => line.trim()).join('<br>');
+    }
+
     onMounted(async () => {
       await Promise.all([
         initializeConsultation(),
@@ -782,7 +787,8 @@ export default {
       userMatters,
       loadUserMatters,
       expandedSections,
-      dialogWidth
+      dialogWidth,
+      formatText
     }
   }
 }
@@ -856,6 +862,11 @@ export default {
   padding: 0.5rem;
   line-height: 1.5;
   flex: 1;
+  white-space: pre-line;
+}
+
+.message :deep(br) {
+  margin-bottom: 0.5em;
 }
 
 .message-container {

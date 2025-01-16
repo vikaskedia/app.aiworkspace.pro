@@ -7,6 +7,7 @@ import GoalsCt from './components/single-matter/GoalsCt.vue';
 import TasksCt from './components/single-matter/TasksCt.vue';
 import EventsCt from './components/single-matter/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
+import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
 import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
@@ -120,6 +121,12 @@ const routes = [
     path: '/login',
     name: 'LoginPage',
     component: LoginPage,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/signup',
+    name: 'SignupPage',
+    component: SignupPage,
     meta: { requiresAuth: false }
   },
   {

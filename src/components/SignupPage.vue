@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container">
+  <div class="signup-container">
     <header class="site-header">
       <div class="header-content">
         <img src="/associate-ai-attorney-logo.svg" alt="Legal Studio" class="logo-image" />
@@ -7,16 +7,16 @@
       </div>
     </header>
 
-    <el-card class="login-card">
+    <el-card class="signup-card">
       <div class="logo-section">
-        <h2>Welcome Back</h2>
-        <p>Sign in to continue to your account</p>
+        <h2>Create Account</h2>
+        <p>Sign up to get started with AI Associate Attorney</p>
       </div>
       
-      <div class="login-buttons">
+      <div class="social-buttons">
         <div class="button-row">
           <el-button
-            class="login-button google"
+            class="social-button google"
             @click="loginWithProvider('google')"
             size="large">
             <i class="fab fa-google"></i>
@@ -24,7 +24,7 @@
           </el-button>
 
           <el-button
-            class="login-button github"
+            class="social-button github"
             @click="loginWithProvider('github')"
             size="large">
             <i class="fab fa-github"></i>
@@ -34,7 +34,7 @@
 
         <div class="button-row">
           <!-- <el-button
-            class="login-button facebook" 
+            class="social-button facebook" 
             @click="loginWithProvider('facebook')"
             size="large">
             <i class="fab fa-facebook"></i>
@@ -42,7 +42,7 @@
           </el-button> -->
 
           <el-button
-            class="login-button twitter"
+            class="social-button twitter"
             @click="loginWithProvider('twitter')"
             size="large">
             <i class="fab fa-twitter"></i>
@@ -55,9 +55,9 @@
         By continuing, you agree to AI Associate Attorney's Terms of Service and Privacy Policy
       </div>
 
-      <div class="signup-link">
-        Don't have an account? 
-        <router-link to="/signup">Sign up</router-link>
+      <div class="login-link">
+        Already have an account? 
+        <router-link to="/login">Sign in</router-link>
       </div>
     </el-card>
   </div>
@@ -68,11 +68,12 @@ import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 
 export default {
+  name: 'SignupPage',
   methods: {
     async loginWithProvider(provider) {
       try {
         const redirectTo = `${window.location.origin}/callback`;
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: provider,
           options: {
             redirectTo: redirectTo,
@@ -83,7 +84,7 @@ export default {
         });
         
         if (error) {
-          ElMessage.error('Login failed: ' + error.message);
+          ElMessage.error('Signup failed: ' + error.message);
         } else {
           ElMessage.success('Redirecting to login provider...');
         }
@@ -91,13 +92,13 @@ export default {
         ElMessage.error('An unexpected error occurred');
         console.error(err);
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
 <style scoped>
-.login-container {
+.signup-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -107,7 +108,7 @@ export default {
   overflow-x: hidden;
 }
 
-.login-card {
+.signup-card {
   width: 100%;
   max-width: 600px;
   padding: 2rem;
@@ -131,7 +132,7 @@ export default {
   font-size: 0.9rem;
 }
 
-.login-buttons {
+.social-buttons {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -143,15 +144,18 @@ export default {
   margin-bottom: 1rem;
 }
 
-.login-button {
+.social-button {
   flex: 1;
   height: 48px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   border-radius: 8px;
-  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.login-button i {
+.social-button i {
   font-size: 1.2rem;
   margin-right: 8px;
 }
@@ -173,6 +177,10 @@ export default {
   border: none;
 }
 
+.github:hover {
+  background-color: #2f363d;
+}
+
 .facebook {
   background-color: #1877f2;
   color: #fff;
@@ -181,10 +189,6 @@ export default {
 
 .facebook:hover {
   background-color: #166fe5;
-}
-
-.github:hover {
-  background-color: #2f363d;
 }
 
 .twitter {
@@ -204,37 +208,27 @@ export default {
   color: #909399;
 }
 
-.el-button+.el-button {
-  margin-left: 0;
-}
-
-.signup-link {
+.login-link {
   text-align: center;
   margin-top: 1.5rem;
   font-size: 0.9rem;
   color: #606266;
 }
 
-.signup-link a {
+.login-link a {
   color: #409eff;
   text-decoration: none;
   margin-left: 4px;
 }
 
-.signup-link a:hover {
+.login-link a:hover {
   text-decoration: underline;
 }
 
 .site-header {
-  /* Modern blue gradient with better contrast */
-  /*background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);*/
-  /* Alternative gradient options (uncomment to try):
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);*/
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%); 
-  
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
   padding: 0.8rem;
   color: white;
-  /* Improved shadow for depth */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -243,7 +237,7 @@ export default {
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 1.5rem; /* Increased gap slightly */
+  gap: 1.5rem;
 }
 
 .header-content h1 {
@@ -261,20 +255,18 @@ export default {
   border-radius: 8px;
 }
 
-/* Media queries for responsive design */
 @media (max-width: 640px) {
-  .login-card {
-    margin: 0.5rem;
-    padding: 1rem;
+  .signup-card {
+    margin: 1rem;
+    padding: 1.5rem;
     width: auto;
   }
 
   .button-row {
     flex-direction: column;
-    margin-bottom: 0;
   }
 
-  .login-button {
+  .social-button {
     width: 100%;
   }
 
@@ -284,10 +276,9 @@ export default {
 }
 
 @supports (padding: max(0px)) {
-  .login-container {
+  .signup-container {
     padding-left: max(0px, env(safe-area-inset-left));
     padding-right: max(0px, env(safe-area-inset-right));
   }
 }
-</style>
-  
+</style> 

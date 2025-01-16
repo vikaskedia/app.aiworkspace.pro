@@ -2618,7 +2618,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 0; /* Add this to allow shrinking */
+  min-width: 0;
 }
 
 .metadata-label {
@@ -2735,15 +2735,66 @@ export default {
 
 @media (max-width: 768px) {
   .metadata-grid {
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Reduced from 1.5rem */
+  }
+
+  .metadata-item {
+    width: 100%;
+    position: relative;
+    padding-bottom: 0.75rem; /* Reduced from 1.5rem */
+  }
+
+  /* Add a subtle background separator between items */
+  .metadata-item:not(:last-child) {
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  /* Make items more compact */
+  .status-tag,
+  .priority-tag,
+  .due-date-display,
+  .assignee-display {
+    padding: 4px 8px; /* Reduced padding */
+    min-height: 32px; /* Ensure consistent height */
+  }
+
+  /* Reduce spacing in metadata labels */
+  .metadata-label {
+    padding: 2px 0;
+    margin-bottom: 2px;
+  }
+
+  /* Adjust icon sizes for mobile */
+  .metadata-label .el-icon {
+    font-size: 14px;
+  }
+
+  /* Reduce text size slightly */
+  .status-text,
+  .priority-text,
+  .due-date-text,
+  .assignee-text {
+    font-size: 13px;
+  }
+
+  /* Reduce gap between items */
+  .status-display,
+  .priority-display,
+  .due-date-display,
+  .assignee-display {
+    gap: 4px;
   }
 }
 
-@media (max-width: 480px) {
+/* Tablet and desktop styles */
+@media (min-width: 769px) {
   .metadata-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
+
 .due-date-display {
   display: flex;
   align-items: center;

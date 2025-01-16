@@ -278,7 +278,9 @@ import {
   ArrowLeft as Back,
   ArrowRight as Right,
   Upload as UploadIcon,
-  Close
+  Close,
+  CaretRight,
+  CaretBottom
 } from '@element-plus/icons-vue'
 import { FileUpload } from '../../extensions/FileUpload'
 import { useMatterStore } from '../../store/matter'
@@ -1452,15 +1454,31 @@ export default {
       width: 16px;
       height: 16px;
       cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    li:hover::before {
+      opacity: 1;
     }
 
     li:has(> ul, > ol)::before {
-      content: '▼';
+      content: '⌄';
+      color: lightgray;
+      font-size: 16px;
+      transform: scaleX(1.5);
+      left: -30px;
+      top: -4px;
     }
 
     li[data-collapsed="true"]::before,
     li.collapsed::before {
-      content: '▶';
+      content: '>';
+      color: lightgray;
+      font-size: 13px;
+      transform: scale(1.2);
+      left: -27px;
+      top: 2px;
     }
 
     li[data-collapsed="true"] > ul,
@@ -1471,9 +1489,10 @@ export default {
     }
     
     /* Adjust spacing for ordered lists */
-    ol > li::before {
-      left: -35px;
-    }
+   /* ol > li::before {
+      left: -30px;
+      top: -4px;
+    }*/
   }
 }
 

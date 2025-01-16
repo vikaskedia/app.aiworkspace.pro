@@ -16,12 +16,27 @@ export const CollapsibleList = Extension.create({
             return decorationSet
           },
           apply(tr, oldState) {
-            decorationSet = DecorationSet.empty
             const meta = tr.getMeta('collapsibleList')
             if (meta?.decorations) {
-              return meta.decorations
+              // Merge new decorations with existing ones
+              const oldDecorations = oldState.find()
+              const newDecorations = meta.decorations.find()
+              
+              // Filter out decorations at the same position as new ones
+              const filteredOldDecorations = oldDecorations.filter(oldDec => {
+                return !newDecorations.some(newDec => newDec.from === oldDec.from)
+              })
+              
+              // Combine filtered old decorations with new ones
+              return DecorationSet.create(tr.doc, [...filteredOldDecorations, ...newDecorations])
             }
-            return oldState
+            if (meta?.clear) {
+              // Clear specific decoration
+              const oldDecorations = oldState.find()
+              const filtered = oldDecorations.filter(dec => dec.from !== meta.clear)
+              return DecorationSet.create(tr.doc, filtered)
+            }
+            return oldState.map(tr.mapping, tr.doc)
           }
         },
         props: {
@@ -46,11 +61,9 @@ export const CollapsibleList = Extension.create({
               event.preventDefault()
               event.stopPropagation()
 
-              // Find the list item position
               const pos = view.posAtDOM(listItem, 0)
               const $pos = view.state.doc.resolve(pos)
               
-              // Find the list item node
               let depth = $pos.depth
               while (depth > 0) {
                 const node = $pos.node(depth)
@@ -59,26 +72,24 @@ export const CollapsibleList = Extension.create({
                   const listItemNode = view.state.doc.nodeAt(listItemPos)
 
                   if (listItemNode) {
-                    // Check current collapsed state
                     const isCurrentlyCollapsed = listItem.hasAttribute('data-collapsed')
-                    
                     const tr = view.state.tr
                     
                     if (isCurrentlyCollapsed) {
-                      // Remove decoration and attributes
-                      decorationSet = DecorationSet.empty
+                      // Clear this specific decoration
+                      tr.setMeta('collapsibleList', { clear: listItemPos })
                       tr.setNodeMarkup(listItemPos, null, { ...listItemNode.attrs, collapsed: false })
                     } else {
-                      // Add decoration and attributes
+                      // Add new decoration for this item
                       const decoration = Decoration.node(listItemPos, listItemPos + listItemNode.nodeSize, {
                         class: 'collapsed',
                         'data-collapsed': 'true'
                       })
-                      decorationSet = DecorationSet.create(view.state.doc, [decoration])
+                      const newDecorationSet = DecorationSet.create(view.state.doc, [decoration])
+                      tr.setMeta('collapsibleList', { decorations: newDecorationSet })
                       tr.setNodeMarkup(listItemPos, null, { ...listItemNode.attrs, collapsed: true })
                     }
-
-                    tr.setMeta('collapsibleList', { decorations: decorationSet })
+                    
                     view.dispatch(tr)
                     break
                   }

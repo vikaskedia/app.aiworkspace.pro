@@ -310,10 +310,7 @@
           </div>
           <div class="description-wrapper">
             <div class="description-header">
-              <div class="metadata-label">
-                <el-icon><Document /></el-icon>
-                <span>Description</span>
-              </div>
+              <h3>Description</h3>
               <el-button 
                 v-if="!isEditingDescription" 
                 link 
@@ -2503,6 +2500,13 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.description-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .description {

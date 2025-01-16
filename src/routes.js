@@ -158,6 +158,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/terms-of-service',
+    name: 'TermsOfService',
+    component: () => import('./components/legal/TermsOfService.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/privacy-policy',
+    name: 'PrivacyPolicy', 
+    component: () => import('./components/legal/PrivacyPolicy.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     redirect: '/login'
   }

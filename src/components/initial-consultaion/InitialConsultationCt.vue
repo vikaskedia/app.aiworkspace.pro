@@ -61,7 +61,7 @@
             <template v-else>
               <div v-if="!isEditing" class="answer-display">
                 <div class="answer-text">{{ currentAnswer }}</div>
-                <button class="edit-button" @click="startEditing">
+                <button class="edit-button hover-visible" @click="startEditing">
                   <el-icon><Edit /></el-icon>
                 </button>
               </div>
@@ -1106,5 +1106,36 @@ export default {
     right: 1rem;
     padding: 0.75rem 1rem;
   }
+}
+
+.answer-display {
+  position: relative;
+  padding: 8px;
+}
+
+.answer-display:hover .hover-visible {
+  opacity: 1;
+}
+
+.hover-visible {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.edit-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #909399;
+}
+
+.edit-button:hover {
+  background-color: #f5f7fa;
+  color: var(--el-color-primary);
 }
 </style>

@@ -133,119 +133,175 @@
               <!-- Status Column -->
               <div class="metadata-item status-item">
                 <div class="metadata-label">
-                  <el-icon><CircleCheck /></el-icon>
-                  <span>Status</span>
+                  <div class="label-header">
+                    <el-icon><CircleCheck /></el-icon>
+                    <span class="status-label">Status</span>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingStatus">
+                      <span class="status-text">{{ formatStatus(task?.status) }}</span>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startStatusEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handleStatusChange" 
+                      trigger="click" 
+                      size="small">
+                      <el-tag :type="getStatusType(task)" class="status-tag" size="small">
+                        {{ formatStatus(task?.status) }}
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </el-tag>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="not_started">Not started</el-dropdown-item>
+                          <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
+                          <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
+                          <el-dropdown-item command="completed">Completed</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </div>
-                <el-dropdown @command="handleStatusChange" trigger="click" size="small">
-                  <el-tag :type="getStatusType(task)" class="status-tag" size="small">
-                    {{ formatStatus(task?.status) }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-tag>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="not_started">Not started</el-dropdown-item>
-                      <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
-                      <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
-                      <el-dropdown-item command="completed">Completed</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
 
               <!-- Priority Column -->
               <div class="metadata-item priority-item">
                 <div class="metadata-label">
-                  <el-icon><Warning /></el-icon>
-                  <span>Priority</span>
+                  <div class="label-header">
+                    <el-icon><Warning /></el-icon>
+                    <span class="status-label">Priority</span>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingPriority">
+                      <span class="status-text">{{ formatPriority(task?.priority) }}</span>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startPriorityEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handlePriorityChange" 
+                      trigger="click" 
+                      size="small">
+                      <el-tag :type="getPriorityType(task)" class="status-tag" size="small">
+                        {{ formatPriority(task?.priority) }}
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </el-tag>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="low">Low</el-dropdown-item>
+                          <el-dropdown-item command="medium">Medium</el-dropdown-item>
+                          <el-dropdown-item command="high">High</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </div>
-                <el-dropdown @command="handlePriorityChange" trigger="click" size="small">
-                  <el-tag 
-                    :type="task?.priority === 'high' ? 'danger' : task?.priority === 'medium' ? 'warning' : 'info'" 
-                    class="priority-tag"
-                    size="small">
-                    {{ task?.priority }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-tag>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="high">High</el-dropdown-item>
-                      <el-dropdown-item command="medium">Medium</el-dropdown-item>
-                      <el-dropdown-item command="low">Low</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
 
               <!-- Due Date Column -->
               <div class="metadata-item due-date-item">
                 <div class="metadata-label">
-                  <el-icon><Calendar /></el-icon>
-                  <span>Due Date</span>
+                  <div class="label-header">
+                    <el-icon><Calendar /></el-icon>
+                    <span class="status-label">Due Date</span>
+                  </div>
+                  <div class="status-content">
+                    <el-popover
+                      placement="bottom"
+                      trigger="click"
+                      :width="240"
+                      popper-class="due-date-popover"
+                      @show="initializeTempDueDate">
+                      <template #reference>
+                        <div class="status-display">
+                          <span class="status-text">
+                            {{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
+                          </span>
+                          <el-icon class="edit-icon"><Edit /></el-icon>
+                        </div>
+                      </template>
+                      <template #default>
+                        <div class="due-date-editor">
+                          <el-date-picker
+                            v-model="tempDueDate"
+                            type="date"
+                            placeholder="Select due date"
+                            style="width: 100%"
+                            size="small"
+                            @change="handleDueDateChange"
+                          />
+                          <div class="due-date-actions">
+                            <el-button @click="clearDueDate" link size="small">Clear</el-button>
+                          </div>
+                        </div>
+                      </template>
+                    </el-popover>
+                  </div>
                 </div>
-                <el-popover
-                  placement="bottom"
-                  trigger="click"
-                  :width="240"
-                  popper-class="due-date-popover">
-                  <template #reference>
-                    <div class="due-date-display" style="padding: 3px 6px;">
-                      <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
-                      <el-icon><Edit /></el-icon>
-                    </div>
-                  </template>
-                  <template #default>
-                    <div class="due-date-editor">
-                      <el-date-picker
-                        v-model="tempDueDate"
-                        type="date"
-                        placeholder="Select due date"
-                        style="width: 100%"
-                        size="small"
-                        @change="handleDueDateChange"
-                      />
-                      <div class="due-date-actions">
-                        <el-button @click="clearDueDate" link size="small">Clear</el-button>
-                      </div>
-                    </div>
-                  </template>
-                </el-popover>
               </div>
 
               
               <!-- Assigned To Column -->
               <div class="metadata-item assigned-to-item">
                 <div class="metadata-label">
-                  <el-icon><User /></el-icon>
-                  <span>Assigned To</span>
-                </div>
-                <el-dropdown @command="handleAssigneeChange" trigger="click" size="small">
-                  <div class="assignee-display" style="padding: 3px 6px;">
-                    <div class="assignee-info">
-                      <el-avatar v-if="assigneeEmail" :size="20">
-                        {{ getInitials(assigneeEmail) }}
-                      </el-avatar>
-                      <span>{{ assigneeEmail || 'Unassigned' }}</span>
-                    </div>
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  <div class="label-header">
+                    <el-icon><User /></el-icon>
+                    <span class="status-label">Assigned To</span>
                   </div>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="">
-                        <el-icon><Close /></el-icon>
-                        Unassign
-                      </el-dropdown-item>
-                      <el-dropdown-item 
-                        v-for="user in sharedUsers" 
-                        :key="user.id"
-                        :command="user.id">
-                        <div class="user-option">
-                          <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
-                          <span>{{ user.email }}</span>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingAssignee">
+                      <div class="assignee-info">
+                        <el-avatar v-if="assigneeEmail" :size="20">
+                          {{ getInitials(assigneeEmail) }}
+                        </el-avatar>
+                        <span class="status-text">{{ assigneeEmail || 'Unassigned' }}</span>
+                      </div>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startAssigneeEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handleAssigneeChange" 
+                      trigger="click" 
+                      size="small">
+                      <div class="assignee-display">
+                        <div class="assignee-info">
+                          <el-avatar v-if="assigneeEmail" :size="20">
+                            {{ getInitials(assigneeEmail) }}
+                          </el-avatar>
+                          <span>{{ assigneeEmail || 'Unassigned' }}</span>
                         </div>
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item 
+                            v-for="user in sharedUsers" 
+                            :key="user.id"
+                            :command="user.id">
+                            <div class="user-option">
+                              <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
+                              <span>{{ user.email }}</span>
+                            </div>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -839,6 +895,11 @@ export default {
       showArchivedComments: false,
       filteredComments: [],
       showSystemComments: false,
+      isEditingStatus: false,
+      statusText: '',
+      isEditingPriority: false,
+      isEditingAssignee: false,
+      dueDatePopoverVisible: false,
     };
   },
   async created() {
@@ -2231,7 +2292,47 @@ export default {
     toggleArchived() {
       this.showArchivedComments = !this.showArchivedComments;
       this.loadComments();
-    }
+    },
+    startStatusEdit() {
+      this.isEditingStatus = true;
+    },
+    handleStatusChange(status) {
+      // Your existing status change logic
+      this.task.status = status;
+      this.isEditingStatus = false; // Hide dropdown after selection
+      ElMessage.success('Task status updated successfully');
+    },
+    formatPriority(priority) {
+      if (!priority) return 'Not set';
+      return priority.charAt(0).toUpperCase() + priority.slice(1);
+    },
+    getPriorityType(task) {
+      if (!task?.priority) return '';
+      switch (task.priority) {
+        case 'high': return 'danger';
+        case 'medium': return 'warning';
+        case 'low': return 'info';
+        default: return '';
+      }
+    },
+    startPriorityEdit() {
+      this.isEditingPriority = true;
+    },
+    startAssigneeEdit() {
+      this.isEditingAssignee = true;
+    },
+    showDueDatePopover() {
+      this.tempDueDate = this.task?.due_date;
+      this.dueDatePopoverVisible = true;
+    },
+    saveDueDate() {
+      this.task.due_date = this.tempDueDate;
+      this.closeDueDatePopover();
+      ElMessage.success('Due date updated successfully');
+    },
+    initializeTempDueDate() {
+      this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2515,10 +2616,71 @@ export default {
 
 .metadata-label {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.label-header {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 24px; /* To align with the icon */
+}
+
+.status-label {
   color: var(--el-text-color-secondary);
   font-size: 14px;
+}
+
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-text {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
+}
+
+.spacer {
+  width: 8px; /* Fixed space after "Status" */
+  flex: none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .status-content {
+    justify-content: flex-start; /* Align content to start on mobile */
+  }
+}
+
+.edit-icon {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Show edit icon on mobile */
+@media (max-width: 768px) {
+  .edit-icon {
+    opacity: 1;
+  }
+}
+
+/* Show edit icon on hover for desktop */
+.status-display:hover .edit-icon {
+  opacity: 1;
 }
 
 .metadata-label .el-icon {
@@ -3152,6 +3314,37 @@ h4 {
   .edit-metadata {
     align-self: flex-end;
   }
+}
+
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-text {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+
+.edit-icon {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Show edit icon on mobile */
+@media (max-width: 768px) {
+  .edit-icon {
+    opacity: 1;
+  }
+}
+
+/* Show edit icon on hover for desktop */
+.status-display:hover .edit-icon {
+  opacity: 1;
 }
 </style> 
 

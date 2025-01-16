@@ -157,6 +157,19 @@
           <el-icon><UploadIcon /></el-icon>
         </el-button>
       </el-button-group>
+
+      <!-- Collapse Toggle -->
+      <el-button 
+        size="small"
+        :class="{ 'is-active': editor?.isActive('collapsibleListItem', { collapsed: true }) }"
+        @click="editor?.chain().focus().toggleCollapse().run()"
+        title="Toggle List Collapse (Ctrl+Alt+C)">
+        <el-icon>
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path fill="currentColor" d="M4 9h12l-6 6z"/>
+          </svg>
+        </el-icon>
+      </el-button>
     </div>
 
     <div class="editor-content-wrapper">
@@ -265,7 +278,9 @@ import {
   ArrowLeft as Back,
   ArrowRight as Right,
   Upload as UploadIcon,
-  Close
+  Close,
+  CaretRight,
+  CaretBottom
 } from '@element-plus/icons-vue'
 import { FileUpload } from '../../extensions/FileUpload'
 import { useMatterStore } from '../../store/matter'
@@ -286,7 +301,8 @@ import TableHeader from '@tiptap/extension-table-header'
 import { Grid as TableIcon } from '@element-plus/icons-vue'
 import { Extension } from '@tiptap/core'
 import { Link } from '@tiptap/extension-link'
-
+import { CollapsibleList } from '../../extensions/CollapsibleList'
+import { CollapsibleListItem } from '../../extensions/CollapsibleListItem'
 export default {
   components: {
     EditorContent,
@@ -390,6 +406,8 @@ export default {
         TextAlign.configure({
           types: ['heading', 'paragraph']
         }),
+        CollapsibleList, // Add this line
+        CollapsibleListItem,
         FileUpload,
         Link.configure({
           openOnClick: true,
@@ -1423,6 +1441,63 @@ export default {
         text-decoration: underline;
       }
     }
+
+    li {
+      position: relative;
+    }
+
+    li::before {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 8px;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    li:hover::before {
+      opacity: 1;
+    }
+
+    li:has(> ul, > ol)::before {
+      content: '⌄';
+      color: lightgray;
+      font-size: 16px;
+      transform: scaleX(1.5);
+      left: -30px;
+      top: -4px;
+    }
+
+    li[data-collapsed="true"]::before,
+    li.collapsed::before {
+      content: '>';
+      color: lightgray;
+      font-size: 13px;
+      transform: scale(1.2);
+      left: -27px;
+      top: 2px;
+    }
+
+    li[data-collapsed="true"] > ul,
+    li[data-collapsed="true"] > ol,
+    li.collapsed > ul,
+    li.collapsed > ol {
+      display: none;
+    }
+
+    li > ul,
+    li > ol {
+      border-left: 1px solid var(--el-border-color);
+    }
+    
+    /* Adjust spacing for ordered lists */
+   /* ol > li::before {
+      left: -30px;
+      top: -4px;
+    }*/
   }
 }
 

@@ -31,44 +31,47 @@
         <div class="task-main-info">
           
           <div class="task-title-header">
-            <div class="star-container">
-              <el-icon 
-                class="star-icon"
-                :class="{ 'starred': isTaskStarred }"
-                @click="toggleTaskStar"
-              >
-                <Star v-if="!isTaskStarred" />
-                <StarFilled v-else />
-              </el-icon>
-            </div>
-            
-            <div class="title-wrapper">
-              <h2 
-                v-if="!isEditingTitle" 
-                @click="startTitleEdit"
-                class="editable-title"
-              >
-                {{ task?.title }}
-                <el-icon class="edit-icon"><Edit /></el-icon>
-              </h2>
-              <div v-else class="title-edit-wrapper">
-                <el-input
-                  v-model="editingTitle"
-                  ref="titleInput"
-                  size="large"
-                  @keyup.enter="saveTitleEdit"
-                  @keyup.esc="cancelTitleEdit"
-                />
-                <div class="title-edit-actions">
-                  <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
-                  <el-button 
-                    type="primary" 
-                    @click="saveTitleEdit" 
-                    size="small"
-                    :disabled="!editingTitle.trim() || editingTitle === task?.title"
+            <div class="title-main-section">
+              <div class="title-wrapper">
+                <div class="star-container">
+                  <el-icon 
+                    class="star-icon"
+                    :class="{ 'starred': isTaskStarred }"
+                    @click.stop="toggleTaskStar"
                   >
-                    Save
-                  </el-button>
+                    <Star v-if="!isTaskStarred" />
+                    <StarFilled v-else />
+                  </el-icon>
+                </div>
+                
+                <h2 
+                  v-if="!isEditingTitle" 
+                  @click="startTitleEdit"
+                  class="editable-title"
+                >
+                  {{ task?.title }}
+                  <el-icon class="edit-icon"><Edit /></el-icon>
+                </h2>
+                
+                <div v-else class="title-edit-wrapper">
+                  <el-input
+                    v-model="editingTitle"
+                    ref="titleInput"
+                    size="large"
+                    @keyup.enter="saveTitleEdit"
+                    @keyup.esc="cancelTitleEdit"
+                  />
+                  <div class="title-edit-actions">
+                    <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
+                    <el-button 
+                      type="primary" 
+                      @click="saveTitleEdit" 
+                      size="small"
+                      :disabled="!editingTitle.trim() || editingTitle === task?.title"
+                    >
+                      Save
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -130,120 +133,175 @@
               <!-- Status Column -->
               <div class="metadata-item status-item">
                 <div class="metadata-label">
-                  <el-icon><CircleCheck /></el-icon>
-                  <span>Status</span>
+                  <div class="label-header">
+                    <el-icon><CircleCheck /></el-icon>
+                    <span class="status-label">Status</span>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingStatus">
+                      <span class="status-text">{{ formatStatus(task?.status) }}</span>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startStatusEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handleStatusChange" 
+                      trigger="click" 
+                      size="small">
+                      <el-tag :type="getStatusType(task)" class="status-tag" size="small">
+                        {{ formatStatus(task?.status) }}
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </el-tag>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="not_started">Not started</el-dropdown-item>
+                          <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
+                          <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
+                          <el-dropdown-item command="completed">Completed</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </div>
-                <el-dropdown @command="handleStatusChange" trigger="click">
-                  <el-tag :type="getStatusType(task)" class="status-tag">
-                    {{ formatStatus(task?.status) }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-tag>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="not_started">Not started</el-dropdown-item>
-                      <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
-                      <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
-                      <el-dropdown-item command="completed">Completed</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
 
               <!-- Priority Column -->
               <div class="metadata-item priority-item">
                 <div class="metadata-label">
-                  <el-icon><Warning /></el-icon>
-                  <span>Priority</span>
+                  <div class="label-header">
+                    <el-icon><Warning /></el-icon>
+                    <span class="status-label">Priority</span>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingPriority">
+                      <span class="status-text">{{ formatPriority(task?.priority) }}</span>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startPriorityEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handlePriorityChange" 
+                      trigger="click" 
+                      size="small">
+                      <el-tag :type="getPriorityType(task)" class="status-tag" size="small">
+                        {{ formatPriority(task?.priority) }}
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </el-tag>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="low">Low</el-dropdown-item>
+                          <el-dropdown-item command="medium">Medium</el-dropdown-item>
+                          <el-dropdown-item command="high">High</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
                 </div>
-                <el-dropdown @command="handlePriorityChange" trigger="click">
-                  <el-tag :type="
-                    task?.priority === 'high' ? 'danger' :
-                    task?.priority === 'medium' ? 'warning' : 'info'
-                  " class="priority-tag">
-                    {{ task?.priority }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-tag>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="high">High</el-dropdown-item>
-                      <el-dropdown-item command="medium">Medium</el-dropdown-item>
-                      <el-dropdown-item command="low">Low</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
 
               <!-- Due Date Column -->
               <div class="metadata-item due-date-item">
                 <div class="metadata-label">
-                  <el-icon><Calendar /></el-icon>
-                  <span>Due Date</span>
+                  <div class="label-header">
+                    <el-icon><Calendar /></el-icon>
+                    <span class="status-label">Due Date</span>
+                  </div>
+                  <div class="status-content">
+                    <el-popover
+                      placement="bottom"
+                      trigger="click"
+                      :width="240"
+                      popper-class="due-date-popover"
+                      @show="initializeTempDueDate">
+                      <template #reference>
+                        <div class="status-display">
+                          <span class="status-text">
+                            {{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
+                          </span>
+                          <el-icon class="edit-icon"><Edit /></el-icon>
+                        </div>
+                      </template>
+                      <template #default>
+                        <div class="due-date-editor">
+                          <el-date-picker
+                            v-model="tempDueDate"
+                            type="date"
+                            placeholder="Select due date"
+                            style="width: 100%"
+                            size="small"
+                            @change="handleDueDateChange"
+                          />
+                          <div class="due-date-actions">
+                            <el-button @click="clearDueDate" link size="small">Clear</el-button>
+                          </div>
+                        </div>
+                      </template>
+                    </el-popover>
+                  </div>
                 </div>
-                <el-popover
-                  placement="bottom"
-                  trigger="click"
-                  :width="300"
-                  popper-class="due-date-popover"
-                >
-                  <template #reference>
-                    <div class="due-date-display">
-                      <span>{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
-                      <el-icon><Edit /></el-icon>
-                    </div>
-                  </template>
-                  <template #default>
-                    <div class="due-date-editor">
-                      <el-date-picker
-                        v-model="tempDueDate"
-                        type="date"
-                        placeholder="Select due date"
-                        style="width: 100%"
-                        @change="handleDueDateChange"
-                      />
-                      <div class="due-date-actions">
-                        <el-button @click="clearDueDate" link size="small">Clear</el-button>
-                      </div>
-                    </div>
-                  </template>
-                </el-popover>
               </div>
 
               
               <!-- Assigned To Column -->
               <div class="metadata-item assigned-to-item">
                 <div class="metadata-label">
-                  <el-icon><User /></el-icon>
-                  <span>Assigned To</span>
-                </div>
-                <el-dropdown @command="handleAssigneeChange" trigger="click">
-                  <div class="assignee-display">
-                    <div class="assignee-info">
-                      <el-avatar v-if="assigneeEmail" :size="24">
-                        {{ getInitials(assigneeEmail) }}
-                      </el-avatar>
-                      <span>{{ assigneeEmail || 'Unassigned' }}</span>
-                    </div>
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  <div class="label-header">
+                    <el-icon><User /></el-icon>
+                    <span class="status-label">Assigned To</span>
                   </div>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="">
-                        <el-icon><Close /></el-icon>
-                        Unassign
-                      </el-dropdown-item>
-                      <el-dropdown-item 
-                        v-for="user in sharedUsers" 
-                        :key="user.id"
-                        :command="user.id"
-                      >
-                        <div class="user-option">
-                          <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
-                          <span>{{ user.email }}</span>
+                  <div class="status-content">
+                    <div class="status-display" v-if="!isEditingAssignee">
+                      <div class="assignee-info">
+                        <el-avatar v-if="assigneeEmail" :size="20">
+                          {{ getInitials(assigneeEmail) }}
+                        </el-avatar>
+                        <span class="status-text">{{ assigneeEmail || 'Unassigned' }}</span>
+                      </div>
+                      <el-icon 
+                        class="edit-icon" 
+                        @click="startAssigneeEdit">
+                        <Edit />
+                      </el-icon>
+                    </div>
+
+                    <el-dropdown 
+                      v-else
+                      @command="handleAssigneeChange" 
+                      trigger="click" 
+                      size="small">
+                      <div class="assignee-display">
+                        <div class="assignee-info">
+                          <el-avatar v-if="assigneeEmail" :size="20">
+                            {{ getInitials(assigneeEmail) }}
+                          </el-avatar>
+                          <span>{{ assigneeEmail || 'Unassigned' }}</span>
                         </div>
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item 
+                            v-for="user in sharedUsers" 
+                            :key="user.id"
+                            :command="user.id">
+                            <div class="user-option">
+                              <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
+                              <span>{{ user.email }}</span>
+                            </div>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -837,6 +895,11 @@ export default {
       showArchivedComments: false,
       filteredComments: [],
       showSystemComments: false,
+      isEditingStatus: false,
+      statusText: '',
+      isEditingPriority: false,
+      isEditingAssignee: false,
+      dueDatePopoverVisible: false,
     };
   },
   async created() {
@@ -2229,7 +2292,47 @@ export default {
     toggleArchived() {
       this.showArchivedComments = !this.showArchivedComments;
       this.loadComments();
-    }
+    },
+    startStatusEdit() {
+      this.isEditingStatus = true;
+    },
+    handleStatusChange(status) {
+      // Your existing status change logic
+      this.task.status = status;
+      this.isEditingStatus = false; // Hide dropdown after selection
+      ElMessage.success('Task status updated successfully');
+    },
+    formatPriority(priority) {
+      if (!priority) return 'Not set';
+      return priority.charAt(0).toUpperCase() + priority.slice(1);
+    },
+    getPriorityType(task) {
+      if (!task?.priority) return '';
+      switch (task.priority) {
+        case 'high': return 'danger';
+        case 'medium': return 'warning';
+        case 'low': return 'info';
+        default: return '';
+      }
+    },
+    startPriorityEdit() {
+      this.isEditingPriority = true;
+    },
+    startAssigneeEdit() {
+      this.isEditingAssignee = true;
+    },
+    showDueDatePopover() {
+      this.tempDueDate = this.task?.due_date;
+      this.dueDatePopoverVisible = true;
+    },
+    saveDueDate() {
+      this.task.due_date = this.tempDueDate;
+      this.closeDueDatePopover();
+      ElMessage.success('Due date updated successfully');
+    },
+    initializeTempDueDate() {
+      this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2401,6 +2504,21 @@ export default {
   border-radius: 4px;
   transition: background-color 0.3s;
   margin: 0;
+  font-size: 15px;
+  /* Add these properties for better text wrapping */
+  white-space: pre-wrap;       /* Preserve whitespace and wrapping */
+  word-wrap: break-word;       /* Break words that are too long */
+  word-break: break-word;      /* Break words at appropriate points */
+  overflow-wrap: break-word;   /* Ensure long words don't overflow */
+  max-width: 100%;            /* Ensure content doesn't exceed container */
+}
+
+/* Add mobile-specific adjustments */
+@media (max-width: 768px) {
+  .description {
+    padding: 8px 4px;         /* Reduce padding on mobile */
+    font-size: 14px;          /* Slightly smaller font on mobile */
+  }
 }
 
 .description:hover {
@@ -2421,6 +2539,25 @@ export default {
 
 .title-wrapper {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.star-container {
+  display: inline-flex;
+  align-items: center;
+  padding-top: 4px; /* Align with title text */
+}
+
+.title-edit-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+  min-width: 0;
 }
 
 .editable-title {
@@ -2448,44 +2585,102 @@ export default {
   opacity: 1;
 }
 
-.title-edit-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 4px;
-}
-
 .title-edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 .task-metadata {
-  background: var(--el-bg-color);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 16px 0;
   border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  padding: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .metadata-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin: 1rem 0;
 }
 
 .metadata-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
+  min-width: 0; /* Add this to allow shrinking */
 }
 
 .metadata-label {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.label-header {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 24px; /* To align with the icon */
+}
+
+.status-label {
   color: var(--el-text-color-secondary);
   font-size: 14px;
+}
+
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-text {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  white-space: nowrap;
+}
+
+.spacer {
+  width: 8px; /* Fixed space after "Status" */
+  flex: none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .status-content {
+    justify-content: flex-start; /* Align content to start on mobile */
+  }
+}
+
+.edit-icon {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Show edit icon on mobile */
+@media (max-width: 768px) {
+  .edit-icon {
+    opacity: 1;
+  }
+}
+
+/* Show edit icon on hover for desktop */
+.status-display:hover .edit-icon {
+  opacity: 1;
 }
 
 .metadata-label .el-icon {
@@ -2497,10 +2692,12 @@ export default {
 .due-date-display,
 .assignee-display {
   width: 100%;
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  overflow: hidden; /* Add this to prevent overflow */
 }
 
 .due-date-display,
@@ -2531,8 +2728,13 @@ export default {
 
 @media (max-width: 768px) {
   .metadata-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metadata-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
   }
 }
 .due-date-display {
@@ -2751,12 +2953,6 @@ export default {
 .star-icon.starred {
   color: #f0c541;
   font-size: 18px;
-}
-
-.star-container {
-  display: flex;
-  align-items: center;
-  margin-right: 12px;
 }
 
 .star-button {
@@ -3047,8 +3243,56 @@ h4 {
 
 .task-title-header {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title-main-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.editable-title {
+  display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 0;
+  min-width: 0;
+}
+
+.star-container {
+  display: inline-flex;  /* Change from flex to inline-flex */
+  align-items: center;
+  margin-right: -4px;  /* Add negative margin to reduce space */
+}
+
+.star-icon {
+  cursor: pointer;
+  font-size: 16px;  /* Reduce from 18px to 16px */
+  color: #909399;
+  transition: color 0.3s;
+  padding: 4px;  /* Add padding for better click target while maintaining visual compactness */
+}
+
+.star-icon.starred {
+  color: #f0c541;
+}
+
+.edit-metadata {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .edited-marker {
@@ -3061,144 +3305,46 @@ h4 {
   text-decoration: underline;
 }
 
-.edit-history {
-  margin-top: 8px;
-  padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .task-title-header {
+    flex-direction: column;
+  }
+  
+  .edit-metadata {
+    align-self: flex-end;
+  }
 }
 
-.edit-history-entry {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eee;
-}
-
-.edit-history-entry:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.edit-history-header {
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #606266;
-}
-
-.previous-content {
-  background: #f5f7fa;
-  padding: 8px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  white-space: pre-wrap;
-}
-
-.edit-metadata {
-  font-size: 0.8em;
-  color: #909399;
-}
-.file-link {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-.file-link:hover {
-  text-decoration: underline;
-}
-
-.description-input-container {
-  position: relative;
-  width: 100%;
-}
-
-.description-input {
-  width: 100%;
-}
-
-:deep(.el-textarea__inner) {
-  width: 100%;
-  resize: vertical;
-}
-
-.typeahead-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
-}
-
-.suggestion-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background-color: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-}
-
-.time-input-container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.time-input-group {
-  display: inline-flex;
-  align-items: center;
-  background-color: var(--el-fill-color-blank);
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-  padding: 2px 8px;
-  width: fit-content;
-}
-
-.time-separator {
-  padding: 0 4px;
-  color: var(--el-text-color-regular);
-  font-weight: bold;
-}
-
-.time-unit {
-  margin-left: 8px;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.time-input-group-container {
+.status-display {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-:deep(.el-input__wrapper) {
-  box-shadow: none !important;
-  padding: 0 4px;
+.status-text {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
 }
 
-:deep(.el-input__inner) {
-  text-align: center;
+.edit-icon {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.time-input-help {
-  color: #909399;
-  font-size: 12px;
+/* Show edit icon on mobile */
+@media (max-width: 768px) {
+  .edit-icon {
+    opacity: 1;
+  }
 }
 
-.error-text {
-  color: #f56c6c;
+/* Show edit icon on hover for desktop */
+.status-display:hover .edit-icon {
+  opacity: 1;
 }
 </style> 
 
@@ -3330,6 +3476,9 @@ table.editor-table {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .task-comments-section {
@@ -3337,6 +3486,44 @@ table.editor-table {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .task-content-wrapper {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .task-main-content {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .task-metadata {
+    width: 100%;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .metadata-grid {
+    width: 100%;
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+
+  .metadata-item {
+    width: 100%;
+  }
+
+  .task-comments-section {
+    border-radius: 0;
+    box-shadow: none;
+    padding: 1rem;
+  }
 }
 </style>
 

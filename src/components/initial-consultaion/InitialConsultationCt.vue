@@ -61,7 +61,7 @@
             <template v-else>
               <div v-if="!isEditing" class="answer-display">
                 <div class="answer-text">{{ currentAnswer }}</div>
-                <button class="edit-button" @click="startEditing">
+                <button class="edit-button hover-visible" @click="startEditing">
                   <el-icon><Edit /></el-icon>
                 </button>
               </div>
@@ -119,31 +119,41 @@
     <el-dialog
       v-model="showNotepad"
       title="Shared Notepad"
-      width="80%"
+      :width="dialogWidth"
       class="notepad-dialog">
-      <div class="notepad-content" v-loading="loading">
-        <div v-for="(items, key) in notepadData" :key="key" class="section">
-          <h4>{{ formatSectionTitle(key) }}</h4>
-          <div class="section-content">
-            <template v-if="items && items.length > 0">
-              <ul>
-                <li v-for="(item, index) in items" :key="index">
-                  {{ item }}
-                </li>
-              </ul>
+      <div class="notepad-content">
+        <el-collapse v-model="expandedSections">
+          <el-collapse-item 
+            v-for="(items, key) in notepadData" 
+            :key="key"
+            :title="formatSectionTitle(key)"
+            :name="key">
+            <template #title>
+              <div class="section-header">
+                <span class="section-title">{{ formatSectionTitle(key) }} ({{ items.length }})</span>
+              </div>
             </template>
-            <div v-else class="empty-section">
-              No {{ formatSectionTitle(key).toLowerCase() }} recorded yet
+            <div class="section-content">
+              <template v-if="items && items.length > 0">
+                <ul class="item-list">
+                  <li v-for="(item, index) in items" :key="index">
+                    {{ item }}
+                  </li>
+                </ul>
+              </template>
+              <div v-else class="empty-section">
+                No {{ formatSectionTitle(key).toLowerCase() }} recorded yet
+              </div>
             </div>
-          </div>
-        </div>
+          </el-collapse-item>
+        </el-collapse>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
 import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit } from '@element-plus/icons-vue'
@@ -195,6 +205,14 @@ export default {
     const user = ref(null)
 
     const userMatters = ref([]);
+
+    const expandedSections = ref(['events', 'files', 'goals', 'tasks', 'possibleOutcome'])
+
+    const dialogWidth = computed(() => {
+      const windowWidth = window.innerWidth
+      if (windowWidth <= 480) return '90%'
+      return Math.min(600, windowWidth * 0.8) + 'px'
+    })
 
     const getSharedMatters = async (userId) => {
       try {
@@ -439,38 +457,34 @@ export default {
           throw new Error('User not authenticated');
         }
 
-        // Get attorney data and system prompt
-        const { systemPrompt, attorneyData } = await getInitialConsultantPrompt();
-        if (!systemPrompt) {
-          throw new Error('No initial consultant system prompt found');
-        }
-
         // Generate consultation ID if not exists
         if (!consultationId.value) {
           consultationId.value = crypto.randomUUID();
         }
 
         // Load existing consultation state if any
-        await loadConsultationState()
+        await loadConsultationState();
 
         // Only fetch first question if we don't have any history
         if (questionHistory.value.length === 0) {
+          const { fullPrompt, user: userData, attorneyData } = await preparePrompt();
+
           const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              userId: user.id,
+              userId: userData.id,
               consultationId: consultationId.value,
               userData: {
-                name: user.user_metadata?.name || 
-                      user.user_metadata?.user_name || 
-                      user.user_metadata?.full_name ||
-                      user.email?.split('@')[0],
-                email: user.email,
-                phone: user.user_metadata?.phone,
-                preferredLanguage: user.user_metadata?.preferred_language,
+                name: userData.user_metadata?.name || 
+                      userData.user_metadata?.user_name || 
+                      userData.user_metadata?.full_name ||
+                      userData.email?.split('@')[0],
+                email: userData.email,
+                phone: userData.user_metadata?.phone,
+                preferredLanguage: userData.user_metadata?.preferred_language,
               },
               attorneyData: {
                 name: attorneyData?.name || 'Associate Attorney',
@@ -478,27 +492,27 @@ export default {
                 barNumber: attorneyData?.bar_number,
                 firmName: attorneyData?.firm_name,
               },
-              systemPrompt
+              systemPrompt: fullPrompt
             })
-          })
+          });
 
-          if (!response.ok) throw new Error('Failed to start consultation')
+          if (!response.ok) throw new Error('Failed to start consultation');
           
-          const data = await response.json()
-          currentQuestion.value = data.firstQuestion
+          const data = await response.json();
+          currentQuestion.value = data.firstQuestion;
           notepadData.value = {
-              events: [],
-              files: [],
-              goals: [],
-              tasks: [],
-              possibleOutcome: []
-          }
+            events: [],
+            files: [],
+            goals: [],
+            tasks: [],
+            possibleOutcome: []
+          };
         }
 
       } catch (error) {
-        ElMessage.error('Error starting consultation: ' + error.message)
+        ElMessage.error('Error starting consultation: ' + error.message);
       } finally {
-        loading.value = false
+        loading.value = false;
       }
     };
 
@@ -767,6 +781,8 @@ export default {
       user,
       userMatters,
       loadUserMatters,
+      expandedSections,
+      dialogWidth
     }
   }
 }
@@ -909,112 +925,102 @@ export default {
 }
 
 .notepad-dialog {
-  border-radius: 16px;
-  overflow: hidden;
+  :deep(.el-dialog) {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 0;
+  }
+  
+  :deep(.el-dialog__header) {
+    padding: 12px 16px;
+    margin: 0;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
 }
 
-:deep(.el-dialog__header) {
-  padding: 24px 32px;
-  margin: 0;
-  border-bottom: 1px solid var(--el-border-color-light);
-  background: linear-gradient(to right, #f8fafc, #f1f5f9);
-}
-
-:deep(.el-dialog__title) {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-:deep(.el-dialog__body) {
-  padding: 0;
+@media (max-width: 480px) {
+  .notepad-dialog {
+    :deep(.el-dialog) {
+      width: 90% !important;
+      margin: 10vh auto;
+    }
+  }
 }
 
 .notepad-content {
-  padding: 32px;
   max-height: 70vh;
   overflow-y: auto;
 }
 
-.section {
-  margin-bottom: 32px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease;
+:deep(.el-collapse) {
+  border: none;
 }
 
-.section:hover {
-  transform: translateY(-2px);
+:deep(.el-collapse-item__header) {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: none;
+  height: auto;
 }
 
-.section h4 {
-  font-size: 1.1rem;
-  color: #1e293b;
-  margin: 0;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  font-weight: 600;
+:deep(.el-collapse-item__arrow) {
+  margin-right: 8px;
+}
+
+:deep(.el-collapse-item__content) {
+  padding: 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
 }
 
+.section-title {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: normal;
+  font-size: 13px;
+}
 .section-content {
-  padding: 20px 24px;
-  background: #f8fafc;
-  border-radius: 0 0 12px 12px;
+    padding-left: 20px;
+}
+.item-count {
+  font-size: 12px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: normal;
 }
 
-.section-content ul {
-  margin: 0;
-  padding: 0;
+.item-list {
   list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.section-content li {
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid var(--el-border-color-lighter);
-  color: #334155;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  transition: all 0.2s ease;
+.item-list li {
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-.section-content li:hover {
-  border-color: var(--el-color-primary-light-5);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+.item-list li:last-child {
+  border-bottom: none;
 }
 
 .empty-section {
-  padding: 24px;
-  text-align: center;
-  color: #64748b;
-  font-size: 0.9rem;
-  background: white;
-  border-radius: 8px;
-  border: 1px dashed var(--el-border-color);
-}
-
-.notepad-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.notepad-content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.notepad-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.notepad-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  padding: 0 12px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  font-style: italic;
 }
 
 .loading-container {
@@ -1102,167 +1108,34 @@ export default {
   }
 }
 
-.notepad-dialog {
-  .el-dialog__body {
-    padding: 20px;
-  }
-}
-
-.notepad-content {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.section {
-  margin-bottom: 2rem;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  h4 {
-    margin-bottom: 0.75rem;
-    color: #303133;
-    font-weight: 600;
-  }
-}
-
-.section-content {
-  background: #f5f7fa;
-  border-radius: 4px;
-  padding: 1rem;
-}
-
-.empty-section {
-  color: #909399;
-  font-style: italic;
-  padding: 0.5rem 0;
-}
-
-.qa-display {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  position: relative;
-}
-
-.question {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.answer {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.avatar.attorney {
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: white;
-}
-
-/* .avatar.user {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  color: white;
-} */
-
-/* Add padding to content to accommodate navigation arrows */
-.content {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
 .answer-display {
   position: relative;
-  padding: 0.5rem;
-  min-height: 40px;
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  padding: 8px;
 }
 
-.answer-text {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-  color: #374151;
-}
-
-.edit-button {
-  opacity: 0;
-  position: absolute;
-  right: 0.5rem;
-  top: 0.5rem;
-  padding: 0.5rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #6b7280;
-  transition: all 0.2s ease;
-  border-radius: 4px;
-}
-
-.edit-button:hover {
-  background: #f3f4f6;
-  color: #4f46e5;
-}
-
-.answer-display:hover .edit-button {
+.answer-display:hover .hover-visible {
   opacity: 1;
 }
 
-.answer-edit-mode {
-  padding: 0.5rem;
+.hover-visible {
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.input-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 0.75rem;
+.edit-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #909399;
 }
 
-.button-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.user-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.avatar.user {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.el-avatar) {
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  box-sizing: border-box;
+.edit-button:hover {
+  background-color: #f5f7fa;
+  color: var(--el-color-primary);
 }
 </style>

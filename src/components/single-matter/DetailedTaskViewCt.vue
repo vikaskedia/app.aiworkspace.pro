@@ -13,14 +13,17 @@
       <div class="header-actions">
         <el-button 
           type="info"
-          @click="shareDialogVisible = true">
-          Share Task
+          @click="shareDialogVisible = true"
+          class="share-task-btn">
+          <el-icon><Share /></el-icon>
+          <span class="share-task-text">Share Task</span>
         </el-button>
         <el-button 
           type="warning"
           @click="logHoursDialogVisible = true"
-          style="margin-right: 10px">
-          Log Hours
+          class="log-hours-btn">
+          <el-icon><Clock /></el-icon>
+          <span class="log-hours-text">Log Hours</span>
         </el-button>
       </div>
     </div>
@@ -736,7 +739,9 @@
     <el-dialog
       v-model="logHoursDialogVisible"
       title="Log Hours"
-      width="500px">
+      width="500px"
+      class="log-hours-dialog"
+    >
       <el-form :model="newHoursLog" label-position="top">
         <el-form-item label="Time" required>
           <div class="time-input-container">
@@ -778,7 +783,8 @@
             v-model="newHoursLog.comment"
             type="textarea"
             :rows="3"
-            placeholder="Add a comment about the work done..." />
+            placeholder="Add a comment about the work done..."
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -800,7 +806,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -830,7 +836,8 @@ export default {
     Delete,
     More,
     VerticalDotsIcon,
-    Setting
+    Setting,
+    Share
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2571,7 +2578,7 @@ export default {
 }
 
 .editable-title:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--el-bg-color);
 }
 
 .editable-title .edit-icon {
@@ -3023,7 +3030,7 @@ export default {
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 4px; /* Reduced from 8px to 4px */
 }
 
 .share-options {
@@ -3346,6 +3353,48 @@ h4 {
 .status-display:hover .edit-icon {
   opacity: 1;
 }
+
+.log-hours-btn,
+.share-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0; /* Explicitly remove any margins */
+  padding: 8px 12px; /* Consistent padding */
+}
+
+@media (max-width: 768px) {
+  .log-hours-btn .log-hours-text,
+  .share-task-btn .share-task-text {
+    display: none;
+  }
+  
+  .log-hours-btn,
+  .share-task-btn {
+    padding: 8px;
+    min-height: 32px;
+    min-width: 32px;
+    margin: 0;
+  }
+}
+
+.share-task-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .share-task-btn .share-task-text {
+    display: none;
+  }
+  
+  .share-task-btn {
+    padding: 8px;
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
 </style> 
 
 <style>
@@ -3523,6 +3572,46 @@ table.editor-table {
     border-radius: 0;
     box-shadow: none;
     padding: 1rem;
+  }
+
+  /* Make dialog take up most of the screen width on mobile */
+  :deep(.el-dialog) {
+    width: 90% !important;
+    margin: 5vh auto !important;
+  }
+
+  /* Adjust time input container for mobile */
+  .time-input-container {
+    .time-input-group-container {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .time-input-group {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .time-unit {
+      align-self: center;
+    }
+
+    .time-input-help {
+      text-align: center;
+      margin-top: 8px;
+    }
+  }
+
+  /* Make dialog footer buttons stack on mobile */
+  :deep(.dialog-footer) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    
+    .el-button {
+      width: 100%;
+      margin-left: 0 !important;
+    }
   }
 }
 </style>

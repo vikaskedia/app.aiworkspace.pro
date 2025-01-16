@@ -1487,6 +1487,11 @@ export default {
     li.collapsed > ol {
       display: none;
     }
+
+    li > ul,
+    li > ol {
+      border-left: 1px solid var(--el-border-color);
+    }
     
     /* Adjust spacing for ordered lists */
    /* ol > li::before {

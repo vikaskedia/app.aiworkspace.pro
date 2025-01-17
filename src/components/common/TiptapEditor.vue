@@ -303,7 +303,8 @@ import { Extension } from '@tiptap/core'
 import { Link } from '@tiptap/extension-link'
 import { CollapsibleList } from '../../extensions/CollapsibleList'
 import { CollapsibleListItem } from '../../extensions/CollapsibleListItem'
-//import { CollapsibleHeading } from '../../extensions/CollapsibleHeading'
+import { CollapsibleHeading } from '../../extensions/CollapsibleHeading'
+import { CollapsibleHeadingNode } from '../../extensions/CollapsibleHeadingNode'
 export default {
   components: {
     EditorContent,
@@ -403,7 +404,7 @@ export default {
     this.editor = new Editor({
       extensions: [
         StarterKit.configure({
-          // Disable the link extension from StarterKit since we'll add our own
+          heading: true,
           link: false,
         }),
         TaskList,
@@ -411,9 +412,10 @@ export default {
         TextAlign.configure({
           types: ['heading', 'paragraph']
         }),
-        CollapsibleList, // Add this line
+        CollapsibleList,
         CollapsibleListItem,
-        //CollapsibleHeading,
+        CollapsibleHeadingNode,
+        CollapsibleHeading,
         FileUpload,
         Link.configure({
           openOnClick: true,

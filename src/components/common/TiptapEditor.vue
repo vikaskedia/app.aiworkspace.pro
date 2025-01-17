@@ -530,7 +530,7 @@ export default {
                       }
                       
                       // Keep existing URL handling
-                      const urlRegex = /(https?):\/\/[^\s]+$/
+                      const urlRegex = /(https?):\/\/[^\s\n]+$/
                       const urlMatch = textBefore.match(urlRegex)
                       if (urlMatch) {
                         const start = from - urlMatch[0].length

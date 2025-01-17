@@ -3,7 +3,7 @@
     <div class="matters-header">
       <div class="header-actions">
         <el-switch
-          v-model="showDeleted"
+          v-model="showArchived"
           active-text="Show Archived"
           inactive-text="Show Active"
         />
@@ -25,10 +25,10 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <template v-if="!showDeleted">
+                  <template v-if="!showArchived">
                     <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
                     <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>Archive</el-dropdown-item>
+                    <el-dropdown-item command="archive" divided>Archive</el-dropdown-item>
                   </template>
                   <template v-else>
                     <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
@@ -167,11 +167,11 @@ export default {
         title: '',
         description: ''
       },
-      showDeleted: false,
+      showArchived: false,
     };
   },
   watch: {
-    showDeleted() {
+    showArchived() {
       this.loadMatters();
     }
   },
@@ -194,7 +194,7 @@ export default {
               shared_with_user_id
             )
           `)
-          .eq('deleted', this.showDeleted)
+          .eq('archived', this.showArchived)
           .eq('matter_access.shared_with_user_id', user.id)
           .order('created_at', { ascending: false });
 
@@ -364,16 +364,16 @@ export default {
       }
     },
 
-    async deleteMatter(matter) {
+    async archiveMatter(matter) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
           .from('matters')
           .update({ 
-            deleted: true,
-            deleted_at: new Date().toISOString(),
-            deleted_by: user.id
+            archived: true,
+            archived_at: new Date().toISOString(),
+            archived_by: user.id
           })
           .eq('id', matter.id);
 
@@ -391,9 +391,9 @@ export default {
         const { error } = await supabase
           .from('matters')
           .update({ 
-            deleted: false,
-            deleted_at: null,
-            deleted_by: null
+            archived: false,
+            archived_at: null,
+            archived_by: null
           })
           .eq('id', matter.id);
 
@@ -420,7 +420,7 @@ export default {
           };
           this.editMatterDialog = true;
           break;
-        case 'delete':
+        case 'archive':
           ElMessageBox.confirm(
             'Are you sure you want to archive this matter? You can restore it later from the archived matters section.',
             'Warning',
@@ -430,7 +430,7 @@ export default {
               type: 'warning'
             }
           ).then(() => {
-            this.deleteMatter(matter);
+            this.archiveMatter(matter);
           }).catch(() => {});
           break;
         case 'restore':

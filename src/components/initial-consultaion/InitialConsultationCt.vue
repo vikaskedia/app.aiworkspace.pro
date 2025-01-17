@@ -10,7 +10,13 @@
         </div>
 
         <div class="question">
-          <div class="avatar attorney">A</div>
+          <div class="avatar attorney">
+            <el-avatar 
+              :size="40"
+              :src="attorneyData?.image_url"
+              :icon="!attorneyData?.image_url ? 'UserFilled' : undefined">
+            </el-avatar>
+          </div>
           <div class="message">
             <template v-if="loading && !currentQuestion">
               <el-skeleton :rows="2" animated />
@@ -214,6 +220,8 @@ export default {
       return Math.min(600, windowWidth * 0.8) + 'px'
     })
 
+    const attorneyData = ref(null)
+
     const getSharedMatters = async (userId) => {
       try {
         // Get matters shared with the user
@@ -319,8 +327,23 @@ export default {
     const formatQuestionHistory = (history) => {
       if (!history || history.length === 0) return '';
       
-      return '\n\nPrevious Questions and Answers:\n' + 
+      let formattedHistory = '\n\nPrevious Questions and Answers:\n' + 
         history.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
+
+      // Add shared notepad history section
+      formattedHistory += '\n\nShared Notepad History:\n';
+      
+      // Format each section of the notepad
+      Object.entries(notepadData.value).forEach(([section, items]) => {
+        if (items && items.length > 0) {
+          formattedHistory += `\n${formatSectionTitle(section)}:\n`;
+          items.forEach(item => {
+            formattedHistory += `- ${item}\n`;
+          });
+        }
+      });
+
+      return formattedHistory;
     }
 
     const preparePrompt = async () => {
@@ -457,6 +480,10 @@ export default {
           throw new Error('User not authenticated');
         }
 
+        // Get initial consultant data first
+        const { systemPrompt, attorneyData: attorney } = await getInitialConsultantPrompt();
+        attorneyData.value = attorney; // Set attorney data immediately
+
         // Generate consultation ID if not exists
         if (!consultationId.value) {
           consultationId.value = crypto.randomUUID();
@@ -467,7 +494,7 @@ export default {
 
         // Only fetch first question if we don't have any history
         if (questionHistory.value.length === 0) {
-          const { fullPrompt, user: userData, attorneyData } = await preparePrompt();
+          const { fullPrompt } = await preparePrompt();
 
           const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
             method: 'POST',
@@ -475,22 +502,22 @@ export default {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              userId: userData.id,
+              userId: user.id,
               consultationId: consultationId.value,
               userData: {
-                name: userData.user_metadata?.name || 
-                      userData.user_metadata?.user_name || 
-                      userData.user_metadata?.full_name ||
-                      userData.email?.split('@')[0],
-                email: userData.email,
-                phone: userData.user_metadata?.phone,
-                preferredLanguage: userData.user_metadata?.preferred_language,
+                name: user.user_metadata?.name || 
+                      user.user_metadata?.user_name || 
+                      user.user_metadata?.full_name ||
+                      user.email?.split('@')[0],
+                email: user.email,
+                phone: user.user_metadata?.phone,
+                preferredLanguage: user.user_metadata?.preferred_language,
               },
               attorneyData: {
-                name: attorneyData?.name || 'Associate Attorney',
-                specialization: attorneyData?.specialization,
-                barNumber: attorneyData?.bar_number,
-                firmName: attorneyData?.firm_name,
+                name: attorney?.name || 'Associate Attorney',
+                specialization: attorney?.specialization,
+                barNumber: attorney?.bar_number,
+                firmName: attorney?.firm_name,
               },
               systemPrompt: fullPrompt
             })
@@ -714,6 +741,7 @@ export default {
           .eq('is_initial_consultant', true)
           .single();
 
+        console.log('attorney', attorney);
         if (error) throw error;
         return {
           systemPrompt: attorney?.system_prompt || '',
@@ -788,7 +816,8 @@ export default {
       loadUserMatters,
       expandedSections,
       dialogWidth,
-      formatText
+      formatText,
+      attorneyData
     }
   }
 }
@@ -848,9 +877,15 @@ export default {
 }
 
 .avatar.attorney {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.avatar.attorney :deep(.el-avatar) {
   background-color: #626aef;
   color: white;
-  border-radius: 50%;
 }
 
 /* .avatar.user {

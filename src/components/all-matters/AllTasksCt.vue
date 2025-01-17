@@ -480,7 +480,7 @@ export default {
               shared_with_user_id
             )
           `)
-          .eq('deleted', false)
+          .eq('archived', false)
           .eq('matter_access.shared_with_user_id', user.id)
           .order('title');
         

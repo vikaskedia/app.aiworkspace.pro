@@ -303,6 +303,7 @@ import { Extension } from '@tiptap/core'
 import { Link } from '@tiptap/extension-link'
 import { CollapsibleList } from '../../extensions/CollapsibleList'
 import { CollapsibleListItem } from '../../extensions/CollapsibleListItem'
+//import { CollapsibleHeading } from '../../extensions/CollapsibleHeading'
 export default {
   components: {
     EditorContent,
@@ -412,6 +413,7 @@ export default {
         }),
         CollapsibleList, // Add this line
         CollapsibleListItem,
+        //CollapsibleHeading,
         FileUpload,
         Link.configure({
           openOnClick: true,
@@ -513,9 +515,10 @@ export default {
                   handleTextInput: (view, from, to, text) => {
                     if (text === ' ') {
                       const { state } = view
-                      const textBefore = state.doc.textBetween(0, from)
+                      const $pos = state.doc.resolve(from)
                       
-                      // Check for heading pattern
+                      // Check for heading pattern first
+                      const textBefore = state.doc.textBetween(0, from)
                       const headingMatch = /(?:^|\n)(#{1,3})$/.exec(textBefore)
                       if (headingMatch) {
                         const level = headingMatch[1].length
@@ -529,21 +532,45 @@ export default {
                         return true
                       }
                       
-                      // Keep existing URL handling
+                      // Enhanced URL handling with nested list awareness
+                      let depth = $pos.depth
+                      let listItemStart = from
+                      let inList = false
+                      
+                      // Find the innermost list item containing our position
+                      while (depth > 0) {
+                        const node = $pos.node(depth)
+                        if (node.type.name === 'listItem' || 
+                            node.type.name === 'orderedList' || 
+                            node.type.name === 'bulletList') {
+                          inList = true
+                          listItemStart = $pos.before(depth)
+                          break
+                        }
+                        depth--
+                      }
+                      
+                      // Get text from the current list item or full text if not in a list
+                      const relevantText = inList 
+                        ? state.doc.textBetween(listItemStart, from)
+                        : textBefore
+                      
                       const urlRegex = /(https?):\/\/[^\s\n]+$/
-                      const urlMatch = textBefore.match(urlRegex)
+                      const urlMatch = relevantText.match(urlRegex)
+                      
                       if (urlMatch) {
-                        const start = from - urlMatch[0].length
+                        const matchedUrl = urlMatch[0]
+                        const start = from - matchedUrl.length
                         const tr = state.tr
                         
                         tr.delete(start, from + 1)
-                        tr.insertText(urlMatch[0], start)
+                        tr.insertText(matchedUrl, start)
                         
-                        const mark = state.schema.marks.link.create({ href: urlMatch[0] })
-                        tr.addMark(start, start + urlMatch[0].length, mark)
+                        const mark = state.schema.marks.link.create({ href: matchedUrl })
+                        tr.addMark(start, start + matchedUrl.length, mark)
                         
-                        tr.setStoredMarks([])
-                        tr.insertText(' ', start + urlMatch[0].length)
+                        // Add space after link without including it in the URL
+                        tr.insertText(' ', start + matchedUrl.length)
                         
                         view.dispatch(tr)
                         return true
@@ -1372,6 +1399,35 @@ export default {
       margin: 1.5em 0 0.5em;
       line-height: 1.3;
       font-weight: 600;
+      position: relative;
+      margin-left: 20px;
+      
+      &::before {
+        content: '⌄';
+        position: absolute;
+        left: -20px;
+        color: lightgray;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      
+      &:hover::before {
+        opacity: 1;
+      }
+      
+      &[data-collapsed]::before {
+        content: '>';
+        transform: rotate(0);
+      }
+      
+      &[data-collapsed] + * {
+        display: none;
+      }
+      
+      &[data-collapsed] ~ *:not(h1):not(h2):not(h3) {
+        display: none;
+      }
     }
 
     // Lists

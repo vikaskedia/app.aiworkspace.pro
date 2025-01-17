@@ -360,10 +360,8 @@ export default {
             <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
-            <el-dropdown-item command="referral_system">
-              Referral System
-            </el-dropdown-item>
-            <el-dropdown-item divided command="ai_attorney">AI Attorney</el-dropdown-item>
+            <el-dropdown-item divided command="referral_system">Referral System</el-dropdown-item>
+            <el-dropdown-item command="ai_attorney">AI Attorney</el-dropdown-item>
             <el-dropdown-item command="initial_consultation">
               Initial Consultation
             </el-dropdown-item>

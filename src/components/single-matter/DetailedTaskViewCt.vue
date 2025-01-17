@@ -1323,7 +1323,7 @@ export default {
     async getAIResponse(prompt, customSystemPrompt = null) {
       try {
         // Extract hyperlinks to image files using regex
-        const imageLinkRegex = /\[([^\]]+\.(jpg|jpeg|png|gif|webp))\]\(([^)]+\.(jpg|jpeg|png|gif|webp))\)/gi;
+        const imageLinkRegex = /\[([^\]]+\.(jpg|jpeg|png|gif|webp|pdf|txt))\]\(([^)]+\.(jpg|jpeg|png|gif|webp|pdf|txt))\)/gi;
         const imageLinks = [...prompt.matchAll(imageLinkRegex)];
         
         // Clean the prompt by removing markdown image links
@@ -1346,16 +1346,16 @@ export default {
 
         const systemPrompt = customSystemPrompt || `You are an AI legal assistant helping with the following task:`;
 
-        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
+        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response_v2`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: {
+            prompt: imageUrl? {
               text: cleanPrompt,
               image_url: imageUrl
-            },
+            } : cleanPrompt,
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
             matterId: this.task.matter_id
@@ -1365,7 +1365,7 @@ export default {
         if (!response.ok) throw new Error('Failed to get AI response');
 
         const data = await response.json();
-        return data.response;
+        return data;
       } catch (error) {
         console.error('Error getting AI response:', error);
         return 'Sorry, I encountered an error while processing your request.';
@@ -1379,7 +1379,7 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: null,
-            content: response,
+            content: response.template_content,
             type: 'ai_response',
             metadata: {
               is_ai: true,
@@ -1707,7 +1707,7 @@ export default {
       if (!text) return '';
       
       // Replace markdown file links with custom file links
-      return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, fileUrl) => {
+      return text.split('\n').map(line => line.trim()).join('<br>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, fileUrl) => {
         return `<a class="file-link" href="${fileUrl}" target="_blank" title="Click to view file">
           ${fileName}
         </a>`;

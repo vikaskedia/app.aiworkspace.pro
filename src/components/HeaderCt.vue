@@ -77,6 +77,9 @@ export default {
     isAIAttorneyRoute() {
       return this.$route.path.includes('/ai-attorney')
     },
+    isAICasesRoute() {
+      return this.$route.path.includes('/cases')
+    },
     isReferralSystemRoute() {
       return this.$route.path.includes('/referral-system')
     }
@@ -136,7 +139,9 @@ export default {
           break
         case 'all_matters':
           this.$router.push('/all-matters');
-          break
+        case 'cases':
+          this.$router.push('/cases');
+          break;
         case 'referral_system':
           this.$router.push('/referral-system');
           break
@@ -297,6 +302,9 @@ export default {
       </template>
       <template v-else-if="isAIAttorneyRoute">
         <h2 class="section-title">AI Attorney</h2>
+      </template>
+      <template v-else-if="isAICasesRoute">
+        <h2 class="section-title">Cases</h2>
       </template>
       <template v-else-if="isReferralSystemRoute">
         <h2 class="section-title">Referral System</h2>

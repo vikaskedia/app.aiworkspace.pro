@@ -182,6 +182,18 @@ const routes = [
     component: () => import('./components/referral-system/ReferralSystemCt.vue')
   },
   {
+      path: '/cases',
+      name: 'Cases',
+      component: () => import('./components/cases/CasesCt.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/case/:title',
+      name: 'CaseDetail',
+      component: () => import('./components/cases/CaseDetailCt.vue'),
+      meta: { requiresAuth: true }
+    },
+  {
     path: '/',
     redirect: '/login'
   }

@@ -70,23 +70,70 @@ export default {
     const createMatter = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Generate repository name - lowercase, no spaces, with timestamp
+        const repoName = `${newMatter.value.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+        const emailStorage = `${repoName}@associateattorney.ai`;
+
+        // Create repository in Gitea
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+
+        const createRepoResponse = await fetch(
+          `${giteaHost}/api/v1/org/associateattorney/repos`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              name: repoName,
+              description: newMatter.value.description,
+              private: true,
+              auto_init: true
+            })
+          }
+        );
+
+        if (!createRepoResponse.ok) {
+          throw new Error('Failed to create Gitea repository');
+        }
+
+        // Create matter in database with repository info
         const { data, error } = await supabase
           .from('matters')
           .insert([{
             title: newMatter.value.title,
             description: newMatter.value.description,
-            created_by: user.id
+            created_by: user.id,
+            git_repo: repoName,
+            email_storage: emailStorage
           }])
-          .select();
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Add the new matter to the list
+        matters.value.unshift(data);
         
-        matters.value.unshift(data[0]);
+        // Close dialog and reset form
         dialogVisible.value = false;
         newMatter.value = { title: '', description: '' };
         ElMessage.success('Matter created successfully');
+
+        // Select the newly created matter
+        selectedMatter.value = data;
+        emit('matter-selected', data);
       } catch (error) {
-        ElMessage.error('Error creating matter: ' + error.message);
+        if (error.message.includes('JWT')) {
+          ElMessage.error('Your session has expired. Please log in again.');
+        } else {
+          ElMessage.error('Error creating matter: ' + error.message);
+        }
       }
     };
 

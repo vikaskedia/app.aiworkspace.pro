@@ -262,35 +262,71 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
-        console.log('user', user);
+        // Generate repository name - lowercase, no spaces, with timestamp
+        const repoName = `${this.newMatter.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+        const emailStorage = `${repoName}@associateattorney.ai`;
+
+        // Create repository in Gitea
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+
+        const createRepoResponse = await fetch(
+          `${giteaHost}/api/v1/org/associateattorney/repos`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              name: repoName,
+              description: this.newMatter.description,
+              private: true,
+              auto_init: true
+            })
+          }
+        );
+
+        if (!createRepoResponse.ok) {
+          throw new Error('Failed to create Gitea repository');
+        }
+
+        // Create matter in database with repository info
         const matterData = {
           title: this.newMatter.title,
           description: this.newMatter.description,
-          created_by: user.id
+          created_by: user.id,
+          git_repo: repoName,
+          email_storage: emailStorage
         };
-        console.log('Attempting to create matter with:', matterData);
 
         const { data, error } = await supabase
           .from('matters')
-          .insert([{
-            title: this.newMatter.title,
-            description: this.newMatter.description,
-            created_by: user.id
-          }])
+          .insert([matterData])
           .select()
           .single();
 
-          console.log('Matter creation result:', data);
-          if (error) console.error('Matter creation error:', error);
+        if (error) throw error;
 
-        this.matters.unshift({ ...data, stats: { goals_total: 0, goals_completed: 0, tasks_total: 0, tasks_completed: 0, upcoming_events: 0 } });
+        this.matters.unshift({ 
+          ...data, 
+          stats: { 
+            goals_total: 0, 
+            goals_completed: 0, 
+            tasks_total: 0, 
+            tasks_completed: 0, 
+            upcoming_events: 0 
+          } 
+        });
+        
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };
         ElMessage.success('Matter created successfully');
       } catch (error) {
         if (error.message.includes('JWT')) {
           ElMessage.error('Your session has expired. Please log in again.');
-          // Redirect to login page or handle re-authentication
         } else {
           ElMessage.error('Error creating matter: ' + error.message);
         }

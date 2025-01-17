@@ -155,6 +155,35 @@
         </el-collapse>
       </div>
     </el-dialog>
+
+    <!-- Consultation Complete Dialog -->
+    <el-dialog
+      v-model="isConsultationComplete"
+      title="Consultation Complete"
+      width="500px">
+      <div class="completion-content">
+        <p>The initial consultation is complete. Would you like to create a new matter with the following information?</p>
+        <div class="summary-section">
+          <h4>Summary:</h4>
+          <ul>
+            <li>Events: {{ notepadData.events.length }}</li>
+            <li>Goals: {{ notepadData.goals.length }}</li>
+            <li>Tasks: {{ notepadData.tasks.length }}</li>
+          </ul>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="isConsultationComplete = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="handleConsultationComplete">
+            Create Matter
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -222,6 +251,101 @@ export default {
 
     const attorneyData = ref(null)
 
+    const isConsultationComplete = computed(() => questionHistory.value.length >= 10)
+
+    const handleConsultationComplete = async () => {
+      try {
+        loading.value = true
+        const { data: { user } } = await supabase.auth.getUser()
+
+        // Generate repo name and email storage
+        const repoName = `matter-${Date.now()}`
+        const emailStorage = `${Date.now()}@associateattorney.ai`
+
+        // Create new matter
+        const { data: matter, error: matterError } = await supabase
+          .from('matters')
+          .insert([{
+            title: 'Legal Consultation Matter',
+            description: `Initial consultation conducted on ${new Date().toLocaleDateString()}`,
+            created_by: user.id,
+            archived: false,
+            git_repo: repoName,
+            email_storage: emailStorage
+          }])
+          .select()
+          .single()
+
+        if (matterError) throw matterError
+
+        // Remove matter_access creation since it's handled by the trigger
+        
+        // Create goals from notepadData
+        if (notepadData.value.goals.length > 0) {
+          const goals = notepadData.value.goals.map(goal => ({
+            title: goal,
+            matter_id: matter.id,
+            created_by: user.id,
+            status: 'in_progress',
+            priority: 'medium'
+          }))
+          await supabase.from('goals').insert(goals)
+        }
+
+        // Create tasks from notepadData
+        if (notepadData.value.tasks.length > 0) {
+          const tasks = notepadData.value.tasks.map(task => ({
+            title: task,
+            matter_id: matter.id,
+            created_by: user.id,
+            status: 'not_started',
+            priority: 'medium'
+          }))
+          await supabase.from('tasks').insert(tasks)
+        }
+
+        // Create events from notepadData with correct column name
+        if (notepadData.value.events.length > 0) {
+          const startTime = new Date();
+          const endTime = new Date(startTime);
+          endTime.setDate(endTime.getDate() + 7); // Add 1 week
+
+          const events = notepadData.value.events.map(event => ({
+            title: event,
+            matter_id: matter.id,
+            created_by: user.id,
+            start_time: startTime,
+            end_time: endTime,
+            event_type: 'initial-consultation'
+          }))
+          await supabase.from('events').insert(events)
+        }
+
+        // Save consultation data
+        await supabase
+          .from('initial_consultation')
+          .insert([{
+            user_id: user.id,
+            matter_id: matter.id,
+            json_of_interview_qna: JSON.stringify(questionHistory.value),
+            plan_accepted_by_user_json: JSON.stringify({
+              goals: notepadData.value.goals,
+              tasks: notepadData.value.tasks,
+              events: notepadData.value.events
+            })
+          }])
+
+        ElMessage.success('Matter created successfully')
+        // Redirect to the new matter
+        window.location.href = `/single-matter/${matter.id}/dashboard`
+
+      } catch (error) {
+        ElMessage.error('Error creating matter: ' + error.message)
+      } finally {
+        loading.value = false
+      }
+    }
+
     const getSharedMatters = async (userId) => {
       try {
         // Get matters shared with the user
@@ -241,7 +365,7 @@ export default {
               priority
             )
           `)
-          .eq('deleted', false)
+          .eq('archived', false)
           .eq('matter_access.shared_with_user_id', userId)
           .order('created_at', { ascending: false });
 
@@ -272,7 +396,7 @@ export default {
               priority
             )
           `)
-          .eq('deleted', false)
+          .eq('archived', false)
           .eq('matter_access.shared_with_user_id', user.id)
           .order('created_at', { ascending: false });
 
@@ -375,7 +499,8 @@ export default {
 - Preferred Language: ${user.user_metadata?.preferred_language || 'Not specified'}${sharedMattersInfo}
 `;
 
-      const fullPrompt = systemPrompt + '\n\n' + userInfoSection + formatQuestionHistory(questionHistory.value);
+      const fullPrompt = systemPrompt + '\n\n' + userInfoSection + formatQuestionHistory(questionHistory.value) + 
+        '\n\nIMPORTANT: This consultation is limited to a maximum of 10 questions. Please plan your questions accordingly to gather all necessary information within this limit.';
       
       return {
         fullPrompt,
@@ -386,8 +511,8 @@ export default {
 
     const handleSubmit = async () => {
       try {
-        loading.value = true;
-        const { fullPrompt, user } = await preparePrompt();
+        loading.value = true
+        const { fullPrompt, user } = await preparePrompt()
 
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
@@ -400,16 +525,17 @@ export default {
             currentQuestion: currentQuestion.value,
             answer: currentAnswer.value,
             systemPrompt: fullPrompt,
-            previousData: notepadData.value
+            previousData: notepadData.value,
+            isLastQuestion: questionHistory.value.length >= 9 // Signal last question
           })
-        });
+        })
 
-        if (!response.ok) throw new Error('Failed to process consultation');
+        if (!response.ok) throw new Error('Failed to process consultation')
         
-        const data = await response.json();
+        const data = await response.json()
         
-        // Update notepad data with new information
-        updateNotepadData(data);
+        // Update notepad data
+        updateNotepadData(data)
         
         // Add to history
         questionHistory.value.push({
@@ -417,13 +543,23 @@ export default {
           answer: currentAnswer.value
         })
 
-        // Set next question
-        currentQuestion.value = data.nextQuestion
-        currentAnswer.value = ''
+        // Set next question if not complete
+        if (questionHistory.value.length < 10) {
+          currentQuestion.value = data.nextQuestion
+          currentAnswer.value = ''
+        } else {
+          currentQuestion.value = ''
+          ElMessage({
+            message: 'Consultation complete! Would you like to create a matter with the collected information?',
+            type: 'success',
+            duration: 0,
+            showClose: true
+          })
+        }
         
         // Update navigation
         currentIndex.value = questionHistory.value.length
-        totalQuestions.value = questionHistory.value.length + (data.nextQuestion ? 1 : 0)
+        totalQuestions.value = Math.min(questionHistory.value.length + (data.nextQuestion ? 1 : 0), 10)
         isViewingHistory.value = false
 
         await saveConsultationState()
@@ -517,7 +653,7 @@ export default {
                 name: attorney?.name || 'Associate Attorney',
                 specialization: attorney?.specialization,
                 barNumber: attorney?.bar_number,
-                firmName: attorney?.firm_name,
+                firmName: attorney?.firm_name || 'AI Associate Attorney'
               },
               systemPrompt: fullPrompt
             })
@@ -741,7 +877,7 @@ export default {
           .eq('is_initial_consultant', true)
           .single();
 
-        console.log('attorney', attorney);
+        //console.log('attorney', attorney);
         if (error) throw error;
         return {
           systemPrompt: attorney?.system_prompt || '',
@@ -817,7 +953,9 @@ export default {
       expandedSections,
       dialogWidth,
       formatText,
-      attorneyData
+      attorneyData,
+      isConsultationComplete,
+      handleConsultationComplete
     }
   }
 }
@@ -1183,5 +1321,32 @@ export default {
 .edit-button:hover {
   background-color: #f5f7fa;
   color: var(--el-color-primary);
+}
+
+.completion-content {
+  padding: 20px 0;
+}
+
+.summary-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.summary-section h4 {
+  margin: 0 0 10px 0;
+  color: #606266;
+}
+
+.summary-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summary-section li {
+  margin: 5px 0;
+  color: #606266;
 }
 </style>

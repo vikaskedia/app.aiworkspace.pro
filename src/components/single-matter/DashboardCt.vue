@@ -228,7 +228,7 @@ export default {
           .from('events')
           .select('*')
           .eq('matter_id', this.currentMatter.id)
-          .gte('start_time', new Date().toISOString())
+          //.gte('start_time', new Date().toISOString())
           .order('start_time', { ascending: true })
           .limit(5);
 

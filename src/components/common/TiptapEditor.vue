@@ -349,6 +349,10 @@ export default {
     isTaskComment: {
       type: Boolean,
       default: false
+    },
+    enableTypeahead: {
+      type: Boolean,
+      default: true
     }
   },
   data() {
@@ -420,6 +424,11 @@ export default {
         }),
         Typeahead.configure({
           onKeyDown: ({ text, cursorPosition, event }) => {
+            // Return early if typeahead is disabled
+            if (!this.enableTypeahead) {
+              return false;
+            }
+
             // Get the last word
             const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
             
@@ -665,9 +674,13 @@ export default {
     },
 
     async getTypeaheadSuggestions(text, cursorPosition) {
+      // Return early if typeahead is disabled
+      if (!this.enableTypeahead) {
+        this.showTypeahead = false;
+        return;
+      }
+
       try {
-        console.log('Getting suggestions for:', { text, cursorPosition })
-        
         const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_typeahead_suggestions`, {
           method: 'POST',
           headers: {
@@ -681,27 +694,26 @@ export default {
               task_title: this.taskTitle
             }
           })
-        })
+        });
 
         if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Failed to get suggestions: ${errorText}`)
+          const errorText = await response.text();
+          throw new Error(`Failed to get suggestions: ${errorText}`);
         }
         
-        const data = await response.json()
-        //console.log('Received suggestions:', data)
+        const data = await response.json();
         
         if (data.suggestions?.length) {
-          this.typeaheadSuggestions = data.suggestions
-          this.showTypeahead = true
-          this.typeaheadSelectedIndex = -1
-          this.updateTypeaheadPosition()
+          this.typeaheadSuggestions = data.suggestions;
+          this.showTypeahead = true;
+          this.typeaheadSelectedIndex = -1;
+          this.updateTypeaheadPosition();
         } else {
-          this.showTypeahead = false
+          this.showTypeahead = false;
         }
       } catch (error) {
-        console.error('Error getting suggestions:', error)
-        this.showTypeahead = false
+        console.error('Error getting suggestions:', error);
+        this.showTypeahead = false;
       }
     },
 

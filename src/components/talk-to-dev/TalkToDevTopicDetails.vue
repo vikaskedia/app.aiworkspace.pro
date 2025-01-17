@@ -58,6 +58,7 @@
             v-model="newReply"
             placeholder="Write a reply..."
             :height="'200px'"
+            :enable-typeahead="false"
           />
           <el-button 
             type="primary" 
@@ -84,6 +85,7 @@
                 v-model="editedTopic.description"
                 placeholder="Write your topic description..."
                 :height="'400px'"
+                :enable-typeahead="false"
               />
             </el-form-item>
           </el-form>
@@ -116,6 +118,7 @@
             v-model="editedReply.content"
             placeholder="Edit your reply..."
             :height="'300px'"
+            :enable-typeahead="false"
           />
         </div>
         <template #footer>

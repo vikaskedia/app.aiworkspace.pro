@@ -330,6 +330,7 @@
                 :sharedUsers="sharedUsers"
                 :taskId="String(task.id)"
                 :taskTitle="task.title"
+                :enable-typeahead="false"
               />
               <div class="description-edit-actions">
                 <el-button @click="cancelDescriptionEdit" size="small">Cancel</el-button>
@@ -570,6 +571,7 @@
                       :sharedUsers="sharedUsers"
                       :isTaskComment="true"
                       :autofocus="true"
+                      :enable-typeahead="false"
                     />
                     <div class="comment-edit-actions">
                       <el-button @click="cancelEditing" size="small">Cancel</el-button>
@@ -617,6 +619,7 @@
               :taskTitle="task.title"
               :sharedUsers="sharedUsers"
               :isTaskComment="true"
+              :enable-typeahead="false"
             />
             <el-button
               type="primary"

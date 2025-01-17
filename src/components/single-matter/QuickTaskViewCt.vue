@@ -1184,6 +1184,7 @@ Please provide assistance based on this context, the comment history, the availa
           :task-title="task.title || 'New Task'"
           :task-id="String(task.id)"
           :isTaskComment="true"
+          :enable-typeahead="false"
         />
         
         <el-button

@@ -98,6 +98,7 @@
                 v-model="newTopic.description"
                 placeholder="Enter topic description..."
                 :height="'400px'"
+                :enable-typeahead="false"
               />
             </el-form-item>
           </el-form>
@@ -132,6 +133,7 @@
                 v-model="editingTopic.description"
                 placeholder="Write a description..."
                 :height="'400px'"
+                :enable-typeahead="false"
               />
             </el-form-item>
           </el-form>

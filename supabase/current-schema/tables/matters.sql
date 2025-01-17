@@ -136,3 +136,29 @@ AS $function$
   FROM auth.users
   ORDER BY email;
 $function$;
+
+-- Rename columns and constraints for archive concept
+ALTER TABLE matters 
+  RENAME COLUMN deleted TO archived;
+
+ALTER TABLE matters 
+  RENAME COLUMN deleted_by TO archived_by;
+
+ALTER TABLE matters 
+  RENAME COLUMN deleted_at TO archived_at;
+
+-- Add new archive_consistency constraint
+ALTER TABLE matters
+  ADD CONSTRAINT archive_consistency CHECK (
+    (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
+    (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
+  );
+
+-- Update existing indexes
+DROP INDEX IF EXISTS matters_deleted_idx;
+DROP INDEX IF EXISTS matters_deleted_by_idx;
+DROP INDEX IF EXISTS matters_archived_idx;
+DROP INDEX IF EXISTS matters_archived_by_idx;
+
+CREATE INDEX matters_archived_idx ON matters USING btree (archived);
+CREATE INDEX matters_archived_by_idx ON matters USING btree (archived_by);

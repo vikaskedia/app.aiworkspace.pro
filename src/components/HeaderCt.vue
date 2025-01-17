@@ -76,6 +76,9 @@ export default {
     },
     isAIAttorneyRoute() {
       return this.$route.path.includes('/ai-attorney')
+    },
+    isReferralSystemRoute() {
+      return this.$route.path.includes('/referral-system')
     }
   },
   async mounted() {
@@ -133,6 +136,9 @@ export default {
           break
         case 'all_matters':
           this.$router.push('/all-matters');
+          break
+        case 'referral_system':
+          this.$router.push('/referral-system');
           break
       }
     },
@@ -292,6 +298,9 @@ export default {
       <template v-else-if="isAIAttorneyRoute">
         <h2 class="section-title">AI Attorney</h2>
       </template>
+      <template v-else-if="isReferralSystemRoute">
+        <h2 class="section-title">Referral System</h2>
+      </template>
       <template v-else>
         <MatterSelector @matter-selected="handleMatterSelect" />
         <span class="section-divider">/</span>
@@ -351,6 +360,9 @@ export default {
             <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
+            <el-dropdown-item command="referral_system">
+              Referral System
+            </el-dropdown-item>
             <el-dropdown-item divided command="ai_attorney">AI Attorney</el-dropdown-item>
             <el-dropdown-item command="initial_consultation">
               Initial Consultation

@@ -177,6 +177,11 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/referral-system',
+    name: 'ReferralSystem',
+    component: () => import('./components/referral-system/ReferralSystemCt.vue')
+  },
+  {
     path: '/',
     redirect: '/login'
   }

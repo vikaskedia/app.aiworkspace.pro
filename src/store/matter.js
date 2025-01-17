@@ -12,7 +12,7 @@ export const useMatterStore = defineStore('matter', {
       this.currentMatter = matter;
     },
 
-    async loadMatters(includeDeleted = false) {
+    async loadMatters(includeArchived = false) {
       try {
 
         // The RLS policies in the database will automatically handle the access control, 
@@ -23,8 +23,8 @@ export const useMatterStore = defineStore('matter', {
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!includeDeleted) {
-          query.eq('deleted', false);
+        if (!includeArchived) {
+          query.eq('archived', false);
         }
 
         const { data: matters, error } = await query;

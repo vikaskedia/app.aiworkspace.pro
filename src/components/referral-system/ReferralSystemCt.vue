@@ -132,7 +132,7 @@ export default {
 
         // Format referrals for display
         referrals.value = referralsData.map(r => ({
-          name: r.referred_email.split('@')[0],
+          name: r.referred_email,
           date: new Date(r.created_at).toLocaleDateString(),
           status: r.status,
           reward: `$${r.reward_amount}`

@@ -220,6 +220,33 @@ router.beforeEach(async (to, from, next) => {
   if (session && to.path !== '/initial-consultation') {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Handle referral completion if exists
+      const referrerId = localStorage.getItem('referrerId');
+      const referralCode = localStorage.getItem('referralCode');
+      
+      if (referrerId && referralCode) {
+        // Update the pending referral
+        const { error: updateError } = await supabase
+          .from('referrals')
+          .update({
+            referred_email: user.email,
+            status: 'Active',
+            reward_amount: 20.00
+          })
+          .eq('referrer_id', referrerId)
+          .eq('status', 'Pending')
+          .eq('referred_email', 'pending');
+
+        if (updateError) {
+          console.error('Error updating referral:', updateError);
+        }
+
+        // Clean up localStorage
+        localStorage.removeItem('referrerId');
+        localStorage.removeItem('referralCode');
+      }
+
       const { data: matters, error } = await supabase
         .from('matters')
         .select(`

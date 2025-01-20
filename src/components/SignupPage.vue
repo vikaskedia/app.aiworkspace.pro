@@ -69,8 +69,7 @@ import { ElMessage } from 'element-plus';
 
 export default {
   name: 'SignupPage',
-  mounted() {
-    // Check for referral cookie
+  async mounted() {
     const cookies = document.cookie.split(';');
     const referralCookie = cookies.find(cookie => 
       cookie.trim().startsWith('referral=')
@@ -79,6 +78,53 @@ export default {
     if (referralCookie) {
       const referralValue = referralCookie.split('=')[1];
       console.log('Referral cookie found:', referralValue);
+      
+      try {
+        // Get referrer's ID first
+        const { data: referrerId, error: rpcError } = await supabase
+          .rpc('get_user_id_by_email_prefix', {
+            email_prefix: referralValue
+          });
+
+        if (rpcError) throw rpcError;
+        
+        if (referrerId) {
+          // Check if a pending referral already exists for this referrer
+          const { data: existingReferrals, error: checkError } = await supabase
+            .from('referrals')
+            .select('id')
+            .eq('referrer_id', referrerId)
+            .eq('status', 'Pending')
+            .eq('referred_email', 'pending');
+
+          if (checkError) throw checkError;
+
+          // Only proceed if no pending referral exists for this referrer
+          if (!existingReferrals || existingReferrals.length === 0) {
+            // Create pending referral record
+            const { error: insertError } = await supabase.from('referrals').insert({
+              referrer_id: referrerId,
+              referred_email: 'pending',
+              status: 'Pending',
+              reward_amount: 0
+            });
+
+            if (insertError) throw insertError;
+            
+            // Store referral info in localStorage and remove cookie
+            localStorage.setItem('referralCode', referralValue);
+            localStorage.setItem('referrerId', referrerId);
+            document.cookie = `referral=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
+          } else {
+            // Reuse existing pending referral and remove cookie
+            localStorage.setItem('referralCode', referralValue);
+            localStorage.setItem('referrerId', referrerId);
+            document.cookie = `referral=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling referral:', error);
+      }
     }
   },
   methods: {

@@ -11,14 +11,44 @@ CREATE TABLE referrals (
 -- Enable RLS
 ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
 
--- Policies
+-- Replace all existing policies
+DROP POLICY IF EXISTS "Users can view their own referrals" ON referrals;
+DROP POLICY IF EXISTS "Allow referral inserts with pending status" ON referrals;
+DROP POLICY IF EXISTS "Allow updating pending referrals to active" ON referrals;
+
+-- View policy
 CREATE POLICY "Users can view their own referrals"
   ON referrals FOR SELECT
   USING (auth.uid() = referrer_id);
 
-CREATE POLICY "Users can insert referrals"
+-- Insert policy
+CREATE POLICY "Allow referral inserts with pending status"
   ON referrals FOR INSERT
-  WITH CHECK (auth.uid() = referrer_id);
+  WITH CHECK (
+    (auth.uid() = referrer_id) OR  
+    (status = 'Pending' AND referred_email = 'pending')
+  );
+
+-- Update policy for pending to active conversion
+CREATE POLICY "Allow updating pending referrals"
+  ON referrals FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM referrals r
+      WHERE r.id = id
+      AND r.status = 'Pending' 
+      AND r.referred_email = 'pending'
+    )
+  )
+  WITH CHECK (
+    status = 'Active' AND 
+    referred_email != 'pending'
+  );
+
+-- Update policy for referrer updates
+CREATE POLICY "Allow referrer to update their referrals"
+  ON referrals FOR UPDATE
+  USING (auth.uid() = referrer_id);
 
 -- Add trigger for updated_at
 CREATE TRIGGER handle_updated_at
@@ -34,4 +64,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT email FROM auth.users WHERE id = ref_id;
+$$;
+
+CREATE OR REPLACE FUNCTION get_user_id_by_email_prefix(email_prefix TEXT)
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id FROM auth.users 
+  WHERE email LIKE email_prefix || '@%'
+  LIMIT 1;
 $$;

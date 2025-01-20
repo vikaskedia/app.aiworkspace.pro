@@ -142,6 +142,7 @@
                   </div>
                   <div class="status-content">
                     <el-popover
+                      ref="statusPopover"
                       placement="bottom-start"
                       trigger="click"
                       :width="200"
@@ -180,6 +181,7 @@
                   </div>
                   <div class="status-content">
                     <el-popover
+                      ref="priorityPopover"
                       placement="bottom-start"
                       trigger="click"
                       :width="200"
@@ -261,6 +263,7 @@
                   </div>
                   <div class="status-content">
                     <el-popover
+                      ref="assigneePopover"
                       placement="bottom-start"
                       trigger="click"
                       :width="200"
@@ -1066,6 +1069,7 @@ export default {
   },
     async handleAssigneeChange(userId) {
     try {
+      this.loading = true;
       const { error } = await supabase
         .from('tasks')
         .update({ assignee: userId || null })
@@ -1073,10 +1077,20 @@ export default {
 
       if (error) throw error;
 
-      ElMessage.success(userId ? 'Task assigned successfully' : 'Task unassigned successfully');
+      this.task.assignee = userId;
+      this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
+      
+      // Use nextTick to ensure DOM updates before closing popover
+      await this.$nextTick();
+      if (this.$refs.assigneePopover) {
+        this.$refs.assigneePopover.hide();
+      }
+      
+      ElMessage.success('Assignee updated successfully');
     } catch (error) {
-      console.error('Error updating assignee:', error);
-      ElMessage.error('Failed to update assignee');
+      ElMessage.error('Error updating assignee: ' + error.message);
+    } finally {
+      this.loading = false;
     }
   },
     toggleShowMore() {
@@ -1128,7 +1142,6 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Save to Supabase
         const { error } = await supabase
           .from('tasks')
           .update({ 
@@ -1162,6 +1175,11 @@ export default {
           });
 
         ElMessage.success('Task status updated successfully');
+        
+        // Close the popover using the ref
+        if (this.$refs.statusPopover) {
+          this.$refs.statusPopover.hide();
+        }
       } catch (error) {
         console.error('Error updating task status:', error);
         ElMessage.error('Failed to update task status');
@@ -1179,6 +1197,11 @@ export default {
         // Update local task priority
         this.task.priority = priority;
         ElMessage.success('Task priority updated successfully');
+        
+        // Close the popover using the ref
+        if (this.$refs.priorityPopover) {
+          this.$refs.priorityPopover.hide();
+        }
 
       } catch (error) {
         ElMessage.error('Error updating task priority: ' + error.message);
@@ -2185,17 +2208,22 @@ export default {
     async handleAssigneeChange(userId) {
       try {
         this.loading = true;
-        const { data: { user } } = await supabase.auth.getUser();
-
         const { error } = await supabase
           .from('tasks')
-          .update({ assignee: userId })
+          .update({ assignee: userId || null })
           .eq('id', this.task.id);
 
         if (error) throw error;
 
         this.task.assignee = userId;
         this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
+        
+        // Use nextTick to ensure DOM updates before closing popover
+        await this.$nextTick();
+        if (this.$refs.assigneePopover) {
+          this.$refs.assigneePopover.hide();
+        }
+        
         ElMessage.success('Assignee updated successfully');
       } catch (error) {
         ElMessage.error('Error updating assignee: ' + error.message);

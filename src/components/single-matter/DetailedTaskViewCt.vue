@@ -149,10 +149,8 @@
                       popper-class="metadata-popover"
                     >
                       <template #reference>
-                        <div class="status-display">
-                          <span class="status-text" :class="statusTypeClass">
-                            {{ formatStatus(task?.status) }}
-                          </span>
+                        <div class="status-display" :class="statusBackgroundClass">
+                          <span class="status-text">{{ formatStatus(task?.status) }}</span>
                           <el-icon class="edit-icon"><Edit /></el-icon>
                         </div>
                       </template>
@@ -190,8 +188,8 @@
                       popper-class="metadata-popover"
                     >
                       <template #reference>
-                        <div class="status-display">
-                          <span class="status-text" :class="priorityTextClass">{{ formatPriority(task?.priority) }}</span>
+                        <div class="status-display" :class="priorityBackgroundClass">
+                          <span class="status-text">{{ formatPriority(task?.priority) }}</span>
                           <el-icon class="edit-icon"><Edit /></el-icon>
                         </div>
                       </template>
@@ -2533,14 +2531,28 @@ export default {
     statusTypeClass() {
       return `status-${this.getStatusType({ status: this.task?.status })}`;
     },
-    priorityTextClass() {
+    priorityBackgroundClass() {
       switch (this.task?.priority?.toLowerCase()) {
         case 'high':
-          return 'text-danger';
+          return 'bg-danger';
         case 'medium':
-          return 'text-warning';
+          return 'bg-warning';
         case 'low':
-          return 'text-info';
+          return 'bg-info';
+        default:
+          return '';
+      }
+    },
+    statusBackgroundClass() {
+      switch (this.task?.status?.toLowerCase()) {
+        case 'completed':
+          return 'bg-success';
+        case 'in_progress':
+          return 'bg-warning'; // Changed from bg-primary to bg-warning to match dropdown
+        case 'not_started':
+          return 'bg-info';
+        case 'blocked':
+          return 'bg-danger';
         default:
           return '';
       }
@@ -4118,5 +4130,47 @@ table.editor-table {
 /* Make the text slightly bolder for better visibility */
 .status-text {
   font-weight: 500;
+}
+</style>
+
+<style scoped>
+.status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.bg-danger {
+  background-color: var(--el-color-danger-light-9);
+}
+
+.bg-warning {
+  background-color: var(--el-color-warning-light-9);
+}
+
+.bg-info {
+  background-color: var(--el-color-info-light-9);
+}
+
+/* Remove the text color classes since we're using background now */
+.status-text {
+  font-weight: 500;
+}
+</style>
+
+<style scoped>
+.bg-success {
+  background-color: var(--el-color-success-light-9);
+}
+
+.bg-primary {
+  background-color: var(--el-color-primary-light-9);
+}
+
+.bg-danger {
+  background-color: var(--el-color-danger-light-9);
 }
 </style>

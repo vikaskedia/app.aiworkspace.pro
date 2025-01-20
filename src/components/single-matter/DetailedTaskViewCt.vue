@@ -150,7 +150,9 @@
                     >
                       <template #reference>
                         <div class="status-display">
-                          <span class="status-text">{{ formatStatus(task?.status) }}</span>
+                          <span class="status-text" :class="statusTypeClass">
+                            {{ formatStatus(task?.status) }}
+                          </span>
                           <el-icon class="edit-icon"><Edit /></el-icon>
                         </div>
                       </template>
@@ -189,7 +191,7 @@
                     >
                       <template #reference>
                         <div class="status-display">
-                          <span class="status-text">{{ formatPriority(task?.priority) }}</span>
+                          <span class="status-text" :class="priorityTextClass">{{ formatPriority(task?.priority) }}</span>
                           <el-icon class="edit-icon"><Edit /></el-icon>
                         </div>
                       </template>
@@ -2527,6 +2529,21 @@ export default {
         
         return true;
       });
+    },
+    statusTypeClass() {
+      return `status-${this.getStatusType({ status: this.task?.status })}`;
+    },
+    priorityTextClass() {
+      switch (this.task?.priority?.toLowerCase()) {
+        case 'high':
+          return 'text-danger';
+        case 'medium':
+          return 'text-warning';
+        case 'low':
+          return 'text-info';
+        default:
+          return '';
+      }
     }
   }
 };
@@ -2709,8 +2726,23 @@ export default {
 
 .status-text {
   font-size: 14px;
-  color: var(--el-text-color-primary);
   white-space: nowrap;
+}
+
+.status-text.status-success {
+  color: var(--el-color-success);
+}
+
+.status-text.status-primary {
+  color: var(--el-color-primary);
+}
+
+.status-text.status-info {
+  color: var(--el-color-info);
+}
+
+.status-text.status-warning {
+  color: var(--el-color-warning);
 }
 
 .spacer {
@@ -3436,7 +3468,23 @@ h4 {
 
 .status-text {
   font-size: 14px;
-  color: var(--el-text-color-primary);
+  white-space: nowrap;
+}
+
+.status-text.status-success {
+  color: var(--el-color-success);
+}
+
+.status-text.status-primary {
+  color: var(--el-color-primary);
+}
+
+.status-text.status-info {
+  color: var(--el-color-info);
+}
+
+.status-text.status-warning {
+  color: var(--el-color-warning);
 }
 
 .edit-icon {
@@ -4051,5 +4099,24 @@ table.editor-table {
   width: 4px;
   background-color: var(--el-color-primary-light-5);
   border-radius: 2px;
+}
+</style>
+
+<style scoped>
+.text-danger {
+  color: var(--el-color-danger);
+}
+
+.text-warning {
+  color: var(--el-color-warning);
+}
+
+.text-info {
+  color: var(--el-color-info);
+}
+
+/* Make the text slightly bolder for better visibility */
+.status-text {
+  font-weight: 500;
 }
 </style>

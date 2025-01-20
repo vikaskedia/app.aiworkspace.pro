@@ -69,6 +69,18 @@ import { ElMessage } from 'element-plus';
 
 export default {
   name: 'SignupPage',
+  mounted() {
+    // Check for referral cookie
+    const cookies = document.cookie.split(';');
+    const referralCookie = cookies.find(cookie => 
+      cookie.trim().startsWith('referral=')
+    );
+    
+    if (referralCookie) {
+      const referralValue = referralCookie.split('=')[1];
+      console.log('Referral cookie found:', referralValue);
+    }
+  },
   methods: {
     async loginWithProvider(provider) {
       try {

@@ -232,7 +232,7 @@ router.beforeEach(async (to, from, next) => {
           .update({
             referred_email: user.email,
             status: 'Active',
-            reward_amount: 20.00
+            reward_amount: 0.00
           })
           .eq('referrer_id', referrerId)
           .eq('status', 'Pending')

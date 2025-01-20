@@ -141,33 +141,32 @@
                     <span class="status-label">Status</span>
                   </div>
                   <div class="status-content">
-                    <div class="status-display" v-if="!isEditingStatus">
-                      <span class="status-text">{{ formatStatus(task?.status) }}</span>
-                      <el-icon 
-                        class="edit-icon" 
-                        @click="startStatusEdit">
-                        <Edit />
-                      </el-icon>
-                    </div>
-
-                    <el-dropdown 
-                      v-else
-                      @command="handleStatusChange" 
-                      trigger="click" 
-                      size="small">
-                      <el-tag :type="getStatusType(task)" class="status-tag" size="small">
-                        {{ formatStatus(task?.status) }}
-                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                      </el-tag>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item command="not_started">Not started</el-dropdown-item>
-                          <el-dropdown-item command="in_progress">In Progress</el-dropdown-item>
-                          <el-dropdown-item command="awaiting_external">Awaiting external factor</el-dropdown-item>
-                          <el-dropdown-item command="completed">Completed</el-dropdown-item>
-                        </el-dropdown-menu>
+                    <el-popover
+                      placement="bottom-start"
+                      trigger="click"
+                      :width="200"
+                      popper-class="metadata-popover"
+                    >
+                      <template #reference>
+                        <div class="status-display">
+                          <span class="status-text">{{ formatStatus(task?.status) }}</span>
+                          <el-icon class="edit-icon"><Edit /></el-icon>
+                        </div>
                       </template>
-                    </el-dropdown>
+                      <div class="metadata-options">
+                        <div 
+                          v-for="option in statusOptions" 
+                          :key="option.value"
+                          class="metadata-option"
+                          :class="{ 'selected': task?.status === option.value }"
+                          @click="handleStatusChange(option.value)"
+                        >
+                          <el-tag :type="getStatusType({ status: option.value })" size="small">
+                            {{ option.label }}
+                          </el-tag>
+                        </div>
+                      </div>
+                    </el-popover>
                   </div>
                 </div>
               </div>
@@ -180,32 +179,32 @@
                     <span class="status-label">Priority</span>
                   </div>
                   <div class="status-content">
-                    <div class="status-display" v-if="!isEditingPriority">
-                      <span class="status-text">{{ formatPriority(task?.priority) }}</span>
-                      <el-icon 
-                        class="edit-icon" 
-                        @click="startPriorityEdit">
-                        <Edit />
-                      </el-icon>
-                    </div>
-
-                    <el-dropdown 
-                      v-else
-                      @command="handlePriorityChange" 
-                      trigger="click" 
-                      size="small">
-                      <el-tag :type="getPriorityType(task)" class="status-tag" size="small">
-                        {{ formatPriority(task?.priority) }}
-                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                      </el-tag>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item command="low">Low</el-dropdown-item>
-                          <el-dropdown-item command="medium">Medium</el-dropdown-item>
-                          <el-dropdown-item command="high">High</el-dropdown-item>
-                        </el-dropdown-menu>
+                    <el-popover
+                      placement="bottom-start"
+                      trigger="click"
+                      :width="200"
+                      popper-class="metadata-popover"
+                    >
+                      <template #reference>
+                        <div class="status-display">
+                          <span class="status-text">{{ formatPriority(task?.priority) }}</span>
+                          <el-icon class="edit-icon"><Edit /></el-icon>
+                        </div>
                       </template>
-                    </el-dropdown>
+                      <div class="metadata-options">
+                        <div 
+                          v-for="option in priorityOptions" 
+                          :key="option.value"
+                          class="metadata-option"
+                          :class="{ 'selected': task?.priority === option.value }"
+                          @click="handlePriorityChange(option.value)"
+                        >
+                          <el-tag :type="getPriorityType({ priority: option.value })" size="small">
+                            {{ option.label }}
+                          </el-tag>
+                        </div>
+                      </div>
+                    </el-popover>
                   </div>
                 </div>
               </div>
@@ -261,48 +260,38 @@
                     <span class="status-label">Assigned To</span>
                   </div>
                   <div class="status-content">
-                    <div class="status-display" v-if="!isEditingAssignee">
-                      <div class="assignee-info">
-                        <el-avatar v-if="assigneeEmail" :size="20">
-                          {{ getInitials(assigneeEmail) }}
-                        </el-avatar>
-                        <span class="status-text">{{ assigneeEmail || 'Unassigned' }}</span>
-                      </div>
-                      <el-icon 
-                        class="edit-icon" 
-                        @click="startAssigneeEdit">
-                        <Edit />
-                      </el-icon>
-                    </div>
-
-                    <el-dropdown 
-                      v-else
-                      @command="handleAssigneeChange" 
-                      trigger="click" 
-                      size="small">
-                      <div class="assignee-display">
-                        <div class="assignee-info">
-                          <el-avatar v-if="assigneeEmail" :size="20">
-                            {{ getInitials(assigneeEmail) }}
-                          </el-avatar>
-                          <span>{{ assigneeEmail || 'Unassigned' }}</span>
+                    <el-popover
+                      placement="bottom-start"
+                      trigger="click"
+                      :width="200"
+                      popper-class="metadata-popover"
+                    >
+                      <template #reference>
+                        <div class="status-display">
+                          <div class="assignee-info">
+                            <el-avatar v-if="assigneeEmail" :size="20">
+                              {{ getInitials(assigneeEmail) }}
+                            </el-avatar>
+                            <span class="status-text">{{ assigneeEmail || 'Unassigned' }}</span>
+                          </div>
+                          <el-icon class="edit-icon"><Edit /></el-icon>
                         </div>
-                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                      </div>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item 
-                            v-for="user in sharedUsers" 
-                            :key="user.id"
-                            :command="user.id">
-                            <div class="user-option">
-                              <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
-                              <span>{{ user.email }}</span>
-                            </div>
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
                       </template>
-                    </el-dropdown>
+                      <div class="metadata-options">
+                        <div 
+                          v-for="user in sharedUsers" 
+                          :key="user.id"
+                          class="metadata-option"
+                          :class="{ 'selected': task?.assignee === user.id }"
+                          @click="handleAssigneeChange(user.id)"
+                        >
+                          <div class="user-option">
+                            <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
+                            <span>{{ user.email }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </el-popover>
                   </div>
                 </div>
               </div>
@@ -463,7 +452,7 @@
       <div class="task-comments-section">
         <div class="task-comments">
           <div class="comments-header">
-            <h3>Comments</h3>
+            <h3 class="comments-title">Comments</h3>
             <el-dropdown trigger="click">
               <el-button link>
                 <el-icon><Setting /></el-icon>
@@ -907,6 +896,17 @@ export default {
       isEditingPriority: false,
       isEditingAssignee: false,
       dueDatePopoverVisible: false,
+      statusOptions: [
+        { value: 'not_started', label: 'Not started' },
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'awaiting_external', label: 'Awaiting external factor' },
+        { value: 'completed', label: 'Completed' }
+      ],
+      priorityOptions: [
+        { value: 'low', label: 'Low' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'high', label: 'High' }
+      ]
     };
   },
   async created() {
@@ -1124,40 +1124,66 @@ export default {
       const [name] = email.split('@');
       return name.substring(0, 2).toUpperCase();
     },
-    async handlePriorityChange(priority) {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ priority })
-        .eq('id', this.task.id);
-
-      if (error) throw error;
-
-      // Update local task priority
-      this.task.priority = priority;
-      ElMessage.success('Task priority updated successfully');
-
-    } catch (error) {
-      ElMessage.error('Error updating task priority: ' + error.message);
-    }
-  },
     async handleStatusChange(status) {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status })
-        .eq('id', this.task.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Save to Supabase
+        const { error } = await supabase
+          .from('tasks')
+          .update({ 
+            status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Update local task status
-      this.task.status = status;
-      ElMessage.success('Task status updated successfully');
+        // Update local state
+        this.task.status = status;
+        
+        // Create activity log
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: `Updated status from "${this.task.status}" to "${status}"`,
+            type: 'activity',
+            metadata: {
+              action: 'update',
+              changes: {
+                status: {
+                  from: this.task.status,
+                  to: status
+                }
+              }
+            }
+          });
 
-    } catch (error) {
-      ElMessage.error('Error updating task status: ' + error.message);
-    }
-  },
+        ElMessage.success('Task status updated successfully');
+      } catch (error) {
+        console.error('Error updating task status:', error);
+        ElMessage.error('Failed to update task status');
+      }
+    },
+    async handlePriorityChange(priority) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ priority })
+          .eq('id', this.task.id);
+
+        if (error) throw error;
+
+        // Update local task priority
+        this.task.priority = priority;
+        ElMessage.success('Task priority updated successfully');
+
+      } catch (error) {
+        ElMessage.error('Error updating task priority: ' + error.message);
+      }
+    },
     async toggleTaskStar() {
     try {
       const isStarred = this.isTaskStarred;
@@ -2303,12 +2329,6 @@ export default {
     startStatusEdit() {
       this.isEditingStatus = true;
     },
-    handleStatusChange(status) {
-      // Your existing status change logic
-      this.task.status = status;
-      this.isEditingStatus = false; // Hide dropdown after selection
-      ElMessage.success('Task status updated successfully');
-    },
     formatPriority(priority) {
       if (!priority) return 'Not set';
       return priority.charAt(0).toUpperCase() + priority.slice(1);
@@ -2507,24 +2527,24 @@ export default {
 
 .description-header h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
   color: #303133;
+  font-size: 18px;
+  text-decoration: underline;
 }
 
-.description {
-  cursor: pointer;
-  padding: 8px;
+.description-wrapper > p.description {
+  position: relative;
+  padding-left: 16px;
+  border-left: 3px solid var(--el-color-primary-light-5);
+  padding: 12px 16px;
   border-radius: 4px;
-  transition: background-color 0.3s;
   margin: 0;
   font-size: 15px;
-  /* Add these properties for better text wrapping */
-  white-space: pre-wrap;       /* Preserve whitespace and wrapping */
-  word-wrap: break-word;       /* Break words that are too long */
-  word-break: break-word;      /* Break words at appropriate points */
-  overflow-wrap: break-word;   /* Ensure long words don't overflow */
-  max-width: 100%;            /* Ensure content doesn't exceed container */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 /* Add mobile-specific adjustments */
@@ -2744,54 +2764,52 @@ export default {
   .metadata-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem; /* Reduced from 1.5rem */
+    gap: 12px;
   }
 
   .metadata-item {
+    display: flex;
     width: 100%;
-    position: relative;
-    padding-bottom: 0.75rem; /* Reduced from 1.5rem */
-  }
-
-  /* Add a subtle background separator between items */
-  .metadata-item:not(:last-child) {
+    padding: 8px 0;
     border-bottom: 1px solid var(--el-border-color-lighter);
   }
 
-  /* Make items more compact */
-  .status-tag,
-  .priority-tag,
-  .due-date-display,
-  .assignee-display {
-    padding: 4px 8px; /* Reduced padding */
-    min-height: 32px; /* Ensure consistent height */
-  }
-
-  /* Reduce spacing in metadata labels */
   .metadata-label {
-    padding: 2px 0;
-    margin-bottom: 2px;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
   }
 
-  /* Adjust icon sizes for mobile */
-  .metadata-label .el-icon {
-    font-size: 14px;
-  }
-
-  /* Reduce text size slightly */
-  .status-text,
-  .priority-text,
-  .due-date-text,
-  .assignee-text {
-    font-size: 13px;
-  }
-
-  /* Reduce gap between items */
-  .status-display,
-  .priority-display,
-  .due-date-display,
-  .assignee-display {
+  .label-header {
+    width: 100px; /* Fixed width for labels */
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
     gap: 4px;
+  }
+
+  .status-content {
+    flex: 1;
+    padding-left: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .status-display {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .status-text {
+    flex: 1;
+  }
+
+  .edit-icon {
+    opacity: 1;
+    margin-left: 8px;
   }
 }
 
@@ -2893,6 +2911,7 @@ export default {
   margin: 0;
   color: #303133;
   font-size: 18px;
+  text-decoration: underline;
 }
 
 .total-hours .el-tag {
@@ -3609,17 +3628,23 @@ table.editor-table {
     box-shadow: none;
   }
 
+  .task-main-info {
+    padding: 12px; /* Reduced from 24px to 12px */
+  }
+
   .task-metadata {
     width: 100%;
     border-radius: 0;
     border-left: 0;
     border-right: 0;
+    margin: 0; /* Remove top and bottom margin */
   }
 
   .metadata-grid {
     width: 100%;
-    gap: 1.5rem;
-    padding: 0 1rem;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0.5rem 0; /* Reduced margin from 1rem to 0.5rem */
   }
 
   .metadata-item {
@@ -3904,5 +3929,99 @@ table.editor-table {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+</style>
+
+<style>
+.mobile-edit-dialog {
+  margin: 20px;
+}
+
+@media (max-width: 768px) {
+  .mobile-edit-dialog {
+    width: 90% !important;
+    margin: 10px auto;
+  }
+}
+</style>
+
+<style scoped>
+.metadata-popover {
+  padding: 12px !important;
+}
+
+.metadata-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-option {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.metadata-option:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.metadata-option.selected {
+  background-color: var(--el-fill-color);
+}
+
+.user-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.user-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ensure popovers appear in correct position and styling on mobile */
+@media (max-width: 768px) {
+  :deep(.el-popper.metadata-popover) {
+    position: fixed !important;
+    margin-top: 4px !important;
+    width: calc(100% - 32px) !important;
+    max-width: 300px;
+  }
+  
+  .user-option {
+    font-size: 14px;
+  }
+}
+</style>
+
+<style scoped>
+.comments-title {
+  text-decoration: underline;
+  text-underline-offset: 4px; /* Optional: adds some space between text and underline */
+}
+</style>
+
+<style scoped>
+.description-wrapper > p.description {
+  position: relative;
+  padding-left: 16px;
+}
+
+.description-wrapper > p.description::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--el-color-primary-light-5);
+  border-radius: 2px;
 }
 </style>

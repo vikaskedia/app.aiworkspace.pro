@@ -11,15 +11,15 @@
         <div class="stats-grid">
           <div class="stat-item">
             <h4>Total Referrals</h4>
-            <div class="stat-value">23</div>
+            <div class="stat-value">{{ referralStats.totalReferrals }}</div>
           </div>
           <div class="stat-item">
             <h4>Active Users</h4>
-            <div class="stat-value">12</div>
+            <div class="stat-value">{{ referralStats.activeUsers }}</div>
           </div>
           <div class="stat-item">
             <h4>Rewards Earned</h4>
-            <div class="stat-value">$460</div>
+            <div class="stat-value">${{ referralStats.rewardsEarned }}</div>
           </div>
         </div>
       </el-card>
@@ -78,9 +78,10 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { supabase } from '../../supabase'
 import HeaderCt from '../HeaderCt.vue'
 
 export default {
@@ -89,12 +90,65 @@ export default {
     HeaderCt
   },
   setup() {
-    const referralLink = ref('https://www.associateattorney.ai/jonathan')
-    const referrals = ref([
-      { name: 'John Doe', date: '2024-03-15', status: 'Active', reward: '$20' },
-      { name: 'Jane Smith', date: '2024-03-14', status: 'Pending', reward: '$0' },
-      { name: 'Mike Johnson', date: '2024-03-12', status: 'Active', reward: '$20' }
-    ])
+    const user = ref(null)
+    const referralStats = ref({
+      totalReferrals: 0,
+      activeUsers: 0,
+      rewardsEarned: 0
+    })
+    const referrals = ref([])
+    const referralLink = ref('')
+
+    const loadUserData = async () => {
+      const { data: { user: userData } } = await supabase.auth.getUser()
+      if (userData) {
+        user.value = userData
+        // Generate referral link using username or user ID
+        const username = userData.email.split('@')[0] // Simple way to get username
+        referralLink.value = `https://www.associateattorney.ai/?r=${username}`
+      }
+    }
+
+    const loadReferralData = async () => {
+      try {
+        // Get referrals
+        const { data: referralsData, error: referralsError } = await supabase
+          .from('referrals')
+          .select('*')
+          .eq('referrer_id', user.value.id)
+          .order('created_at', { ascending: false })
+
+        if (referralsError) throw referralsError
+
+        // Calculate stats
+        const activeUsers = referralsData.filter(r => r.status === 'Active').length
+        const totalRewards = referralsData.reduce((sum, r) => sum + Number(r.reward_amount), 0)
+
+        referralStats.value = {
+          totalReferrals: referralsData.length,
+          activeUsers,
+          rewardsEarned: totalRewards
+        }
+
+        // Format referrals for display
+        referrals.value = referralsData.map(r => ({
+          name: r.referred_email.split('@')[0],
+          date: new Date(r.created_at).toLocaleDateString(),
+          status: r.status,
+          reward: `$${r.reward_amount}`
+        }))
+      } catch (error) {
+        console.error('Error loading referral data:', error)
+        ElMessage.error('Failed to load referral data')
+      }
+    }
+
+    onMounted(async () => {
+      await loadUserData()
+      if (user.value) {
+        await loadReferralData()
+      }
+    })
 
     const copyLink = () => {
       navigator.clipboard.writeText(referralLink.value)
@@ -126,9 +180,28 @@ export default {
       }
     }
 
+    const handleSignupSuccess = async (user) => {
+      const referralCode = localStorage.getItem('referralCode')
+      if (referralCode) {
+        try {
+          // Create referral record using email
+          await supabase.from('referrals').insert({
+            referrer_id: user.id,
+            referred_email: user.email,
+            status: 'Pending'
+          })
+          
+          localStorage.removeItem('referralCode')
+        } catch (error) {
+          console.error('Error processing referral:', error)
+        }
+      }
+    }
+
     return {
       referralLink,
       referrals,
+      referralStats,
       copyLink,
       shareOnLinkedIn,
       shareOnWhatsApp,

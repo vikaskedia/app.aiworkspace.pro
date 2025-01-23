@@ -224,7 +224,11 @@ router.beforeEach(async (to, from, next) => {
       // Handle referral completion if exists
       const referrerId = localStorage.getItem('referrerId');
       const referralCode = localStorage.getItem('referralCode');
+
+      // Set a cookie that can be read by www.associateattorney.ai
+      document.cookie = `sb-auth-token=${session.access_token}; domain=.associateattorney.ai; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       
+
       if (referrerId && referralCode) {
         // Update the pending referral
         const { error: updateError } = await supabase

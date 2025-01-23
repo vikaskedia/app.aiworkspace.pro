@@ -10,6 +10,9 @@ export default {
         const params = new URLSearchParams(window.location.search);
         const redirectOrigin = params.get('redirect_origin') || window.location.origin;
         
+        // Set a cookie that can be read by www.associateattorney.ai
+        document.cookie = `sb-auth-token=${data.session.access_token}; domain=.associateattorney.ai; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        
         // Construct the full redirect URL
         const redirectUrl = `${redirectOrigin}/all-matters`;
         window.location.href = redirectUrl;

@@ -10,6 +10,17 @@ export const supabase = createClient(
     db: {
       schema: 'public'
     },
+    auth: {
+      storageKey: 'sb-auth-token',
+      storage: localStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      cookieOptions: {
+        domain: '.associateattorney.ai',
+        path: '/',
+        sameSite: 'Lax'
+      }
+    },
     debug: true
   }
 );

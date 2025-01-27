@@ -13,6 +13,36 @@ const getRootDomain = () => {
 
 console.log('Root Domain:', getRootDomain());
 
+// Custom storage implementation
+const customStorage = {
+  getItem: (key) => {
+    // First try to get from localStorage
+    const localValue = localStorage.getItem(key);
+    if (localValue) return localValue;
+
+    // If not in localStorage, try to get from cookie
+    const cookies = document.cookie.split(';');
+    const cookie = cookies.find(c => c.trim().startsWith(`${key}=`));
+    return cookie ? cookie.split('=')[1] : null;
+  },
+  setItem: (key, value) => {
+    // Set in localStorage
+    localStorage.setItem(key, value);
+    
+    // Also set in cookie for cross-domain access
+    const domain = getRootDomain();
+    document.cookie = `${key}=${value}; domain=${domain}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  },
+  removeItem: (key) => {
+    // Remove from localStorage
+    localStorage.removeItem(key);
+    
+    // Remove from cookie
+    const domain = getRootDomain();
+    document.cookie = `${key}=; domain=${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  }
+};
+
 export const supabase = createClient(
   supabaseUrl,
   supabaseAnonKey,
@@ -22,7 +52,7 @@ export const supabase = createClient(
     },
     auth: {
       storageKey: 'sb-auth-token',
-      storage: localStorage,
+      storage: customStorage,
       autoRefreshToken: true,
       persistSession: true,
       cookieOptions: {

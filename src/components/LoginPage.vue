@@ -72,12 +72,16 @@ export default {
     async loginWithProvider(provider) {
       try {
         const redirectTo = `${window.location.origin}/callback`;
+        const mainDomain = window.location.hostname === 'localhost' 
+          ? 'http://localhost' 
+          : `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: provider,
           options: {
             redirectTo: redirectTo,
             queryParams: {
-              redirect_origin: window.location.origin
+              redirect_origin: mainDomain
             }
           },
         });

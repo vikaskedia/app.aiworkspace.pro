@@ -225,9 +225,15 @@ router.beforeEach(async (to, from, next) => {
       const referrerId = localStorage.getItem('referrerId');
       const referralCode = localStorage.getItem('referralCode');
 
-      // Set a cookie that can be read by www.associateattorney.ai
-      document.cookie = `sb-auth-token=${session.access_token}; domain=.associateattorney.ai; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-      
+      // Get root domain dynamically
+      const getRootDomain = () => {
+        const hostname = window.location.hostname;
+        if (hostname === 'localhost') return 'localhost';
+        return '.' + hostname.split('.').slice(-2).join('.');
+      };
+
+      // Set cookie with dynamic domain
+      document.cookie = `sb-auth-token=${session.access_token}; domain=${getRootDomain()}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;      
 
       if (referrerId && referralCode) {
         // Update the pending referral

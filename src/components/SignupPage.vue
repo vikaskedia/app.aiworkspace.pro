@@ -131,12 +131,16 @@ export default {
     async loginWithProvider(provider) {
       try {
         const redirectTo = `${window.location.origin}/callback`;
-        const { error } = await supabase.auth.signInWithOAuth({
+        const mainDomain = window.location.hostname === 'localhost' 
+          ? 'http://localhost' 
+          : `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider: provider,
           options: {
             redirectTo: redirectTo,
             queryParams: {
-              redirect_origin: window.location.origin
+              redirect_origin: mainDomain
             }
           },
         });
@@ -144,7 +148,7 @@ export default {
         if (error) {
           ElMessage.error('Signup failed: ' + error.message);
         } else {
-          ElMessage.success('Redirecting to login provider...');
+          ElMessage.success('Redirecting to provider...');
         }
       } catch (err) {
         ElMessage.error('An unexpected error occurred');

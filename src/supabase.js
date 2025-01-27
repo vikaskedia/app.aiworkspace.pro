@@ -52,7 +52,20 @@ const customStorage = {
       iframe.style.display = 'none';
       iframe.src = `${mainDomain}/storage.html`;
       
+      // Add error handling and timeout
+      const timeoutId = setTimeout(() => {
+        document.body.removeChild(iframe);
+        console.error('Storage sync timeout');
+      }, 5000);
+
+      iframe.onerror = () => {
+        clearTimeout(timeoutId);
+        document.body.removeChild(iframe);
+        console.error('Failed to load storage bridge');
+      };
+      
       iframe.onload = () => {
+        clearTimeout(timeoutId);
         iframe.contentWindow.postMessage({
           type: 'setStorage',
           key: 'sb-auth-token',
@@ -64,6 +77,7 @@ const customStorage = {
       document.body.appendChild(iframe);
     }
     
+    // Set cookies for all applicable domains
     domains.forEach(domain => {
       document.cookie = `${key}=${value}; domain=${domain}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${domain !== 'localhost' ? '; Secure' : ''}`;
     });

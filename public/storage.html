@@ -8,10 +8,28 @@
     window.addEventListener('message', function(event) {
       // Verify origin
       if (event.origin.includes('associateattorney.ai')) {
-        if (event.data.type === 'setStorage') {
-          localStorage.setItem(event.data.key, event.data.value);
-        } else if (event.data.type === 'removeStorage') {
-          localStorage.removeItem(event.data.key);
+        try {
+          if (event.data.type === 'setStorage') {
+            localStorage.setItem(event.data.key, event.data.value);
+            // Send confirmation back
+            event.source.postMessage({
+              type: 'storageConfirmation',
+              success: true
+            }, event.origin);
+          } else if (event.data.type === 'removeStorage') {
+            localStorage.removeItem(event.data.key);
+            // Send confirmation back
+            event.source.postMessage({
+              type: 'storageConfirmation',
+              success: true
+            }, event.origin);
+          }
+        } catch (error) {
+          // Send error back
+          event.source.postMessage({
+            type: 'storageError',
+            error: error.message
+          }, event.origin);
         }
       }
     });

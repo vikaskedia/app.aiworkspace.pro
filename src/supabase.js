@@ -117,7 +117,15 @@ class CrossDomainLocalStorage {
   }
 }
 
-const crossDomainStorage = new CrossDomainLocalStorage();
+// Determine which storage implementation to use
+const getStorageImplementation = () => {
+  if (window.location.hostname.includes('localhost')) {
+    return localStorage;
+  }
+  return new CrossDomainLocalStorage();
+};
+
+const storage = getStorageImplementation();
 
 export const supabase = createClient(
   supabaseUrl,
@@ -128,7 +136,7 @@ export const supabase = createClient(
     },
     auth: {
       storageKey: 'sb-auth-token',
-      storage: crossDomainStorage,
+      storage: storage,
       autoRefreshToken: true,
       persistSession: true,
       cookieOptions: {

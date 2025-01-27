@@ -28,7 +28,21 @@ export default {
       },
       emailSettings: {
         address: this.currentMatter?.email_storage || ''
-      }
+      },
+      customFields: [],
+      newField: {
+        label: '',
+        key: '',
+        type: 'text',
+        options: [], // For dropdown
+        value: ''
+      },
+      fieldTypes: [
+        { label: 'Text', value: 'text' },
+        { label: 'Checkbox', value: 'checkbox' },
+        { label: 'Date', value: 'date' },
+        { label: 'Number', value: 'number' }
+      ]
     };
   },
   watch: {
@@ -42,6 +56,7 @@ export default {
           this.gitSettings.repoName = newMatter.git_repo || '';
           this.emailSettings.address = newMatter.email_storage || '';
           this.loadSharedUsers();
+          this.loadCustomFields();
         }
       },
       immediate: true
@@ -215,6 +230,94 @@ export default {
       } catch (error) {
         ElMessage.error('Error updating email settings: ' + error.message);
       }
+    },
+
+    async loadCustomFields() {
+      try {
+        const { data, error } = await supabase
+          .from('matter_custom_fields')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id)
+          .order('created_at');
+
+        if (error) throw error;
+        this.customFields = data;
+      } catch (error) {
+        ElMessage.error('Error loading custom fields: ' + error.message);
+      }
+    },
+
+    async addCustomField() {
+      try {
+        const fieldData = {
+          matter_id: this.currentMatter.id,
+          field_key: this.newField.key,
+          field_label: this.newField.label,
+          field_type: this.newField.type,
+          field_options: this.newField.type === 'dropdown' ? this.newField.options : null,
+          field_value: this.newField.value || null
+        };
+
+        const { data, error } = await supabase
+          .from('matter_custom_fields')
+          .insert([fieldData])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.customFields.push(data);
+        this.resetNewField();
+        ElMessage.success('Field added successfully');
+      } catch (error) {
+        ElMessage.error('Error adding field: ' + error.message);
+      }
+    },
+
+    async removeCustomField(fieldId) {
+      try {
+        const { error } = await supabase
+          .from('matter_custom_fields')
+          .delete()
+          .eq('id', fieldId);
+
+        if (error) throw error;
+
+        this.customFields = this.customFields.filter(f => f.id !== fieldId);
+        ElMessage.success('Field removed successfully');
+      } catch (error) {
+        ElMessage.error('Error removing field: ' + error.message);
+      }
+    },
+
+    resetNewField() {
+      this.newField = {
+        label: '',
+        key: '',
+        type: 'text',
+        options: [],
+        value: ''
+      };
+    },
+
+    async updateFieldValue(fieldId, value) {
+      try {
+        const { error } = await supabase
+          .from('matter_custom_fields')
+          .update({ field_value: value })
+          .eq('id', fieldId);
+
+        if (error) throw error;
+        
+        const index = this.customFields.findIndex(f => f.id === fieldId);
+        if (index !== -1) {
+          this.customFields[index].field_value = value;
+        }
+        
+        ElMessage.success('Field value updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating field value: ' + error.message);
+      }
     }
   }
 };
@@ -361,6 +464,104 @@ export default {
           </el-form-item>
         </el-form>
       </div>
+
+      <!-- Form Fields Section -->
+      <div class="section">
+        <h3>Custom Form Fields</h3>
+        
+        <!-- Add New Field Form -->
+        <div class="add-field-form">
+          <el-form label-position="top">
+            <div class="form-container">
+              <div class="field-group">
+                <el-form-item label="Field Label" required>
+                  <el-input 
+                    v-model="newField.label" 
+                    placeholder="Enter field label"
+                    @input="newField.key = newField.label.toLowerCase().replace(/\s+/g, '_')" />
+                </el-form-item>
+              </div>
+              
+              <div class="field-group">
+                <el-form-item label="Field Type" required>
+                  <el-select v-model="newField.type" style="width: 100%">
+                    <el-option 
+                      v-for="type in fieldTypes"
+                      :key="type.value"
+                      :label="type.label"
+                      :value="type.value" />
+                  </el-select>
+                </el-form-item>
+              </div>
+
+              <div class="field-group">
+                <el-form-item label="Field Value" required>
+                  <!-- Date picker -->
+                  <el-date-picker
+                    v-if="newField.type === 'date'"
+                    v-model="newField.value"
+                    type="date"
+                    style="width: 100%" />
+
+                  <!-- Text/Number input -->
+                  <el-input
+                    v-else
+                    v-model="newField.value"
+                    :type="newField.type === 'number' ? 'number' : 'text'"
+                    placeholder="Enter value" />
+                </el-form-item>
+              </div>
+
+              <div class="button-container">
+                <el-button 
+                  type="primary"
+                  @click="addCustomField"
+                  :disabled="!newField.label || !newField.type || !newField.value || 
+                            (newField.type === 'dropdown' && (!newField.options || newField.options.length === 0))">
+                  Add Field
+                </el-button>
+              </div>
+            </div>
+          </el-form>
+        </div>
+
+        <!-- Custom Fields List -->
+        <div class="custom-fields-list">
+          <el-table :data="customFields">
+            <el-table-column prop="field_label" label="Label" />
+            <el-table-column prop="field_type" label="Type" width="120" />
+            <el-table-column label="Value" min-width="200">
+              <template #default="{ row }">
+                <!-- Date picker -->
+                <el-date-picker
+                  v-if="row.field_type === 'date'"
+                  v-model="row.field_value"
+                  type="date"
+                  @change="updateFieldValue(row.id, row.field_value)"
+                  style="width: 100%" />
+
+                <!-- Text input -->
+                <el-input
+                  v-else 
+                  v-model="row.field_value"
+                  :type="row.field_type === 'number' ? 'number' : 'text'"
+                  @change="updateFieldValue(row.id, row.field_value)"
+                  placeholder="Enter value" />
+              </template>
+            </el-table-column>
+            <el-table-column label="Actions" width="100" align="right">
+              <template #default="{ row }">
+                <el-button 
+                  type="danger" 
+                  size="small"
+                  @click="removeCustomField(row.id)">
+                  Remove
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -437,6 +638,66 @@ h4 {
   }
   
   .horizontal-form-layout .el-button {
+    width: 100%;
+  }
+}
+
+.add-field-form {
+  margin-bottom: 2rem;
+}
+
+.form-container {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.field-group {
+  flex: 1;
+}
+
+.field-group .el-form-item {
+  margin-bottom: 0;
+}
+
+.button-container {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+}
+
+.button-container .el-button {
+  width: 120px;
+}
+
+@media (max-width: 768px) {
+  .form-container {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  
+  .button-container {
+    margin-top: 0.5rem;
+  }
+
+  .button-container .el-button {
+    width: 100%;
+  }
+}
+
+.custom-fields-list {
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .add-field-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .add-field-form .el-button {
     width: 100%;
   }
 }

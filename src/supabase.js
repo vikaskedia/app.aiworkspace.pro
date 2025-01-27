@@ -45,9 +45,9 @@ const customStorage = {
     // Set cookie(s) based on domain
     const domains = Array.isArray(getRootDomain()) ? getRootDomain() : [getRootDomain()];
     
-    // Also set in localStorage using a hidden iframe for cross-domain storage
-    if (window.location.hostname !== 'localhost') {
-      const mainDomain = `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+    // For auth token, ensure it's set in main domain's localStorage
+    if (key === 'sb-auth-token' && window.location.hostname.includes('associateattorney.ai')) {
+      const mainDomain = 'https://www.associateattorney.ai';
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
       iframe.src = `${mainDomain}/storage.html`;
@@ -55,7 +55,7 @@ const customStorage = {
       iframe.onload = () => {
         iframe.contentWindow.postMessage({
           type: 'setStorage',
-          key,
+          key: 'sb-auth-token',
           value
         }, mainDomain);
         setTimeout(() => document.body.removeChild(iframe), 100);
@@ -75,9 +75,9 @@ const customStorage = {
     // Remove cookie(s) based on domain
     const domains = Array.isArray(getRootDomain()) ? getRootDomain() : [getRootDomain()];
     
-    // Also remove from cross-domain localStorage
-    if (window.location.hostname !== 'localhost') {
-      const mainDomain = `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+    // For auth token, ensure it's removed from main domain's localStorage
+    if (key === 'sb-auth-token' && window.location.hostname.includes('associateattorney.ai')) {
+      const mainDomain = 'https://www.associateattorney.ai';
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
       iframe.src = `${mainDomain}/storage.html`;
@@ -85,7 +85,7 @@ const customStorage = {
       iframe.onload = () => {
         iframe.contentWindow.postMessage({
           type: 'removeStorage',
-          key
+          key: 'sb-auth-token'
         }, mainDomain);
         setTimeout(() => document.body.removeChild(iframe), 100);
       };

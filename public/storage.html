@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Storage Bridge</title>
+</head>
+<body>
+  <script>
+    window.addEventListener('message', function(event) {
+      // Verify origin
+      if (event.origin.includes('associateattorney.ai')) {
+        if (event.data.type === 'setStorage') {
+          localStorage.setItem(event.data.key, event.data.value);
+        } else if (event.data.type === 'removeStorage') {
+          localStorage.removeItem(event.data.key);
+        }
+      }
+    });
+  </script>
+</body>
+</html> 

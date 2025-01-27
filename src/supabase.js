@@ -7,8 +7,21 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const getRootDomain = () => {
   const hostname = window.location.hostname;
   if (hostname === 'localhost') return 'localhost';
-  // For production domains, ensure we include the dot prefix
-  return hostname.includes('associateattorney.ai') ? `.${hostname.split('.').slice(-2).join('.')}` : hostname;
+  
+  // For production domains
+  if (hostname.includes('associateattorney.ai')) {
+    // If we're on a subdomain, we need both cookies
+    if (hostname.split('.').length > 2) {
+      return [
+        hostname,  // For subdomain (e.g., app.associateattorney.ai)
+        `.${hostname.split('.').slice(-2).join('.')}` // For main domain (.associateattorney.ai)
+      ];
+    }
+    // If we're on main domain, just set for main domain
+    return `.${hostname}`;
+  }
+  
+  return hostname;
 };
 
 console.log('Root Domain:', getRootDomain());
@@ -26,20 +39,63 @@ const customStorage = {
     return cookie ? cookie.split('=')[1] : null;
   },
   setItem: (key, value) => {
-    // Set in localStorage
+    // Always set in localStorage
     localStorage.setItem(key, value);
     
-    // Also set in cookie for cross-domain access
-    const domain = getRootDomain();
-    document.cookie = `${key}=${value}; domain=${domain}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    // Set cookie(s) based on domain
+    const domains = Array.isArray(getRootDomain()) ? getRootDomain() : [getRootDomain()];
+    
+    // Also set in localStorage using a hidden iframe for cross-domain storage
+    if (window.location.hostname !== 'localhost') {
+      const mainDomain = `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = `${mainDomain}/storage.html`;
+      
+      iframe.onload = () => {
+        iframe.contentWindow.postMessage({
+          type: 'setStorage',
+          key,
+          value
+        }, mainDomain);
+        setTimeout(() => document.body.removeChild(iframe), 100);
+      };
+      
+      document.body.appendChild(iframe);
+    }
+    
+    domains.forEach(domain => {
+      document.cookie = `${key}=${value}; domain=${domain}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${domain !== 'localhost' ? '; Secure' : ''}`;
+    });
   },
   removeItem: (key) => {
     // Remove from localStorage
     localStorage.removeItem(key);
     
-    // Remove from cookie
-    const domain = getRootDomain();
-    document.cookie = `${key}=; domain=${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    // Remove cookie(s) based on domain
+    const domains = Array.isArray(getRootDomain()) ? getRootDomain() : [getRootDomain()];
+    
+    // Also remove from cross-domain localStorage
+    if (window.location.hostname !== 'localhost') {
+      const mainDomain = `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = `${mainDomain}/storage.html`;
+      
+      iframe.onload = () => {
+        iframe.contentWindow.postMessage({
+          type: 'removeStorage',
+          key
+        }, mainDomain);
+        setTimeout(() => document.body.removeChild(iframe), 100);
+      };
+      
+      document.body.appendChild(iframe);
+    }
+    
+    domains.forEach(domain => {
+      document.cookie = `${key}=; domain=${domain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    });
   }
 };
 
@@ -56,7 +112,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       cookieOptions: {
-        domain: getRootDomain(),
+        domain: Array.isArray(getRootDomain()) ? getRootDomain()[0] : getRootDomain(),
         path: '/',
         sameSite: 'Lax'
       }

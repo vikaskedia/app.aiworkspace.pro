@@ -14,7 +14,7 @@ class CrossDomainLocalStorage {
     return new Promise((resolve) => {
       // Create iframe pointing to storage bridge
       this.iframe = document.createElement('iframe');
-      this.iframe.src = 'https://www.associateattorney.ai/storage.html';
+      this.iframe.src = 'https://www.associateattorney.ai/forms/storage.html';
       this.iframe.style.display = 'none';
       document.body.appendChild(this.iframe);
 

@@ -6,68 +6,114 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Custom storage implementation
 class CrossDomainLocalStorage {
   constructor() {
-    this.iframe = null;
+    this.iframes = [];
+    this.domains = [
+      'https://www.associateattorney.ai/forms/storage.html',
+      'https://app.associateattorney.ai/storage.html'
+    ];
     this.initPromise = this.init();
   }
 
   async init() {
-    return new Promise((resolve) => {
-      // Create iframe pointing to storage bridge
-      this.iframe = document.createElement('iframe');
-      this.iframe.src = 'https://www.associateattorney.ai/forms/storage.html';
-      this.iframe.style.display = 'none';
-      document.body.appendChild(this.iframe);
-
-      // Wait for iframe to load
-      this.iframe.onload = () => resolve();
-    });
+    return Promise.all(this.domains.map(domain => {
+      return new Promise((resolve) => {
+        const iframe = document.createElement('iframe');
+        iframe.src = domain;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        iframe.onload = () => {
+          this.iframes.push(iframe);
+          resolve();
+        };
+      });
+    }));
   }
 
   async setItem(key, value) {
     await this.initPromise;
-    return new Promise((resolve) => {
-      const handler = (event) => {
-        if (event.origin.includes('associateattorney.ai')) {
-          if (event.data.type === 'storageConfirmation') {
-            window.removeEventListener('message', handler);
-            resolve();
+    
+    // Also set in local storage
+    localStorage.setItem(key, value);
+    
+    return Promise.all(this.iframes.map(iframe => {
+      return new Promise((resolve) => {
+        const handler = (event) => {
+          if (event.origin.includes('associateattorney.ai')) {
+            if (event.data.type === 'storageConfirmation' && event.data.key === key) {
+              window.removeEventListener('message', handler);
+              resolve();
+            }
           }
-        }
-      };
-      
-      window.addEventListener('message', handler);
-      
-      this.iframe.contentWindow.postMessage({
-        type: 'setStorage',
-        key,
-        value
-      }, '*');
-    });
+        };
+        
+        window.addEventListener('message', handler);
+        
+        iframe.contentWindow.postMessage({
+          type: 'setStorage',
+          key,
+          value
+        }, '*');
+      });
+    }));
   }
 
   async removeItem(key) {
     await this.initPromise;
-    return new Promise((resolve) => {
-      const handler = (event) => {
-        if (event.origin.includes('associateattorney.ai')) {
-          if (event.data.type === 'storageConfirmation') {
-            window.removeEventListener('message', handler);
-            resolve();
+    
+    // Also remove from local storage
+    localStorage.removeItem(key);
+    
+    return Promise.all(this.iframes.map(iframe => {
+      return new Promise((resolve) => {
+        const handler = (event) => {
+          if (event.origin.includes('associateattorney.ai')) {
+            if (event.data.type === 'storageConfirmation' && event.data.key === key) {
+              window.removeEventListener('message', handler);
+              resolve();
+            }
           }
-        }
-      };
-      
-      window.addEventListener('message', handler);
-      
-      this.iframe.contentWindow.postMessage({
-        type: 'removeStorage',
-        key
-      }, '*');
-    });
+        };
+        
+        window.addEventListener('message', handler);
+        
+        iframe.contentWindow.postMessage({
+          type: 'removeStorage',
+          key
+        }, '*');
+      });
+    }));
   }
 
   getItem(key) {
-    return localStorage.getItem(key);
+    // First try local storage
+    const localValue = localStorage.getItem(key);
+    if (localValue !== null) {
+      return localValue;
+    }
+    
+    // If not found locally, try to get from iframes
+    if (this.iframes.length > 0) {
+      return new Promise((resolve) => {
+        const handler = (event) => {
+          if (event.origin.includes('associateattorney.ai')) {
+            if (event.data.type === 'storageValue' && event.data.key === key) {
+              window.removeEventListener('message', handler);
+              resolve(event.data.value);
+            }
+          }
+        };
+        
+        window.addEventListener('message', handler);
+        
+        this.iframes[0].contentWindow.postMessage({
+          type: 'getStorage',
+          key
+        }, '*');
+      });
+    }
+    
+    return null;
   }
 }
 

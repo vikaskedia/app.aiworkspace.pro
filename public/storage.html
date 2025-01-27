@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Storage Bridge</title>
+</head>
+<body>
+  <script>
+    window.addEventListener('message', function(event) {
+      // Allow both main domain and subdomain
+      if (event.origin.includes('associateattorney.ai')) {
+        try {
+          if (event.data.type === 'setStorage') {
+            localStorage.setItem(event.data.key, event.data.value);
+            // Send confirmation back to all domains
+            window.parent.postMessage({
+              type: 'storageConfirmation',
+              success: true,
+              key: event.data.key,
+              value: event.data.value
+            }, '*');
+          } else if (event.data.type === 'removeStorage') {
+            localStorage.removeItem(event.data.key);
+            // Send confirmation back to all domains
+            window.parent.postMessage({
+              type: 'storageConfirmation',
+              success: true,
+              key: event.data.key
+            }, '*');
+          } else if (event.data.type === 'getStorage') {
+            const value = localStorage.getItem(event.data.key);
+            event.source.postMessage({
+              type: 'storageValue',
+              key: event.data.key,
+              value: value
+            }, event.origin);
+          }
+        } catch (error) {
+          event.source.postMessage({
+            type: 'storageError',
+            error: error.message
+          }, event.origin);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

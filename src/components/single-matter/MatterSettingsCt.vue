@@ -42,6 +42,19 @@ export default {
         { label: 'Checkbox', value: 'checkbox' },
         { label: 'Date', value: 'date' },
         { label: 'Number', value: 'number' }
+      ],
+      telegramGroups: [],
+      newTelegramGroup: {
+        chat_id: '',
+        name: '',
+        notification_types: []
+      },
+      notificationTypeOptions: [
+        { label: 'Task Updates', value: 'task_updates' },
+        { label: 'Goal Updates', value: 'goal_updates' },
+        { label: 'Matter Updates', value: 'matter_updates' },
+        { label: 'Comments', value: 'comments' },
+        { label: 'Document Updates', value: 'document_updates' }
       ]
     };
   },
@@ -57,6 +70,7 @@ export default {
           this.emailSettings.address = newMatter.email_storage || '';
           this.loadSharedUsers();
           this.loadCustomFields();
+          this.loadTelegramGroups();
         }
       },
       immediate: true
@@ -318,6 +332,67 @@ export default {
       } catch (error) {
         ElMessage.error('Error updating field value: ' + error.message);
       }
+    },
+
+    async loadTelegramGroups() {
+      try {
+        const { data, error } = await supabase
+          .from('matter_telegram_groups')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id);
+
+        if (error) throw error;
+        this.telegramGroups = data;
+      } catch (error) {
+        ElMessage.error('Error loading Telegram groups: ' + error.message);
+      }
+    },
+
+    async addTelegramGroup() {
+      try {
+        const { data, error } = await supabase
+          .from('matter_telegram_groups')
+          .insert({
+            matter_id: this.currentMatter.id,
+            chat_id: this.newTelegramGroup.chat_id,
+            name: this.newTelegramGroup.name,
+            notification_types: this.newTelegramGroup.notification_types
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.telegramGroups.push(data);
+        this.resetNewTelegramGroup();
+        ElMessage.success('Telegram group added successfully');
+      } catch (error) {
+        ElMessage.error('Error adding Telegram group: ' + error.message);
+      }
+    },
+
+    async removeTelegramGroup(groupId) {
+      try {
+        const { error } = await supabase
+          .from('matter_telegram_groups')
+          .delete()
+          .eq('id', groupId);
+
+        if (error) throw error;
+
+        this.telegramGroups = this.telegramGroups.filter(g => g.id !== groupId);
+        ElMessage.success('Telegram group removed successfully');
+      } catch (error) {
+        ElMessage.error('Error removing Telegram group: ' + error.message);
+      }
+    },
+
+    resetNewTelegramGroup() {
+      this.newTelegramGroup = {
+        chat_id: '',
+        name: '',
+        notification_types: []
+      };
     }
   }
 };
@@ -339,7 +414,7 @@ export default {
             <el-input
               v-model="editingMatter.description"
               type="textarea"
-              rows="3" />
+              :rows="3" />
           </el-form-item>
 
           <el-form-item>
@@ -562,6 +637,79 @@ export default {
           </el-table>
         </div>
       </div>
+
+      <!-- Telegram Groups Section -->
+      <div class="section">
+        <h3>Telegram Groups</h3>
+        
+        <!-- Add New Telegram Group -->
+        <el-form :model="newTelegramGroup" label-position="top">
+          <div class="telegram-group-form">
+            <el-form-item label="Group Name" required>
+              <el-input 
+                v-model="newTelegramGroup.name" 
+                placeholder="Enter group name" />
+            </el-form-item>
+            
+            <el-form-item label="Chat ID" required>
+              <el-input 
+                v-model="newTelegramGroup.chat_id" 
+                placeholder="Enter Telegram chat ID" />
+            </el-form-item>
+
+            <el-form-item label="Notification Types">
+              <el-checkbox-group v-model="newTelegramGroup.notification_types">
+                <div class="notification-checkboxes">
+                  <el-checkbox 
+                    v-for="option in notificationTypeOptions"
+                    :key="option.value"
+                    :value="option.value">
+                    {{ option.label }}
+                  </el-checkbox>
+                </div>
+              </el-checkbox-group>
+            </el-form-item>
+
+            <div class="button-container">
+              <el-button 
+                type="primary"
+                @click="addTelegramGroup"
+                :disabled="!newTelegramGroup.name || !newTelegramGroup.chat_id">
+                Add Group
+              </el-button>
+            </div>
+          </div>
+        </el-form>
+
+        <!-- Telegram Groups List -->
+        <div class="telegram-groups-list">
+          <el-table :data="telegramGroups">
+            <el-table-column prop="name" label="Group Name" />
+            <el-table-column prop="chat_id" label="Chat ID" />
+            <el-table-column label="Notification Types" min-width="200">
+              <template #default="{ row }">
+                <el-tag 
+                  v-for="type in row.notification_types" 
+                  :key="type"
+                  size="small"
+                  class="notification-tag">
+                  {{ type }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="Actions" width="100" align="right">
+              <template #default="{ row }">
+                <el-button 
+                  type="danger" 
+                  size="small"
+                  @click="removeTelegramGroup(row.id)">
+                  Remove
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -699,6 +847,62 @@ h4 {
   
   .add-field-form .el-button {
     width: 100%;
+  }
+}
+
+.telegram-group-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  margin-bottom: 1.5rem;
+}
+
+.telegram-group-form .el-form-item:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.telegram-group-form .button-container {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.notification-tag {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .telegram-group-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.notification-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.notification-checkboxes .el-checkbox {
+  flex: 0 0 auto;
+  min-width: 150px;
+  margin-right: 1rem;
+}
+
+@media (max-width: 640px) {
+  .notification-checkboxes {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  
+  .notification-checkboxes .el-checkbox {
+    min-width: 100%;
+    margin-right: 0;
   }
 }
 </style> 

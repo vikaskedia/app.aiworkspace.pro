@@ -806,6 +806,7 @@ import { useCacheStore } from '../../store/cache';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
+import { sendTelegramNotification } from '../common/telegramNotification';
 
 export default {
   components: {
@@ -1318,6 +1319,13 @@ export default {
           .select();
 
         if (error) throw error;
+        //console.log('this.newComment.trim()', this.newComment.trim());
+        // Send Telegram notification
+        await sendTelegramNotification({
+          matterId: this.currentMatter.id,
+          activityType: 'NEW_COMMENT',
+          message: `New comment on task "${this.task.title}"\n\nComment: ${this.newComment.trim()}\nBy: ${user.email}`
+        });
 
         // Handle AI Attorney mentions
         const aiMentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
@@ -1331,6 +1339,7 @@ export default {
             // Handle default AI Attorney
             const prompt = this.newComment.replace(mention[0], '').trim();
             const aiResponse = await this.getAIResponse(prompt);
+            
             await this.postAIResponse(aiResponse);
           } else if (!mentionId.includes('-')) { // Check if it's a UUID (user) or number (AI attorney)
             // Handle specific AI Attorney

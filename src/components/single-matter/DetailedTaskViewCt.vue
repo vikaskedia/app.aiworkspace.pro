@@ -1029,6 +1029,13 @@ export default {
 
       if (error) throw error;
 
+      // Add Telegram notification here
+      await sendTelegramNotification({
+        matterId: this.currentMatter.id,
+        activityType: 'TASK_TITLE_UPDATED',
+        message: `Task title updated\nFrom: "${this.task.title}"\nTo: "${this.editingTitle}"`
+      });
+
       this.task.title = this.editingTitle;
       ElMessage.success('Task title updated successfully');
       this.isEditingTitle = false;
@@ -1339,7 +1346,7 @@ export default {
             // Handle default AI Attorney
             const prompt = this.newComment.replace(mention[0], '').trim();
             const aiResponse = await this.getAIResponse(prompt);
-            
+
             await this.postAIResponse(aiResponse);
           } else if (!mentionId.includes('-')) { // Check if it's a UUID (user) or number (AI attorney)
             // Handle specific AI Attorney

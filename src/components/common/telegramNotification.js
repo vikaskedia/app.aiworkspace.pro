@@ -1,4 +1,5 @@
-const TELEGRAM_API_URL = 'https://telegram-11q1s6qef-scs-projects-83c4512e.vercel.app/api/sendMessage';
+// const TELEGRAM_API_URL = 'https://telegram-11q1s6qef-scs-projects-83c4512e.vercel.app/api/sendMessage';
+const TELEGRAM_API_URL = 'https://telegram-bot-five-lyart.vercel.app/api/sendMessage';
 
 function formatHtmlForTelegram(html) {
     // Replace paragraph tags with double line breaks for proper spacing

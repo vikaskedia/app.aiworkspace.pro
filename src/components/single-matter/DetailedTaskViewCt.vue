@@ -1409,8 +1409,6 @@ export default {
           headers: {
             'Content-Type': 'application/json',
           },
-          credentials: 'include',
-          mode: 'cors',
           body: JSON.stringify({
             prompt: imageUrl? {
               text: cleanPrompt,

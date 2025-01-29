@@ -548,6 +548,17 @@
                           <el-dropdown-item @click="toggleArchiveComment(comment)">
                             {{ comment.archived ? 'Unarchive' : 'Archive' }}
                           </el-dropdown-item>
+                          <!-- Add download options for AI responses -->
+                          <template v-if="comment.type === 'ai_response' && (!comment.metadata?.ai_name || comment.metadata?.ai_name === 'AI Attorney')">
+                            <el-dropdown-item @click="downloadResponse(comment, 'doc')">
+                              <el-icon><Download /></el-icon>
+                              Doc
+                            </el-dropdown-item>
+                            <el-dropdown-item @click="downloadResponse(comment, 'pdf')">
+                              <el-icon><Download /></el-icon>
+                              PDF
+                            </el-dropdown-item>
+                          </template>                          
                         </el-dropdown-menu>
                       </template>
                     </el-dropdown>
@@ -798,7 +809,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -830,7 +841,8 @@ export default {
     More,
     VerticalDotsIcon,
     Setting,
-    Share
+    Share,
+    Download
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2411,6 +2423,43 @@ export default {
     initializeTempDueDate() {
       this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
     },
+    async downloadResponse(comment, format) {
+      try {
+        // Create content with task context
+        const content = `
+${comment.content}
+        `;
+
+        if (format === 'doc') {
+          // Create blob for .doc format
+          const blob = new Blob([content], { type: 'application/msword' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `ai-attorney-response-${this.task.id}.doc`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else if (format === 'pdf') {
+          // Convert content to PDF using jsPDF
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          
+          // Add content to PDF
+          const splitText = doc.splitTextToSize(content, 180);
+          doc.text(splitText, 15, 15);
+          
+          // Download PDF
+          doc.save(`ai-attorney-response-${this.task.id}.pdf`);
+        }
+
+        ElMessage.success(`Downloaded response as ${format.toUpperCase()}`);
+      } catch (error) {
+        console.error('Error downloading response:', error);
+        ElMessage.error('Failed to download response');
+      }
+    }    
   },
   watch: {
     shareDialogVisible(newVal) {

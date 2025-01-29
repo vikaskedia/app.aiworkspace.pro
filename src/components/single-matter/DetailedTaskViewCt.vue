@@ -990,8 +990,15 @@ export default {
 
       if (error) throw error;
       console.log(this.editingDescription);
-      this.task.description = this.editingDescription;
 
+      // Add Telegram notification here
+      await sendTelegramNotification({
+        matterId: this.currentMatter.id,
+        activityType: 'TASK_DESCRIPTION_UPDATED',
+        message: `Task description updated for "${this.task.title}"\n\nFrom: "${this.task.description || 'No description'}"\nTo: "${this.editingDescription}"`
+      });
+
+      this.task.description = this.editingDescription;
       ElMessage.success('Task description updated successfully');
       this.isEditingDescription = false;
     } catch (error) {

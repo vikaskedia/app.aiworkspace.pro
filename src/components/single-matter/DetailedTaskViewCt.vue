@@ -549,7 +549,7 @@
                             {{ comment.archived ? 'Unarchive' : 'Archive' }}
                           </el-dropdown-item>
                           <!-- Add download options for AI responses -->
-                          <template v-if="comment.type === 'ai_response' && (!comment.metadata?.ai_name || comment.metadata?.ai_name === 'AI Attorney')">
+                          <template v-if="comment.type === 'ai_response'">
                             <el-dropdown-item @click="downloadResponse(comment, 'doc')">
                               <el-icon><Download /></el-icon>
                               Doc

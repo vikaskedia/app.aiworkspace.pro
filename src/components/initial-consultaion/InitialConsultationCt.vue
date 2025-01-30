@@ -48,18 +48,13 @@
               />
               <div class="input-actions">
                 <span class="hint">
-                  <el-upload
-                    class="upload-inline"
-                    action="#"
-                    :auto-upload="false"
-                    :show-file-list="true"
-                    :on-change="handleFileChange"
-                    :file-list="attachments">
-                    <el-button type="info" plain size="small">
-                      <el-icon><Paperclip /></el-icon>
-                      Attach File
-                    </el-button>
-                  </el-upload>
+                  <el-button 
+                    @click="uploadDialogVisible = true"
+                    :loading="uploadingFiles"
+                    size="small">
+                    <el-icon><Upload /></el-icon>
+                    Attach Files
+                  </el-button>
                 </span>
                 <div class="button-group">
                   <el-button 
@@ -93,18 +88,13 @@
                 />
                 <div class="input-actions">
                   <span class="hint">
-                    <el-upload
-                      class="upload-inline"
-                      action="#"
-                      :auto-upload="false"
-                      :show-file-list="true"
-                      :on-change="handleFileChange"
-                      :file-list="attachments">
-                      <el-button type="info" plain size="small">
-                        <el-icon><Paperclip /></el-icon>
-                        Attach File
-                      </el-button>
-                    </el-upload>
+                    <el-button 
+                      @click="uploadDialogVisible = true"
+                      :loading="uploadingFiles"
+                      size="small">
+                      <el-icon><Upload /></el-icon>
+                      Attach Files
+                    </el-button>
                   </span>
                   <div class="button-group">
                     <el-button @click="cancelEdit">
@@ -205,6 +195,40 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Upload Dialog -->
+    <el-dialog
+      v-model="uploadDialogVisible"
+      title="Upload Files"
+      width="500px">
+      <el-upload
+        class="upload-area"
+        drag
+        action="#"
+        :auto-upload="false"
+        :on-change="(file) => fileList = [...fileList, file]"
+        :on-remove="(file) => fileList = fileList.filter(f => f.uid !== file.uid)"
+        multiple
+        :file-list="fileList">
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          Drop files here or <em>click to upload</em>
+        </div>
+      </el-upload>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="uploadDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="handleCurrentAnswer"
+            :disabled="!fileList.length"
+            :loading="uploadingFiles">
+            Upload and Attach
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -212,7 +236,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
-import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit, Paperclip } from '@element-plus/icons-vue'
+import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit, Paperclip, Upload, UploadFilled } from '@element-plus/icons-vue'
 import { ElSkeleton } from 'element-plus'
 import { supabase } from '../../supabase'
 import promptText from './prompt.txt?raw'
@@ -231,7 +255,9 @@ export default {
     ArrowDown,
     Edit,
     ElSkeleton,
-    Paperclip
+    Paperclip,
+    Upload,
+    UploadFilled
   },
 
   setup() {
@@ -277,6 +303,9 @@ export default {
 
     const attachments = ref([])
     const uploadingFiles = ref(false)
+
+    const uploadDialogVisible = ref(false)
+    const fileList = ref([])
 
     const handleConsultationComplete = async () => {
       try {
@@ -780,7 +809,7 @@ export default {
     }
 
     const handleCurrentAnswer = async () => {
-      if (!currentAnswer.value.trim() && !attachments.value.length) return
+      if (!currentAnswer.value.trim() && !fileList.value.length) return
 
       try {
         loading.value = true
@@ -792,9 +821,9 @@ export default {
         let finalAnswer = currentAnswer.value
         if (uploadedFiles?.length) {
           const fileLinks = uploadedFiles.map(file => 
-            `\n[${file.name}](${file.url}){:target="_blank"}`
-          ).join('\n')
-          finalAnswer += '\n\nAttached files:' + fileLinks
+            `[${file.name}](${file.url}){:target="_blank"}`
+          ).join('<br>')
+          finalAnswer += '<div class="file-attachments">Attached files:<br>' + fileLinks + '</div>'
         }
 
         // Update the current answer with file links
@@ -952,8 +981,12 @@ export default {
       attachments.value = [file]
     }
 
+    const handleFileSelect = (files) => {
+      fileList.value = files
+    }
+
     const uploadAttachments = async () => {
-      if (!attachments.value.length) return null
+      if (!fileList.value.length) return null
 
       try {
         uploadingFiles.value = true
@@ -991,9 +1024,11 @@ export default {
         })
 
         const timestamp = Date.now()
-        
-        const uploadedFiles = await Promise.all(
-          attachments.value.map(async (fileInfo) => {
+        const uploadedFiles = []
+
+        // Upload files sequentially instead of in parallel
+        for (const fileInfo of fileList.value) {
+          try {
             const file = fileInfo.raw
             const timestampedFileName = `${timestamp}-${file.name}`
             
@@ -1025,15 +1060,25 @@ export default {
               }
             )
 
-            if (!response.ok) throw new Error('Failed to upload file')
+            if (!response.ok) {
+              throw new Error(`Failed to upload file ${file.name}`)
+            }
             
             const data = await response.json()
-            return {
+            uploadedFiles.push({
               name: file.name,
               url: data.content.download_url
-            }
-          })
-        )
+            })
+          } catch (error) {
+            ElMessage.warning(`Failed to upload ${fileInfo.raw.name}: ${error.message}`)
+            // Continue with next file instead of stopping completely
+            continue
+          }
+        }
+
+        if (uploadedFiles.length === 0) {
+          throw new Error('No files were uploaded successfully')
+        }
 
         return uploadedFiles
 
@@ -1042,19 +1087,25 @@ export default {
         return null
       } finally {
         uploadingFiles.value = false
-        attachments.value = []
+        fileList.value = []
+        uploadDialogVisible.value = false
       }
     }
 
-    // Add this method to handle link formatting
+    // Update the formatAnswerText method to preserve the div structure
     const formatAnswerText = (text) => {
       if (!text) return ''
       
-      // Replace markdown links with HTML links
-      const formattedText = text.replace(
+      // Replace markdown links with HTML links while preserving div structure
+      let formattedText = text.replace(
         /\[([^\]]+)\]\(([^)]+)\)(?:{:target="_blank"})?/g, 
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
       )
+      
+      // Ensure the div structure is preserved
+      if (formattedText.includes('class="file-attachments"')) {
+        return formattedText
+      }
       
       return formattedText
     }
@@ -1121,7 +1172,10 @@ export default {
       uploadingFiles,
       handleFileChange,
       uploadAttachments,
-      formatAnswerText
+      formatAnswerText,
+      uploadDialogVisible,
+      fileList,
+      handleFileSelect
     }
   }
 }
@@ -1542,5 +1596,23 @@ export default {
 
 .answer-text :deep(a:hover) {
   text-decoration: underline;
+}
+
+.upload-area {
+  width: 100%;
+}
+
+:deep(.el-upload-dragger) {
+  width: 100%;
+  height: 200px;
+}
+
+:deep(.el-upload__text) {
+  margin-top: 16px;
+}
+
+:deep(.el-icon--upload) {
+  font-size: 48px;
+  margin-bottom: 8px;
 }
 </style>

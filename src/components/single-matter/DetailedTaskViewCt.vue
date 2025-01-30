@@ -549,16 +549,14 @@
                             {{ comment.archived ? 'Unarchive' : 'Archive' }}
                           </el-dropdown-item>
                           <!-- Add download options for AI responses -->
-                          <template v-if="comment.type === 'ai_response'">
-                            <el-dropdown-item @click="downloadResponse(comment, 'doc')">
-                              <el-icon><Download /></el-icon>
-                              Doc
-                            </el-dropdown-item>
-                            <el-dropdown-item @click="downloadResponse(comment, 'pdf')">
-                              <el-icon><Download /></el-icon>
-                              PDF
-                            </el-dropdown-item>
-                          </template>                          
+                          <el-dropdown-item @click="downloadResponse(comment, 'doc')">
+                            <el-icon><Download /></el-icon>
+                            Doc
+                          </el-dropdown-item>
+                          <el-dropdown-item @click="downloadResponse(comment, 'pdf')">
+                            <el-icon><Download /></el-icon>
+                            PDF
+                          </el-dropdown-item>   
                         </el-dropdown-menu>
                       </template>
                     </el-dropdown>
@@ -2436,7 +2434,7 @@ ${comment.content}
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = `ai-attorney-response-${this.task.id}.doc`;
+          link.download = `task-${this.task.id}-response-${comment.id}.doc`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -2451,7 +2449,7 @@ ${comment.content}
           doc.text(splitText, 15, 15);
           
           // Download PDF
-          doc.save(`ai-attorney-response-${this.task.id}.pdf`);
+          doc.save(`task-${this.task.id}-response-${comment.id}.pdf`);
         }
 
         ElMessage.success(`Downloaded response as ${format.toUpperCase()}`);

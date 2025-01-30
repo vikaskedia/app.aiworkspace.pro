@@ -48,8 +48,18 @@
               />
               <div class="input-actions">
                 <span class="hint">
-                  <!-- Press Ctrl + Enter to send -->
-                  &nbsp;
+                  <el-upload
+                    class="upload-inline"
+                    action="#"
+                    :auto-upload="false"
+                    :show-file-list="true"
+                    :on-change="handleFileChange"
+                    :file-list="attachments">
+                    <el-button type="info" plain size="small">
+                      <el-icon><Paperclip /></el-icon>
+                      Attach File
+                    </el-button>
+                  </el-upload>
                 </span>
                 <div class="button-group">
                   <el-button 
@@ -66,7 +76,7 @@
             <!-- Previous answers display/edit -->
             <template v-else>
               <div v-if="!isEditing" class="answer-display">
-                <div class="answer-text">{{ currentAnswer }}</div>
+                <div class="answer-text" v-html="formatAnswerText(currentAnswer)"></div>
                 <button class="edit-button hover-visible" @click="startEditing">
                   <el-icon><Edit /></el-icon>
                 </button>
@@ -83,7 +93,18 @@
                 />
                 <div class="input-actions">
                   <span class="hint">
-                    &nbsp;
+                    <el-upload
+                      class="upload-inline"
+                      action="#"
+                      :auto-upload="false"
+                      :show-file-list="true"
+                      :on-change="handleFileChange"
+                      :file-list="attachments">
+                      <el-button type="info" plain size="small">
+                        <el-icon><Paperclip /></el-icon>
+                        Attach File
+                      </el-button>
+                    </el-upload>
                   </span>
                   <div class="button-group">
                     <el-button @click="cancelEdit">
@@ -191,7 +212,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
-import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit } from '@element-plus/icons-vue'
+import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit, Paperclip } from '@element-plus/icons-vue'
 import { ElSkeleton } from 'element-plus'
 import { supabase } from '../../supabase'
 import promptText from './prompt.txt?raw'
@@ -209,7 +230,8 @@ export default {
     ArrowUp,
     ArrowDown,
     Edit,
-    ElSkeleton
+    ElSkeleton,
+    Paperclip
   },
 
   setup() {
@@ -252,6 +274,9 @@ export default {
     const attorneyData = ref(null)
 
     const isConsultationComplete = computed(() => questionHistory.value.length >= 10)
+
+    const attachments = ref([])
+    const uploadingFiles = ref(false)
 
     const handleConsultationComplete = async () => {
       try {
@@ -755,12 +780,37 @@ export default {
     }
 
     const handleCurrentAnswer = async () => {
-      if (isViewingHistory.value) {
-        await handleEdit()
-      } else {
-        await handleSubmit()
+      if (!currentAnswer.value.trim() && !attachments.value.length) return
+
+      try {
+        loading.value = true
+        
+        // Upload any attachments first
+        const uploadedFiles = await uploadAttachments()
+        
+        // Add file links to the answer if files were uploaded
+        let finalAnswer = currentAnswer.value
+        if (uploadedFiles?.length) {
+          const fileLinks = uploadedFiles.map(file => 
+            `\n[${file.name}](${file.url}){:target="_blank"}`
+          ).join('\n')
+          finalAnswer += '\n\nAttached files:' + fileLinks
+        }
+
+        // Update the current answer with file links
+        currentAnswer.value = finalAnswer
+
+        if (isViewingHistory.value) {
+          await handleEdit()
+        } else {
+          await handleSubmit()
+        }
+        
+      } catch (error) {
+        ElMessage.error('Error processing answer: ' + error.message)
+      } finally {
+        loading.value = false
       }
-      isEditing.value = false
     }
 
     let touchStartY = 0
@@ -898,6 +948,117 @@ export default {
       return text.split('\n').map(line => line.trim()).join('<br>');
     }
 
+    const handleFileChange = (file) => {
+      attachments.value = [file]
+    }
+
+    const uploadAttachments = async () => {
+      if (!attachments.value.length) return null
+
+      try {
+        uploadingFiles.value = true
+        const { data: { user } } = await supabase.auth.getUser()
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN
+        const giteaHost = import.meta.env.VITE_GITEA_HOST
+        
+        // Create repo name from user's email
+        const repoName = user.email.replace('@', '-').toLowerCase()
+        
+        // Try to create the repository, if it fails with 409 (already exists), that's fine
+        await fetch(
+          `${giteaHost}/api/v1/org/associateattorney/repos`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              name: repoName,
+              description: `Repository for ${user.email}`,
+              private: true,
+              auto_init: true,
+              trust_model: 'collaborator'
+            })
+          }
+        ).catch(error => {
+          // Ignore 409 errors (repo already exists)
+          if (!error.message.includes('409')) {
+            throw error
+          }
+        })
+
+        const timestamp = Date.now()
+        
+        const uploadedFiles = await Promise.all(
+          attachments.value.map(async (fileInfo) => {
+            const file = fileInfo.raw
+            const timestampedFileName = `${timestamp}-${file.name}`
+            
+            const base64Content = await new Promise((resolve) => {
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                const base64 = reader.result.split(',')[1]
+                resolve(base64)
+              }
+              reader.readAsDataURL(file)
+            })
+
+            // Upload to the repository (whether it was just created or already existed)
+            const response = await fetch(
+              `${giteaHost}/api/v1/repos/associateattorney/${repoName}/contents/${timestampedFileName}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `token ${giteaToken}`,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                  'Cache-Control': 'no-cache'
+                },
+                body: JSON.stringify({
+                  message: `Upload consultation attachment ${timestampedFileName}`,
+                  content: base64Content,
+                  branch: 'main'
+                })
+              }
+            )
+
+            if (!response.ok) throw new Error('Failed to upload file')
+            
+            const data = await response.json()
+            return {
+              name: file.name,
+              url: data.content.download_url
+            }
+          })
+        )
+
+        return uploadedFiles
+
+      } catch (error) {
+        ElMessage.error('Error uploading attachments: ' + error.message)
+        return null
+      } finally {
+        uploadingFiles.value = false
+        attachments.value = []
+      }
+    }
+
+    // Add this method to handle link formatting
+    const formatAnswerText = (text) => {
+      if (!text) return ''
+      
+      // Replace markdown links with HTML links
+      const formattedText = text.replace(
+        /\[([^\]]+)\]\(([^)]+)\)(?:{:target="_blank"})?/g, 
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      
+      return formattedText
+    }
+
     onMounted(async () => {
       await Promise.all([
         initializeConsultation(),
@@ -955,7 +1116,12 @@ export default {
       formatText,
       attorneyData,
       isConsultationComplete,
-      handleConsultationComplete
+      handleConsultationComplete,
+      attachments,
+      uploadingFiles,
+      handleFileChange,
+      uploadAttachments,
+      formatAnswerText
     }
   }
 }
@@ -1348,5 +1514,33 @@ export default {
 .summary-section li {
   margin: 5px 0;
   color: #606266;
+}
+
+.upload-inline {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.upload-inline :deep(.el-upload-list) {
+  position: relative;
+  left: 0;
+  background: white;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+  display: none; /* Hide by default */
+}
+
+.upload-inline :deep(.el-upload-list:not(:empty)) {
+  display: block; /* Show only when there are items */
+}
+
+.answer-text :deep(a) {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+
+.answer-text :deep(a:hover) {
+  text-decoration: underline;
 }
 </style>

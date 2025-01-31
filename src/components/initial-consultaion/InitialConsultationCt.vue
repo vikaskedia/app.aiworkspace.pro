@@ -180,6 +180,7 @@
             <li>Events: {{ notepadData.events.length }}</li>
             <li>Goals: {{ notepadData.goals.length }}</li>
             <li>Tasks: {{ notepadData.tasks.length }}</li>
+            <li>Files: {{ filesCount }}</li>
           </ul>
         </div>
       </div>
@@ -233,7 +234,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import HeaderCt from '../HeaderCt.vue'
 import { ElMessage } from 'element-plus'
 import { Loading, ArrowLeft, Check, ArrowRight, ArrowUp, ArrowDown, Edit, Paperclip, Upload, UploadFilled } from '@element-plus/icons-vue'
@@ -299,7 +300,9 @@ export default {
 
     const attorneyData = ref(null)
 
-    const isConsultationComplete = computed(() => questionHistory.value.length >= 10)
+    const filesCount = ref(0)
+
+    const isConsultationComplete = ref(false)
 
     const attachments = ref([])
     const uploadingFiles = ref(false)
@@ -311,12 +314,34 @@ export default {
       try {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN
+        const giteaHost = import.meta.env.VITE_GITEA_HOST
 
-        // Generate repo name and email storage
-        const repoName = `matter-${Date.now()}`
+        // Generate repo names
+        const userRepoName = user.email.replace('@', '-').toLowerCase()
+        const matterRepoName = `matter-${Date.now()}`
         const emailStorage = `${Date.now()}@associateattorney.ai`
 
-        // Create new matter
+        // Create matter repository in Gitea first
+        await fetch(`${giteaHost}/api/v1/org/associateattorney/repos`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `token ${giteaToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify({
+            name: matterRepoName,
+            description: `Repository for matter ${matterRepoName}`,
+            private: true,
+            auto_init: true,
+            trust_model: 'collaborator'
+          })
+        })
+
+
+        // Create new matter in Supabase
         const { data: matter, error: matterError } = await supabase
           .from('matters')
           .insert([{
@@ -324,7 +349,7 @@ export default {
             description: `Initial consultation conducted on ${new Date().toLocaleDateString()}`,
             created_by: user.id,
             archived: false,
-            git_repo: repoName,
+            git_repo: matterRepoName,
             email_storage: emailStorage
           }])
           .select()
@@ -332,8 +357,65 @@ export default {
 
         if (matterError) throw matterError
 
-        // Remove matter_access creation since it's handled by the trigger
-        
+        // Get files from user's consultation repo
+        const filesResponse = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${userRepoName}/contents/`,
+          {
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          }
+        )
+
+        if (!filesResponse.ok) throw new Error('Failed to fetch consultation files')
+        const files = await filesResponse.json()
+
+        // Helper function for base64 encoding
+        const toBase64 = (str) => {
+          return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+              return String.fromCharCode('0x' + p1)
+            }))
+        }
+
+        // Copy each file to the new matter repo
+        for (const file of files) {
+          if (file.type === 'file') {
+            // Get file content
+            const contentResponse = await fetch(file.download_url, {
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              }
+            })
+            const content = await contentResponse.text()
+            
+            // Safely convert content to base64
+            const base64Content = toBase64(content)
+
+            // Upload to new matter repo
+            await fetch(
+              `${giteaHost}/api/v1/repos/associateattorney/${matterRepoName}/contents/initial-consultation/${file.name}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `token ${giteaToken}`,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                  'Cache-Control': 'no-cache'
+                },
+                body: JSON.stringify({
+                  message: `Copy consultation file ${file.name}`,
+                  content: base64Content,
+                  branch: 'main'
+                })
+              }
+            )
+          }
+        }
         // Create goals from notepadData
         if (notepadData.value.goals.length > 0) {
           const goals = notepadData.value.goals.map(goal => ({
@@ -358,11 +440,11 @@ export default {
           await supabase.from('tasks').insert(tasks)
         }
 
-        // Create events from notepadData with correct column name
+        // Create events from notepadData
         if (notepadData.value.events.length > 0) {
-          const startTime = new Date();
-          const endTime = new Date(startTime);
-          endTime.setDate(endTime.getDate() + 7); // Add 1 week
+          const startTime = new Date()
+          const endTime = new Date(startTime)
+          endTime.setDate(endTime.getDate() + 7)
 
           const events = notepadData.value.events.map(event => ({
             title: event,
@@ -562,6 +644,8 @@ export default {
         attorneyData
       };
     };
+    console.log('questionHistory', questionHistory.value);
+    console.log('is consultation complete', isConsultationComplete);
 
     const handleSubmit = async () => {
       try {
@@ -596,6 +680,8 @@ export default {
           question: currentQuestion.value,
           answer: currentAnswer.value
         })
+
+        console.log('questionHistory', questionHistory.value);
 
         // Set next question if not complete
         if (questionHistory.value.length < 10) {
@@ -1110,6 +1196,47 @@ export default {
       return formattedText
     }
 
+    const getRepoFilesCount = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN
+        const giteaHost = import.meta.env.VITE_GITEA_HOST
+        const userRepoName = user.email.replace('@', '-').toLowerCase()
+
+        const filesResponse = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${userRepoName}/contents/`,
+          {
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          }
+        )
+
+        if (!filesResponse.ok) return 0
+        const files = await filesResponse.json()
+        return files.filter(file => file.type === 'file').length
+      } catch (error) {
+        console.error('Error getting files count:', error)
+        return 0
+      }
+    }
+
+    const checkConsultationComplete = async () => {
+      if (questionHistory.value.length >= 10 && 
+          questionHistory.value.every(qa => qa.answer && qa.answer.trim())) {
+        filesCount.value = await getRepoFilesCount()
+        isConsultationComplete.value = true
+      } else {
+        isConsultationComplete.value = false
+      }
+    }
+
+    watch(questionHistory, () => {
+      checkConsultationComplete()
+    }, { deep: true })
+
     onMounted(async () => {
       await Promise.all([
         initializeConsultation(),
@@ -1175,7 +1302,9 @@ export default {
       formatAnswerText,
       uploadDialogVisible,
       fileList,
-      handleFileSelect
+      handleFileSelect,
+      getRepoFilesCount,
+      filesCount
     }
   }
 }

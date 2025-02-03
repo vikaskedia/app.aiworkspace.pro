@@ -357,9 +357,18 @@ export default {
 
         if (matterError) throw matterError
 
-        // Get files from user's consultation repo
-        const filesResponse = await fetch(
-          `${giteaHost}/api/v1/repos/associateattorney/${userRepoName}/contents/`,
+        // Helper function for base64 encoding
+        const toBase64 = (str) => {
+          return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+              return String.fromCharCode('0x' + p1)
+            }))
+        }
+
+
+        // Check if the user's consultation repo exists
+        const repoCheckResponse = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${userRepoName}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
@@ -369,51 +378,60 @@ export default {
           }
         )
 
-        if (!filesResponse.ok) throw new Error('Failed to fetch consultation files')
-        const files = await filesResponse.json()
+        if (repoCheckResponse.ok) {
 
-        // Helper function for base64 encoding
-        const toBase64 = (str) => {
-          return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-            function toSolidBytes(match, p1) {
-              return String.fromCharCode('0x' + p1)
-            }))
-        }
-
-        // Copy each file to the new matter repo
-        for (const file of files) {
-          if (file.type === 'file') {
-            // Get file content
-            const contentResponse = await fetch(file.download_url, {
+          // Get files from user's consultation repo
+          const filesResponse = await fetch(
+            `${giteaHost}/api/v1/repos/associateattorney/${userRepoName}/contents/`,
+            {
               headers: {
                 'Authorization': `token ${giteaToken}`,
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache'
               }
-            })
-            const content = await contentResponse.text()
-            
-            // Safely convert content to base64
-            const base64Content = toBase64(content)
+            }
+          )
 
-            // Upload to new matter repo
-            await fetch(
-              `${giteaHost}/api/v1/repos/associateattorney/${matterRepoName}/contents/initial-consultation/${file.name}`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `token ${giteaToken}`,
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'no-cache'
-                },
-                body: JSON.stringify({
-                  message: `Copy consultation file ${file.name}`,
-                  content: base64Content,
-                  branch: 'main'
+          if (filesResponse.ok) {
+            const files = await filesResponse.json()
+            // Copy each file to the new matter repo
+            if(files.length > 0) {
+              for (const file of files) {
+                if (file.type === 'file') {
+                  // Get file content
+                const contentResponse = await fetch(file.download_url, {
+                  headers: {
+                    'Authorization': `token ${giteaToken}`,
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                  }
                 })
+                const content = await contentResponse.text()
+                
+                // Safely convert content to base64
+                const base64Content = toBase64(content)
+
+                // Upload to new matter repo
+                  await fetch(
+                    `${giteaHost}/api/v1/repos/associateattorney/${matterRepoName}/contents/initial-consultation/${file.name}`,
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `token ${giteaToken}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                      },
+                      body: JSON.stringify({
+                        message: `Copy consultation file ${file.name}`,
+                        content: base64Content,
+                        branch: 'main'
+                      })
+                    }
+                  )
+                }
               }
-            )
+            }
           }
         }
         // Create goals from notepadData

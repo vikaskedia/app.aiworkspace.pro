@@ -89,6 +89,7 @@
                 v-model="filters.matter"
                 placeholder="All matters"
                 clearable
+                filterable
                 style="width: 200px">
                 <el-option 
                   v-for="matter in matters"

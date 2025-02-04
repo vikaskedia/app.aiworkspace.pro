@@ -34,4 +34,8 @@
 2. copy env.sample to .env and fill in the values
 3. npm run dev
 
+# How to run Playwrite on local?
+1. In root folder, if want to run in headless mode, use command: npx playwright test
+2. After your test completes, an HTML Reporter will be generated, to view that use command: npx playwright show-report
+3. To run your tests with UI Mode, use command: npx playwright test --ui
 

@@ -180,23 +180,33 @@ const isScrolling = ref(false);
 const hasUnsavedChanges = ref(false);
 
 async function loadTextContent() {
-  if (props.file.type === 'text/plain') {
-    try {
-      loading.value = true;
-      error.value = null;
-      const response = await fetch(`${props.file.download_url}?t=${Date.now()}`, {
-        headers: getGiteaHeaders(import.meta.env.VITE_GITEA_TOKEN),
+  if (!props.file) return;
+  
+  loading.value = true;
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    
+    // Use the API endpoint instead of raw file URL
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      {
+        headers: getGiteaHeaders(giteaToken),
         credentials: 'include',
         mode: 'cors'
-      });
-      if (!response.ok) throw new Error('Failed to load file content');
-      textContent.value = await response.text();
-    } catch (err) {
-      error.value = 'Failed to load text content';
-      console.error('Error loading text content:', err);
-    } finally {
-      loading.value = false;
-    }
+      }
+    );
+    
+    if (!response.ok) throw new Error('Failed to load file content');
+    
+    const data = await response.json();
+    // Content from API is base64 encoded
+    textContent.value = atob(data.content);
+  } catch (err) {
+    error.value = 'Failed to load text content';
+    console.error('Error loading text content:', err);
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -399,7 +409,7 @@ async function saveMarkdownContent() {
     const updatedFile = {
       ...props.file,
       id: newFileData.content.sha,
-      download_url: `${newFileData.content.download_url}?t=${Date.now()}`,
+      download_url: getAuthenticatedDownloadUrl(newFileData.content.download_url),
       content: markdownContent.value
     };
 
@@ -418,6 +428,30 @@ async function saveMarkdownContent() {
     ElMessage.error('Failed to save changes: ' + error.message);
   } finally {
     saving.value = false;
+  }
+}
+
+function getAuthenticatedDownloadUrl(originalUrl) {
+  if (!originalUrl) return '';
+  
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const url = new URL(originalUrl);
+    
+    // Remove any existing token parameter
+    url.searchParams.delete('token');
+    
+    // Add token as a single query parameter
+    url.searchParams.set('token', giteaToken);
+    
+    // Add cache busting
+    url.searchParams.set('t', Date.now().toString());
+    
+    // Remove any duplicate question marks that might have been added
+    return url.toString().replace('??', '?');
+  } catch (error) {
+    console.error('Error creating authenticated URL:', error);
+    return originalUrl;
   }
 }
 
@@ -510,7 +544,7 @@ watch(() => props.file, async (newFile) => {
         error.value = null;
         
         // First load the original content with cache busting
-        const response = await fetch(`${newFile.download_url}?t=${Date.now()}`, {
+        const response = await fetch(`${newFile.download_url}&t=${Date.now()}`, {
           headers: getGiteaHeaders(import.meta.env.VITE_GITEA_TOKEN),
           credentials: 'include',
           mode: 'cors'

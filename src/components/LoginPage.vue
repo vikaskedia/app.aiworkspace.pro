@@ -176,7 +176,34 @@ export default {
         if (error) throw error;
 
         ElMessage.success('Login successful');
+
+        // Access the user ID from the session data
+        const userId = data.user?.id;
+        console.log(userId);
+
+        const { data: matters, error: mattersError } = await supabase
+        .from('matters')
+        .select(`
+          *,
+          matter_access!inner (
+            access_type,
+            shared_with_user_id
+          )
+        `)
+        .eq('archived', false)
+        .eq('matter_access.shared_with_user_id', userId);
+
+      if (mattersError) throw mattersError;
+
+      // Handle the 3 scenarios
+      if (matters.length === 0) {
+        this.$router.push('/initial-consultation');
+        return;
+      } else {
         this.$router.push('/all-matters');
+        return;
+      } 
+        
       } catch (error) {
         ElMessage.error(error.message || 'Login failed');
       } finally {

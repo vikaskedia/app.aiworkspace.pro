@@ -272,7 +272,7 @@ router.beforeEach(async (to, from, next) => {
       if (error) throw error;
 
       // Handle the 3 scenarios
-      if (matters.length === 0) {
+      /*if (matters.length === 0) {
         next('/initial-consultation');
         return;
       } else if (matters.length === 1 && to.path === '/') {
@@ -281,7 +281,7 @@ router.beforeEach(async (to, from, next) => {
       } else if (matters.length > 1 && to.path === '/') {
         next('/all-matters/dashboard');
         return;
-      }
+      }*/
     } catch (error) {
       console.error('Error checking matters:', error);
     }

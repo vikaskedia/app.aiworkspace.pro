@@ -177,7 +177,7 @@ async function loadFiles() {
         git_repo: currentMatter.value.git_repo,
         created_at: new Date().toISOString(),
         tags: [],
-        download_url: file.download_url
+        download_url: getAuthenticatedDownloadUrl(file.download_url)
       }));
 
     // Update the appropriate array based on context
@@ -279,7 +279,7 @@ async function handleFileUpload(file) {
       git_repo: currentMatter.value.git_repo,
       created_at: new Date().toISOString(),
       tags: selectedTags.value,
-      download_url: giteaData.content.download_url
+      download_url: getAuthenticatedDownloadUrl(giteaData.content.download_url)
     });
 
     uploadDialogVisible.value = false;
@@ -622,6 +622,50 @@ function handleSplitFileSelect(file, splitIndex) {
 function toggleFileBrowser(splitIndex) {
   splitViews.value[splitIndex].showFileBrowser = 
     !splitViews.value[splitIndex].showFileBrowser;
+}
+
+async function getFileContent(repo, path) {
+  const giteaHost = import.meta.env.VITE_GITEA_HOST;
+  const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+  
+  const response = await fetch(
+    `${giteaHost}/api/v1/repos/associateattorney/${repo}/contents/${path}`,
+    {
+      headers: {
+        'Authorization': `token ${giteaToken}`,
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch file content');
+  }
+
+  const data = await response.json();
+  return data.content; // This will be base64 encoded
+}
+
+function getAuthenticatedDownloadUrl(originalUrl) {
+  if (!originalUrl) return '';
+  
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const url = new URL(originalUrl);
+    
+    // Remove any existing token parameter
+    url.searchParams.delete('token');
+    
+    // Add token as a single query parameter
+    url.searchParams.set('token', giteaToken);
+    
+    // Remove any duplicate question marks that might have been added
+    return url.toString().replace('??', '?');
+  } catch (error) {
+    console.error('Error creating authenticated URL:', error);
+    return originalUrl;
+  }
 }
 </script>
 

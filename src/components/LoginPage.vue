@@ -13,46 +13,81 @@
         <p>Sign in to continue to your account</p>
       </div>
       
+      <el-form 
+        :model="loginForm" 
+        :rules="rules"
+        ref="loginFormRef"
+        class="login-form">
+        <el-form-item prop="email">
+          <el-input 
+            v-model="loginForm.email"
+            placeholder="Email"
+            type="email">
+            <template #prefix>
+              <i class="fas fa-envelope"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item prop="password">
+          <el-input 
+            v-model="loginForm.password"
+            placeholder="Password"
+            type="password"
+            show-password>
+            <template #prefix>
+              <i class="fas fa-lock"></i>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button 
+            type="primary" 
+            class="submit-button"
+            :loading="loading"
+            @click="handleEmailLogin">
+            Sign In
+          </el-button>
+        </el-form-item>
+      </el-form>
+
+      <div class="divider">
+        <span>Or continue with</span>
+      </div>
+
       <div class="login-buttons">
-        <div class="button-row">
-          <el-button
-            class="login-button google"
-            @click="loginWithProvider('google')"
-            size="large">
-            <i class="fab fa-google"></i>
-            Google
-          </el-button>
+        <el-button
+          class="login-button google"
+          @click="loginWithProvider('google')"
+          size="large">
+          <i class="fab fa-google"></i>
+          Google
+        </el-button>
 
-          <el-button
-            class="login-button github"
-            @click="loginWithProvider('github')"
-            size="large">
-            <i class="fab fa-github"></i>
-            GitHub
-          </el-button>
-        </div>
+        <el-button
+          class="login-button github"
+          @click="loginWithProvider('github')"
+          size="large">
+          <i class="fab fa-github"></i>
+          GitHub
+        </el-button>
 
-        <div class="button-row">
-          <!-- <el-button
-            class="login-button facebook" 
-            @click="loginWithProvider('facebook')"
-            size="large">
-            <i class="fab fa-facebook"></i>
-            Facebook
-          </el-button> -->
-
-          <el-button
-            class="login-button twitter"
-            @click="loginWithProvider('twitter')"
-            size="large">
-            <i class="fab fa-twitter"></i>
-            X (Twitter)
-          </el-button>
-        </div>
+        <el-button
+          class="login-button twitter"
+          @click="loginWithProvider('twitter')"
+          size="large">
+          <i class="fab fa-twitter"></i>
+          X (Twitter)
+        </el-button>
       </div>
 
       <div class="terms">
         By continuing, you agree to AI Associate Attorney's Terms of Service and Privacy Policy
+      </div>
+
+      <div class="forgot-password">
+        <router-link to="/forgot-password">Forgot Password?</router-link>
       </div>
 
       <div class="signup-link">
@@ -66,8 +101,37 @@
 <script>
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
+import { ref } from 'vue';
 
 export default {
+  setup() {
+    const loginForm = ref({
+      email: '',
+      password: ''
+    });
+
+    const loading = ref(false);
+    const loginFormRef = ref(null);
+
+    const rules = {
+      email: [
+        { required: true, message: 'Please enter your email', trigger: 'blur' },
+        { type: 'email', message: 'Please enter a valid email', trigger: 'blur' }
+      ],
+      password: [
+        { required: true, message: 'Please enter your password', trigger: 'blur' },
+        { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
+      ]
+    };
+
+    return {
+      loginForm,
+      loading,
+      loginFormRef,
+      rules
+    };
+  },
+
   methods: {
     async loginWithProvider(provider) {
       try {
@@ -96,6 +160,29 @@ export default {
         console.error(err);
       }
     },
+
+    async handleEmailLogin() {
+      if (!this.loginFormRef) return;
+      
+      try {
+        await this.loginFormRef.validate();
+        this.loading = true;
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: this.loginForm.email,
+          password: this.loginForm.password
+        });
+
+        if (error) throw error;
+
+        ElMessage.success('Login successful');
+        this.$router.push('/all-matters');
+      } catch (error) {
+        ElMessage.error(error.message || 'Login failed');
+      } finally {
+        this.loading = false;
+      }
+    }
   },
 };
 </script>
@@ -127,6 +214,7 @@ export default {
 .logo-section h2 {
   color: #303133;
   margin-bottom: 0.5rem;
+  margin-top: 0;
   font-size: 1.8rem;
 }
 
@@ -136,20 +224,12 @@ export default {
 }
 
 .login-buttons {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-}
-
-.button-row {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .login-button {
-  flex: 1;
-  height: 48px;
   font-size: 1rem;
   border-radius: 8px;
   transition: transform 0.2s;
@@ -267,19 +347,14 @@ export default {
 
 /* Media queries for responsive design */
 @media (max-width: 640px) {
+  .login-buttons {
+    grid-template-columns: 1fr;
+  }
+  
   .login-card {
     margin: 0.5rem;
     padding: 1rem;
     width: auto;
-  }
-
-  .button-row {
-    flex-direction: column;
-    margin-bottom: 0;
-  }
-
-  .login-button {
-    width: 100%;
   }
 
   .header-content h1 {
@@ -292,6 +367,70 @@ export default {
     padding-left: max(0px, env(safe-area-inset-left));
     padding-right: max(0px, env(safe-area-inset-right));
   }
+}
+
+.login-form {
+  margin-bottom: 2rem;
+}
+
+.submit-button {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+}
+
+.divider {
+  text-align: center;
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 50px);
+  height: 1px;
+  background-color: #dcdfe6;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.divider span {
+  background-color: white;
+  padding: 0 1rem;
+  color: #909399;
+  font-size: 0.9rem;
+}
+
+.forgot-password {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.forgot-password a {
+  color: #409eff;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+:deep(.el-input__wrapper) {
+  padding-left: 0;
+}
+
+:deep(.el-input__prefix) {
+  margin-right: 8px;
 }
 </style>
   

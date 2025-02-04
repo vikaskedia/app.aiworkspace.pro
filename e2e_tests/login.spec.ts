@@ -14,8 +14,8 @@ test('Login test with valid credentials', async ({ page }) => {
     await page.click('.submit-button');
 
     // Wait for navigation or successful login response
-    await page.waitForURL('https://app.associateattorney.ai/initial-consultation');
+    await page.waitForURL('https://app.associateattorney.ai/all-matters/dashboard');
 
     // Verify login was successful (e.g., check if dashboard is visible)
-    await expect(page).toHaveURL('https://app.associateattorney.ai/initial-consultation');
+    await expect(page).toHaveURL('https://app.associateattorney.ai/all-matters/dashboard');
 });

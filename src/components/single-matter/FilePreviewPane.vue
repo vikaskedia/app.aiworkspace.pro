@@ -276,12 +276,12 @@ async function handlePdfLoad(pdfDocument) {
   }
 }
 
-function showRenameDialog() {
-  console.log('showRenameDialog called');
-  renameForm.value.newName = props.file.name;
-  renameDialogVisible.value = true;
-  console.log('Dialog visible:', renameDialogVisible.value);
-}
+// function showRenameDialog() {
+//   console.log('showRenameDialog called');
+//   renameForm.value.newName = props.file.name;
+//   renameDialogVisible.value = true;
+//   console.log('Dialog visible:', renameDialogVisible.value);
+// }
 
 async function handleRename() {
   if (!renameForm.value.newName || renameForm.value.newName === props.file.name) {

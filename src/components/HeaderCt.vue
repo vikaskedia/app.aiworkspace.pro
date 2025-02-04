@@ -139,6 +139,7 @@ export default {
           break
         case 'all_matters':
           this.$router.push('/all-matters');
+          break;
         case 'cases':
           this.$router.push('/cases');
           break;

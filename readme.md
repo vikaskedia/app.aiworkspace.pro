@@ -35,7 +35,9 @@
 3. npm run dev
 
 # How to run Playwrite on local?
-1. In root folder, if want to run in headless mode, use command: npx playwright test
-2. After your test completes, an HTML Reporter will be generated, to view that use command: npx playwright show-report
-3. To run your tests with UI Mode, use command: npx playwright test --ui
+1. In root folder of this repo, use command: npm init playwright@latest
+2. Then run npm install, to ensure all dependecies are installed correctly
+3. In root folder, if want to run in headless mode, use command: npx playwright test
+4. After your test completes, an HTML Reporter will be generated, to view that use command: npx playwright show-report
+5. To run your tests with UI Mode, use command: npx playwright test --ui
 

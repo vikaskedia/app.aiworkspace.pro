@@ -12,7 +12,7 @@ test('Task Creation test', async ({ page }) => {
     await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
 
     // Generate random 6-digit numbers for title and description
-    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    const randomNumber = parseInt(new Date().getTime().toString().slice(-6));
     const taskTitle = `Test Task Title ${randomNumber}`;
     const taskDescription = `This is a test task description ${randomNumber}`;
 

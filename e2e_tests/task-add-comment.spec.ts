@@ -10,11 +10,6 @@ test('Task Creation test', async ({ page }) => {
     await page.fill('input[type="password"]', 'jaikalima99'); 
     await page.click('.submit-button'); 
     await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
-
-    // Generate random 6-digit numbers for title and description
-    const randomNumber = Math.floor(100000 + Math.random() * 900000);
-    const taskTitle = `Test Task Title ${randomNumber}`;
-
    
      // Navigate to the tasks page
      await page.goto(`${SITE_URL}/single-matter/3/tasks`); 

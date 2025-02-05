@@ -7,7 +7,7 @@
           active-text="Show Archived"
           inactive-text="Show Active"
         />
-        <el-button type="primary" @click="createMatterDialog = true">
+        <el-button id="idOfButtonToCreateNewMatter" type="primary" @click="createMatterDialog = true">
           <el-icon><Plus /></el-icon>
           New Matter
         </el-button>
@@ -70,10 +70,11 @@
     <el-dialog
       v-model="createMatterDialog"
       title="Create New Matter"
+      id="idOfDialogToCreateNewMatter"
       width="500px">
       <el-form :model="newMatter" label-position="top">
         <el-form-item label="Title" required>
-          <el-input v-model="newMatter.title" placeholder="Enter matter title" />
+          <el-input id="idOfInputMatterTitle" v-model="newMatter.title" placeholder="Enter matter title" />
         </el-form-item>
         
         <el-form-item label="Description">
@@ -81,6 +82,7 @@
             v-model="newMatter.description"
             type="textarea"
             rows="3"
+            id="idOfInputMatterDescription"
             placeholder="Enter matter description" />
         </el-form-item>
       </el-form>

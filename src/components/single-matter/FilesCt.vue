@@ -962,6 +962,7 @@ function getAuthenticatedDownloadUrl(originalUrl) {
         <span class="dialog-footer">
           <el-button @click="newFolderDialogVisible = false">Cancel</el-button>
           <el-button
+            class="create-folder-button"
             type="primary"
             @click="createFolder"
             :disabled="!newFolderName.trim()">

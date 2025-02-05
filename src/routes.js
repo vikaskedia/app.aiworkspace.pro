@@ -10,8 +10,8 @@ import LoginPage from './components/LoginPage.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
-import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
-import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
+// import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
+// import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
 

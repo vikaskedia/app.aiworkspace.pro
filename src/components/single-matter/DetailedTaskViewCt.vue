@@ -503,7 +503,7 @@
               v-for="comment in filteredComments" 
               :key="comment.id"
               :class="[
-                'comment-item',
+                'comment-item', `cid-${comment.id}`,
                 {
                   'ai-response': comment.type === 'ai_response',
                   'archived': comment.archived,
@@ -549,11 +549,11 @@
                             {{ comment.archived ? 'Unarchive' : 'Archive' }}
                           </el-dropdown-item>
                           <!-- Add download options for AI responses -->
-                          <el-dropdown-item @click="downloadResponse(comment, 'doc')">
+                          <el-dropdown-item :class="`download-doc-item-${comment.id}`" @click="downloadResponse(comment, 'doc')">
                             <el-icon><Download /></el-icon>
                             Doc
                           </el-dropdown-item>
-                          <el-dropdown-item @click="downloadResponse(comment, 'pdf')">
+                          <el-dropdown-item :class="`download-pdf-item-${comment.id}`" @click="downloadResponse(comment, 'pdf')">
                             <el-icon><Download /></el-icon>
                             PDF
                           </el-dropdown-item>   

@@ -974,7 +974,6 @@ function getAuthenticatedDownloadUrl(originalUrl) {
   </div>
 </template>
 
-
 <style scoped>
 .manage-files {
   min-height: 100vh;

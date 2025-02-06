@@ -332,27 +332,28 @@ export default {
         <el-form-item label="Description">
           <el-input
             v-model="newGoal.description"
+            class="goal-description-input"
             type="textarea"
             :rows="3"
             placeholder="Enter goal description" />
         </el-form-item>
         
         <el-form-item label="Status">
-          <el-select v-model="newGoal.status" style="width: 100%">
+          <el-select v-model="newGoal.status" style="width: 100%" class="goal-status-input">
             <el-option label="In Progress" value="in_progress" />
             <el-option label="Completed" value="completed" />
           </el-select>
         </el-form-item>
         
         <el-form-item label="Priority">
-          <el-select v-model="newGoal.priority" style="width: 100%">
+          <el-select v-model="newGoal.priority" style="width: 100%" class="goal-priority-input">
             <el-option label="High" value="high" />
             <el-option label="Medium" value="medium" />
             <el-option label="Low" value="low" />
           </el-select>
         </el-form-item>
         
-        <el-form-item label="Due Date">
+        <el-form-item label="Due Date" class="goal-due-date-input">
           <el-date-picker
             v-model="newGoal.due_date"
             type="datetime"
@@ -363,11 +364,12 @@ export default {
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">Cancel</el-button>
+          <el-button @click="dialogVisible = false" class="goal-cancel-button">Cancel</el-button>
           <el-button
             type="primary"
             :loading="loading"
-            :disabled="!newGoal.title"
+            :disabled="!newGoal.title" 
+            class="goal-create-button"
             @click="createGoal">
             Create Goal
           </el-button>
@@ -468,7 +470,7 @@ export default {
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="showTaskSelectionDialog = false">Cancel</el-button>
+          <el-button @click="showTaskSelectionDialog = false" class="task-suggestion-cancel-button">Cancel</el-button>
           <el-button
             type="primary"
             @click="createSelectedTasks"

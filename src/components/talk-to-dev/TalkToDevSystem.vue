@@ -488,7 +488,7 @@ export default {
         }))
 
         const { error } = await supabase
-          .from('talktodevteam_system_admins')
+          .from('system_admins')
           .insert(adminsToAdd)
 
         if (error) throw error
@@ -541,7 +541,7 @@ export default {
       try {
         loading.value = true
         const { error } = await supabase
-          .from('talktodevteam_system_admins')
+          .from('system_admins')
           .delete()
           .eq('user_id', admin.id)
 

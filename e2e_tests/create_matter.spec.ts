@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Create matter after login', async ({ page }) => {
+test('Create matter after login and edit it', async ({ page }) => {
     // Navigate to your login page
     await page.goto('https://app.associateattorney.ai/login');
     //await page.goto('http://localhost/login');
@@ -62,4 +62,70 @@ test('Create matter after login', async ({ page }) => {
 
     console.log(`✅ Matter "${matterTitle}" successfully created and found in the list.`);
 
+    // Locate and click the button next to the correct matter title
+    const buttonToClick = newMatter.locator('..').locator('.el-dropdown button'); // Move to parent and find button
+    await buttonToClick.waitFor({ state: 'visible', timeout: 5000 });
+    await buttonToClick.click();
+
+    console.log(`✅ Matter "${matterTitle}" created and button clicked.`);
+
+    const ariaControlsValue = await buttonToClick.getAttribute('aria-controls');
+    console.log('Dropdown aria-controls value:', ariaControlsValue);
+    
+    // Now we can use this ID to find the specific dropdown menu
+    const viewDashboardOption = page.locator(`#${ariaControlsValue} .el-dropdown-menu__item:has-text("View Dashboard")`);
+    await viewDashboardOption.waitFor({ state: 'visible', timeout: 5000 });
+    await viewDashboardOption.click();
+
+    await expect(page).toHaveURL(new RegExp('/single-matter/\\d+/dashboard$'));
+    
+    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard`);
+
+    // Verify in this page the matter title is visible which is in <header> tag under matter-selector class
+    const matterTitleInHeader = page.locator('header .matter-selector');
+    await matterTitleInHeader.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(matterTitleInHeader).toHaveText(matterTitle);
+
+    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible`);
+    
+    // Click on the Dashboard section in the header
+    const currentSection = page.locator('header .current-section');
+    await currentSection.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(currentSection).toContainText('Dashboard');
+    await currentSection.click();
+
+    // Get the aria-controls value from the dropdown trigger
+    const sectionAriaControls = await currentSection.getAttribute('aria-controls');
+    console.log('Section dropdown aria-controls value:', sectionAriaControls);
+
+    // Click Settings in the dropdown menu
+    const settingsOption = page.locator(`#${sectionAriaControls} .el-dropdown-menu__item:has-text("Settings")`);
+    await settingsOption.waitFor({ state: 'visible', timeout: 5000 });
+    await settingsOption.click();
+
+    // Verify navigation to settings page
+    await expect(page).toHaveURL(new RegExp('/single-matter/\\d+/settings$'));
+
+    // Verify the matter title is visible in the settings page in the first input field to edit
+    const matterTitleInSettings = page.locator('.section .el-form input.el-input__inner').first();
+    await matterTitleInSettings.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(matterTitleInSettings).toHaveValue(matterTitle);
+
+    // Now edit the matter title
+    const currentTitle = await matterTitleInSettings.inputValue();
+    await matterTitleInSettings.fill(currentTitle + ' edited');
+    
+    // Click on the save changes button to edit the matter title
+    const saveButton = page.locator('.section .el-button--primary:has-text("Save Changes")').first();
+    await saveButton.waitFor({ state: 'visible', timeout: 5000 });
+    await saveButton.click();
+
+    // Wait for success message
+    await page.waitForSelector('.el-message--success');
+
+    // Verify the matter title is updated
+    await expect(matterTitleInHeader).toHaveText(currentTitle + ' edited');
+
+    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible and edited`);  
+    
 });

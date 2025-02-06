@@ -34,7 +34,7 @@ CREATE INDEX matter_access_granted_by_uuid_idx ON public.matter_access USING btr
 -- RLS for matter_access
 ALTER TABLE matter_access ENABLE ROW LEVEL SECURITY;
 
--- Policies for matter_access
+-- Policy for selecting data
 CREATE POLICY "Users can view matter access" ON matter_access
 AS PERMISSIVE
 FOR SELECT 
@@ -43,26 +43,47 @@ USING (
     true
 );
 
+-- Policy for inserting data
 CREATE POLICY "Users with edit access can create shares" ON matter_access
 AS PERMISSIVE
 FOR INSERT 
 TO authenticated 
 WITH CHECK (
-    matter_id IN (
-        SELECT matter_access_1.matter_id
-        FROM matter_access matter_access_1
-        WHERE (matter_access_1.shared_with_user_id = auth.uid() AND (matter_access_1.access_type)::text = 'edit'::text)
+    EXISTS (
+        SELECT 1
+        FROM matter_access AS ma
+        WHERE ma.matter_id = matter_access.matter_id
+          AND ma.shared_with_user_id = auth.uid()
+          AND ma.access_type = 'edit'
     )
 );
 
+-- Policy for deleting data
 CREATE POLICY "Users with edit access can delete shares" ON matter_access
 AS PERMISSIVE
 FOR DELETE 
 TO authenticated 
 USING (
-    matter_id IN (
+    EXISTS (
+        SELECT 1
+        FROM matter_access AS ma
+        WHERE ma.matter_id = matter_access.matter_id
+          AND ma.shared_with_user_id = auth.uid()
+          AND ma.access_type = 'edit'
+    )
+);
+
+--Allow the Creator to Have Edit Access: When a new matter is created, the user who creates it should automatically be granted edit access.
+CREATE POLICY "Allow creators to insert initial access" ON matter_access
+AS PERMISSIVE
+FOR INSERT 
+TO authenticated 
+WITH CHECK (
+    (auth.uid() = granted_by_uuid AND access_type = 'edit')
+    OR
+    (matter_id IN (
         SELECT matter_access_1.matter_id
         FROM matter_access matter_access_1
-        WHERE (matter_access_1.shared_with_user_id = auth.uid() AND (matter_access_1.access_type)::text = 'edit'::text)
-    )
+        WHERE matter_access_1.shared_with_user_id = auth.uid() AND matter_access_1.access_type = 'edit'
+    ))
 );

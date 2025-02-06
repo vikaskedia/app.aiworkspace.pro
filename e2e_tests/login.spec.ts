@@ -5,10 +5,10 @@ test('Login test with valid credentials', async ({ page }) => {
     await page.goto('https://app.associateattorney.ai/login'); 
 
     // Fill in the email
-    await page.fill('input[type="email"]','soumen+040225@grmtech.com');
+    await page.fill('input[type="email"]','soumen+040225@grmtech.commmmm');
 
     // Fill in the password
-    await page.fill('input[type="password"]', 'jaikalima99');
+    await page.fill('input[type="password"]', 'jaikalima99mmmm');
 
     // Click the Sign In button
     await page.click('.submit-button');

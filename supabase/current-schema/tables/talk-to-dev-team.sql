@@ -21,31 +21,45 @@ create table talktodevteam_replies (
   -- also allow file uploads and files will be stored here in the table.
 );
 
-create table talktodevteam_system_admins (
+create table system_admins (
   user_id uuid references auth.users not null primary key,
   granted_by uuid references auth.users not null,
   granted_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
-COMMENT ON TABLE talktodevteam_system_admins IS 'Stores users who have administrative access to the feedback system. These users can view and reply to all feedback topics.';
+COMMENT ON TABLE system_admins IS 'Stores users who have administrative access to the feedback system. These users can view and reply to all feedback topics.';
 
--- Enable RLS
-ALTER TABLE talktodevteam_system_admins ENABLE ROW LEVEL SECURITY;
+--Create a View: Define a view that lists all admin users. This view will be used in the policy to avoid recursion.
 
--- Create policy for viewing admins
-CREATE POLICY "Anyone can view feedback admins" ON talktodevteam_system_admins
-FOR SELECT USING (true);
+CREATE OR REPLACE VIEW admin_users AS
+SELECT user_id FROM system_admins;
 
-CREATE POLICY "Admin management policy" ON talktodevteam_system_admins
-FOR ALL USING (
-  CASE 
-    -- Allow if table is empty (first admin)
-    WHEN NOT EXISTS (SELECT 1 FROM talktodevteam_system_admins) THEN true
-    -- Otherwise check if user is an admin
-    ELSE auth.uid() IN (SELECT user_id FROM talktodevteam_system_admins)
-  END
-);
+--Create the Policies: Use the view in the policies to check if the user is an admin.
+
+-- Policy for selecting data
+CREATE POLICY "Admins can view all entries" ON system_admins 
+FOR SELECT 
+TO authenticated 
+USING (auth.uid() IN (SELECT user_id FROM admin_users));
+
+-- Policy for inserting data
+CREATE POLICY "Admins can insert entries" ON system_admins 
+FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() IN (SELECT user_id FROM admin_users));
+
+-- Policy for updating data
+CREATE POLICY "Admins can update any entry" ON system_admins 
+FOR UPDATE 
+TO authenticated 
+USING (auth.uid() IN (SELECT user_id FROM admin_users));
+
+-- Policy for deleting data
+CREATE POLICY "Admins can delete any entry" ON system_admins 
+FOR DELETE 
+TO authenticated 
+USING (auth.uid() IN (SELECT user_id FROM admin_users));
 
 -- Create index for faster lookups
-CREATE INDEX talktodevteam_system_admins_granted_by_idx ON talktodevteam_system_admins(granted_by);
+CREATE INDEX system_admins_granted_by_idx ON system_admins(granted_by);
 

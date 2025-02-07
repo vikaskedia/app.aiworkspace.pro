@@ -10,7 +10,10 @@
       status character varying,
       priority character varying,
       due_date timestamp with time zone,
-      completion_percentage integer DEFAULT 0 CHECK (completion_percentage >= 0 AND completion_percentage <= 100)
+      completion_percentage integer DEFAULT 0 CHECK (completion_percentage >= 0 AND completion_percentage <= 100),
+      archived BOOLEAN DEFAULT false,
+      archived_by uuid REFERENCES auth.users(id),
+      archived_at TIMESTAMP WITH TIME ZONE
     );
     
     -- Indexes for goals
@@ -18,6 +21,8 @@
     CREATE INDEX goals_status_idx ON public.goals USING btree (status); 
     CREATE INDEX goals_due_date_idx ON public.goals USING btree (due_date);
     CREATE INDEX goals_matter_id_idx ON public.goals USING btree (matter_id);
+    CREATE INDEX goals_archived_idx ON goals(archived);
+    CREATE INDEX goals_archived_by_idx ON goals(archived_by);
     
     -- RLS for goals
     ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
@@ -117,5 +122,12 @@
           SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
         )
       )
+    );
+    
+    -- Add constraint to ensure consistency
+    ALTER TABLE goals
+    ADD CONSTRAINT archive_consistency CHECK (
+      (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
+      (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
     );
     

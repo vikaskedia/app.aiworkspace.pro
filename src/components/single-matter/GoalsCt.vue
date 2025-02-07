@@ -56,6 +56,7 @@ export default {
       ],
       selectedPriority: null,
       goalDetailDrawerVisible: false,
+      showArchivedGoals: false,
     };
   },
   watch: {
@@ -86,6 +87,7 @@ export default {
           .from('goals')
           .select('*')
           .eq('matter_id', this.currentMatter.id)
+          .eq('archived', this.showArchivedGoals)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -483,6 +485,19 @@ export default {
       this.selectedGoal = goal;
       this.goalDetailDrawerVisible = true;
     },
+
+    async handleGoalArchived(archivedGoal) {
+      if (!this.showArchivedGoals) {
+        this.goals = this.goals.filter(goal => goal.id !== archivedGoal.id);
+      } else {
+        await this.loadGoals();
+      }
+    },
+
+    toggleArchived() {
+      this.showArchivedGoals = !this.showArchivedGoals;
+      this.loadGoals();
+    },
   },
   mounted() {
     if (this.currentMatter) {
@@ -500,12 +515,20 @@ export default {
 <template>
   <div class="goals-container">
     <div class="goals-header">
-      <el-button 
-        type="primary" 
-        @click="dialogVisible = true"
-        :disabled="!currentMatter">
-        New Goal
-      </el-button>
+      <div class="goals-header-actions">
+        <el-button 
+          type="primary" 
+          @click="dialogVisible = true"
+          :disabled="!currentMatter">
+          New Goal
+        </el-button>
+        <el-button 
+          @click="toggleArchived"
+          :type="showArchivedGoals ? 'warning' : 'info'"
+          plain>
+          {{ showArchivedGoals ? 'Hide Archived' : 'Show Archived' }}
+        </el-button>
+      </div>
     </div>
 
     <!-- Add Goal Dialog -->
@@ -810,6 +833,7 @@ export default {
     <GoalDetailDrawer
       v-model="goalDetailDrawerVisible"
       :goal="selectedGoal"
+      @goal-archived="handleGoalArchived"
     />
   </div>
 </template>
@@ -820,6 +844,11 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.goals-header-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .goals-header h2 {

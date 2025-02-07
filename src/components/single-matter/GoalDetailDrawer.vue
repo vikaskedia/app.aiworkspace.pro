@@ -19,6 +19,13 @@
             <span class="due-date">
               Due: {{ goal?.due_date ? new Date(goal?.due_date).toLocaleDateString() : 'Not set' }}
             </span>
+            <el-button 
+                type="danger" 
+                plain
+                size="small"
+                @click="handleArchive">
+                {{ goal?.archived ? 'Unarchive' : 'Archive' }} Goal
+            </el-button>
           </div>
           
           <div class="goal-description">
@@ -104,7 +111,7 @@
         default: () => ({})
       }
     },
-    emits: ['update:modelValue'],
+    emits: ['update:modelValue', 'goal-archived'],
     data() {
       return {
         newComment: '',
@@ -218,6 +225,33 @@
         } else {
           return d.toLocaleDateString();
         }
+      },
+      async handleArchive() {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          const { error } = await supabase
+            .from('goals')
+            .update({ 
+              archived: !this.goal.archived,
+              archived_at: !this.goal.archived ? new Date().toISOString() : null,
+              archived_by: !this.goal.archived ? user.id : null
+            })
+            .eq('id', this.goal.id);
+  
+          if (error) throw error;
+  
+          // Emit event to parent to refresh goals list
+          this.$emit('goal-archived', {
+            ...this.goal,
+            archived: !this.goal.archived
+          });
+          
+          ElMessage.success(`Goal ${!this.goal.archived ? 'archived' : 'unarchived'} successfully`);
+          this.$emit('update:modelValue', false); // Close drawer
+        } catch (error) {
+          ElMessage.error('Error updating goal: ' + error.message);
+        }
       }
     }
   }
@@ -319,7 +353,7 @@
     position: sticky;
     bottom: 0;
     background: var(--el-bg-color);
-    padding: 20px 0;
+    padding: 20px 0 0 0;
     border-top: 1px solid var(--el-border-color-lighter);
   }
   
@@ -334,5 +368,11 @@
     color: white;
     font-size: 12px;
     font-weight: 500;
+  }
+  
+  .goal-actions {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--el-border-color-lighter);
   }
   </style> 

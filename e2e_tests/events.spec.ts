@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-//const SITE_URL = 'https://app.associateattorney.ai';
-const SITE_URL = 'http://localhost';
+const SITE_URL = 'https://app.associateattorney.ai';
+//const SITE_URL = 'http://localhost';
 
 test('Event Creation test', async ({ page }) => {
     // First login

@@ -123,11 +123,13 @@ export default {
       <el-table
         v-loading="loading"
         :data="events"
+        class="events-hierarchy"
         style="width: 100%">
         <el-table-column 
           prop="title" 
           label="Title"
-          min-width="200" />
+          min-width="200"
+          class-name="event-title" />
         <el-table-column 
           prop="event_type" 
           label="Type"
@@ -162,6 +164,7 @@ export default {
       <el-dialog
         v-model="dialogVisible"
         title="Create New Event"
+        class="create-event-dialog"
         width="500px">
         <el-form :model="newEvent" label-position="top">
           <el-form-item label="Title" required>
@@ -174,7 +177,7 @@ export default {
               :rows="3" />
           </el-form-item>
           <el-form-item label="Event Type">
-            <el-select v-model="newEvent.event_type" style="width: 100%">
+            <el-select v-model="newEvent.event_type" class="event-type-select" style="width: 100%">
               <el-option label="Meeting" value="meeting" />
               <el-option label="Court Hearing" value="court_hearing" />
               <el-option label="Deposition" value="deposition" />
@@ -186,16 +189,18 @@ export default {
             <el-date-picker
               v-model="newEvent.start_time"
               type="datetime"
+              class="start-time-picker"
               style="width: 100%" />
           </el-form-item>
           <el-form-item label="End Time" required>
             <el-date-picker
               v-model="newEvent.end_time"
               type="datetime"
+              class="end-time-picker"
               style="width: 100%" />
           </el-form-item>
           <el-form-item label="Location">
-            <el-input v-model="newEvent.location" />
+            <el-input class="location-input" v-model="newEvent.location" />
           </el-form-item>
         </el-form>
         <template #footer>

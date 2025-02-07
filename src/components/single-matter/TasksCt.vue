@@ -9,6 +9,7 @@ import TasksList from './TasksList.vue'
 import { ArrowDown, Close, Folder, Loading, Check } from '@element-plus/icons-vue'
 import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
+import TaskBoardCt from './TaskBoardCt.vue'
 
 export default {
   setup() {
@@ -26,7 +27,8 @@ export default {
     Folder,
     Loading,
     TiptapEditor,
-    Check
+    Check,
+    TaskBoardCt
   },
   data() {
     return {
@@ -67,7 +69,8 @@ export default {
         assignee: [],
         dueDate: null,
         showDeleted: false,
-        starred: false
+        starred: false,
+        viewType: 'list'
       },
       showTypeahead: false,
       typeaheadSuggestions: [],
@@ -82,6 +85,7 @@ export default {
       fileSearchQuery: '',
       selectorBreadcrumbs: [],
       folderNavigationLoading: false,
+      boardGroupBy: 'status',
     };
   },
   watch: {
@@ -108,6 +112,13 @@ export default {
     dialogVisible(newValue) {
       if (newValue) {
         this.resetNewTask();
+      }
+    },
+    filters: {
+      deep: true,
+      handler() {
+        this.loadTasks();
+        this.saveFilters();
       }
     }
   },
@@ -319,14 +330,16 @@ export default {
     },
 
     resetForm() {
-      this.newTask = {
-        title: '',
-        description: '',
-        status: 'not_started',
-        priority: 'medium',
-        due_date: null,
-        assignee: null,
-        parent_task_id: null
+      this.filters = {
+        search: '',
+        status: [],
+        excludeStatus: ['completed'],
+        priority: null,
+        assignee: [],
+        dueDate: null,
+        showDeleted: false,
+        starred: false,
+        viewType: 'list'
       };
       this.loadSharedUsers();
     },
@@ -1097,10 +1110,6 @@ export default {
       }
     },
 
-    // generateTempId() {
-    //   return 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    // },
-
     resetNewTask() {
       this.newTask = {
         title: '',
@@ -1131,13 +1140,48 @@ export default {
         return filter.filters[key] === currentFilters[key];
       });
     },
+
+    clearFilters() {
+      this.filters = {
+        search: '',
+        status: [],
+        excludeStatus: ['completed'],
+        priority: null,
+        assignee: [],
+        dueDate: null,
+        showDeleted: false,
+        starred: false,
+        viewType: 'list'
+      };
+      this.boardGroupBy = 'status'; // Reset board grouping to default
+    },
+
+    handleShowDeletedChange(value) {
+      this.loadTasks(value);
+    },
+
+    saveFilters() {
+      localStorage.setItem('taskListFilters', JSON.stringify(this.filters));
+    },
+
+    loadSavedFilters() {
+      const savedFilters = localStorage.getItem('taskListFilters');
+      if (savedFilters) {
+        const parsedFilters = JSON.parse(savedFilters);
+        // Ensure excludeStatus is an array with 'completed' as default if not set
+        if (!parsedFilters.excludeStatus?.length) {
+          parsedFilters.excludeStatus = ['completed'];
+        }
+        this.filters = parsedFilters;
+      }
+    },
   },
 
   mounted() {
+    this.loadSavedFilters();
     if (this.currentMatter) {
       this.setupRealtimeSubscription();
       this.loadSharedUsers();
-      this.loadSavedFilters();
     }
   },
 
@@ -1206,18 +1250,20 @@ export default {
         <div class="header-buttons">
           <el-button 
             @click="dialogVisible = true"
-            type="primary"
+            type="primary" 
+            size="small"
             :disabled="!currentMatter">
             New Task
           </el-button>
           <el-button 
             @click="showFilters = !showFilters"
-            type="info"
+            type="info" 
+            size="small"
             plain>
             {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
           </el-button>
           <el-dropdown @command="handleSavedFilter">
-            <el-button type="info" plain>
+            <el-button type="info" plain size="small">
               Saved Filters
               <el-icon class="el-icon--right"><arrow-down /></el-icon>
             </el-button>
@@ -1241,31 +1287,171 @@ export default {
             </template>
           </el-dropdown>
         </div>
+        <!-- <div class="view-controls">
+          <el-radio-group v-model="filters.viewType" size="small">
+            <el-radio-button label="list">List View</el-radio-button>
+            <el-radio-button label="board">Board View</el-radio-button>
+          </el-radio-group>
+          
+          <el-select 
+            v-if="filters.viewType === 'board'"
+            v-model="boardGroupBy"
+            placeholder="Group by"
+            size="small">
+            <el-option label="Status" value="status" />
+            <el-option label="Assignee" value="assignee" />
+            <el-option label="Priority" value="priority" />
+          </el-select>
+        </div> -->
       </div>
 
+      <el-collapse-transition>
+        <div v-show="showFilters" class="filters-container">
+          <el-form :inline="true" class="filter-form">
+            <el-form-item label="Search">
+              <el-input
+                v-model="filters.search"
+                placeholder="Search tasks..."
+                clearable
+              />
+            </el-form-item>
+            <el-form-item label="Status">
+              <el-select
+                v-model="filters.status"
+                placeholder="All statuses"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option label="Not started" value="not_started" />
+                <el-option label="In progress" value="in_progress" />
+                <el-option label="Awaiting external factor" value="awaiting_external" />
+                <el-option label="Completed" value="completed" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Priority">
+              <el-select
+                v-model="filters.priority"
+                placeholder="All priorities"
+                clearable
+                style="width: 140px">
+                <el-option label="High" value="high" />
+                <el-option label="Medium" value="medium" />
+                <el-option label="Low" value="low" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Assignee">
+              <el-select 
+                v-model="filters.assignee" 
+                placeholder="Assignee" 
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="user in sharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Due Date">
+              <el-select
+                v-model="filters.dueDate"
+                placeholder="All dates"
+                clearable
+                style="width: 160px">
+                <el-option label="Overdue" value="overdue" />
+                <el-option label="Today" value="today" />
+                <el-option label="This week" value="week" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Exclude Status">
+              <el-select
+                v-model="filters.excludeStatus"
+                placeholder="Exclude statuses"
+                multiple
+                clearable
+                style="width: 200px">
+                <el-option label="Not started" value="not_started" />
+                <el-option label="In progress" value="in_progress" />
+                <el-option label="Awaiting external factor" value="awaiting_external" />
+                <el-option label="Completed" value="completed" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-switch
+                v-model="filters.showDeleted"
+                class="filter-item"
+                active-text="Show Deleted Tasks"
+                @change="handleShowDeletedChange"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-switch
+                v-model="filters.starred"
+                class="filter-item"
+                active-text="Show Starred Tasks"
+              />
+            </el-form-item>
+            <el-form-item label="View As">
+              <el-select
+                v-model="filters.viewType"
+                style="width: 140px">
+                <el-option label="List View" value="list" />
+                <el-option label="Board View" value="board" />
+              </el-select>
+            </el-form-item>
+            <el-form-item 
+              label="Group By"
+              v-if="filters.viewType === 'board'">
+              <el-select
+                v-model="boardGroupBy"
+                style="width: 140px">
+                <el-option label="Status" value="status" />
+                <el-option label="Assignee" value="assignee" />
+                <el-option label="Priority" value="priority" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button @click="clearFilters">Clear</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-collapse-transition>
+
       <TasksList
+        v-if="filters.viewType === 'list'"
         ref="tasksList"
         :tasks="tasks"
         :loading="loading"
         :shared-users="sharedUsers"
-        :show-filters="showFilters"
-        @update-title="updateTaskTitle"
-        @edit="handleEditTask"
-        v-model:active-filters-count="activeFiltersCount"
-        @load-tasks="loadTasks"
-        @show-deleted-changed="loadTasks"
+        v-model:filters="filters"
+        @update-task="updateTask"
+        @delete="deleteTask"
+        @restore="restoreTask"
         @star-toggled="handleStarToggled"
         @view-comments="(task) => {
           selectedTask = task;
           commentDialogVisible = true;
         }"
-        @delete="deleteTask"
-        @restore="restoreTask"
-        @update-task="updateTask"
         @update:active-filters-count="activeFiltersCount = $event"
         @update-status="updateTask"
         @loadTasks="loadTasks"
         @updateTitle="updateTaskTitle"
+      />
+      
+      <TaskBoardCt
+        v-else
+        :tasks="tasks"
+        :loading="loading"
+        :group-by="boardGroupBy"
+        :shared-users="sharedUsers"
+        v-model:filters="filters"
+        @update-task="updateTask"
       />
 
       <!-- Create Task Dialog -->
@@ -1596,7 +1782,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .dialog-footer {
@@ -1814,5 +2000,33 @@ label.el-checkbox.task-checkbox {
 /* Override hover effect for non-active filters */
 .el-dropdown-menu__item:not(.active-filter):hover {
   background-color: var(--el-fill-color-light);
+}
+
+.view-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filters-container {
+  background-color: #f5f7fa;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.filter-item {
+  margin-right: 1rem;
+}
+
+.filter-form .el-form-item {
+  margin-bottom: 0;
 }
 </style> 

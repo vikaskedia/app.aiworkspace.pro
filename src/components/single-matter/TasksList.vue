@@ -44,6 +44,10 @@ export default {
     'active-filters-count': {
       type: Number,
       default: 0
+    },
+    filters: {
+      type: Object,
+      required: true
     }
   },
   emits: [
@@ -57,19 +61,11 @@ export default {
     'star-toggled',
     'loadTasks',
     'updateTitle',
-    'show-deleted-changed'
+    'show-deleted-changed',
+    'update:filters'
   ],
   data() {
     return {
-      filters: {
-        search: '',
-        status: null,
-        excludeStatus: ['completed'],
-        priority: null,
-        assignee: null,
-        dueDate: null,
-        showDeleted: false
-      },
       userEmails: {},
       deletedTooltips: {},
       sortBy: null,
@@ -210,7 +206,7 @@ export default {
   },
   methods: {
     clearFilters() {
-      this.filters = {
+      this.$emit('update:filters', {
         search: '',
         status: [],
         excludeStatus: ['completed'],
@@ -219,7 +215,7 @@ export default {
         dueDate: null,
         showDeleted: false,
         starred: false
-      }
+      });
     },
     async loadUserEmail(userId) {
       if (!userId) return 'Unknown User';
@@ -272,7 +268,6 @@ export default {
     saveFilters() {
       localStorage.setItem('taskListFilters', JSON.stringify(this.filters));
     },
-
     loadSavedFilters() {
       const savedFilters = localStorage.getItem('taskListFilters');
       if (savedFilters) {
@@ -281,7 +276,7 @@ export default {
         if (!parsedFilters.excludeStatus?.length) {
           parsedFilters.excludeStatus = ['completed'];
         }
-        this.filters = parsedFilters;
+        this.$emit('update:filters', parsedFilters);
       }
     },
     formatStatus(status) {

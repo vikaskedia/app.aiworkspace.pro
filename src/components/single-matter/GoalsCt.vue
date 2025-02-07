@@ -4,18 +4,21 @@ import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
-import { useCacheStore } from '../../store/cache';
+import { Edit, ChatLineRound } from '@element-plus/icons-vue';
+import GoalDetailDrawer from './GoalDetailDrawer.vue';
 
 export default {
   components: { 
-    AIChatPanel
+    AIChatPanel,
+    Edit,
+    ChatLineRound,
+    GoalDetailDrawer
   },
   setup() {
     const matterStore = useMatterStore();
-    const cacheStore = useCacheStore();
     const { currentMatter } = storeToRefs(matterStore);
     
-    return { currentMatter, cacheStore };
+    return { currentMatter };
   },
   data() {
     return {
@@ -28,7 +31,8 @@ export default {
         status: 'in_progress',
         priority: 'medium',
         due_date: '',
-        matter_id: null
+        matter_id: null,
+        completion_percentage: 0,
       },
       showAIChat: false,
       selectedGoal: null,
@@ -36,7 +40,22 @@ export default {
       suggestedTasks: [],
       showTaskSelectionDialog: false,
       selectedTasks: [],
-      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001'
+      pythonApiBaseUrl: import.meta.env.VITE_PYTHON_API_URL  || 'http://localhost:3001',
+      statusOptions: [
+        { value: 'not_started', label: 'Not Started' },
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'completed', label: 'Completed' }
+      ],
+      commentsDialogVisible: false,
+      comments: [],
+      newComment: '',
+      priorityOptions: [
+        { value: 'high', label: 'High' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'low', label: 'Low' }
+      ],
+      selectedPriority: null,
+      goalDetailDrawerVisible: false,
     };
   },
   watch: {
@@ -60,18 +79,9 @@ export default {
   methods: {
     async loadGoals() {
       if (!this.currentMatter) return;
-      
+
       try {
         this.loading = true;
-        
-        // Check cache first
-        const cachedGoals = this.cacheStore.getCachedData('goals', this.currentMatter.id);
-        if (cachedGoals) {
-          this.goals = cachedGoals;
-          this.loading = false;
-          return;
-        }
-
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
@@ -80,8 +90,6 @@ export default {
 
         if (error) throw error;
         this.goals = goals;
-        // Store in cache
-        this.cacheStore.setCachedData('goals', this.currentMatter.id, goals);
       } catch (error) {
         ElMessage.error('Error loading goals: ' + error.message);
       } finally {
@@ -119,7 +127,8 @@ export default {
           due_date: this.newGoal.due_date || null,
           matter_id: this.currentMatter.id,
           created_by: user.id,
-          related_files: {}
+          related_files: {},
+          completion_percentage: this.newGoal.completion_percentage,
         };
 
         const { data, error } = await supabase
@@ -136,10 +145,8 @@ export default {
         // Get AI suggested tasks
         await this.generateAITasks(data);
         
-        // Update local state and cache
+        // Update local state
         this.goals.unshift(data);
-        const cachedGoals = this.cacheStore.getCachedData('goals', this.currentMatter.id) || [];
-        this.cacheStore.setCachedData('goals', this.currentMatter.id, [data, ...cachedGoals]);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -241,7 +248,8 @@ export default {
         status: 'in_progress',
         priority: 'medium',
         due_date: '',
-        matter_id: null
+        matter_id: null,
+        completion_percentage: 0,
       };
     },
 
@@ -270,7 +278,6 @@ export default {
                 // Check if goal already exists before adding
                 if (!this.goals.some(goal => goal.id === payload.new.id)) {
                   this.goals.unshift(payload.new);
-                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
                 }
                 break;
               
@@ -278,7 +285,6 @@ export default {
                 const updateIndex = this.goals.findIndex(goal => goal.id === payload.new.id);
                 if (updateIndex !== -1) {
                   this.goals[updateIndex] = payload.new;
-                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
                 }
                 break;
               
@@ -286,14 +292,197 @@ export default {
                 const deleteIndex = this.goals.findIndex(goal => goal.id === payload.old.id);
                 if (deleteIndex !== -1) {
                   this.goals.splice(deleteIndex, 1);
-                  this.cacheStore.setCachedData('goals', this.currentMatter.id, this.goals);
                 }
                 break;
             }
           }
         )
         .subscribe();
-    }
+    },
+
+    async handleStatusChange(goal, newStatus) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { data, error } = await supabase
+          .from('goals')
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local state
+        const index = this.goals.findIndex(g => g.id === goal.id);
+        if (index !== -1) {
+          this.goals[index] = data;
+        }
+        
+        // Close the specific goal's popover
+        goal.statusPopoverVisible = false;
+        
+        ElMessage.success('Goal status updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating goal status: ' + error.message);
+      }
+    },
+
+    async startTitleEdit(goal) {
+      goal.isEditingTitle = true;
+      goal.editingTitle = goal.title;
+      this.$nextTick(() => {
+        this.$refs.titleInput?.[0]?.focus();
+      });
+    },
+
+    async saveTitle(goal) {
+      if (!goal.editingTitle?.trim() || goal.editingTitle === goal.title) {
+        goal.isEditingTitle = false;
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('goals')
+          .update({ 
+            title: goal.editingTitle,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        goal.title = goal.editingTitle;
+        goal.isEditingTitle = false;
+        ElMessage.success('Goal title updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating goal title: ' + error.message);
+      }
+    },
+
+    async updateCompletionPercentage(goal) {
+      try {
+        const { error } = await supabase
+          .from('goals')
+          .update({ 
+            completion_percentage: goal.completion_percentage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id);
+
+        if (error) throw error;
+        ElMessage.success('Progress updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating progress: ' + error.message);
+      }
+    },
+
+    async startDescriptionEdit(goal) {
+      goal.isEditingDescription = true;
+      goal.editingDescription = goal.description || '';
+    },
+
+    async saveDescription(goal) {
+      if (!goal.editingDescription?.trim() || goal.editingDescription === goal.description) {
+        goal.isEditingDescription = false;
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('goals')
+          .update({ 
+            description: goal.editingDescription,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        goal.description = goal.editingDescription;
+        goal.isEditingDescription = false;
+        ElMessage.success('Goal description updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating goal description: ' + error.message);
+      }
+    },
+
+    cancelDescriptionEdit(goal) {
+      goal.isEditingDescription = false;
+      goal.editingDescription = '';
+    },
+
+    getPriorityType(goal) {
+      if (!goal?.priority) return '';
+      switch (goal.priority) {
+        case 'high': return 'danger';
+        case 'medium': return 'warning';
+        case 'low': return 'info';
+        default: return '';
+      }
+    },
+
+    formatPriority(priority) {
+      if (!priority) return 'Not set';
+      return priority.charAt(0).toUpperCase() + priority.slice(1);
+    },
+
+    async handlePriorityChange(goal, newPriority) {
+      try {
+        const { error } = await supabase
+          .from('goals')
+          .update({ 
+            priority: newPriority,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id);
+
+        if (error) throw error;
+
+        goal.priority = newPriority;
+        goal.priorityPopoverVisible = false;
+        ElMessage.success('Goal priority updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating goal priority: ' + error.message);
+      }
+    },
+
+    initializeTempDueDate(goal) {
+      goal.tempDueDate = goal.due_date ? new Date(goal.due_date) : null;
+    },
+
+    async updateDueDate(goal) {
+      try {
+        const { error } = await supabase
+          .from('goals')
+          .update({ 
+            due_date: goal.tempDueDate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', goal.id);
+
+        if (error) throw error;
+
+        goal.due_date = goal.tempDueDate;
+        goal.dueDatePopoverVisible = false;
+        ElMessage.success('Due date updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating due date: ' + error.message);
+      }
+    },
+
+    openGoalDetails(goal) {
+      this.selectedGoal = goal;
+      this.goalDetailDrawerVisible = true;
+    },
   },
   mounted() {
     if (this.currentMatter) {
@@ -360,6 +549,20 @@ export default {
             style="width: 100%"
             placeholder="Select due date" />
         </el-form-item>
+
+        <el-form-item label="Completion Percentage">
+          <el-slider
+            v-model="newGoal.completion_percentage"
+            :step="5"
+            :marks="{
+              0: '0%',
+              25: '25%',
+              50: '50%',
+              75: '75%',
+              100: '100%'
+            }"
+          />
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -386,53 +589,175 @@ export default {
       <el-table-column 
         prop="title" 
         label="Title"
-        min-width="200">
+        min-width="150">
         <template #default="scope">
-          <span 
-            class="clickable-title"
-            @click="handleTitleClick(scope.row)">
-            {{ scope.row.title }}
-          </span>
+          <div v-if="scope.row.isEditingTitle">
+            <el-input
+              v-model="scope.row.editingTitle"
+              @blur="saveTitle(scope.row)"
+              @keyup.enter="saveTitle(scope.row)"
+              ref="titleInput"
+            />
+          </div>
+          <div v-else class="editable-field">
+            <span 
+              class="clickable-title"
+              @click="openGoalDetails(scope.row)">
+              {{ scope.row.title }}
+            </span>
+            <el-icon class="edit-icon" @click="startTitleEdit(scope.row)"><Edit /></el-icon>
+          </div>
         </template>
       </el-table-column>
         
       <el-table-column 
         prop="description" 
         label="Description" 
-        min-width="300"
-        :show-overflow-tooltip="true" />
+        min-width="200">
+        <template #default="scope">
+          <div v-if="scope.row.isEditingDescription">
+            <el-input
+              v-model="scope.row.editingDescription"
+              type="textarea"
+              :rows="2"
+              @blur="saveDescription(scope.row)"
+            />
+            <div class="description-edit-actions">
+              <el-button @click="cancelDescriptionEdit(scope.row)" size="small">Cancel</el-button>
+              <el-button 
+                type="primary" 
+                @click="saveDescription(scope.row)" 
+                size="small"
+                :disabled="!scope.row.editingDescription?.trim() || scope.row.editingDescription === scope.row.description"
+              >
+                Save
+              </el-button>
+            </div>
+          </div>
+          <div v-else class="editable-field" @click="startDescriptionEdit(scope.row)">
+            {{ scope.row.description || 'Add description...' }}
+            <el-icon class="edit-icon"><Edit /></el-icon>
+          </div>
+        </template>
+      </el-table-column>
         
       <el-table-column 
         prop="status" 
         label="Status" 
         width="120">
         <template #default="scope">
-          <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'">
-            {{ scope.row.status }}
-          </el-tag>
+          <el-popover
+            placement="bottom"
+            :width="200"
+            trigger="click"
+            v-model:visible="scope.row.statusPopoverVisible">
+            <template #reference>
+              <el-tag 
+                :type="scope.row.status === 'completed' ? 'success' : 'warning'"
+                class="clickable-status">
+                {{ scope.row.status }}
+              </el-tag>
+            </template>
+            <div class="status-options">
+              <div 
+                v-for="status in statusOptions" 
+                :key="status.value"
+                class="status-option"
+                @click="handleStatusChange(scope.row, status.value)">
+                <el-tag :type="status.value === 'completed' ? 'success' : 'warning'">
+                  {{ status.label }}
+                </el-tag>
+              </div>
+            </div>
+          </el-popover>
         </template>
       </el-table-column>
       
-      <el-table-column 
-        prop="priority" 
-        label="Priority" 
-        width="100">
+      <el-table-column prop="priority" label="Priority" width="100">
         <template #default="scope">
-          <el-tag :type="
-            scope.row.priority === 'high' ? 'danger' : 
-            scope.row.priority === 'medium' ? 'warning' : 'info'
-          ">
-            {{ scope.row.priority }}
-          </el-tag>
+          <el-popover
+            ref="priorityPopover"
+            placement="bottom"
+            :width="200"
+            trigger="click"
+            v-model:visible="scope.row.priorityPopoverVisible">
+            <template #reference>
+              <el-tag 
+                :type="getPriorityType(scope.row)"
+                class="clickable-status">
+                {{ formatPriority(scope.row.priority) }}
+              </el-tag>
+            </template>
+            <div class="status-options">
+              <div 
+                v-for="priority in priorityOptions" 
+                :key="priority.value"
+                class="status-option"
+                @click="handlePriorityChange(scope.row, priority.value)">
+                <el-tag :type="getPriorityType({ priority: priority.value })">
+                  {{ priority.label }}
+                </el-tag>
+              </div>
+            </div>
+          </el-popover>
         </template>
       </el-table-column>
       
-      <el-table-column 
-        prop="due_date" 
-        label="Due Date" 
-        width="150">
+      <el-table-column prop="due_date" label="Due Date" width="140">
         <template #default="scope">
-          {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
+          <el-popover
+            placement="bottom"
+            trigger="click"
+            :width="240"
+            v-model:visible="scope.row.dueDatePopoverVisible"
+            @show="initializeTempDueDate(scope.row)">
+            <template #reference>
+              <div class="editable-field">
+                {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : 'Set due date' }}
+                <el-icon class="edit-icon"><Edit /></el-icon>
+              </div>
+            </template>
+            <div class="due-date-editor">
+              <el-date-picker
+                v-model="scope.row.tempDueDate"
+                type="datetime"
+                placeholder="Select date and time"
+                format="YYYY-MM-DD HH:mm"
+                :clearable="true"
+                @change="updateDueDate(scope.row)"
+              />
+            </div>
+          </el-popover>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="completion_percentage" label="Progress" width="150">
+        <template #default="scope">
+          <el-popover
+            placement="bottom"
+            :width="300"
+            trigger="click">
+            <template #reference>
+              <div class="progress-bar-wrapper">
+                <el-progress 
+                  :percentage="scope.row.completion_percentage"
+                  :status="scope.row.completion_percentage === 100 ? 'success' : ''"
+                />
+              </div>
+            </template>
+            <el-slider
+              v-model="scope.row.completion_percentage"
+              :step="5"
+              @change="updateCompletionPercentage(scope.row)"
+              :marks="{
+                0: '0%',
+                25: '25%',
+                50: '50%',
+                75: '75%',
+                100: '100%'
+              }"
+            />
+          </el-popover>
         </template>
       </el-table-column>
     </el-table>
@@ -481,6 +806,11 @@ export default {
         </span>
       </template>
     </el-dialog>
+
+    <GoalDetailDrawer
+      v-model="goalDetailDrawerVisible"
+      :goal="selectedGoal"
+    />
   </div>
 </template>
 
@@ -530,10 +860,12 @@ export default {
 
 .clickable-title {
   cursor: pointer;
-  color: #409EFF;
+  color: var(--el-color-primary);
+  transition: color 0.3s;
 }
 
 .clickable-title:hover {
+  color: var(--el-color-primary-light-3);
   text-decoration: underline;
 }
 
@@ -580,5 +912,97 @@ export default {
   align-items: center;
   font-size: 0.9em;
   color: #666;
+}
+
+.status-options {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-option {
+  cursor: pointer;
+}
+
+.clickable-status {
+  cursor: pointer;
+}
+
+.comments-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comments-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.comment {
+  padding: 1rem;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9em;
+  color: var(--el-text-color-secondary);
+}
+
+.comment-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.editable-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.editable-field:hover {
+  background-color: var(--el-bg-color-page);
+}
+
+.edit-icon {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.editable-field:hover .edit-icon {
+  opacity: 1;
+}
+
+.progress-bar-wrapper {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.description-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.due-date-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.due-date-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style> 

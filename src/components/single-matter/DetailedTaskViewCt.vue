@@ -920,6 +920,10 @@ export default {
         { value: 'low', label: 'Low' },
         { value: 'medium', label: 'Medium' },
         { value: 'high', label: 'High' }
+      ],
+      USERS_TO_BYPASS_AI_INTERACTION: [
+          'soumen+040225@grmtech.com',
+          'suvankar@grmtech.com'
       ]
     };
   },
@@ -1404,6 +1408,16 @@ export default {
     },
     async getAIResponse(prompt, customSystemPrompt = null) {
       try {
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // If user email is in bypass list, return dummy response
+        if (this.USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+          return {
+            template_content: "This is a dummy AI response for testing purposes. The original prompt was: " + prompt
+          };
+        }
+
         // Extract hyperlinks to image files using regex
         const imageLinkRegex = /\[([^\]]+\.(jpg|jpeg|png|gif|webp|pdf|txt))\]\(([^)]+\.(jpg|jpeg|png|gif|webp|pdf|txt))\)/gi;
         const imageLinks = [...prompt.matchAll(imageLinkRegex)];

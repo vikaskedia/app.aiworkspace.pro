@@ -43,10 +43,10 @@ TO authenticated
 USING (auth.uid() IN (SELECT user_id FROM admin_users));
 
 -- Policy for inserting data
-CREATE POLICY "Admins can insert entries" ON system_admins 
+CREATE POLICY "All authenticated users can create topics" ON system_admins 
 FOR INSERT 
 TO authenticated 
-WITH CHECK (auth.uid() IN (SELECT user_id FROM admin_users));
+WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Policy for updating data
 CREATE POLICY "Admins can update any entry" ON system_admins 
@@ -59,6 +59,29 @@ CREATE POLICY "Admins can delete any entry" ON system_admins
 FOR DELETE 
 TO authenticated 
 USING (auth.uid() IN (SELECT user_id FROM admin_users));
+
+
+-- Policy for selecting data
+CREATE POLICY "Authenticated users can see talk to dev topics" ON talktodevteam_topics 
+FOR SELECT 
+TO authenticated 
+USING (true);
+
+-- Policy for inserting data
+CREATE POLICY "All authenticated users can create topics" ON talktodevteam_topics 
+FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Policy for updating data
+CREATE POLICY "Users can update their own topics or admins can update any topic" 
+ON talktodevteam_topics
+FOR UPDATE 
+TO authenticated 
+USING (
+  (created_by = auth.uid()) OR 
+  (auth.uid() IN (SELECT user_id FROM admin_users))
+);
 
 -- Create index for faster lookups
 CREATE INDEX system_admins_granted_by_idx ON system_admins(granted_by);

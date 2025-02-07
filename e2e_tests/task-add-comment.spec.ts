@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const SITE_URL = 'https://app.associateattorney.ai';
 // const SITE_URL = 'http://localhost';
 
-test('Task Creation test', async ({ page }) => {
+test('Task comment creation test', async ({ page }) => {
     // First login
     await page.goto(`${SITE_URL}/login`); 
     await page.fill('input[type="email"]','soumen+040225@grmtech.com'); 

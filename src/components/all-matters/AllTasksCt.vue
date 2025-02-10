@@ -815,6 +815,11 @@ export default {
     }
   },
   mounted() {
+    // Clear localStorage on page reload
+    if (performance.navigation.type === 1) { // 1 indicates page reload
+      localStorage.removeItem('taskListFilters');
+    }
+    
     this.loadSavedFilters();
     this.loadAssignees().then(() => {
       this.filteredAssignees = this.assignees;

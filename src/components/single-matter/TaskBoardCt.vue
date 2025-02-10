@@ -296,24 +296,24 @@
       },
   
       onTaskMove(event, targetColumn) {
-        if (!event.added && !event.moved) return;
+        // if (!event.added && !event.moved) return;
         
-        const task = event.added ? event.added.element : event.moved.element;
-        const updates = {};
+        // const task = event.added ? event.added.element : event.moved.element;
+        // const updates = {};
         
-        switch (this.groupBy) {
-          case 'status':
-            updates.status = targetColumn.id;
-            break;
-          case 'priority':
-            updates.priority = targetColumn.id;
-            break;
-          case 'assignee':
-            updates.assignee = targetColumn.id === 'unassigned' ? null : targetColumn.id;
-            break;
-        }
+        // switch (this.groupBy) {
+        //   case 'status':
+        //     updates.status = targetColumn.id;
+        //     break;
+        //   case 'priority':
+        //     updates.priority = targetColumn.id;
+        //     break;
+        //   case 'assignee':
+        //     updates.assignee = targetColumn.id === 'unassigned' ? null : targetColumn.id;
+        //     break;
+        // }
         
-        this.$emit('update-task', { ...task, ...updates });
+        // this.$emit('update-task', { ...task, ...updates });
       },
   
       handleColumnAction(command, column) {

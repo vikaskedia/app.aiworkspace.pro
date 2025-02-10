@@ -70,7 +70,8 @@ export default {
         dueDate: null,
         showDeleted: false,
         starredBy: [],
-        viewType: 'list'
+        viewType: 'list',
+        orderBy: 'priority_desc'
       },
       showTypeahead: false,
       typeaheadSuggestions: [],
@@ -340,7 +341,8 @@ export default {
         dueDate: null,
         showDeleted: false,
         starredBy: [],
-        viewType: 'list'
+        viewType: 'list',
+        orderBy: 'priority_desc'
       };
       this.loadSharedUsers();
     },
@@ -810,6 +812,11 @@ export default {
           filters.excludeStatus = ['completed'];
         }
         
+        // Ensure orderBy has a default value
+        if (!filters.orderBy) {
+          filters.orderBy = 'priority_desc';
+        }
+        
         // Set the filters
         this.filters = filters;
         
@@ -1153,7 +1160,8 @@ export default {
         dueDate: null,
         showDeleted: false,
         starredBy: [],
-        viewType: 'list'
+        viewType: 'list',
+        orderBy: 'priority_desc'
       };
       this.boardGroupBy = 'status';
       this.saveFilters(); // Save the cleared state
@@ -1180,6 +1188,11 @@ export default {
         // Ensure excludeStatus is an array with 'completed' as default if not set
         if (!filters.excludeStatus?.length) {
           filters.excludeStatus = ['completed'];
+        }
+        
+        // Ensure orderBy has a default value
+        if (!filters.orderBy) {
+          filters.orderBy = 'priority_desc';
         }
         
         // Set the filters
@@ -1247,6 +1260,51 @@ export default {
 
       // Apply other filters...
       // ... rest of the filtering logic ...
+
+      // Sort tasks if needed
+      if (this.filters.orderBy) {
+        const sortTasksRecursively = (tasks) => {
+          const sortedTasks = tasks.sort((a, b) => {
+            let comparison = 0;
+            
+            switch (this.filters.orderBy) {
+              case 'priority_desc': {
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+                break;
+              }
+              case 'priority_asc': {
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
+                break;
+              }
+              case 'activity_desc': {
+                const dateA = new Date(a.updated_at || a.created_at || 0);
+                const dateB = new Date(b.updated_at || b.created_at || 0);
+                comparison = dateB - dateA;
+                break;
+              }
+              case 'activity_asc': {
+                const dateA = new Date(a.updated_at || a.created_at || 0);
+                const dateB = new Date(b.updated_at || b.created_at || 0);
+                comparison = dateA - dateB;
+                break;
+              }
+            }
+            return comparison;
+          });
+
+          // Sort children recursively
+          return sortedTasks.map(task => {
+            if (task.children?.length) {
+              task.children = sortTasksRecursively(task.children);
+            }
+            return task;
+          });
+        };
+
+        result = sortTasksRecursively(result);
+      }
 
       return result;
     }
@@ -1447,6 +1505,16 @@ export default {
                 />
               </el-select>
             </el-form-item>
+            <el-form-item label="Order By">
+              <el-select
+                v-model="filters.orderBy"
+                style="width: 180px">
+                <el-option label="Priority (High to Low)" value="priority_desc" />
+                <el-option label="Priority (Low to High)" value="priority_asc" />
+                <el-option label="Activity (Recent first)" value="activity_desc" />
+                <el-option label="Activity (Oldest first)" value="activity_asc" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button @click="clearFilters">Clear</el-button>
             </el-form-item>
@@ -1457,7 +1525,7 @@ export default {
       <TasksList
         v-if="filters.viewType === 'list'"
         ref="tasksList"
-        :tasks="tasks"
+        :tasks="filteredTasks"
         :loading="loading"
         :shared-users="sharedUsers"
         v-model:filters="filters"
@@ -1477,7 +1545,7 @@ export default {
       
       <TaskBoardCt
         v-else
-        :tasks="tasks"
+        :tasks="filteredTasks"
         :loading="loading"
         :group-by="boardGroupBy"
         :shared-users="sharedUsers"

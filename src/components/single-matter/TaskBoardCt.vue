@@ -45,6 +45,7 @@
                 v-model="column.tasks"
                 :group="{ name: 'tasks' }"
                 item-key="id"
+                :draggable="false"
                 @change="(e) => onTaskMove(e, column)">
                 <template #item="{ element: task }">
                   <div class="task-card">
@@ -672,7 +673,6 @@
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     border: 1px solid var(--el-border-color-lighter);
-    cursor: move;
     transition: all 0.2s ease;
   }
   

@@ -167,7 +167,7 @@
       </div>
     </el-dialog>
 
-    <!-- Consultation Complete Dialog -->
+    <!-- Consultation Complete Dialog |||| SSSSSSRRRRRRRR -->
     <el-dialog
       v-model="isConsultationComplete"
       title="Consultation Complete"
@@ -244,6 +244,211 @@ import promptText from './prompt.txt?raw'
 
 const pythonApiBaseUrl = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:3001'
 
+const USERS_TO_BYPASS_AI_INTERACTION = [
+  'soumen+040225@grmtech.com',
+  // 'suvankar@grmtech.com'
+]
+const PREDEFINED_QUESTIONS = [
+  {
+    firstQuestion: "Dummy Question no 1",
+    testScriptAnswer: "Dummy Answer no 1",
+
+    // question: "Dummy Question no 1",
+    // answer: "Dummy Answer no 1",
+    // analysis: {
+    //   events: [],
+    //   goals: [],
+    //   tasks: [],
+    //   possibleOutcome: []
+    // }
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 1",
+      question: "Dummy Answer no 1",
+    },
+    nextQuestion: "Dummy Question no 2",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 2"
+
+    // question: "Dummy Question no 2",
+    // answer: "Dummy Answer no 2",
+    // analysis: {
+    //   events: [],
+    //   // files:[],
+    //   goals: ["Resolve the contract dispute and recover unpaid invoices"],
+    //   tasks: ["Gather detailed information about the contract and unpaid invoices"],
+    //   possibleOutcome: ["Successful resolution of the contract dispute and recovery of the unpaid invoices"],
+    //   interviewQnA: {
+    //     answer: "I'm dealing with a contract dispute with my business partner regarding unpaid invoices.",
+    //     question: "Hello Suvankar Roy,\n\nWelcome to AI Associate Attorney!\n\nMy name is Julian, and I am here to assist you with your legal needs. At our firm, we prioritize providing expert and personalized legal services to our clients.\n\nTo better understand how we can help you, could you please provide some details about your legal matter? Rest assured, all information you share with us will be treated with the utmost confidentiality.\n\nLooking forward to hearing from you soon.\n\nBest regards,\nJulian"
+    //   }
+    // }
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 2",
+      question: "Dummy Answer no 2",
+    },
+    nextQuestion: "Dummy Question no 3",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 3"
+  }, 
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 3",
+      question: "Dummy Answer no 3",
+    },
+    nextQuestion: "Dummy Question no 4",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 4"
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 4",
+      question: "Dummy Answer no 4",
+    },
+    nextQuestion: "Dummy Question no 5",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 5"
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 5",
+      question: "Dummy Answer no 5",
+    },
+    nextQuestion: "Dummy Question no 6",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 6"
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 6",
+      question: "Dummy Answer no 6",
+    },
+    nextQuestion: "Dummy Question no 7",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 7"
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 7",
+      question: "Dummy Answer no 7",
+    },
+    nextQuestion: "Dummy Question no 8",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 8"
+  },
+  {
+    events: [],
+    files: [],
+    goals: [],
+    tasks: [],
+    interviewQnA: {
+      answer: "Dummy Question no 8",
+      question: "Dummy Answer no 8",
+    },
+    nextQuestion: "Dummy Question no 9",
+    possibleOutcome: [],
+    testScriptAnswer: "Dummy Answer no 9"
+  },
+  // {
+  //   events: [
+  //     "[2/6/2025] Accident involving relative in San Francisco, California",
+  //     "[2/6/2025] Windshield broke, relative got a cut in hand",
+  //     "[2/6/2025] Dog came in front of the car, dog owner jumped to save the dog, relative braked suddenly, car hit a lamppost",
+  //     "[2/8/2025] Relative attempted to contact insurance company but received no acknowledgment or response",
+  //     "[2/8/2025] Client agreed to seek assistance in contacting the insurance company and follow up on the claim"
+  //   ],
+  //   files: [],
+  //   goals: [
+  //     "Help client's relative with legal issues related to the car accident",
+  //     "Ensure fair compensation for any injuries or damages",
+  //     "Assist with insurance claims and legal proceedings",
+  //     "Ensure timely and appropriate medical care for the injuries"
+  //   ],
+  //   tasks: [
+  //     "Gather more details about the accident",
+  //     "Gather police report and any other documents related to the accident",
+  //     "Seek medical attention for the cut on the hand",
+  //     "Document the details of the accident and injuries",
+  //     "Seek immediate medical attention for the cut on the hand",
+  //     "Report the accident to the police and obtain a police report",
+  //     "Follow up with the insurance company to ensure the accident is properly reported"
+  //   ],
+  //   interviewQnA: {
+  //     answer: "Dummy Question no 9",
+  //     question: "Dummy Answer no 9",
+  //   },
+  //   nextQuestion: "Dummy Question no 10",
+  //   possibleOutcome: [],
+  //   // possibleOutcome: [
+  //   //   "Provide legal representation and guidance to client's relative",
+  //   //   "Ensure fair compensation for any injuries or damages",
+  //   //   "Assist with insurance claims and legal proceedings",
+  //   //   "Ensure timely and appropriate medical care for the injuries"
+  //   // ],
+  //   testScriptAnswer: "Dummy Answer no 10"
+  // },
+  {
+    events: [
+      "[2/6/2025] dummy event 1",
+      "[2/6/2025] dummy event 2"
+    ],
+    files: [],
+    goals: [
+      "dummy goal 1",
+      "dummy goal 2"
+    ],
+    tasks: [
+      "dummy task 1",
+      "dummy task 2"
+    ],
+    interviewQnA: {
+      answer: "Dummy Question no 9",
+      question: "Dummy Answer no 9",
+    },
+    nextQuestion: "Dummy Question no 10",
+    possibleOutcome: [],
+    // possibleOutcome: [
+    //   "Provide legal representation and guidance to client's relative",
+    //   "Ensure fair compensation for any injuries or damages",
+    //   "Assist with insurance claims and legal proceedings",
+    //   "Ensure timely and appropriate medical care for the injuries"
+    // ],
+    testScriptAnswer: "Dummy Answer no 10"
+  }
+];
+
+
 export default {
   name: 'InitialConsultationCt',
   components: { 
@@ -310,7 +515,8 @@ export default {
     const uploadDialogVisible = ref(false)
     const fileList = ref([])
 
-    const handleConsultationComplete = async () => {
+    const handleConsultationComplete = async () => { ///// SSSSSSRRRRRRRR actual function creating matter and goals and tasks and events etc.
+      console.log('L646: handleConsultationComplete');
       try {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
@@ -501,6 +707,7 @@ export default {
     }
 
     const getSharedMatters = async (userId) => {
+      console.log('L837: getSharedMatters');
       try {
         // Get matters shared with the user
         const { data: sharedMatters, error } = await supabase
@@ -532,6 +739,7 @@ export default {
     };
 
     const loadUserMatters = async () => {
+      console.log('L869: loadUserMatters');
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: sharedMatters, error } = await supabase
@@ -563,12 +771,14 @@ export default {
     };
 
     const formatSectionTitle = (key) => {
+      console.log('L901: formatSectionTitle');
       return key.split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ')
     }
 
     const formatDate = (dateStr) => {
+      console.log('L908: formatDate');
       if (!dateStr) return '';
       try {
         const date = new Date(dateStr);
@@ -579,6 +789,7 @@ export default {
     }
 
     const sortEvents = (events) => {
+      console.log('L919: sortEvents');
       return events.sort((a, b) => {
         const dateA = new Date(a.match(/\[(.*?)\]/)?.[1] || 0);
         const dateB = new Date(b.match(/\[(.*?)\]/)?.[1] || 0);
@@ -587,6 +798,7 @@ export default {
     }
 
     const updateNotepadData = (newData) => {
+      console.log('L928: updateNotepadData');
       // Sort events chronologically
       if (newData.events) {
         newData.events = sortEvents(newData.events);
@@ -600,9 +812,11 @@ export default {
           notepadData.value[key] = Array.from(existingItems);
         }
       });
+      console.log('L942: notepadData', notepadData.value);//////// SSSSRRRRR 
     }
 
     const formatQuestionHistory = (history) => {
+      console.log('L945: formatQuestionHistory'); 
       if (!history || history.length === 0) return '';
       
       let formattedHistory = '\n\nPrevious Questions and Answers:\n' + 
@@ -625,6 +839,7 @@ export default {
     }
 
     const preparePrompt = async () => {
+      console.log('L968: preparePrompt');
       const { data: { user } } = await supabase.auth.getUser();
       
       // Get system prompt from initial consultant attorney
@@ -666,10 +881,44 @@ export default {
     console.log('is consultation complete', isConsultationComplete);
 
     const handleSubmit = async () => {
+      console.log('L1010: handleSubmit');
       try {
         loading.value = true
         const { fullPrompt, user } = await preparePrompt()
 
+        if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+          // Store current Q&A in history
+          questionHistory.value.push({
+            question: currentQuestion.value,
+            answer: currentAnswer.value
+          })
+
+          currentIndex.value = questionHistory.value.length - 1
+          
+          // Get next predefined question
+          if (currentIndex.value < PREDEFINED_QUESTIONS.length - 1) {
+            const nextPredefined = PREDEFINED_QUESTIONS[currentIndex.value + 1]
+            currentQuestion.value = nextPredefined.nextQuestion || ''
+            
+            // Update notepad with predefined data
+            notepadData.value = {
+              events: [...(notepadData.value.events || []), ...(nextPredefined.events || [])],
+              files: [...(notepadData.value.files || []), ...(nextPredefined.files || [])],
+              goals: [...(notepadData.value.goals || []), ...(nextPredefined.goals || [])],
+              tasks: [...(notepadData.value.tasks || []), ...(nextPredefined.tasks || [])],
+              possibleOutcome: [...(notepadData.value.possibleOutcome || []), ...(nextPredefined.possibleOutcome || [])]
+            }
+          }
+
+          currentAnswer.value = ''
+          totalQuestions.value = Math.min(questionHistory.value.length + (currentQuestion.value ? 1 : 0), 10)
+          isViewingHistory.value = false
+          
+          await saveConsultationState()
+          return
+        }
+
+        // Original API call logic for non-bypass users
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
           headers: {
@@ -689,9 +938,10 @@ export default {
         if (!response.ok) throw new Error('Failed to process consultation')
         
         const data = await response.json()
+        console.log('SR: handleSubmit ==== ', data)
         
         // Update notepad data
-        updateNotepadData(data)
+        updateNotepadData(data) /////// SSSSRRRRR
         
         // Add to history
         questionHistory.value.push({
@@ -734,6 +984,26 @@ export default {
         loading.value = true;
         const { data: { user } } = await supabase.auth.getUser();
 
+        if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+          // For bypass users, get previous question from predefined set
+          if (currentIndex.value > 0) {
+            const prevIndex = currentIndex.value - 1;
+            currentQuestion.value = PREDEFINED_QUESTIONS[prevIndex]?.interviewQnA?.question || '';
+            currentAnswer.value = questionHistory.value[prevIndex]?.answer || '';
+            
+            // Update notepad with predefined data
+            notepadData.value = {
+              events: PREDEFINED_QUESTIONS[prevIndex]?.events || [],
+              files: PREDEFINED_QUESTIONS[prevIndex]?.files || [],
+              goals: PREDEFINED_QUESTIONS[prevIndex]?.goals || [],
+              tasks: PREDEFINED_QUESTIONS[prevIndex]?.tasks || [],
+              possibleOutcome: PREDEFINED_QUESTIONS[prevIndex]?.possibleOutcome || []
+            };
+            return;
+          }
+        }
+
+        // Original API call logic for non-bypass users
         const response = await fetch(`${pythonApiBaseUrl}/gpt/get_previous_question`, {
           method: 'POST',
           headers: {
@@ -751,7 +1021,7 @@ export default {
         
         // Update current question and previous answer
         currentQuestion.value = data.question;
-        userResponse.value = data.previousAnswer || '';
+        currentAnswer.value = data.previousAnswer || '';
         
         // Update notepad with previous state
         if (data.notepadData) {
@@ -766,6 +1036,7 @@ export default {
     };
 
     const initializeConsultation = async () => {
+      console.log('L1154: initializeConsultation');
       try {
         loading.value = true;
         const { data: { user } } = await supabase.auth.getUser();
@@ -790,6 +1061,23 @@ export default {
         if (questionHistory.value.length === 0) {
           const { fullPrompt } = await preparePrompt();
 
+          if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+            // Use first predefined question for bypass users
+            const firstPredefined = PREDEFINED_QUESTIONS[0];
+            currentQuestion.value = firstPredefined.firstQuestion || '';
+            
+            // Initialize notepad data
+            notepadData.value = {
+              events: firstPredefined.events || [],
+              files: firstPredefined.files || [],
+              goals: firstPredefined.goals || [],
+              tasks: firstPredefined.tasks || [],
+              possibleOutcome: firstPredefined.possibleOutcome || []
+            };
+            return;
+          }
+
+          // For non-bypass users, proceed with normal API call
           const response = await fetch(`${pythonApiBaseUrl}/gpt/start_consultation`, {
             method: 'POST',
             headers: {
@@ -818,9 +1106,9 @@ export default {
           });
 
           if (!response.ok) throw new Error('Failed to start consultation');
-          
           const data = await response.json();
-          currentQuestion.value = data.firstQuestion;
+          console.log('SR: initializeConsultation ==== ', data);
+          currentQuestion.value = data.firstQuestion;//////// SSSSRRRRR
           notepadData.value = {
             events: [],
             files: [],
@@ -828,6 +1116,7 @@ export default {
             tasks: [],
             possibleOutcome: []
           };
+          console.log('L1168: notepadData', notepadData.value);//////// SSSSRRRRR 
         }
 
       } catch (error) {
@@ -838,10 +1127,12 @@ export default {
     };
 
     const startEditing = () => {
+      console.log('L1235: startEditing');
       isEditing.value = true
     }
 
     const cancelEdit = () => {
+      console.log('L1240: cancelEdit');
       isEditing.value = false
       if (isViewingHistory.value) {
         currentAnswer.value = questionHistory.value[currentIndex.value].answer
@@ -849,10 +1140,45 @@ export default {
     }
 
     const handleEdit = async () => {
+      console.log('L1248: handleEdit');
       try {
         loading.value = true
         const { fullPrompt, user } = await preparePrompt();
 
+        if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+          // Update history
+          questionHistory.value[currentIndex.value].answer = currentAnswer.value
+
+          // Get predefined data for this question index
+          const predefinedData = PREDEFINED_QUESTIONS[currentIndex.value] || {
+            events: [],
+            files: [],
+            goals: [],
+            tasks: [],
+            possibleOutcome: []
+          }
+
+          // Update notepad with predefined data
+          notepadData.value = {
+            events: [...(notepadData.value.events || []), ...(predefinedData.events || [])],
+            files: [...(notepadData.value.files || []), ...(predefinedData.files || [])],
+            goals: [...(notepadData.value.goals || []), ...(predefinedData.goals || [])],
+            tasks: [...(notepadData.value.tasks || []), ...(predefinedData.tasks || [])],
+            possibleOutcome: [...(notepadData.value.possibleOutcome || []), ...(predefinedData.possibleOutcome || [])]
+          }
+
+          if (currentIndex.value < questionHistory.value.length - 1) {
+            questionHistory.value = questionHistory.value.slice(0, currentIndex.value + 1)
+            totalQuestions.value = questionHistory.value.length + 1
+            currentQuestion.value = PREDEFINED_QUESTIONS[currentIndex.value + 1]?.nextQuestion || ''
+          }
+
+          isEditing.value = false
+          await saveConsultationState()
+          return
+        }
+
+        // Original API call logic for non-bypass users
         const response = await fetch(`${pythonApiBaseUrl}/gpt/process_consultation`, {
           method: 'POST',
           headers: {
@@ -871,6 +1197,7 @@ export default {
         if (!response.ok) throw new Error('Failed to process consultation')
         
         const data = await response.json()
+        console.log('SR: handleEdit ==== ', data);
         
         // Update notepad data
         notepadData.value = data.notepadData
@@ -901,6 +1228,7 @@ export default {
     }
 
     const navigateTo = (index) => {
+      console.log('L1337: navigateTo');
       if (index >= 0 && index <= questionHistory.value.length) {
         currentIndex.value = index
         isViewingHistory.value = index < questionHistory.value.length
@@ -913,6 +1241,7 @@ export default {
     }
 
     const handleCurrentAnswer = async () => {
+      console.log('L1350: handleCurrentAnswer');
       if (!currentAnswer.value.trim() && !fileList.value.length) return
 
       try {
@@ -950,10 +1279,12 @@ export default {
     let touchEndY = 0
 
     const handleTouchStart = (event) => {
+      console.log('L1388: handleTouchStart');
       touchStartY = event.touches[0].clientY
     }
 
     const handleTouchEnd = (event) => {
+      console.log('L1393: handleTouchEnd');
       touchEndY = event.changedTouches[0].clientY
       const diffY = touchEndY - touchStartY
 
@@ -970,6 +1301,7 @@ export default {
     }
 
     const saveConsultationState = async () => {
+      console.log('L1410: saveConsultationState');
       try {
         const { data: { user } } = await supabase.auth.getUser()
         
@@ -1001,6 +1333,7 @@ export default {
     }
 
     const loadConsultationState = async () => {
+      console.log('L1442: loadConsultationState');
       try {
         loading.value = true
         const { data: { user } } = await supabase.auth.getUser()
@@ -1022,8 +1355,14 @@ export default {
           // Restore Q&A history
           const interviewData = consultation.json_of_interview_qna
           questionHistory.value = interviewData.questions || []
-          currentQuestion.value = interviewData.currentQuestion
           currentIndex.value = questionHistory.value.length
+
+          // For bypass users, get next question from predefined set
+          if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+            currentQuestion.value = PREDEFINED_QUESTIONS[currentIndex.value]?.nextQuestion || ''
+          } else {
+            currentQuestion.value = interviewData.currentQuestion
+          }
 
           // Restore notepad data
           if (consultation.plan_accepted_by_user_json) {
@@ -1032,7 +1371,6 @@ export default {
 
           totalQuestions.value = questionHistory.value.length + (currentQuestion.value ? 1 : 0)
         } else {
-          // No existing consultation found - generate new ID
           consultationId.value = crypto.randomUUID()
         }
       } catch (error) {
@@ -1044,6 +1382,7 @@ export default {
     }
 
     const fetchUser = async () => {
+      console.log('L1491: fetchUser');
       try {
         const { data: { user: userData } } = await supabase.auth.getUser()
         user.value = userData
@@ -1053,6 +1392,7 @@ export default {
     }
 
     const getInitialConsultantPrompt = async () => {
+      console.log('L1501: getInitialConsultantPrompt');
       try {
         const { data: attorney, error } = await supabase
           .from('attorneys')
@@ -1198,6 +1538,7 @@ export default {
 
     // Update the formatAnswerText method to preserve the div structure
     const formatAnswerText = (text) => {
+      console.log('L1647: formatAnswerText');
       if (!text) return ''
       
       // Replace markdown links with HTML links while preserving div structure
@@ -1242,6 +1583,18 @@ export default {
     }
 
     const checkConsultationComplete = async () => {
+      console.log('L1692: checkConsultationComplete');
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // For bypass users, check predefined questions length
+      if (USERS_TO_BYPASS_AI_INTERACTION.includes(user.email) && 
+          currentIndex.value >= PREDEFINED_QUESTIONS.length) {
+        filesCount.value = await getRepoFilesCount()
+        isConsultationComplete.value = true
+        return
+      }
+
+      // Original logic remains unchanged
       if (questionHistory.value.length >= 10 && 
           questionHistory.value.every(qa => qa.answer && qa.answer.trim())) {
         filesCount.value = await getRepoFilesCount()

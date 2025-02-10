@@ -58,12 +58,19 @@
                         size="small">
                         {{ formatStatus(task.status) }}
                       </el-tag>
-                      <el-tag 
-                        v-if="groupBy !== 'priority'"
-                        :type="getPriorityType(task.priority)" 
-                        size="small">
-                        {{ task.priority }}
-                      </el-tag>
+                      <div class="priority-wrapper">
+                        <el-tag 
+                          v-if="groupBy !== 'priority'"
+                          :type="getPriorityType(task.priority)" 
+                          size="small">
+                          {{ task.priority }}
+                        </el-tag>
+                        <el-icon 
+                          class="details-icon" 
+                          @click.stop="navigateToDetailedView(task)">
+                          <View />
+                        </el-icon>
+                      </div>
                       <div 
                         v-if="groupBy !== 'assignee' && task.assignee"
                         class="assignee">
@@ -117,7 +124,7 @@
   <script>
   import { defineComponent } from 'vue'
   import draggable from 'vuedraggable'
-  import { Plus, More, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+  import { Plus, More, ArrowLeft, ArrowRight, View } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   
   export default defineComponent({
@@ -126,7 +133,8 @@
       Plus,
       More,
       ArrowLeft,
-      ArrowRight
+      ArrowRight,
+      View
     },
   
     props: {
@@ -462,6 +470,10 @@
           default:
             return 'var(--el-color-primary)';
         }
+      },
+  
+      navigateToDetailedView(task) {
+        this.$router.push(`/single-matter/${task.matter_id}/tasks/${task.id}`);
       }
     },
   
@@ -696,12 +708,12 @@
     flex-wrap: wrap;
   }
   
-  .task-meta .el-tag {
+  /* .task-meta .el-tag {
     border-radius: 6px;
     padding: 0 8px;
     height: 24px;
     line-height: 24px;
-  }
+  } */
   
   .assignee {
     margin-left: auto;
@@ -720,6 +732,26 @@
   
   .more-icon:hover {
     background: var(--el-fill-color-darker);
+  }
+  
+  .priority-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .details-icon {
+    cursor: pointer;
+    padding: 4px;
+    color: var(--el-color-primary);
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .details-icon:hover {
+    background: var(--el-color-primary-light-9);
+    transform: translateY(-1px);
   }
   
   @media (max-width: 768px) {

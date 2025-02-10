@@ -89,4 +89,7 @@ export default {
     padding: 1rem;
   }
 }
+.matter-content.matter-content--tasks {
+    max-width: 100%;
+}
 </style>

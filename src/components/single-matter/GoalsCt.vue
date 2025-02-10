@@ -6,6 +6,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
+import goalsAiTaskResponce from '../../../public/goals-ai-task-responce.json';
 
 export default {
   components: { 
@@ -57,6 +58,10 @@ export default {
       selectedPriority: null,
       goalDetailDrawerVisible: false,
       showArchivedGoals: false,
+      USERS_TO_BYPASS_AI_INTERACTION: [
+          'soumen+040225@grmtech.com',
+          'suvankar@grmtech.com'
+      ]
     };
   },
   watch: {
@@ -164,51 +169,62 @@ export default {
     async generateAITasks(goal) {
       try {
         this.aiLoading = true;
-        
-        // Create system prompt for task generation
-        const systemPrompt = `You are an AI legal assistant. A new goal has been created with the following details:
-        Title: ${goal.title}
-        Description: ${goal.description || 'No description provided'}
-        Priority: ${goal.priority}
-        Due Date: ${goal.due_date ? new Date(goal.due_date).toLocaleDateString() : 'No due date'}
-        
-        Please suggest a list of tasks that would help achieve this goal. Each task should include:
-        - title
-        - description
-        - priority (high/medium/low)
-        - timeline
-        
-        Return only a JSON array of tasks without any markdown formatting or code block syntax.`;
 
-        const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            systemPrompt,
-            prompt: "Generate a list of tasks to achieve this goal",
-            goalId: goal.id,
-            matterId: goal.matter_id
-          })
-        });
+        const { data: { user } } = await supabase.auth.getUser();
 
-        if (!response.ok) throw new Error('Failed to get AI response');
-        
-        const data = await response.json();
-        
-        // Clean up the response by removing any markdown code block syntax
-        const cleanResponse = data.response.replace(/```json\s*|\s*```/g, '').trim();
-        const suggestedTasks = JSON.parse(cleanResponse);
-        
-        // Show task selection dialog
-        this.suggestedTasks = suggestedTasks;
-        this.showTaskSelectionDialog = true;
+        // If user email is in bypass list, return dummy response
+        if (this.USERS_TO_BYPASS_AI_INTERACTION.includes(user.email)) {
+          // Show task selection dialog
+          this.suggestedTasks = goalsAiTaskResponce;
+          this.showTaskSelectionDialog = true;
+        }
+        else {
+            // Create system prompt for task generation
+            const systemPrompt = `You are an AI legal assistant. A new goal has been created with the following details:
+            Title: ${goal.title}
+            Description: ${goal.description || 'No description provided'}
+            Priority: ${goal.priority}
+            Due Date: ${goal.due_date ? new Date(goal.due_date).toLocaleDateString() : 'No due date'}
+            
+            Please suggest a list of tasks that would help achieve this goal. Each task should include:
+            - title
+            - description
+            - priority (high/medium/low)
+            - timeline
+            
+            Return only a JSON array of tasks without any markdown formatting or code block syntax.`;
+
+            const response = await fetch(`${this.pythonApiBaseUrl}/gpt/get_ai_response`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                systemPrompt,
+                prompt: "Generate a list of tasks to achieve this goal",
+                goalId: goal.id,
+                matterId: goal.matter_id
+              })
+            });
+
+            if (!response.ok) throw new Error('Failed to get AI response');
+            
+            const data = await response.json();
+            
+            // Clean up the response by removing any markdown code block syntax
+            const cleanResponse = data.response.replace(/```json\s*|\s*```/g, '').trim();
+            const suggestedTasks = JSON.parse(cleanResponse);
+            
+            // Show task selection dialog
+            this.suggestedTasks = suggestedTasks;
+            this.showTaskSelectionDialog = true;
+        }
       } catch (error) {
         ElMessage.error('Error generating tasks: ' + error.message);
       } finally {
         this.aiLoading = false;
       }
+
     },
 
     async createSelectedTasks() {

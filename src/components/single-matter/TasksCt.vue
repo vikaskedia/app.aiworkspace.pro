@@ -1422,6 +1422,11 @@ export default {
                 <el-option label="Status" value="status" />
                 <el-option label="Assignee" value="assignee" />
                 <el-option label="Priority" value="priority" />
+                <el-option 
+                  v-if="filters.starredBy?.length"
+                  label="Starred By" 
+                  value="starred_by" 
+                />
               </el-select>
             </el-form-item>
             <el-form-item>

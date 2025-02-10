@@ -141,7 +141,7 @@
       groupBy: {
         type: String,
         default: 'status',
-        validator: (value) => ['status', 'assignee', 'priority'].includes(value)
+        validator: (value) => ['status', 'assignee', 'priority', 'starred_by'].includes(value)
       },
       sharedUsers: {
         type: Array,
@@ -231,14 +231,41 @@
               tasks: []
             })));
             break;
+            
+          case 'starred_by':
+            if (this.filters.starredBy?.length) {
+              // Create a column for each selected user
+              columns = this.filters.starredBy.map(userId => {
+                const user = this.sharedUsers.find(u => u.id === userId);
+                return {
+                  id: userId,
+                  title: user?.email || 'Unknown User',
+                  tasks: []
+                };
+              });
+            }
+            break;
         }
         
-        // Use filteredTasks instead of this.tasks
+        // Distribute tasks to columns
         this.filteredTasks.forEach(task => {
-          const columnId = this.getColumnIdForTask(task);
-          const column = columns.find(col => col.id === columnId);
-          if (column) {
-            column.tasks.push(task);
+          if (this.groupBy === 'starred_by') {
+            // Get all users who starred this task
+            const starredByUsers = task.task_stars?.map(star => star.user_id) || [];
+            
+            // Add task to each user's column who starred it
+            starredByUsers.forEach(userId => {
+              const column = columns.find(col => col.id === userId);
+              if (column) {
+                column.tasks.push(task);
+              }
+            });
+          } else {
+            const columnId = this.getColumnIdForTask(task);
+            const column = columns.find(col => col.id === columnId);
+            if (column) {
+              column.tasks.push(task);
+            }
           }
         });
         
@@ -253,6 +280,10 @@
             return task.priority || 'medium';
           case 'assignee':
             return task.assignee || 'unassigned';
+          case 'starred_by':
+            return task.task_stars?.length ? task.task_stars[0].user_id : 'not_starred';
+          default:
+            return null;
         }
       },
   

@@ -627,12 +627,17 @@ export default {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No authenticated user');
 
+            const filterData = {
+              ...this.filters,
+              boardGroupBy: this.boardGroupBy
+            };
+
             const { data, error } = await supabase
               .from('saved_filters')
               .insert([{
                 user_id: user.id,
                 filter_name: filterName.value,
-                filters: this.filters
+                filters: filterData
               }])
               .select();
 
@@ -660,6 +665,10 @@ export default {
     },
 
     async loadSavedFilter(filter) {
+      if (filter.filters.boardGroupBy) {
+        this.boardGroupBy = filter.filters.boardGroupBy;
+        delete filter.filters.boardGroupBy;
+      }
       this.filters = { ...filter.filters };
       this.savedFiltersDialogVisible = false;
       this.router.push(`/all-matters/tasks/saved-filters/${filter.id}`);
@@ -822,6 +831,10 @@ export default {
         const filterId = to.path.split('/saved-filters/')[1];
         const filter = this.savedFilters.find(f => f.id === filterId);
         if (filter) {
+          if (filter.filters.boardGroupBy) {
+            this.boardGroupBy = filter.filters.boardGroupBy;
+            delete filter.filters.boardGroupBy;
+          }
           this.filters = { ...filter.filters };
           this.loadTasks();
         }
@@ -849,11 +862,14 @@ export default {
   margin-bottom: 2rem;
 }
 
-.filters-container {
-  background-color: #f5f7fa;
-  padding: 1.5rem;
-  border-radius: 4px;
-  margin-bottom: 2rem;
+.filters-container[data-v-6f63dc8b] {
+    background-color: #f5f7fa;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.filter-form .el-form-item {
+    margin-bottom: 0;
 }
 
 .filter-form {

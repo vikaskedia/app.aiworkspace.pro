@@ -1274,7 +1274,7 @@ export default {
         this.loading = true;
         const { data: task, error } = await supabase
           .from('tasks')
-          .select('*')
+          .select('*, task_stars(*)')
           .eq('id', taskId)
           .single();
 

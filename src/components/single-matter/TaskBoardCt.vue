@@ -49,6 +49,13 @@
                 @change="(e) => onTaskMove(e, column)">
                 <template #item="{ element: task }">
                   <div class="task-card">
+                    <div class="info-icon-wrapper">
+                      <el-icon 
+                        class="info-icon" 
+                        @click.stop="navigateToDetailedView(task)">
+                        <InfoFilled />
+                      </el-icon>
+                    </div>
                     <div class="task-header">
                       <span class="task-title">{{ task.title }}</span>
                     </div>
@@ -66,11 +73,6 @@
                           size="small">
                           {{ task.priority }}
                         </el-tag>
-                        <el-icon 
-                          class="details-icon" 
-                          @click.stop="navigateToDetailedView(task)">
-                          <View />
-                        </el-icon>
                       </div>
                       <div 
                         v-if="groupBy !== 'assignee' && task.assignee"
@@ -125,7 +127,7 @@
   <script>
   import { defineComponent } from 'vue'
   import draggable from 'vuedraggable'
-  import { Plus, More, ArrowLeft, ArrowRight, View } from '@element-plus/icons-vue'
+  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   
   export default defineComponent({
@@ -135,7 +137,7 @@
       More,
       ArrowLeft,
       ArrowRight,
-      View
+      InfoFilled
     },
   
     props: {
@@ -668,6 +670,7 @@
   }
   
   .task-card {
+    position: relative;
     background: white;
     border-radius: 8px;
     padding: 1rem;
@@ -676,10 +679,30 @@
     transition: all 0.2s ease;
   }
   
-  .task-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: var(--el-border-color);
+  .info-icon-wrapper {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  .task-card:hover .info-icon-wrapper {
+    opacity: 1;
+  }
+  
+  .info-icon {
+    color: var(--el-color-primary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+  
+  .info-icon:hover {
+    background: var(--el-color-primary-light-9);
+    transform: translateY(-1px);
   }
   
   .task-header {

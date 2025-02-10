@@ -14,6 +14,7 @@ import MatterLayout from './components/single-matter/MatterLayout.vue';
 // import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
+import DetailedEventViewCt from './components/single-matter/DetailedEventViewCt.vue';
 
 
 const routes = [
@@ -105,6 +106,11 @@ const routes = [
         path: 'events',
         name: 'EventsPage',
         component: EventsCt
+      },
+      {
+        path: 'events/:id',
+        name: 'DetailedEventView',
+        component: DetailedEventViewCt
       },
       {
         path: 'files',

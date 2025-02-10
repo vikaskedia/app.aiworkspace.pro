@@ -3,12 +3,26 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { ref } from 'vue';
+import { Edit, Delete } from '@element-plus/icons-vue';
 
 export default {
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    const currentUser = ref(null);
+
+    // Fetch the current user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      currentUser.value = user;
+      console.log('Current User:', currentUser.value);
+    });
+
+    return { currentMatter, currentUser };
+  },
+  components: {
+    Edit,
+    Delete
   },
   data() {
     return {
@@ -103,6 +117,26 @@ export default {
         location: '',
         attendees: []
       };
+    },
+
+    editEvent(event) {
+      console.log('Editing event:', event);
+    },
+
+    async archiveEvent(event) {
+      try {
+        const { error } = await supabase
+          .from('events')
+          .update({ archived: true })
+          .eq('id', event.id);
+
+        if (error) throw error;
+
+        this.events = this.events.filter(e => e.id !== event.id);
+        ElMessage.success('Event archived successfully');
+      } catch (error) {
+        ElMessage.error('Error archiving event: ' + error.message);
+      }
     }
   }
 };
@@ -129,7 +163,19 @@ export default {
           prop="title" 
           label="Title"
           min-width="200"
-          class-name="event-title" />
+          class-name="event-title">
+          <template #default="scope">
+            <div class="event-title-cell">
+              <router-link :to="{ name: 'DetailedEventView', params: { matterId: currentMatter.id, id: scope.row.id } }" class="title-link">
+                {{ scope.row.title }}
+              </router-link>
+              <span v-if="currentUser && scope.row.created_by === currentUser.id" class="action-icons">
+                <el-icon class="edit-icon" @click="editEvent(scope.row)"><Edit /></el-icon>
+                <el-icon class="archive-icon" @click="archiveEvent(scope.row)"><Delete /></el-icon>
+              </span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column 
           prop="event_type" 
           label="Type"
@@ -247,5 +293,37 @@ h2 {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.event-title-cell {
+  position: relative;
+}
+
+.action-icons {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  gap: 8px;
+}
+
+.event-title-cell:hover .action-icons {
+  display: inline-flex;
+}
+
+.edit-icon, .archive-icon {
+  cursor: pointer;
+  color: #909399;
+  transition: color 0.3s;
+}
+
+.edit-icon:hover, .archive-icon:hover {
+  color: var(--el-color-primary);
+}
+
+.title-link {
+  text-decoration: none;
+  color: #1890ff;
 }
 </style> 

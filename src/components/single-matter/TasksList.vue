@@ -152,8 +152,13 @@ export default {
         })
       }
 
-      if (this.filters.starred) {
-        result = filterTasksRecursively(result, task => task.starred)
+      if (this.filters.starredBy?.length) {
+        result = filterTasksRecursively(result, task => {
+          // Check if task is starred by any of the selected users
+          return task.task_stars?.some(star => 
+            this.filters.starredBy.includes(star.user_id)
+          );
+        });
       }
 
       // Sort tasks if needed

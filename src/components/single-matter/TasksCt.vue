@@ -69,7 +69,7 @@ export default {
         assignee: [],
         dueDate: null,
         showDeleted: false,
-        starred: false,
+        starredBy: [],
         viewType: 'list'
       },
       showTypeahead: false,
@@ -181,13 +181,11 @@ export default {
           .from('tasks')
           .select(`
             *,
-            task_stars!left(user_id),
-            task_hours_logs!task_id (
-              time_taken
+            task_stars (
+              user_id
             )
           `)
           .eq('matter_id', this.currentMatter.id)
-          .eq('task_stars.user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (!showDeleted) {
@@ -338,7 +336,7 @@ export default {
         assignee: [],
         dueDate: null,
         showDeleted: false,
-        starred: false,
+        starredBy: [],
         viewType: 'list'
       };
       this.loadSharedUsers();
@@ -1150,10 +1148,10 @@ export default {
         assignee: [],
         dueDate: null,
         showDeleted: false,
-        starred: false,
+        starredBy: [],
         viewType: 'list'
       };
-      this.boardGroupBy = 'status'; // Reset board grouping to default
+      this.boardGroupBy = 'status';
     },
 
     handleShowDeletedChange(value) {
@@ -1390,12 +1388,22 @@ export default {
                 @change="handleShowDeletedChange"
               />
             </el-form-item>
-            <el-form-item>
-              <el-switch
-                v-model="filters.starred"
-                class="filter-item"
-                active-text="Show Starred Tasks"
-              />
+            <el-form-item label="Starred By">
+              <el-select
+                v-model="filters.starredBy"
+                placeholder="Show tasks starred by..."
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="user in sharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
             </el-form-item>
             <el-form-item label="View As">
               <el-select

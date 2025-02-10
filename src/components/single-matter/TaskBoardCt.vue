@@ -233,8 +233,8 @@
             break;
         }
         
-        // Distribute tasks to columns
-        this.tasks.forEach(task => {
+        // Use filteredTasks instead of this.tasks
+        this.filteredTasks.forEach(task => {
           const columnId = this.getColumnIdForTask(task);
           const column = columns.find(col => col.id === columnId);
           if (column) {
@@ -471,6 +471,19 @@
     computed: {
       showScrollButtons() {
         return this.columns.length > 4 && window.innerWidth > 768;
+      },
+      filteredTasks() {
+        let tasks = this.tasks.slice();
+        
+        if (this.filters.starredBy?.length) {
+          tasks = tasks.filter(task => 
+            task.task_stars?.some(star => 
+              this.filters.starredBy.includes(star.user_id)
+            )
+          );
+        }
+        
+        return tasks;
       }
     },
   

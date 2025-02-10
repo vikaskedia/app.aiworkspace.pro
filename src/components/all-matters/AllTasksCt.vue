@@ -140,6 +140,57 @@
                 <el-option label="Completed" value="completed" />
               </el-select>
             </el-form-item>
+            <el-form-item label="Starred By">
+              <el-select
+                v-model="filters.starredBy"
+                placeholder="Show tasks starred by..."
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="user in assignees"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="View As">
+              <el-select
+                v-model="filters.viewType"
+                style="width: 140px">
+                <el-option label="List View" value="list" />
+                <el-option label="Board View" value="board" />
+              </el-select>
+            </el-form-item>
+            <el-form-item 
+              label="Group By"
+              v-if="filters.viewType === 'board'">
+              <el-select
+                v-model="boardGroupBy"
+                style="width: 140px">
+                <el-option label="Status" value="status" />
+                <el-option label="Assignee" value="assignee" />
+                <el-option label="Priority" value="priority" />
+                <el-option 
+                  v-if="filters.starredBy?.length"
+                  label="Starred By" 
+                  value="starred_by" 
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Order By">
+              <el-select
+                v-model="filters.orderBy"
+                style="width: 180px">
+                <el-option label="Priority (Low to High)" value="priority_desc" />
+                <el-option label="Priority (High to Low)" value="priority_asc" />
+                <el-option label="Activity (Recent first)" value="activity_desc" />
+                <el-option label="Activity (Oldest first)" value="activity_asc" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button @click="clearFilters">Clear</el-button>
             </el-form-item>
@@ -148,91 +199,25 @@
       </el-collapse-transition>
 
       <!-- Tasks Table -->
-      <el-table
-        v-loading="loading"
-        :data="tasks"
-        row-key="id"
-        :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-        default-expand-all
-        style="width: 100%"
-        @row-click="navigateToTask"
-        @row-contextmenu="handleContextMenu">
-        <el-table-column 
-          prop="matter_title" 
-          label="Matter"
-          min-width="120">
-          <template #default="scope">
-            <el-link 
-              type="primary" 
-              @click.stop="navigateToMatter(scope.row.matter_id)">
-              {{ scope.row.matter_title }}
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="title" 
-          label="Title"
-          min-width="200"
-          align="left">
-          <template #default="scope">
-            <div class="title-with-star">
-              <el-icon
-                :class="['star-icon', { 'starred': scope.row.starred }]"
-                @click.stop="toggleStar(scope.row)">
-                <component :is="scope.row.starred ? 'StarFilled' : 'Star'" />
-              </el-icon>
-              <div class="title-content">
-                <div class="title-hours-container">
-                  <span class="clickable-title">
-                    {{ scope.row.title }}
-                  </span>
-                  <span class="logged-hours">
-                    HL: {{ scope.row.total_hours.toFixed(2) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          label="Status"
-          width="110">
-          <template #default="scope">
-            <el-tag :type="getStatusType(scope.row)">
-              {{ formatStatus(scope.row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="priority" 
-          label="Priority"
-          width="100">
-          <template #default="scope">
-            <el-tag :type="
-              scope.row.priority === 'high' ? 'danger' :
-              scope.row.priority === 'medium' ? 'warning' : 'info'
-            ">
-              {{ scope.row.priority }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="due_date" 
-          label="Due Date"
-          width="100">
-          <template #default="scope">
-            {{ scope.row.due_date ? new Date(scope.row.due_date).toLocaleDateString() : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="assignee_email" 
-          label="Assignee"
-          width="200">
-          <template #default="scope">
-            {{ scope.row.assignee_email || '-' }}
-          </template>
-        </el-table-column>
-      </el-table>
+      <TasksList
+        v-if="filters.viewType === 'list'"
+        :tasks="tasks"
+        :loading="loading"
+        :shared-users="assignees"
+        v-model:filters="filters"
+        @update-task="updateTask"
+        @star-toggled="handleStarToggled"
+      />
+
+      <TaskBoardCt
+        v-else
+        :tasks="tasks"
+        :loading="loading"
+        :group-by="boardGroupBy"
+        :shared-users="assignees"
+        v-model:filters="filters"
+        @update-task="updateTask"
+      />
     </div>
   </div>
 
@@ -288,6 +273,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { ArrowUp, ArrowDown, Star, StarFilled, Check } from '@element-plus/icons-vue';
 import QuickTaskViewCt from '../single-matter/QuickTaskViewCt.vue';
+import TasksList from '../single-matter/TasksList.vue';
+import TaskBoardCt from '../single-matter/TaskBoardCt.vue';
 
 export default {
   name: 'AllTasksCt',
@@ -297,7 +284,9 @@ export default {
     Star,
     StarFilled,
     Check,
-    QuickTaskViewCt
+    QuickTaskViewCt,
+    TasksList,
+    TaskBoardCt
   },
   setup() {
     const router = useRouter();
@@ -318,7 +307,10 @@ export default {
         dueDate: null,
         matter: null,
         assignee: [],
-        starred: false
+        starred: false,
+        starredBy: [],
+        viewType: 'list',
+        orderBy: 'priority_desc'
       },
       savedFilters: [],
       savedFiltersDialogVisible: false,
@@ -326,6 +318,7 @@ export default {
       assigneeSearchQuery: '',
       selectedTask: null,
       quickViewVisible: false,
+      boardGroupBy: 'status',
     };
   },
   computed: {
@@ -339,6 +332,7 @@ export default {
       if (this.filters.matter) count++;
       if (this.filters.assignee?.length) count++;
       if (this.filters.starred) count++;
+      if (this.filters.starredBy?.length) count++;
       return count;
     }
   },
@@ -356,13 +350,14 @@ export default {
               title,
               matter_access!inner(shared_with_user_id)
             ),
-            task_stars!left(user_id),
-            task_hours_logs!task_id(
+            task_stars!left(
+              user_id
+            ),
+            task_hours_logs(
               time_taken
             )
           `)
           .eq('deleted', false)
-          .eq('task_stars.user_id', user.id)
           .eq('matter.matter_access.shared_with_user_id', user.id);
 
         // Apply filters
@@ -385,7 +380,52 @@ export default {
           query = query.in('assignee', this.filters.assignee);
         }
         if (this.filters.starred) {
-          query = query.not('task_stars', 'is', null);
+          query = query.not('task_stars.user_id', 'is', null)
+            .eq('task_stars.user_id', user.id);
+        }
+        if (this.filters.starredBy?.length) {
+          query = query.not('task_stars.user_id', 'is', null)
+            .in('task_stars.user_id', this.filters.starredBy);
+        }
+
+        // Apply ordering
+        if (this.filters.orderBy) {
+          switch (this.filters.orderBy) {
+            case 'priority_desc':
+              query = query
+                .order('priority', {
+                  ascending: false,
+                  nullsLast: true,
+                  mapping: {
+                    'high': 3,
+                    'medium': 2,
+                    'low': 1,
+                    null: 0
+                  }
+                })
+                .order('updated_at', { ascending: false });
+              break;
+            case 'priority_asc':
+              query = query
+                .order('priority', {
+                  ascending: true,
+                  nullsLast: true,
+                  mapping: {
+                    'high': 3,
+                    'medium': 2,
+                    'low': 1,
+                    null: 0
+                  }
+                })
+                .order('updated_at', { ascending: false });
+              break;
+            case 'activity_desc':
+              query = query.order('updated_at', { ascending: false });
+              break;
+            case 'activity_asc':
+              query = query.order('updated_at', { ascending: true });
+              break;
+          }
         }
 
         const { data: tasks, error } = await query;
@@ -402,10 +442,9 @@ export default {
             ...task,
             matter_title: task.matter?.title || 'Unknown Matter',
             assignee_email: assigneeEmail,
-            starred: Boolean(task.task_stars?.length),
+            starred: task.task_stars?.some(star => star.user_id === user.id) || false,
             total_hours: task.task_hours_logs?.reduce((sum, log) => {
               if (!log.time_taken) return sum;
-              // Convert time_taken (PostgreSQL time type) to hours
               const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
               const totalHours = hours + minutes/60 + seconds/3600;
               return sum + totalHours;
@@ -447,8 +486,12 @@ export default {
         dueDate: null,
         matter: null,
         assignee: [],
-        starred: false
+        starred: false,
+        starredBy: [],
+        viewType: 'list',
+        orderBy: 'priority_desc'
       };
+      this.boardGroupBy = 'status';
       this.loadTasks();
     },
 
@@ -727,6 +770,39 @@ export default {
     navigateToDetailedView(row) {
       if (!row || !row.matter_id) return;
       this.router.push(`/single-matter/${row.matter_id}/tasks/${row.id}`);
+    },
+
+    async updateTask(task) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            status: task.status,
+            assignee: task.assignee,
+            priority: task.priority,
+            due_date: task.due_date,
+            parent_task_id: task.parent_task_id
+          })
+          .eq('id', task.id);
+
+        if (error) throw error;
+
+        // Update the task in the local state
+        await this.loadTasks();
+        ElMessage.success('Task updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating task: ' + error.message);
+      }
+    },
+
+    async handleStarToggled(taskId, isStarred) {
+      // Find and update the task in the local state
+      const task = this.tasks.find(t => t.id === taskId);
+      if (task) {
+        task.starred = isStarred;
+      }
+      // Reload tasks to ensure consistency
+      await this.loadTasks();
     }
   },
   mounted() {

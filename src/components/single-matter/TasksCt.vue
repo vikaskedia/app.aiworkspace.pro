@@ -114,6 +114,9 @@ export default {
         this.resetNewTask();
       }
     },
+    boardGroupBy(newValue) {
+      this.saveFilters();
+    },
     filters: {
       deep: true,
       handler() {
@@ -796,23 +799,24 @@ export default {
     },
 
     async loadSavedFilters() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from('saved_filters')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        this.savedFilters = data;
-      } catch (error) {
-        console.error('Error loading saved filters:', error);
-        ElMessage.error('Error loading saved filters: ' + error.message);
-        this.savedFilters = [];
+      const savedFilters = localStorage.getItem('taskListFilters');
+      if (savedFilters) {
+        const parsedFilters = JSON.parse(savedFilters);
+        // Extract boardGroupBy from saved filters
+        const { boardGroupBy, ...filters } = parsedFilters;
+        
+        // Ensure excludeStatus is an array with 'completed' as default if not set
+        if (!filters.excludeStatus?.length) {
+          filters.excludeStatus = ['completed'];
+        }
+        
+        // Set the filters
+        this.filters = filters;
+        
+        // Set the boardGroupBy if it exists
+        if (boardGroupBy) {
+          this.boardGroupBy = boardGroupBy;
+        }
       }
     },
 
@@ -1152,6 +1156,7 @@ export default {
         viewType: 'list'
       };
       this.boardGroupBy = 'status';
+      this.saveFilters(); // Save the cleared state
     },
 
     handleShowDeletedChange(value) {
@@ -1159,18 +1164,31 @@ export default {
     },
 
     saveFilters() {
-      localStorage.setItem('taskListFilters', JSON.stringify(this.filters));
+      localStorage.setItem('taskListFilters', JSON.stringify({
+        ...this.filters,
+        boardGroupBy: this.boardGroupBy
+      }));
     },
 
     loadSavedFilters() {
       const savedFilters = localStorage.getItem('taskListFilters');
       if (savedFilters) {
         const parsedFilters = JSON.parse(savedFilters);
+        // Extract boardGroupBy from saved filters
+        const { boardGroupBy, ...filters } = parsedFilters;
+        
         // Ensure excludeStatus is an array with 'completed' as default if not set
-        if (!parsedFilters.excludeStatus?.length) {
-          parsedFilters.excludeStatus = ['completed'];
+        if (!filters.excludeStatus?.length) {
+          filters.excludeStatus = ['completed'];
         }
-        this.filters = parsedFilters;
+        
+        // Set the filters
+        this.filters = filters;
+        
+        // Set the boardGroupBy if it exists
+        if (boardGroupBy) {
+          this.boardGroupBy = boardGroupBy;
+        }
       }
     },
   },

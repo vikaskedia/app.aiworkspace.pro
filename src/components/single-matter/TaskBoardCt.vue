@@ -40,6 +40,11 @@
                 </div>
               </div>
               
+              <button class="add-task-button" @click="handleAddTask(column)">
+                <el-icon><Plus /></el-icon>
+                Add Task
+              </button>
+
               <draggable
                 class="task-list"
                 v-model="column.tasks"
@@ -48,38 +53,82 @@
                 :draggable="false"
                 @change="(e) => onTaskMove(e, column)">
                 <template #item="{ element: task }">
-                  <div class="task-card">
-                    <div class="info-icon-wrapper">
-                      <el-icon 
-                        class="info-icon" 
-                        @click.stop="navigateToDetailedView(task)">
-                        <InfoFilled />
-                      </el-icon>
-                    </div>
-                    <div class="task-header">
-                      <span class="task-title">{{ task.title }}</span>
-                    </div>
-                    <div class="task-meta">
-                      <el-tag 
-                        v-if="groupBy !== 'status'"
-                        :type="getStatusType(task)" 
-                        size="small">
-                        {{ formatStatus(task.status) }}
-                      </el-tag>
-                      <div class="priority-wrapper">
-                        <el-tag 
-                          v-if="groupBy !== 'priority'"
-                          :type="getPriorityType(task.priority)" 
-                          size="small">
-                          {{ task.priority }}
-                        </el-tag>
+                  <div class="task-card" :class="{ 'is-new': task.isNew }">
+                    <div v-if="task.isNew" class="new-task-wrapper">
+                      <div class="new-task-header">
+                        <template v-if="isAllTasksContext">
+                          <el-dropdown trigger="click" @command="(matter) => { selectedMatter = matter; updateTaskMatter(task); }">
+                            <span class="matter-selector">
+                              {{ selectedMatter?.title || 'Select Matter' }}
+                              <el-icon class="el-icon--right"><CaretBottom /></el-icon>
+                            </span>
+                            <template #dropdown>
+                              <el-dropdown-menu>
+                                <el-dropdown-item 
+                                  v-for="matter in matters" 
+                                  :key="matter.id"
+                                  :command="matter">
+                                  {{ matter.title }}
+                                </el-dropdown-item>
+                              </el-dropdown-menu>
+                            </template>
+                          </el-dropdown>
+                        </template>
+                        <span v-else>{{ currentMatter?.title || 'Single Matter' }}</span>
                       </div>
-                      <div 
-                        v-if="groupBy !== 'assignee' && task.assignee"
-                        class="assignee">
-                        <el-avatar :size="20">
-                          {{ getInitials(getAssigneeName(task)) }}
-                        </el-avatar>
+                      <div class="new-task-content">
+                        <el-icon class="cancel-icon" @click="cancelNewTask(task, column)" title="Cancel new task">
+                          <Close />
+                        </el-icon>
+                        <el-input
+                          v-model="task.title"
+                          placeholder="Enter task title..."
+                          size="small"
+                          @keyup.enter="handleSubmit(task)"
+                          @keyup.esc="cancelNewTask(task, column)"
+                        />
+                        <el-button 
+                          type="primary" 
+                          size="small" 
+                          @click="handleSubmit(task)"
+                          :disabled="!task.title.trim()">
+                          Save
+                        </el-button>
+                      </div>
+                    </div>
+                    <div v-else>
+                      <div class="info-icon-wrapper">
+                        <el-icon 
+                          class="info-icon" 
+                          @click.stop="navigateToDetailedView(task)">
+                          <InfoFilled />
+                        </el-icon>
+                      </div>
+                      <div class="task-header">
+                        <span class="task-title">{{ task.title }}</span>
+                      </div>
+                      <div class="task-meta">
+                        <el-tag 
+                          v-if="groupBy !== 'status'"
+                          :type="getStatusType(task)" 
+                          size="small">
+                          {{ formatStatus(task.status) }}
+                        </el-tag>
+                        <div class="priority-wrapper">
+                          <el-tag 
+                            v-if="groupBy !== 'priority'"
+                            :type="getPriorityType(task.priority)" 
+                            size="small">
+                            {{ task.priority }}
+                          </el-tag>
+                        </div>
+                        <div 
+                          v-if="groupBy !== 'assignee' && task.assignee"
+                          class="assignee">
+                          <el-avatar :size="20">
+                            {{ getInitials(getAssigneeName(task)) }}
+                          </el-avatar>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -127,8 +176,11 @@
   <script>
   import { defineComponent } from 'vue'
   import draggable from 'vuedraggable'
-  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled } from '@element-plus/icons-vue'
+  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
+  import { useMatterStore } from '../../store/matter'
+  import { storeToRefs } from 'pinia'
+  import { supabase } from '../../supabase'
   
   export default defineComponent({
     components: {
@@ -137,7 +189,9 @@
       More,
       ArrowLeft,
       ArrowRight,
-      InfoFilled
+      InfoFilled,
+      Close,
+      CaretBottom
     },
   
     props: {
@@ -161,6 +215,28 @@
       filters: {
         type: Object,
         required: true
+      },
+      isAllTasksContext: {
+        type: Boolean,
+        default: false
+      },
+      matters: {
+        type: Array,
+        default: () => []
+      },
+      currentMatter: {
+        type: Object,
+        required: false,
+        default: null
+      }
+    },
+  
+    setup() {
+      const matterStore = useMatterStore()
+      const { currentMatter } = storeToRefs(matterStore)
+      
+      return {
+        currentMatter
       }
     },
   
@@ -173,7 +249,8 @@
           title: '',
           type: 'custom',
           assignee: null
-        }
+        },
+        selectedMatter: null
       }
     },
   
@@ -477,6 +554,76 @@
   
       navigateToDetailedView(task) {
         this.$router.push(`/single-matter/${task.matter_id}/tasks/${task.id}`);
+      },
+  
+      handleAddTask(column) {
+        const newTask = {
+          id: `temp-${Date.now()}`,
+          title: '',
+          status: this.groupBy === 'status' ? column.id : 'not_started',
+          priority: this.groupBy === 'priority' ? column.id : 'medium',
+          assignee: this.groupBy === 'assignee' ? column.id : null,
+          matter_id: this.currentMatter?.id,
+          isNew: true,
+          isEditing: true
+        };
+
+        column.tasks.unshift(newTask);
+      },
+  
+      cancelNewTask(task, column) {
+        const taskIndex = column.tasks.findIndex(t => t.id === task.id);
+        if (taskIndex !== -1) {
+          column.tasks.splice(taskIndex, 1);
+        }
+      },
+  
+      async handleSubmit(task) {
+        if (!task.title.trim()) return;
+        
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          const taskData = {
+            title: task.title.trim(),
+            status: this.groupBy === 'status' ? task.status : 'not_started',
+            priority: this.groupBy === 'priority' ? task.priority : 'medium',
+            assignee: this.groupBy === 'assignee' ? task.assignee : null,
+            matter_id: this.isAllTasksContext ? this.selectedMatter?.id : this.currentMatter?.id,
+            created_by: user.id
+          };
+
+          const { data, error } = await supabase
+            .from('tasks')
+            .insert([taskData])
+            .select();
+
+          if (error) throw error;
+
+          // Emit event to parent to handle the new task
+          this.$emit('update-task', data[0]);
+
+          // Remove the temporary task from column
+          const column = this.columns.find(col => col.tasks.includes(task));
+          if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+              column.tasks.splice(taskIndex, 1);
+            }
+            // Add the new task to the column
+            column.tasks.unshift(data[0]);
+          }
+
+          ElMessage.success('Task created successfully');
+        } catch (error) {
+          ElMessage.error('Error creating task: ' + error.message);
+        }
+      },
+  
+      updateTaskMatter(task) {
+        if (this.selectedMatter) {
+          task.matter_id = this.selectedMatter.id;
+        }
       }
     },
   
@@ -507,6 +654,22 @@
           this.initializeColumns();
         },
         deep: true
+      },
+      matters: {
+        immediate: true,
+        handler(matters) {
+          if (this.isAllTasksContext && matters.length > 0 && !this.selectedMatter) {
+            this.selectedMatter = matters[0];
+          }
+        }
+      },
+      currentMatter: {
+        immediate: true,
+        handler(val) {
+          if (!this.isAllTasksContext) {
+            this.selectedMatter = val;
+          }
+        }
       }
     },
   
@@ -531,6 +694,9 @@
         }
         
         return tasks;
+      },
+      isAllMatters() {
+        return this.isAllTasksContext;
       }
     },
   
@@ -798,5 +964,88 @@
     .task-meta .el-tag {
       font-size: 0.85rem;
     }
+  }
+
+  .add-task-button {
+    width: 100%;
+    padding: 8px;
+    background: var(--el-color-primary-light-9);
+    border: 1px dashed var(--el-color-primary);
+    color: var(--el-color-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    margin: 0;
+  }
+
+  .add-task-button:hover {
+    background: var(--el-color-primary-light-8);
+    border-color: var(--el-color-primary-dark-2);
+  }
+
+  .add-task-button .el-icon {
+    font-size: 16px;
+  }
+
+  .task-card.is-new {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--el-border-color-lighter);
+    transition: all 0.2s ease;
+  }
+
+  .new-task-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .new-task-header {
+    font-size: 0.9rem;
+    color: var(--el-text-color-regular);
+    font-weight: 500;
+  }
+
+  .matter-selector {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .matter-selector:hover {
+    background-color: var(--el-fill-color-light);
+  }
+
+  .new-task-content {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .new-task-content .el-input {
+    flex: 1;
+  }
+
+  .cancel-icon {
+    cursor: pointer;
+    color: var(--el-color-danger);
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .cancel-icon:hover {
+    background: var(--el-color-danger-light-9);
+    transform: translateY(-1px);
   }
   </style> 

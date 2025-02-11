@@ -214,6 +214,9 @@
         :tasks="tasks"
         :loading="loading"
         :group-by="boardGroupBy"
+        :is-all-tasks-context="true"
+        :matters="matters"
+        :current-matter="selectedMatter"
         :shared-users="assignees"
         v-model:filters="filters"
         @update-task="updateTask"
@@ -319,6 +322,7 @@ export default {
       selectedTask: null,
       quickViewVisible: false,
       boardGroupBy: 'status',
+      selectedMatter: null,
     };
   },
   computed: {
@@ -853,6 +857,14 @@ export default {
       deep: true,
       handler() {
         this.loadTasks();
+      }
+    },
+    matters: {
+      immediate: true,
+      handler(matters) {
+        if (matters.length > 0 && !this.selectedMatter) {
+          this.selectedMatter = matters[0];
+        }
       }
     }
   }

@@ -914,6 +914,7 @@ export default {
         { value: 'not_started', label: 'Not started' },
         { value: 'in_progress', label: 'In Progress' },
         { value: 'awaiting_external', label: 'Awaiting external factor' },
+        { value: 'awaiting_internal', label: 'Awaiting internal factor' },
         { value: 'completed', label: 'Completed' }
       ],
       priorityOptions: [
@@ -1748,7 +1749,8 @@ export default {
         'in_progress': 'In progress',
         'not_started': 'Not started',
         'completed': 'Completed',
-        'awaiting_external': 'Awaiting external factor'
+        'awaiting_external': 'Awaiting external factor',
+        'awaiting_internal': 'Awaiting internal factor'
       };
       return statusMap[status] || status;
     },

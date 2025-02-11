@@ -289,7 +289,8 @@ export default {
         'in_progress': 'In progress',
         'not_started': 'Not started',
         'completed': 'Completed',
-        'awaiting_external': 'Awaiting external factor'
+        'awaiting_external': 'Awaiting external factor',
+        'awaiting_internal': 'Awaiting internal factor'
       };
       return statusMap[status] || status;
     },
@@ -518,6 +519,7 @@ export default {
       { label: 'Not started', value: 'not_started' },
       { label: 'In progress', value: 'in_progress' },
       { label: 'Awaiting external factor', value: 'awaiting_external' },
+      { label: 'Awaiting internal factor', value: 'awaiting_internal' },
       { label: 'Completed', value: 'completed' }
     ]
 
@@ -735,6 +737,7 @@ export default {
               <el-option label="Not started" value="not_started" />
               <el-option label="In progress" value="in_progress" />
               <el-option label="Awaiting external factor" value="awaiting_external" />
+              <el-option label="Awaiting internal factor" value="awaiting_internal" />
               <el-option label="Completed" value="completed" />
             </el-select>
           </el-form-item>
@@ -789,6 +792,7 @@ export default {
               <el-option label="Not started" value="not_started" />
               <el-option label="In progress" value="in_progress" />
               <el-option label="Awaiting external factor" value="awaiting_external" />
+              <el-option label="Awaiting internal factor" value="awaiting_internal" />
               <el-option label="Completed" value="completed" />
             </el-select>
           </el-form-item>

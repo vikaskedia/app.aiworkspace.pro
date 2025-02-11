@@ -246,7 +246,8 @@ export default {
         'in_progress': 'In progress',
         'not_started': 'Not started',
         'completed': 'Completed',
-        'awaiting_external': 'Awaiting external factor'
+        'awaiting_external': 'Awaiting external factor',
+        'awaiting_internal': 'Awaiting internal factor'
       };
       return statusMap[status] || status;
     },

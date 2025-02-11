@@ -272,6 +272,7 @@
                 { id: 'not_started', title: 'Not Started', tasks: [] },
                 { id: 'in_progress', title: 'In Progress', tasks: [] },
                 { id: 'awaiting_external', title: 'Awaiting External', tasks: [] },
+                { id: 'awaiting_internal', title: 'Awaiting Internal', tasks: [] },
                 { id: 'completed', title: 'Completed', tasks: [] }
               ];
             }
@@ -505,7 +506,8 @@
           'in_progress': 'In Progress',
           'not_started': 'Not Started',
           'completed': 'Completed',
-          'awaiting_external': 'Awaiting External'
+          'awaiting_external': 'Awaiting External',
+          'awaiting_internal': 'Awaiting Internal'
         };
         return statusMap[status] || status;
       },

@@ -668,6 +668,8 @@ export default {
             this.boardGroupBy = filter.filters.boardGroupBy;
           }
           this.filters = { ...filter.filters };
+          // Update page title with filter name
+          document.title = `${filter.filter_name} | TaskManager`;
           this.loadTasks();
           this.router.push(`/all-matters/tasks/saved-filters/${filterId}`);
           ElMessage.success('Filters loaded successfully');
@@ -676,11 +678,13 @@ export default {
     },
 
     async loadSavedFilter(filter) {
-      // Extract boardGroupBy before deleting it from filter.filters
+      // Set boardGroupBy first
       if (filter.filters.boardGroupBy) {
         this.boardGroupBy = filter.filters.boardGroupBy;
       }
       this.filters = { ...filter.filters };
+      // Update page title with filter name
+      document.title = `${filter.filter_name} | TaskManager`;
       this.savedFiltersDialogVisible = false;
       this.router.push(`/all-matters/tasks/saved-filters/${filter.id}`);
       ElMessage.success('Filters loaded successfully');
@@ -764,6 +768,8 @@ export default {
             this.boardGroupBy = filter.filters.boardGroupBy;
           }
           this.filters = { ...filter.filters };
+          // Set page title with filter name
+          document.title = `${filter.filter_name} | TaskManager`;
           this.loadTasks();
         }
       }
@@ -878,7 +884,16 @@ export default {
           this.selectedMatter = matters[0];
         }
       }
+    },
+    '$route'(to) {
+      // Reset title when leaving filtered view
+      if (!to.path.includes('/saved-filters/')) {
+        document.title = 'TaskManager';
+      }
     }
+  },
+  unmounted() {
+    document.title = 'TaskManager';
   }
 };
 </script>

@@ -941,6 +941,7 @@ export default {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
+    document.title = 'TaskManager';
   },
   methods: { 
     async handleDueDateChange(date) {
@@ -2479,6 +2480,14 @@ ${comment.content}
     shareDialogVisible(newVal) {
       if (newVal) {
         this.generateShareLink();
+      }
+    },
+    'task.title': {
+      immediate: true,
+      handler(newTitle) {
+        if (newTitle) {
+          document.title = `${newTitle} | TaskManager`;
+        }
       }
     }
   },

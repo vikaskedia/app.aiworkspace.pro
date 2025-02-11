@@ -663,6 +663,10 @@ export default {
         const filterId = command[1];
         const filter = this.savedFilters.find(f => f.id === filterId);
         if (filter) {
+          // Set boardGroupBy first
+          if (filter.filters.boardGroupBy) {
+            this.boardGroupBy = filter.filters.boardGroupBy;
+          }
           this.filters = { ...filter.filters };
           this.loadTasks();
           this.router.push(`/all-matters/tasks/saved-filters/${filterId}`);
@@ -672,9 +676,9 @@ export default {
     },
 
     async loadSavedFilter(filter) {
+      // Extract boardGroupBy before deleting it from filter.filters
       if (filter.filters.boardGroupBy) {
         this.boardGroupBy = filter.filters.boardGroupBy;
-        delete filter.filters.boardGroupBy;
       }
       this.filters = { ...filter.filters };
       this.savedFiltersDialogVisible = false;
@@ -755,6 +759,10 @@ export default {
         await this.loadSavedFilters(); // Make sure we have the filters loaded
         const filter = this.savedFilters.find(f => f.id === filterId);
         if (filter) {
+          // Set boardGroupBy first
+          if (filter.filters.boardGroupBy) {
+            this.boardGroupBy = filter.filters.boardGroupBy;
+          }
           this.filters = { ...filter.filters };
           this.loadTasks();
         }
@@ -843,10 +851,11 @@ export default {
         const filterId = to.path.split('/saved-filters/')[1];
         const filter = this.savedFilters.find(f => f.id === filterId);
         if (filter) {
+          // Set boardGroupBy first
           if (filter.filters.boardGroupBy) {
             this.boardGroupBy = filter.filters.boardGroupBy;
-            delete filter.filters.boardGroupBy;
           }
+          // Then set other filters
           this.filters = { ...filter.filters };
           this.loadTasks();
         }

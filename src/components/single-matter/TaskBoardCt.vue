@@ -109,14 +109,18 @@
                         <el-tag 
                           v-if="groupBy !== 'status'"
                           :type="getStatusType(task)" 
-                          size="small">
+                          size="small"
+                          class="clickable"
+                          @click="handleStatusClick(task.status, $event)">
                           {{ formatStatus(task.status) }}
                         </el-tag>
                         <div class="priority-wrapper">
                           <el-tag 
                             v-if="groupBy !== 'priority'"
                             :type="getPriorityType(task.priority)" 
-                            size="small">
+                            size="small"
+                            class="clickable"
+                            @click="handlePriorityClick(task.priority, $event)">
                             {{ task.priority }}
                           </el-tag>
                         </div>
@@ -647,6 +651,16 @@
         if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
         if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
         return date.toLocaleDateString();
+      },
+  
+      handleStatusClick(status, event) {
+        event.stopPropagation(); // Prevent card click event
+        this.$emit('filter-by-status', status);
+      },
+  
+      handlePriorityClick(priority, event) {
+        event.stopPropagation(); // Prevent card click event
+        this.$emit('filter-by-priority', priority);
       }
     },
   
@@ -723,7 +737,7 @@
       }
     },
   
-    emits: ['update-task', 'update:filters']
+    emits: ['update-task', 'update:filters', 'filter-by-status', 'filter-by-priority']
   })
   </script>
   
@@ -1097,5 +1111,14 @@
 
 .task-meta {
   justify-content: space-between;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.clickable:hover {
+  opacity: 0.8;
 }
   </style> 

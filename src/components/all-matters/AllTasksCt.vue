@@ -222,6 +222,8 @@
         :shared-users="assignees"
         v-model:filters="filters"
         @update-task="updateTask"
+        @filter-by-status="handleFilterByStatus"
+        @filter-by-priority="handleFilterByPriority"
       />
     </div>
   </div>
@@ -833,6 +835,18 @@ export default {
       }
       // Reload tasks to ensure consistency
       await this.loadTasks();
+    },
+
+    handleFilterByStatus(status) {
+      this.filters.status = [status];
+      //this.showFilters = true;
+      this.loadTasks();
+    },
+
+    handleFilterByPriority(priority) {
+      this.filters.priority = priority;
+      //this.showFilters = true;
+      this.loadTasks();
     }
   },
   mounted() {
@@ -1019,6 +1033,15 @@ export default {
 
 :deep(.el-table__indent) {
   padding-left: 15px !important;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.clickable:hover {
+  opacity: 0.8;
 }
 </style>
 

@@ -131,11 +131,19 @@
                             {{ getInitials(getAssigneeName(task)) }}
                           </el-avatar>
                         </div>
+                        <el-tag 
+                          v-if="task.due_date"
+                          :type="getDueDateType(task)"
+                          size="small"
+                          class="clickable">
+                          <el-icon><Calendar /></el-icon>
+                          {{ formatDueDate(task.due_date) }}
+                        </el-tag>
                         <el-tooltip 
                           :content="new Date(task.updated_at).toLocaleString()"
                           placement="top">
                           <span class="updated-time">
-                            {{ getRelativeTime(task.updated_at) }}
+                            Updated at {{ getRelativeTime(task.updated_at) }}
                           </span>
                         </el-tooltip>
                       </div>
@@ -185,7 +193,7 @@
   <script>
   import { defineComponent } from 'vue'
   import draggable from 'vuedraggable'
-  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom } from '@element-plus/icons-vue'
+  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom, Calendar } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import { useMatterStore } from '../../store/matter'
   import { storeToRefs } from 'pinia'
@@ -200,7 +208,8 @@
       ArrowRight,
       InfoFilled,
       Close,
-      CaretBottom
+      CaretBottom,
+      Calendar
     },
   
     props: {
@@ -661,6 +670,28 @@
       handlePriorityClick(priority, event) {
         event.stopPropagation(); // Prevent card click event
         this.$emit('filter-by-priority', priority);
+      },
+  
+      formatDueDate(date) {
+        if (!date) return 'No due date';
+        const dueDate = new Date(date);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        if (dueDate.toDateString() === today.toDateString()) return 'Today';
+        if (dueDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+        return dueDate.toLocaleDateString();
+      },
+  
+      getDueDateType(task) {
+        if (!task.due_date) return 'info';
+        const dueDate = new Date(task.due_date);
+        const today = new Date();
+        
+        if (dueDate < today && task.status !== 'completed') return 'danger';
+        if (dueDate.toDateString() === today.toDateString()) return 'warning';
+        return 'info';
       }
     },
   

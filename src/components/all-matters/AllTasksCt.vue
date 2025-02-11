@@ -362,7 +362,8 @@ export default {
               user_id
             ),
             task_hours_logs(
-              time_taken
+              time_taken,
+              created_at
             )
           `)
           .eq('deleted', false)
@@ -446,6 +447,8 @@ export default {
             await this.loadUserEmail(task.assignee) : 
             null;
 
+          const timePeriods = this.calculateTimeLogPeriods(task.task_hours_logs || []);
+
           return {
             ...task,
             matter_title: task.matter?.title || 'Unknown Matter',
@@ -453,10 +456,15 @@ export default {
             starred: task.task_stars?.some(star => star.user_id === user.id) || false,
             total_hours: task.task_hours_logs?.reduce((sum, log) => {
               if (!log.time_taken) return sum;
-              const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
-              const totalHours = hours + minutes/60 + seconds/3600;
+              const [hours, minutes] = log.time_taken.split(':').map(Number);
+              const totalHours = hours + minutes/60;
               return sum + totalHours;
-            }, 0) || 0
+            }, 0) || 0,
+            time_periods: {
+              daily: Math.round(timePeriods.daily / 60 * 10) / 10,
+              weekly: Math.round(timePeriods.weekly / 60 * 10) / 10,
+              monthly: Math.round(timePeriods.monthly / 60 * 10) / 10
+            }
           };
         }));
 
@@ -847,6 +855,33 @@ export default {
       this.filters.priority = priority;
       //this.showFilters = true;
       this.loadTasks();
+    },
+
+    calculateTimeLogPeriods(hoursLogs) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay());
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      return hoursLogs.reduce((acc, log) => {
+        if (!log.time_taken) return acc;
+        const logDate = new Date(log.created_at);
+        const [hours, minutes] = log.time_taken.split(':').map(Number);
+        const timeInMinutes = (hours * 60) + minutes;
+
+        if (logDate >= today) {
+          acc.daily += timeInMinutes;
+        }
+        if (logDate >= weekStart) {
+          acc.weekly += timeInMinutes;
+        }
+        if (logDate >= monthStart) {
+          acc.monthly += timeInMinutes;
+        }
+
+        return acc;
+      }, { daily: 0, weekly: 0, monthly: 0 });
     }
   },
   mounted() {

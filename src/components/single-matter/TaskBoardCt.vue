@@ -122,11 +122,18 @@
                         </div>
                         <div 
                           v-if="groupBy !== 'assignee' && task.assignee"
-                          class="assignee">
+                          class="assignee-wrapper">
                           <el-avatar :size="20">
                             {{ getInitials(getAssigneeName(task)) }}
                           </el-avatar>
                         </div>
+                        <el-tooltip 
+                          :content="new Date(task.updated_at).toLocaleString()"
+                          placement="top">
+                          <span class="updated-time">
+                            {{ getRelativeTime(task.updated_at) }}
+                          </span>
+                        </el-tooltip>
                       </div>
                     </div>
                   </div>
@@ -624,6 +631,18 @@
         if (this.selectedMatter) {
           task.matter_id = this.selectedMatter.id;
         }
+      },
+  
+      getRelativeTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        return date.toLocaleDateString();
       }
     },
   
@@ -789,7 +808,7 @@
   }
   
   .board-column {
-    flex: 0 0 300px;
+    flex: 0 0 332px;
     background: var(--el-fill-color-light);
     border-radius: 12px;
     display: flex;
@@ -1064,5 +1083,15 @@
 .header-add-task-button:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.1);
+}
+
+.updated-time {
+  font-size: 0.8rem;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+}
+
+.task-meta {
+  justify-content: space-between;
 }
   </style> 

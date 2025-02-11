@@ -745,7 +745,6 @@
   .task-board {
     height: 100%;
     overflow: hidden;
-    padding: 16px;
     background: var(--el-fill-color-blank);
   }
   
@@ -753,7 +752,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 10px;
   }
   
   .controls-left {
@@ -789,7 +787,6 @@
   .board-container {
     height: 100%;
     overflow-x: auto;
-    padding: 0.35rem 0;
     position: relative;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
@@ -820,13 +817,13 @@
   
   .board-columns {
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
     min-height: 100%;
     padding: 0.5rem;
   }
   
   .board-column {
-    flex: 0 0 332px;
+    flex: 0 0 300px;
     background: var(--el-fill-color-light);
     border-radius: 12px;
     display: flex;
@@ -869,10 +866,10 @@
   .task-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0.75rem;
+    padding: 0.375rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.375rem;
   }
   
   .task-card {

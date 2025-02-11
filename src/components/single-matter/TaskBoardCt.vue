@@ -37,14 +37,12 @@
                   </el-avatar>
                   <h3>{{ column.title }}</h3>
                   <span class="task-count">({{ column.tasks.length }})</span>
+                  <el-icon class="header-add-task-button" @click="handleAddTask(column)" title="Add Task">
+                    <Plus />
+                  </el-icon>
                 </div>
               </div>
               
-              <button class="add-task-button" @click="handleAddTask(column)">
-                <el-icon><Plus /></el-icon>
-                Add Task
-              </button>
-
               <draggable
                 class="task-list"
                 v-model="column.tasks"
@@ -811,6 +809,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    width: 100%;
   }
   
   .column-title h3 {
@@ -819,6 +818,7 @@
     color: #ffffff;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    flex: 1;
   }
   
   .task-count {
@@ -1050,4 +1050,19 @@
     background: var(--el-color-danger-light-9);
     transform: translateY(-1px);
   }
+
+.header-add-task-button {
+  cursor: pointer;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.header-add-task-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
   </style> 

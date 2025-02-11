@@ -483,11 +483,13 @@
           case 'completed':
             return 'success';
           case 'in_progress':
-            return 'primary';
+            return 'warning';
           case 'not_started':
             return 'info';
           case 'awaiting_external':
-            return 'warning';
+            return 'danger';
+          case 'awaiting_internal':
+            return 'primary';
           default:
             return 'info';
         }
@@ -539,7 +541,9 @@
               case 'not_started':
                 return 'var(--el-color-info)';
               case 'awaiting_external':
-                return 'var(--el-color-warning)';
+                return 'var(--el-color-danger)';
+              case 'awaiting_internal':
+                return 'var(--el-color-primary)';
               default:
                 return 'var(--el-color-info)';
             }

@@ -26,7 +26,7 @@
           :group="{ name: 'columns' }"
           handle=".column-header">
           <template #item="{ element: column }">
-            <div class="board-column">
+            <div v-if="column.tasks.length > 0" class="board-column">
               <div class="column-header" :style="{ backgroundColor: getHeaderBackgroundColor(column) }">
                 <div class="column-title">
                   <el-avatar 
@@ -516,7 +516,8 @@
   
     computed: {
       showScrollButtons() {
-        return this.columns.length > 4 && window.innerWidth > 768;
+        const visibleColumnsCount = this.columns.filter(col => col.tasks.length > 0).length;
+        return visibleColumnsCount > 4 && window.innerWidth > 768;
       },
       filteredTasks() {
         let tasks = this.tasks.slice();

@@ -128,9 +128,15 @@
                         <div 
                           v-if="groupBy !== 'assignee' && task.assignee"
                           class="assignee-wrapper">
-                          <el-avatar :size="20">
-                            {{ getInitials(getAssigneeName(task)) }}
-                          </el-avatar>
+                          <el-tooltip 
+                            :content="getAssigneeName(task).displayName"
+                            placement="top">
+                            <el-avatar 
+                              :size="20"
+                              :src="getAssigneeName(task).avatarUrl">
+                              {{ getInitials(getAssigneeName(task).name) }}
+                            </el-avatar>
+                          </el-tooltip>
                         </div>
                         <el-tag 
                           v-if="task.due_date"
@@ -515,7 +521,11 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   
       getAssigneeName(task) {
         const assignee = this.sharedUsers.find(user => user.id === task.assignee);
-        return assignee ? assignee.email : 'Unassigned';
+        return {
+          name: assignee ? assignee.email : 'Unassigned',
+          avatarUrl: assignee?.avatar_url || null,
+          displayName: assignee ? assignee.displayName : 'Unassigned'
+        };
       },
   
       getStatusType(task) {

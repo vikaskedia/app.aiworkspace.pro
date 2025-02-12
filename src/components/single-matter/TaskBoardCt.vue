@@ -30,7 +30,7 @@
               <div class="column-header" :style="{ backgroundColor: getHeaderBackgroundColor(column) }">
                 <div class="column-title">
                   <el-avatar 
-                    v-if="groupBy === 'assignee' && column.assignee" 
+                    v-if="(groupBy === 'assignee' || groupBy === 'starred_by') && column.id !== 'unassigned'" 
                     :size="18"
                     :src="column.avatarUrl">
                     {{ getInitials(column.title) }}
@@ -364,6 +364,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                 return {
                   id: userId,
                   title: user?.displayName || 'Unknown User',
+                  avatarUrl: user?.avatar_url,
                   tasks: []
                 };
               });

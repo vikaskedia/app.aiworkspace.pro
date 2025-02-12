@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { FullScreen, Close, Folder, Document } from '@element-plus/icons-vue';
+import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
@@ -15,7 +15,10 @@ export default {
     EditableTable,
     RichTextEditor,
     TiptapEditor,
-    Document
+    Document,
+    Edit,
+    Star,
+    StarFilled
   },
   props: {
     task: {
@@ -62,6 +65,9 @@ export default {
       selectedUserIndex: -1,
       isDescriptionExpanded: false,
       isCommentBoxExpanded: false,
+      isEditingTitle: false,
+      editingTitle: '',
+      localTask: null,
     };
   },
   computed: {
@@ -85,6 +91,9 @@ export default {
       } else {
         return '35%';
       }
+    },
+    isTaskStarred() {
+      return this.task?.task_stars?.some(star => star.user_id === this.currentUser?.id) || false;
     }
   },
   watch: {
@@ -968,7 +977,83 @@ Please provide assistance based on this context, the comment history, the availa
       preCaretRange.selectNodeContents(range.startContainer.parentElement);
       preCaretRange.setEnd(range.startContainer, range.startOffset);
       return preCaretRange.toString().length;
-    }
+    },
+
+    startTitleEdit() {
+      this.editingTitle = this.task.title;
+      this.isEditingTitle = true;
+      this.$nextTick(() => {
+        this.$refs.titleInput.focus();
+      });
+    },
+
+    async saveTitleEdit() {
+      if (!this.editingTitle.trim() || this.editingTitle === this.task.title) {
+        this.cancelTitleEdit();
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ 
+            title: this.editingTitle,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.$emit('update:task', { ...this.task, ...data });
+        this.isEditingTitle = false;
+      } catch (error) {
+        console.error('Error updating task title:', error);
+        ElMessage.error('Failed to update task title');
+      }
+    },
+
+    cancelTitleEdit() {
+      this.isEditingTitle = false;
+      this.editingTitle = this.task.title;
+    },
+
+    async toggleTaskStar() {
+      try {
+        const isStarred = this.isTaskStarred;
+
+        if (isStarred) {
+          // Remove star
+          const { error } = await supabase
+            .from('task_stars')
+            .delete()
+            .eq('task_id', this.task.id)
+            .eq('user_id', this.currentUser.id);
+
+          if (error) throw error;
+          this.task.task_stars = this.task.task_stars.filter(star => star.user_id !== this.currentUser.id);
+        } else {
+          // Add star
+          const { data, error } = await supabase
+            .from('task_stars')
+            .insert({
+              task_id: this.task.id,
+              user_id: this.currentUser.id
+            })
+            .select();
+
+          if (error) throw error;
+          this.task.task_stars = [...(this.task.task_stars || []), data[0]];
+        }
+
+        // Emit update event
+        this.$emit('update:task', this.task);
+        ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
+      } catch (error) {
+        ElMessage.error('Error toggling star: ' + error.message);
+      }
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1005,13 +1090,57 @@ Please provide assistance based on this context, the comment history, the availa
   <el-drawer
     :model-value="visible"
     @update:model-value="$emit('update:visible', $event)"
-    :title="`Comments - ${task.title}`"
+    :title="false"
     direction="rtl"
-    :size="drawerSize">
+    :size="drawerSize"
+  >
     <template #header>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>Comments - {{ task.title }}</span>
-        <div style="margin-left: auto; display: flex; gap: 8px;">
+      <div class="drawer-header">
+        <div class="title-section">
+          <div class="title-wrapper">
+            <div class="star-container">
+              <el-icon 
+                class="star-icon"
+                :class="{ 'starred': isTaskStarred }"
+                @click.stop="toggleTaskStar"
+              >
+                <Star v-if="!isTaskStarred" />
+                <StarFilled v-else />
+              </el-icon>
+            </div>
+            
+            <h2 
+              v-if="!isEditingTitle" 
+              @click="startTitleEdit"
+              class="editable-title"
+            >
+              {{ task?.title }}
+              <el-icon class="edit-icon"><Edit /></el-icon>
+            </h2>
+            
+            <div v-else class="title-edit-wrapper">
+              <el-input
+                v-model="editingTitle"
+                ref="titleInput"
+                size="large"
+                @keyup.enter="saveTitleEdit"
+                @keyup.esc="cancelTitleEdit"
+              />
+              <div class="title-edit-actions">
+                <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
+                <el-button 
+                  type="primary" 
+                  @click="saveTitleEdit" 
+                  size="small"
+                  :disabled="!editingTitle.trim() || editingTitle === task?.title"
+                >
+                  Save
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="drawer-header-actions">
           <el-button
             type="primary"
             link
@@ -1022,14 +1151,21 @@ Please provide assistance based on this context, the comment history, the availa
                 taskId: task.id
               }
             })"
-            style="padding: 0">
+          >
             <el-icon><FullScreen /></el-icon>
           </el-button>
-
         </div>
       </div>
     </template>
+
     <div class="comments-container">
+      <!-- Comments Header -->
+      <div class="comments-header">
+        <div class="comments-title">
+          <span>Comments</span>
+        </div>
+      </div>
+
       <!-- Description section -->
       <div class="description-section">
         <div v-if="task.description" class="task-description">
@@ -1231,6 +1367,25 @@ Please provide assistance based on this context, the comment history, the availa
   flex-direction: column;
   height: calc(100vh - 120px); /* Account for header and padding */
   overflow: hidden;
+}
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.comments-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .description-section {
@@ -1546,5 +1701,74 @@ div.comment-text>span>p>a {
 
 .ai-response .author-avatar {
   background-color: var(--el-color-success) !important;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  width: 100%;
+}
+
+.title-section {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16px;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editable-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.edit-icon {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.editable-title:hover .edit-icon {
+  opacity: 1;
+}
+
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.drawer-header-actions .el-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  padding: 8px;
+}
+
+.title-edit-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 </style>

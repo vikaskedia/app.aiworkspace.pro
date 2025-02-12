@@ -952,7 +952,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .filters-container[data-v-6f63dc8b] {

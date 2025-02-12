@@ -816,6 +816,7 @@
   }
   
   .board-container {
+    width: 100%;
     height: 100%;
     overflow-x: auto;
     position: relative;
@@ -823,27 +824,27 @@
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Hide scrollbar but maintain functionality */
   .board-container::-webkit-scrollbar {
-    height: 0;
-    width: 0;
-    background: transparent;
+    height: 8px;
+    background: var(--el-fill-color-light);
   }
   
-  @media (max-width: 768px) {
-    .scroll-controls {
-      display: none;
-    }
-    
-    .board-container {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scroll-snap-type: x mandatory;
-    }
-    
-    .board-column {
-      scroll-snap-align: start;
-    }
+  .board-container::-webkit-scrollbar-thumb {
+    background: var(--el-border-color);
+    border-radius: 4px;
+  }
+  
+  .board-container::-webkit-scrollbar-thumb:hover {
+    background: var(--el-border-color-darker);
+  }
+  
+  /* Create a wrapper for top scrollbar */
+  .board-container::before {
+    content: '';
+    display: block;
+    height: 8px;
+    background: var(--el-fill-color-light);
+    margin-bottom: 4px;
   }
   
   .board-columns {
@@ -851,6 +852,7 @@
     gap: 0.5rem;
     min-height: 100%;
     padding: 0.5rem;
+    min-width: fit-content;
   }
   
   .board-column {

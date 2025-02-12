@@ -247,7 +247,7 @@
       </el-table-column>
       <el-table-column
         label="Actions"
-        width="150"
+        width="250"
         align="right">
         <template #default="scope">
           <el-button
@@ -255,6 +255,13 @@
             link
             @click="loadSavedFilter(scope.row)">
             Load
+          </el-button>
+          <el-button
+            type="success"
+            link
+            :disabled="scope.row.is_default"
+            @click="setAsDefault(scope.row)">
+            {{ scope.row.is_default ? 'Default' : 'Set as Default' }}
           </el-button>
           <el-button
             type="danger"
@@ -597,6 +604,23 @@ export default {
         if (error) throw error;
         this.savedFilters = data || [];
 
+        // If we're on the main tasks page and not viewing a specific saved filter,
+        // load the default filter if one exists
+        if (
+          this.$route.path === '/all-matters/tasks' && 
+          !this.$route.path.includes('/saved-filters/')
+        ) {
+          const defaultFilter = this.savedFilters.find(f => f.is_default);
+          if (defaultFilter) {
+            // Set boardGroupBy first
+            if (defaultFilter.filters.boardGroupBy) {
+              this.boardGroupBy = defaultFilter.filters.boardGroupBy;
+            }
+            // Then set other filters
+            this.filters = { ...defaultFilter.filters };
+            this.loadTasks();
+          }
+        }
       } catch (error) {
         console.error('Error loading saved filters:', error);
         ElMessage.error('Error loading saved filters: ' + error.message);
@@ -899,6 +923,42 @@ export default {
 
         return acc;
       }, { daily: 0, weekly: 0, monthly: 0 });
+    },
+
+    async setAsDefault(filter) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+
+        // Begin transaction
+        // First, remove default status from any existing default filter
+        const { error: updateError } = await supabase
+          .from('saved_filters')
+          .update({ is_default: false })
+          .eq('user_id', user.id)
+          .eq('is_default', true);
+
+        if (updateError) throw updateError;
+
+        // Set the new default filter
+        const { error } = await supabase
+          .from('saved_filters')
+          .update({ is_default: true })
+          .eq('id', filter.id);
+
+        if (error) throw error;
+
+        // Update local state
+        this.savedFilters = this.savedFilters.map(f => ({
+          ...f,
+          is_default: f.id === filter.id
+        }));
+
+        ElMessage.success('Default filter set successfully');
+      } catch (error) {
+        console.error('Error setting default filter:', error);
+        ElMessage.error('Error setting default filter: ' + error.message);
+      }
     }
   },
   mounted() {

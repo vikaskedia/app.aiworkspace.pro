@@ -34,11 +34,15 @@ export default {
 .all-matters-content {
   margin: 0 auto;
   padding: 2rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 @media (max-width: 640px) {
   .all-matters-content {
     padding: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 }
 </style> 

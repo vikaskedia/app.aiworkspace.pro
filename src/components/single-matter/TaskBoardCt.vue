@@ -165,7 +165,7 @@
                         </el-tooltip>
                         <div class="time-logs-stats" v-if="task.task_hours_logs?.length">
                           <el-tooltip 
-                            :content="`HL: Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
+                            :content="`Hour Log: Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
 Weekly: ${formatTimeInMinutes(timePeriods[task.id]?.weekly || 0)}
 Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                             placement="top">
@@ -181,7 +181,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                           v-if="isAllTasksContext"
                           class="matter-wrapper">
                           <el-tooltip 
-                            :content="task.matter?.title || 'No Matter'"
+                            :content="'This is the matter name.'"
                             placement="top">
                             <el-tag size="small" type="primary">
                               {{ task.matter?.title || 'No Matter' }}

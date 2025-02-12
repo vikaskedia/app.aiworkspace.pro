@@ -142,30 +142,36 @@
                             </el-avatar>
                           </el-tooltip>
                         </div>
-                        <el-tag 
-                          v-if="task.due_date"
-                          :type="getDueDateType(task)"
-                          size="small"
-                          class="clickable">
-                          <el-icon><Calendar /></el-icon>
-                          {{ formatDueDate(task.due_date) }}
-                        </el-tag>
+
                         <el-tooltip 
-                          :content="new Date(task.updated_at).toLocaleString()"
+                            content="Due Date"
+                            placement="top">
+                          <el-tag 
+                            v-if="task.due_date"
+                            :type="getDueDateType(task)"
+                            size="small"
+                            class="clickable">
+                            <el-icon><Calendar /></el-icon>
+                            {{ formatDueDate(task.due_date) }}
+                          </el-tag>
+                        </el-tooltip>
+
+                        <el-tooltip 
+                          :content="`Updated at ` + new Date(task.updated_at).toLocaleString()"
                           placement="top">
                           <span class="updated-time">
-                            Updated at {{ getRelativeTime(task.updated_at) }}
+                            {{ getRelativeTime(task.updated_at) }}
                           </span>
                         </el-tooltip>
                         <div class="time-logs-stats" v-if="task.task_hours_logs?.length">
                           <el-tooltip 
-                            :content="`Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
+                            :content="`HL: Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
 Weekly: ${formatTimeInMinutes(timePeriods[task.id]?.weekly || 0)}
 Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                             placement="top">
                             <el-tag size="small" type="info">
                               <el-icon><Timer /></el-icon>
-                              HL: {{ formatTimeInMinutes(timePeriods[task.id]?.daily || 0) }} /
+                              {{ formatTimeInMinutes(timePeriods[task.id]?.daily || 0) }} /
                               {{ formatTimeInMinutes(timePeriods[task.id]?.weekly || 0) }} /
                               {{ formatTimeInMinutes(timePeriods[task.id]?.monthly || 0) }}
                             </el-tag>

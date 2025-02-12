@@ -183,7 +183,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                           <el-tooltip 
                             :content="'This is the matter name.'"
                             placement="top">
-                            <el-tag size="small" type="primary">
+                            <el-tag class="matter-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-matter', task.matter_id)">
                               {{ task.matter?.title || 'No Matter' }}
                             </el-tag>
                           </el-tooltip>
@@ -878,7 +878,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       }
     },
   
-    emits: ['update-task', 'update:filters', 'filter-by-status', 'filter-by-priority']
+    emits: ['update-task', 'update:filters', 'filter-by-status', 'filter-by-priority', 'filter-by-matter']
   })
   </script>
   
@@ -1284,5 +1284,10 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.matter-title.clickable:hover {
+  color: var(--el-color-primary);
+  cursor: pointer;
 }
   </style> 

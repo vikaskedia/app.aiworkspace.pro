@@ -224,6 +224,7 @@
         @update-task="updateTask"
         @filter-by-status="handleFilterByStatus"
         @filter-by-priority="handleFilterByPriority"
+        @filter-by-matter="handleFilterByMatter"
       />
     </div>
   </div>
@@ -959,6 +960,12 @@ export default {
         console.error('Error setting default filter:', error);
         ElMessage.error('Error setting default filter: ' + error.message);
       }
+    },
+
+    handleFilterByMatter(matterId) {
+      this.filters.matter = matterId;
+      //this.showFilters = true;
+      this.loadTasks();
     }
   },
   mounted() {

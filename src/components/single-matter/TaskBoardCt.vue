@@ -231,9 +231,10 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       </el-dialog>
 
       <QuickTaskViewCt
-        v-if="selectedTask"
-        v-model:visible="quickViewVisible"
+        v-if="quickViewVisible"
         :task="selectedTask"
+        v-model:visible="quickViewVisible"
+        @update:task="handleTaskUpdate"
       />
     </div>
   </template>
@@ -802,6 +803,19 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       handleTaskTitleClick(task) {
         this.selectedTask = task;
         this.quickViewVisible = true;
+      },
+
+      async handleTaskUpdate(updatedTask) {
+        // Update the task in selectedTask
+        this.selectedTask = updatedTask;
+        
+        // Find and update the task in the columns
+        this.columns.forEach(column => {
+          const taskIndex = column.tasks.findIndex(t => t.id === updatedTask.id);
+          if (taskIndex !== -1) {
+            column.tasks[taskIndex] = { ...column.tasks[taskIndex], ...updatedTask };
+          }
+        });
       }
     },
   

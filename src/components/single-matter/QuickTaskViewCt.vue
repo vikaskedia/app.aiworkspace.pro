@@ -1006,8 +1006,34 @@ Please provide assistance based on this context, the comment history, the availa
 
         if (error) throw error;
 
+        // Update the local task object with the new data
         this.$emit('update:task', { ...this.task, ...data });
+        
+        // Create activity log for title change
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: `Updated title from "${this.task.title}" to "${this.editingTitle}"`,
+            type: 'activity',
+            metadata: {
+              action: 'update',
+              changes: {
+                title: {
+                  from: this.task.title,
+                  to: this.editingTitle
+                }
+              }
+            }
+          });
+
+        // Update local task title
+        this.task.title = this.editingTitle;
+        
         this.isEditingTitle = false;
+        ElMessage.success('Task title updated successfully');
       } catch (error) {
         console.error('Error updating task title:', error);
         ElMessage.error('Failed to update task title');

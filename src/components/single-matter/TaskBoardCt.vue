@@ -177,6 +177,17 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                             </el-tag>
                           </el-tooltip>
                         </div>
+                        <div 
+                          v-if="isAllTasksContext"
+                          class="matter-wrapper">
+                          <el-tooltip 
+                            :content="task.matter?.title || 'No Matter'"
+                            placement="top">
+                            <el-tag size="small" type="primary">
+                              {{ task.matter?.title || 'No Matter' }}
+                            </el-tag>
+                          </el-tooltip>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1261,5 +1272,17 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   align-items: center;
   gap: 4px;
   font-family: 'Roboto Mono', monospace;
+}
+
+.matter-wrapper {
+  display: flex;
+  align-items: center;
+  max-width: 200px;
+}
+
+.matter-wrapper .el-tag {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
   </style> 

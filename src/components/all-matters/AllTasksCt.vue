@@ -560,7 +560,24 @@ export default {
           });
           
         if (error) throw error;
-        this.assignees = users;
+
+        // Get full user info for each assignee
+        const assigneesWithFullInfo = await Promise.all(
+          users.map(async (user) => {
+            const { data: userData } = await supabase
+              .rpc('get_user_full_info_by_id', {
+                user_id: user.id
+              });
+            //console.log('userData:', userData);
+            return {
+              ...user,
+              displayName: userData?.[0]?.full_name || userData?.[0]?.email.split('@')[0],
+              avatar_url: userData?.[0]?.avatar_url
+            };
+          })
+        );
+
+        this.assignees = assigneesWithFullInfo;
       } catch (error) {
         console.error('Error loading assignees:', error);
       }

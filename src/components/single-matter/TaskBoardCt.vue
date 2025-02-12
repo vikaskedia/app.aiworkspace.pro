@@ -349,7 +349,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
               
             columns.push(...filteredUsers.map(user => ({
               id: user.id,
-              title: user.email,
+              title: user.displayName || user.email.split('@')[0],
               assignee: user.id,
               avatarUrl: user.avatar_url,
               tasks: []
@@ -363,7 +363,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                 const user = this.sharedUsers.find(u => u.id === userId);
                 return {
                   id: userId,
-                  title: user?.email || 'Unknown User',
+                  title: user?.displayName || 'Unknown User',
                   tasks: []
                 };
               });

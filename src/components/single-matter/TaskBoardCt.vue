@@ -146,6 +146,20 @@
                             Updated at {{ getRelativeTime(task.updated_at) }}
                           </span>
                         </el-tooltip>
+                        <div class="time-logs-stats" v-if="task.task_hours_logs?.length">
+                          <el-tooltip 
+                            :content="`Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
+Weekly: ${formatTimeInMinutes(timePeriods[task.id]?.weekly || 0)}
+Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
+                            placement="top">
+                            <el-tag size="small" type="info">
+                              <el-icon><Timer /></el-icon>
+                              HL: {{ formatTimeInMinutes(timePeriods[task.id]?.daily || 0) }} /
+                              {{ formatTimeInMinutes(timePeriods[task.id]?.weekly || 0) }} /
+                              {{ formatTimeInMinutes(timePeriods[task.id]?.monthly || 0) }}
+                            </el-tag>
+                          </el-tooltip>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -193,7 +207,7 @@
   <script>
   import { defineComponent } from 'vue'
   import draggable from 'vuedraggable'
-  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom, Calendar } from '@element-plus/icons-vue'
+  import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom, Calendar, Timer } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import { useMatterStore } from '../../store/matter'
   import { storeToRefs } from 'pinia'
@@ -209,7 +223,8 @@
       InfoFilled,
       Close,
       CaretBottom,
-      Calendar
+      Calendar,
+      Timer
     },
   
     props: {
@@ -268,7 +283,8 @@
           type: 'custom',
           assignee: null
         },
-        selectedMatter: null
+        selectedMatter: null,
+        timePeriods: {}
       }
     },
   
@@ -377,6 +393,15 @@
         });
         
         this.columns = columns;
+
+        // After distributing tasks to columns
+        this.timePeriods = {};
+        this.filteredTasks.forEach(task => {
+          if (task.task_hours_logs?.length) {
+            this.timePeriods[task.id] = this.calculateTimeLogPeriods(task.task_hours_logs);
+            //console.log(task.id, this.timePeriods[task.id], task.task_hours_logs);
+          }
+        });
       },
   
       getColumnIdForTask(task) {
@@ -692,6 +717,43 @@
         if (dueDate < today && task.status !== 'completed') return 'danger';
         if (dueDate.toDateString() === today.toDateString()) return 'warning';
         return 'info';
+      },
+  
+      calculateTimeLogPeriods(hoursLogs) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        return hoursLogs.reduce((acc, log) => {
+          if (!log.time_taken) return acc;
+          //console.log(log);
+          const logDate = new Date(log.created_at);
+          const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
+          const timeInMinutes = (hours * 60) + minutes;
+          //console.log(timeInMinutes);
+
+          if (logDate >= today) {
+            acc.daily += timeInMinutes;
+          }
+          if (logDate >= weekStart) {
+            acc.weekly += timeInMinutes;
+          }
+          if (logDate >= monthStart) {
+            acc.monthly += timeInMinutes;
+          }
+         
+          return acc;
+        }, { daily: 0, weekly: 0, monthly: 0 });
+      },
+  
+      formatTimeInMinutes(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        if (hours === 0) return `${remainingMinutes}m`;
+        if (remainingMinutes === 0) return `${hours}h`;
+        return `${hours}h ${remainingMinutes}m`;
       }
     },
   
@@ -1150,5 +1212,18 @@
 
 .clickable:hover {
   opacity: 0.8;
+}
+
+.time-logs-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.time-logs-stats .el-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Roboto Mono', monospace;
 }
   </style> 

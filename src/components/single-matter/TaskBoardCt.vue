@@ -46,9 +46,10 @@
               <draggable
                 class="task-list"
                 v-model="column.tasks"
-                :group="{ name: 'tasks' }"
+                :group="{ name: 'tasks', pull: false, put: false }"
                 item-key="id"
-                :draggable="false"
+                :sort="false"
+                :disabled="true"
                 @change="(e) => onTaskMove(e, column)">
                 <template #item="{ element: task }">
                   <div class="task-card" :class="{ 'is-new': task.isNew }">
@@ -842,9 +843,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   }
   
   .board-controls {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: none;
   }
   
   .controls-left {
@@ -904,9 +903,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   .board-container::before {
     content: '';
     display: block;
-    height: 8px;
+    /* height: 8px; */
     background: var(--el-fill-color-light);
-    margin-bottom: 4px;
+    /* margin-bottom: 4px; */
   }
   
   .board-columns {

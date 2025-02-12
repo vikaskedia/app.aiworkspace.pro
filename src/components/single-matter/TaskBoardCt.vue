@@ -104,7 +104,11 @@
                         </el-icon>
                       </div>
                       <div class="task-header">
-                        <span class="task-title">{{ task.title }}</span>
+                        <span 
+                          class="task-title" 
+                          @click.stop="handleTaskTitleClick(task)">
+                          {{ task.title }}
+                        </span>
                       </div>
                       <div class="task-meta">
                         <el-tag 
@@ -208,6 +212,12 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           <el-button type="primary" @click="saveColumn">Save</el-button>
         </template>
       </el-dialog>
+
+      <QuickTaskViewCt
+        v-if="selectedTask"
+        v-model:visible="quickViewVisible"
+        :task="selectedTask"
+      />
     </div>
   </template>
   
@@ -219,6 +229,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   import { useMatterStore } from '../../store/matter'
   import { storeToRefs } from 'pinia'
   import { supabase } from '../../supabase'
+  import QuickTaskViewCt from './QuickTaskViewCt.vue'
   
   export default defineComponent({
     components: {
@@ -231,7 +242,8 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       Close,
       CaretBottom,
       Calendar,
-      Timer
+      Timer,
+      QuickTaskViewCt
     },
   
     props: {
@@ -291,7 +303,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           assignee: null
         },
         selectedMatter: null,
-        timePeriods: {}
+        timePeriods: {},
+        selectedTask: null,
+        quickViewVisible: false
       }
     },
   
@@ -766,6 +780,11 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         if (hours === 0) return `${remainingMinutes}m`;
         if (remainingMinutes === 0) return `${hours}h`;
         return `${hours}h ${remainingMinutes}m`;
+      },
+  
+      handleTaskTitleClick(task) {
+        this.selectedTask = task;
+        this.quickViewVisible = true;
       }
     },
   
@@ -1019,6 +1038,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     align-items: flex-start;
     gap: 12px;
     margin-bottom: 12px;
+    cursor: pointer;
   }
   
   .task-title {

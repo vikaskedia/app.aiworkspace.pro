@@ -132,7 +132,9 @@
                         <div 
                           v-if="groupBy !== 'assignee' && task.assignee"
                           class="assignee-wrapper">
-                          <el-tooltip 
+                          <el-tooltip
+                            :show-after="500"
+                            :enterable="true"
                             :content="getAssigneeName(task).displayName"
                             placement="top">
                             <el-avatar 
@@ -143,9 +145,11 @@
                           </el-tooltip>
                         </div>
 
-                        <el-tooltip 
-                            content="Due Date"
-                            placement="top">
+                        <el-tooltip
+                          :show-after="500"
+                          :enterable="true"
+                          content="Due Date"
+                          placement="top">
                           <el-tag 
                             v-if="task.due_date"
                             :type="getDueDateType(task)"
@@ -156,7 +160,9 @@
                           </el-tag>
                         </el-tooltip>
 
-                        <el-tooltip 
+                        <el-tooltip
+                          :show-after="500"
+                          :enterable="true"
                           :content="`Updated at ` + new Date(task.updated_at).toLocaleString()"
                           placement="top">
                           <span class="updated-time">
@@ -164,7 +170,9 @@
                           </span>
                         </el-tooltip>
                         <div class="time-logs-stats" v-if="task.task_hours_logs?.length">
-                          <el-tooltip 
+                          <el-tooltip
+                            :show-after="500"
+                            :enterable="true"
                             :content="`Hour Log: Today: ${formatTimeInMinutes(timePeriods[task.id]?.daily || 0)}
 Weekly: ${formatTimeInMinutes(timePeriods[task.id]?.weekly || 0)}
 Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
@@ -180,7 +188,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                         <div 
                           v-if="isAllTasksContext"
                           class="matter-wrapper">
-                          <el-tooltip 
+                          <el-tooltip
+                            :show-after="500"
+                            :enterable="true"
                             :content="'This is the matter name.'"
                             placement="top">
                             <el-tag class="matter-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-matter', task.matter_id)">

@@ -245,6 +245,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         :task="selectedTask"
         v-model:visible="quickViewVisible"
         @update:task="handleTaskUpdate"
+        @status-updated="handleStatusUpdate"
       />
     </div>
   </template>
@@ -826,6 +827,14 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             column.tasks[taskIndex] = { ...column.tasks[taskIndex], ...updatedTask };
           }
         });
+      },
+
+      async handleStatusUpdate({ taskId, status }) {
+        // Find and update the task in the tasks array
+        const taskIndex = this.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
+        }
       }
     },
   

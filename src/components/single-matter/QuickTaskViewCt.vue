@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled } from '@element-plus/icons-vue';
+import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled, ArrowDown } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
@@ -18,7 +18,8 @@ export default {
     Document,
     Edit,
     Star,
-    StarFilled
+    StarFilled,
+    ArrowDown
   },
   props: {
     task: {
@@ -30,7 +31,7 @@ export default {
       required: true
     }
   },
-  emits: ['update:visible'],
+  emits: ['update:visible', 'update:task', 'status-updated'],
   data() {
     return {
       comments: [],
@@ -1080,6 +1081,30 @@ Please provide assistance based on this context, the comment history, the availa
         ElMessage.error('Error toggling star: ' + error.message);
       }
     },
+
+    handleStatusChange: async function (status) {
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ status })
+          .eq('id', this.task.id)
+          .select()
+          .single()
+
+        if (error) throw error
+
+        // Update local task data
+        this.$emit('update:task', { ...this.task, status })
+        
+        // Emit events to update parent components
+        this.$emit('status-updated', { taskId: this.task.id, status })
+        
+        ElMessage.success('Status updated successfully')
+      } catch (error) {
+        console.error('Error updating status:', error)
+        ElMessage.error('Failed to update status')
+      }
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1119,6 +1144,7 @@ Please provide assistance based on this context, the comment history, the availa
     :title="false"
     direction="rtl"
     :size="drawerSize"
+    class="quick-task-view"
   >
     <template #header>
       <div class="drawer-header">
@@ -1153,7 +1179,7 @@ Please provide assistance based on this context, the comment history, the availa
                 @keyup.esc="cancelTitleEdit"
               />
               <div class="title-edit-actions">
-                <el-button @click="cancelTitleEdit" size="small">Cancel</el-button>
+                <el-button @click="cancelEdit">Cancel</el-button>
                 <el-button 
                   type="primary" 
                   @click="saveTitleEdit" 
@@ -1183,6 +1209,49 @@ Please provide assistance based on this context, the comment history, the availa
         </div>
       </div>
     </template>
+
+    <!-- Status Section -->
+    <div class="status-section">
+      <span class="status-label">Status:</span>
+      <el-dropdown 
+        trigger="click" 
+        @command="handleStatusChange"
+      >
+        <el-tag
+          :type="task?.status === 'completed' ? 'success' : 
+                 task?.status === 'in_progress' ? 'warning' : 
+                 task?.status === 'awaiting_external' || task?.status === 'awaiting_internal' ? 'info' :
+                 task?.status === 'not_started' ? 'info' : 'info'"
+          size="small"
+          class="status-tag clickable"
+        >
+          {{ task?.status ? task.status.replace('_', ' ').charAt(0).toUpperCase() + 
+             task.status.slice(1).replace('_', ' ') : 'New' }}
+          <el-icon class="el-icon--right" :size="12"><ArrowDown /></el-icon>
+        </el-tag>
+        <template #dropdown>
+          <el-dropdown-menu class="compact-dropdown">
+            <el-dropdown-item command="not_started">
+              <el-tag size="small" type="info" class="option-tag">Not Started</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="in_progress">
+              <el-tag size="small" type="warning" class="option-tag">In Progress</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="awaiting_external">
+              <el-tag size="small" type="info" class="option-tag">Awaiting External</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="awaiting_internal">
+              <el-tag size="small" type="info" class="option-tag">Awaiting Internal</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="completed">
+              <el-tag size="small" type="success" class="option-tag">Completed</el-tag>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+
+    <el-divider />
 
     <div class="comments-container">
       <!-- Comments Header -->
@@ -1387,7 +1456,7 @@ Please provide assistance based on this context, the comment history, the availa
   </el-drawer>
 </template>
 
-<style>
+<style scoped>
 .comments-container {
   display: flex;
   flex-direction: column;
@@ -1796,5 +1865,48 @@ div.comment-text>span>p>a {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 8px;
+}
+
+.status-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 20px;
+}
+
+.status-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+.status-tag {
+  text-transform: capitalize;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  height: 24px;
+}
+
+.status-tag .el-icon {
+  margin-left: 2px;
+}
+
+.quick-task-view :deep(.el-dropdown .compact-dropdown .el-dropdown-menu__item) {
+  padding: 4px 16px !important;
+  line-height: 1.5;
+  min-height: 24px;
+}
+
+.quick-task-view :deep(.compact-dropdown) {
+  min-width: 140px;
+  padding: 4px;
+}
+
+.quick-task-view :deep(.option-tag) {
+  width: 100%;
+  justify-content: center;
+  margin: 0;
 }
 </style>

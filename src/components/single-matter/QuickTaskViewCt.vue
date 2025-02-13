@@ -1937,7 +1937,7 @@ div.comment-text>span>p>a {
   padding: 4px 20px;
 }
 
-.status-label {
+.status-label, .priority-label {
   font-size: 13px;
   color: var(--el-text-color-secondary);
 }

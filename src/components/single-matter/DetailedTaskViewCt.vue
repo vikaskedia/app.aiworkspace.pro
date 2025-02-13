@@ -923,8 +923,7 @@ export default {
         { value: 'high', label: 'High' }
       ],
       USERS_TO_BYPASS_AI_INTERACTION: [
-          'soumen+040225@grmtech.com',
-          'suvankar@grmtech.com'
+          'soumen+040225@grmtech.com'
       ]
     };
   },

@@ -31,7 +31,7 @@ export default {
       required: true
     }
   },
-  emits: ['update:visible', 'update:task', 'status-updated'],
+  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated'],
   data() {
     return {
       comments: [],
@@ -1105,6 +1105,43 @@ Please provide assistance based on this context, the comment history, the availa
         ElMessage.error('Failed to update status')
       }
     },
+
+    getPriorityType(priority) {
+      switch (priority?.toLowerCase()) {
+        case 'high':
+          return 'danger';
+        case 'medium':
+          return 'warning';
+        case 'low':
+          return 'success';
+        default:
+          return 'info';
+      }
+    },
+
+    async handlePriorityChange(priority) {
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ priority })
+          .eq('id', this.task.id)
+          .select()
+          .single()
+
+        if (error) throw error
+
+        // Update local task data
+        this.$emit('update:task', { ...this.task, priority })
+        
+        // Emit events to update parent components
+        this.$emit('priority-updated', { taskId: this.task.id, priority })
+        
+        ElMessage.success('Priority updated successfully')
+      } catch (error) {
+        console.error('Error updating priority:', error)
+        ElMessage.error('Failed to update priority')
+      }
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1245,6 +1282,32 @@ Please provide assistance based on this context, the comment history, the availa
             </el-dropdown-item>
             <el-dropdown-item command="completed">
               <el-tag size="small" type="success" class="option-tag">Completed</el-tag>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+
+    <div class="priority-section">
+      <span class="priority-label">Priority:</span>
+      <el-dropdown @command="handlePriorityChange" trigger="click">
+        <el-tag
+          :type="getPriorityType(task.priority)"
+          size="small"
+          class="priority-tag">
+          {{ task.priority || 'No priority' }}
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-tag>
+        <template #dropdown>
+          <el-dropdown-menu class="compact-dropdown">
+            <el-dropdown-item command="high">
+              <el-tag size="small" type="danger" class="option-tag">High</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="medium">
+              <el-tag size="small" type="warning" class="option-tag">Medium</el-tag>
+            </el-dropdown-item>
+            <el-dropdown-item command="low">
+              <el-tag size="small" type="success" class="option-tag">Low</el-tag>
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -1908,5 +1971,27 @@ div.comment-text>span>p>a {
   width: 100%;
   justify-content: center;
   margin: 0;
+}
+
+.priority-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0 16px;
+}
+
+.priority-label {
+  font-weight: 500;
+  color: var(--el-text-color-secondary);
+  min-width: 60px;
+}
+
+.priority-tag {
+  cursor: pointer;
+}
+
+.priority-tag:hover {
+  opacity: 0.8;
 }
 </style>

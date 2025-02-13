@@ -246,6 +246,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         v-model:visible="quickViewVisible"
         @update:task="handleTaskUpdate"
         @status-updated="handleStatusUpdate"
+        @priority-updated="handlePriorityUpdate"
       />
     </div>
   </template>
@@ -834,6 +835,14 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         const taskIndex = this.tasks.findIndex(t => t.id === taskId);
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
+        }
+      },
+
+      async handlePriorityUpdate({ taskId, priority }) {
+        // Find and update the task in the tasks array
+        const taskIndex = this.tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
         }
       }
     },

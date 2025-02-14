@@ -97,11 +97,13 @@
                     </div>
                     <div v-else>
                       <div class="info-icon-wrapper">
-                        <el-icon 
-                          class="info-icon" 
-                          @click.stop="navigateToDetailedView(task)">
-                          <InfoFilled />
-                        </el-icon>
+                        <router-link 
+                          :to="`/single-matter/${task.matter_id}/tasks/${task.id}`"
+                          class="info-icon-link">
+                          <el-icon class="info-icon">
+                            <InfoFilled />
+                          </el-icon>
+                        </router-link>
                       </div>
                       <div class="task-header">
                         <span 
@@ -1088,18 +1090,15 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     opacity: 1;
   }
   
-  .info-icon {
-    color: var(--el-color-primary);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+  .info-icon-link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
   }
   
-  .info-icon:hover {
-    background: var(--el-color-primary-light-9);
-    transform: translateY(-1px);
+  .info-icon-link:hover {
+    color: var(--el-color-primary);
   }
   
   .task-header {

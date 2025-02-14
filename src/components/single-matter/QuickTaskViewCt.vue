@@ -31,7 +31,7 @@ export default {
       required: true
     }
   },
-  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated'],
+  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated', 'due-date-updated'],
   data() {
     return {
       comments: [],
@@ -69,6 +69,7 @@ export default {
       isEditingTitle: false,
       editingTitle: '',
       localTask: null,
+      tempDueDate: null,
     };
   },
   computed: {
@@ -1142,6 +1143,49 @@ Please provide assistance based on this context, the comment history, the availa
         ElMessage.error('Failed to update priority')
       }
     },
+
+    getDueDateType(task) {
+      if (!task?.due_date) return 'info';
+      const dueDate = new Date(task.due_date);
+      const today = new Date();
+      
+      if (dueDate < today && task.status !== 'completed') return 'danger';
+      if (dueDate.toDateString() === today.toDateString()) return 'warning';
+      return 'info';
+    },
+
+    async handleDueDateChange(value) {
+      if (value === 'clear') {
+        this.tempDueDate = null;
+      }
+      
+      try {
+        const updatedTask = {
+          ...this.task,
+          due_date: this.tempDueDate
+        };
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({ due_date: this.tempDueDate })
+          .eq('id', this.task.id);
+
+        if (error) throw error;
+        
+        // Update local task data
+        this.$emit('update:task', updatedTask);
+        
+        // Emit due-date-updated event
+        this.$emit('due-date-updated', {
+          taskId: this.task.id,
+          due_date: this.tempDueDate
+        });
+        
+        ElMessage.success('Due date updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating due date: ' + error.message);
+      }
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1309,6 +1353,34 @@ Please provide assistance based on this context, the comment history, the availa
             <el-dropdown-item command="low">
               <el-tag size="small" type="success" class="option-tag">Low</el-tag>
             </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+
+    <div class="due-date-section">
+      <span class="due-date-label">Due Date:</span>
+      <el-dropdown @command="handleDueDateChange" trigger="click">
+        <el-tag
+          :type="getDueDateType(task)"
+          size="small"
+          class="due-date-tag">
+          {{ task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-tag>
+        <template #dropdown>
+          <el-dropdown-menu class="compact-dropdown">
+            <el-dropdown-item>
+              <el-date-picker
+                v-model="tempDueDate"
+                type="date"
+                placeholder="Select due date"
+                style="width: 200px"
+                size="small"
+                @change="handleDueDateChange"
+              />
+            </el-dropdown-item>
+            <el-dropdown-item divided command="clear">Clear due date</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -1937,7 +2009,7 @@ div.comment-text>span>p>a {
   padding: 4px 20px;
 }
 
-.status-label, .priority-label {
+.status-label, .priority-label, .due-date-label {
   font-size: 13px;
   color: var(--el-text-color-secondary);
 }
@@ -1993,5 +2065,25 @@ div.comment-text>span>p>a {
 
 .priority-tag:hover {
   opacity: 0.8;
+}
+
+.due-date-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  margin-bottom: 16px;
+}
+
+/* .due-date-label {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+} */
+
+.due-date-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
 }
 </style>

@@ -247,6 +247,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         @update:task="handleTaskUpdate"
         @status-updated="handleStatusUpdate"
         @priority-updated="handlePriorityUpdate"
+        @due-date-updated="handleDueDateUpdate"
       />
     </div>
   </template>
@@ -844,6 +845,16 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
         }
+      },
+
+      handleDueDateUpdate({ taskId, due_date }) {
+        // Find and update the task in all columns
+        this.columns.forEach(column => {
+          const task = column.tasks.find(t => t.id === taskId);
+          if (task) {
+            task.due_date = due_date;
+          }
+        });
       }
     },
   

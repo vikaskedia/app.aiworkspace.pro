@@ -2002,88 +2002,71 @@ div.comment-text>span>p>a {
   margin-top: 8px;
 }
 
-.status-section {
-  display: flex;
+.status-section,
+.priority-section,
+.due-date-section {
+  display: grid;
+  grid-template-columns: 100px 1fr;
   align-items: center;
-  gap: 8px;
   padding: 4px 20px;
 }
 
-.status-label, .priority-label, .due-date-label {
+.status-label,
+.priority-label,
+.due-date-label {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.status-tag {
+.status-tag,
+.priority-tag,
+.due-date-tag {
   text-transform: capitalize;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 8px;
-  height: 24px;
-}
-
-.status-tag .el-icon {
-  margin-left: 2px;
-}
-
-.quick-task-view :deep(.el-dropdown .compact-dropdown .el-dropdown-menu__item) {
-  padding: 4px 16px !important;
-  line-height: 1.5;
-  min-height: 24px;
-}
-
-.quick-task-view :deep(.compact-dropdown) {
-  min-width: 140px;
-  padding: 4px;
-}
-
-.quick-task-view :deep(.option-tag) {
-  width: 100%;
-  justify-content: center;
-  margin: 0;
-}
-
-.priority-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 0 16px;
-}
-
-.priority-label {
-  font-weight: 500;
-  color: var(--el-text-color-secondary);
-  min-width: 60px;
-}
-
-.priority-tag {
-  cursor: pointer;
-}
-
-.priority-tag:hover {
-  opacity: 0.8;
-}
-
-.due-date-section {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  margin-bottom: 16px;
-}
-
-/* .due-date-label {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-} */
-
-.due-date-tag {
-  display: flex;
-  align-items: center;
   gap: 4px;
-  cursor: pointer;
+  padding: 4px 8px;
+  height: 24px;
+  justify-content: flex-start;
+  width: auto;
+  min-width: 120px;
+}
+
+/* Remove any existing padding-left from status-content */
+.status-content {
+  padding-left: 0;
+}
+
+/* Ensure consistent spacing */
+.metadata-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .status-section,
+  .priority-section,
+  .due-date-section {
+    grid-template-columns: 90px 1fr;
+    padding: 4px 16px;
+  }
+
+  .status-tag,
+  .priority-tag,
+  .due-date-tag {
+    min-width: 100px;
+  }
+}
+
+/* Add this to remove margin from el-drawer__header */
+.quick-task-view :deep(.el-drawer__header) {
+  margin-bottom: 0 !important;
 }
 </style>

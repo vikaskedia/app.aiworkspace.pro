@@ -24,12 +24,67 @@ CREATE TABLE tasks (
   )
 );
 
+ALTER TABLE tasks
+ADD COLUMN updated_at_self_or_related TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+
+
+CREATE OR REPLACE FUNCTION update_task_related_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_TABLE_NAME = 'tasks' THEN
+        -- For direct task updates, update the same row
+        NEW.updated_at_self_or_related = NOW();
+        RETURN NEW;
+    ELSE
+        -- For related table updates, update the referenced task
+        UPDATE tasks 
+        SET updated_at_self_or_related = NOW()
+        WHERE id = NEW.task_id;
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Trigger for tasks table
+CREATE TRIGGER update_task_self_timestamp
+    BEFORE UPDATE OR INSERT
+    ON tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_task_related_timestamp();
+
+-- Trigger for task_comments table
+CREATE TRIGGER update_task_comments_timestamp
+    AFTER INSERT OR UPDATE
+    ON task_comments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_task_related_timestamp();
+
+-- Trigger for task_hours_logs table
+CREATE TRIGGER update_task_hours_logs_timestamp
+    AFTER INSERT OR UPDATE
+    ON task_hours_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_task_related_timestamp();
+
+-- Trigger for task_stars table (if it exists)
+CREATE TRIGGER update_task_stars_timestamp
+    AFTER INSERT OR UPDATE
+    ON task_stars
+    FOR EACH ROW
+    EXECUTE FUNCTION update_task_related_timestamp();
+
+
+
 -- Indexes for tasks
 CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
 CREATE INDEX tasks_matter_id_idx ON public.tasks USING btree (matter_id)
 CREATE INDEX tasks_created_by_idx ON public.tasks USING btree (created_by)
 CREATE INDEX tasks_assignee_idx ON public.tasks USING btree (assignee)
 CREATE INDEX tasks_parent_task_id_idx ON public.tasks USING btree (parent_task_id);
+
+CREATE INDEX tasks_updated_at_self_or_related_idx ON tasks(updated_at_self_or_related);
 
 -- RLS for tasks
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;

@@ -187,8 +187,8 @@
               <el-select
                 v-model="filters.orderBy"
                 style="width: 180px">
-                <el-option label="Priority (Low to High)" value="priority_desc" />
-                <el-option label="Priority (High to Low)" value="priority_asc" />
+                <el-option label="Priority (High to Low)" value="priority_desc" />
+                <el-option label="Priority (Low to High)" value="priority_asc" />
                 <el-option label="Activity (Recent first)" value="activity_desc" />
                 <el-option label="Activity (Oldest first)" value="activity_asc" />
               </el-select>

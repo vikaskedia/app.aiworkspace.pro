@@ -449,6 +449,27 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         
         this.columns = columns;
 
+        // Sort tasks in each column by priority
+        if (this.filters.orderBy === 'priority_desc') {
+          const priorityOrder = { high: 3, medium: 2, low: 1, null: 0 };
+          this.columns.forEach(column => {
+            column.tasks.sort((a, b) => {
+              const priorityA = priorityOrder[a.priority?.toLowerCase()] || 0;
+              const priorityB = priorityOrder[b.priority?.toLowerCase()] || 0;
+              return priorityB - priorityA; // For high to low
+            });
+          });
+        } else if (this.filters.orderBy === 'priority_asc') {
+          const priorityOrder = { high: 3, medium: 2, low: 1, null: 0 };
+          this.columns.forEach(column => {
+            column.tasks.sort((a, b) => {
+              const priorityA = priorityOrder[a.priority?.toLowerCase()] || 0;
+              const priorityB = priorityOrder[b.priority?.toLowerCase()] || 0;
+              return priorityA - priorityB; // For low to high
+            });
+          });
+        }
+
         // After distributing tasks to columns
         this.timePeriods = {};
         this.filteredTasks.forEach(task => {
@@ -903,6 +924,12 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             this.selectedMatter = val;
           }
         }
+      },
+      'filters.orderBy': {
+        handler() {
+          this.initializeColumns();
+        },
+        immediate: true
       }
     },
   

@@ -449,7 +449,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         
         this.columns = columns;
 
-        // Sort tasks in each column by priority
+        // Sort tasks in each column by priority or activity
         if (this.filters.orderBy === 'priority_desc') {
           const priorityOrder = { high: 3, medium: 2, low: 1, null: 0 };
           this.columns.forEach(column => {
@@ -466,6 +466,22 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
               const priorityA = priorityOrder[a.priority?.toLowerCase()] || 0;
               const priorityB = priorityOrder[b.priority?.toLowerCase()] || 0;
               return priorityA - priorityB; // For low to high
+            });
+          });
+        } else if (this.filters.orderBy === 'activity_desc') {
+          this.columns.forEach(column => {
+            column.tasks.sort((a, b) => {
+              const dateA = new Date(a.updated_at_self_or_related || a.updated_at || a.created_at);
+              const dateB = new Date(b.updated_at_self_or_related || b.updated_at || b.created_at);
+              return dateB - dateA;
+            });
+          });
+        } else if (this.filters.orderBy === 'activity_asc') {
+          this.columns.forEach(column => {
+            column.tasks.sort((a, b) => {
+              const dateA = new Date(a.updated_at_self_or_related || a.updated_at || a.created_at);
+              const dateB = new Date(b.updated_at_self_or_related || b.updated_at || b.created_at);
+              return dateA - dateB;
             });
           });
         }

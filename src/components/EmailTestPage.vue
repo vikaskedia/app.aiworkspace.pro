@@ -72,10 +72,50 @@
       }
     },
     methods: {
-      submitForm() {
-        this.$refs.emailFormRef.validate((valid) => {
+      async submitForm() {
+        this.$refs.emailFormRef.validate(async (valid) => {
           if (valid) {
-            console.log('Email Form Data:', this.emailForm);
+            // Prepare request data
+            const requestData = {
+              to: this.emailForm.to,
+              subject: this.emailForm.subject,
+              text: this.emailForm.text
+            };
+
+            // Add optional fields if they have values
+            if (this.emailForm.html) {
+              requestData.html = this.emailForm.html;
+            }
+            if (this.emailForm.from) {
+              requestData.from = this.emailForm.from;
+            }
+            if (this.emailForm.fromName) {
+              requestData.fromName = this.emailForm.fromName;
+            }
+
+            console.log('Making email request with data:', requestData);
+
+            try {
+              const response = await fetch('https://app.associateattorney.ai/api/sendemail', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+              });
+
+              const data = await response.json();
+              console.log('Email API response:', data);
+
+              if (data.success) {
+                ElMessage.success('Email sent successfully');
+              } else {
+                throw new Error(data.error || 'Failed to send email');
+              }
+            } catch (error) {
+              console.error('Error sending email:', error);
+              ElMessage.error('Failed to send email: ' + error.message);
+            }
           }
         });
       }

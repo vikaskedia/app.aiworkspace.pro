@@ -27,6 +27,7 @@
     "axios": "^1.4.0",
     "element-plus": "^2.3.4",
     "lodash": "^4.17.21",
+    "mailersend": "^2.3.0",
     "mitt": "^3.0.1",
     "moment": "^2.29.4",
     "pinia": "^2.3.0",

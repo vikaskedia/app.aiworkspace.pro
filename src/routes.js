@@ -201,6 +201,12 @@ const routes = [
       meta: { requiresAuth: true }
     },
   {
+    path: '/email-test',
+    name: 'EmailTest',
+    component: () => import('./components/EmailTestPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     redirect: '/login'
   }

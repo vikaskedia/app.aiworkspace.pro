@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
   try {
     const { 
-      from = "system@grmtech.com", // Default sender email
+      from = "support@trial-zr6ke4nd9kegon12.mlsender.net",//"system@grmtech.com", // Default sender email
       fromName = "Aassociate Attorney AI", // Default sender name
       to, // Required
       subject = "Notification from Associate Attorney AI", // Default subject

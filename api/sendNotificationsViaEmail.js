@@ -24,8 +24,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      // Fetch first 5 notifications
-      const { data, error } = await supabase
+      // Fetch notifications
+      const { data: notifications, error } = await supabase
         .from('notifications')
         .select('*')
         .limit(5)
@@ -33,11 +33,32 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
-      console.log('First 5 notifications:', data);
+      // Process each notification and check user settings
+      const processedNotifications = await Promise.all(
+        notifications.map(async (notification) => {
+          // Get user settings
+          const { data: userSettings } = await supabase
+            .from('user_settings')
+            .select('settings')
+            .eq('user_id', notification.user_id)
+            .maybeSingle();
+
+          // Check if email notifications are enabled
+          let emailEnabled = false;
+          if (userSettings?.settings) {
+            emailEnabled = userSettings.settings.emailNotificationsEnabled ?? false;
+          }
+
+          return {
+            ...notification,
+            emailNotificationsEnabled: emailEnabled
+          };
+        })
+      );
 
       return res.status(200).json({ 
         message: 'Notifications retrieved successfully',
-        data: data
+        data: processedNotifications
       });
     } catch (error) {
       console.error('Error fetching notifications:', error);

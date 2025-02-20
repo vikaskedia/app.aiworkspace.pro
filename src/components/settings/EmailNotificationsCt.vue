@@ -35,6 +35,7 @@ export default {
       emailNotificationsEnabled: false
     });
     const loading = ref(false);
+    const isInitialized = ref(false);
 
     const loadSettings = async () => {
       try {
@@ -42,20 +43,19 @@ export default {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        // First check if user has any settings
         const { data: existingSettings, error: settingsError } = await supabase
           .from('user_settings')
           .select('settings')
           .eq('user_id', session.user.id)
-          .maybeSingle(); // Use maybeSingle() instead of single()
+          .maybeSingle();
 
         if (settingsError) throw settingsError;
 
-        // If user has settings, use them. Otherwise, use defaults
         if (existingSettings?.settings?.emailNotificationsEnabled !== undefined) {
+          unwatchSettings?.();
           settings.value.emailNotificationsEnabled = existingSettings.settings.emailNotificationsEnabled;
+          setupWatch();
         } else {
-          // Create initial settings for the user
           const { error: insertError } = await supabase
             .from('user_settings')
             .insert({
@@ -67,6 +67,7 @@ export default {
 
           if (insertError) throw insertError;
         }
+        isInitialized.value = true;
       } catch (error) {
         ElMessage.error('Error loading settings: ' + error.message);
       } finally {
@@ -75,12 +76,13 @@ export default {
     };
 
     const saveSettings = async () => {
+      if (!isInitialized.value) return;
+
       try {
         loading.value = true;
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        console.log('session.user.id', session.user.id);
-        // First try to get existing settings
+
         const { data: existingData } = await supabase
           .from('user_settings')
           .select('settings')
@@ -110,10 +112,13 @@ export default {
       }
     };
 
-    // Watch for changes and save automatically
-    watch(() => settings.value.emailNotificationsEnabled, saveSettings);
+    let unwatchSettings = null;
+    const setupWatch = () => {
+      unwatchSettings = watch(() => settings.value.emailNotificationsEnabled, saveSettings);
+    };
 
     onMounted(loadSettings);
+    setupWatch();
 
     return {
       settings,

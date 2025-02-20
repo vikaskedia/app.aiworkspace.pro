@@ -2,19 +2,35 @@
   <div class="email-notifications-container">
     <h2>Email Notification Settings</h2>
     
-    <el-form :model="settings" label-position="top" class="settings-form">
-      <div class="settings-section">
+    <el-form 
+      :model="settings" 
+      label-position="top" 
+      class="settings-form"
+      @submit.prevent
+    >
+      <div 
+        class="settings-section"
+        tabindex="-1"
+      >
         <el-form-item label="Email Notifications">
-          <div class="notification-toggle">
+          <div 
+            class="notification-toggle"
+            role="group"
+            aria-labelledby="notification-toggle-label"
+          >
             <el-switch
               v-model="settings.emailNotificationsEnabled"
               :loading="loading"
+              :aria-label="settings.emailNotificationsEnabled ? 'Disable email notifications' : 'Enable email notifications'"
             />
-            <span class="toggle-label">
+            <span 
+              id="notification-toggle-label"
+              class="toggle-label"
+            >
               {{ settings.emailNotificationsEnabled ? 'Enabled' : 'Disabled' }}
             </span>
           </div>
-          <div class="help-text">
+          <div class="help-text" role="note">
             When enabled, you will receive email notifications for important updates.
           </div>
         </el-form-item>

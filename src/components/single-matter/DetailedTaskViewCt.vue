@@ -816,6 +816,7 @@ import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
+import { emailNotification } from '../../utils/notificationHelpers';
 
 export default {
   components: {
@@ -1117,6 +1118,13 @@ export default {
       }
       
       ElMessage.success('Assignee updated successfully');
+      
+      // Call emailNotification with the required parameters
+      emailNotification(
+        'task_assigned',
+        this.task.id
+        // this.assigneeEmail
+      );
     } catch (error) {
       ElMessage.error('Error updating assignee: ' + error.message);
     } finally {
@@ -2254,32 +2262,6 @@ export default {
       this.displayedHoursLogs = this.showAllLogs ? this.hoursLogs : this.hoursLogs.slice(0, 3);
     },
 
-    async handleAssigneeChange(userId) {
-      try {
-        this.loading = true;
-        const { error } = await supabase
-          .from('tasks')
-          .update({ assignee: userId || null })
-          .eq('id', this.task.id);
-
-        if (error) throw error;
-
-        this.task.assignee = userId;
-        this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
-        
-        // Use nextTick to ensure DOM updates before closing popover
-        await this.$nextTick();
-        if (this.$refs.assigneePopover) {
-          this.$refs.assigneePopover.hide();
-        }
-        
-        ElMessage.success('Assignee updated successfully');
-      } catch (error) {
-        ElMessage.error('Error updating assignee: ' + error.message);
-      } finally {
-        this.loading = false;
-      }
-    },
     updateDueDate() {
       this.task.due_date = this.tempDueDate;
       this.closeDueDatePopover();

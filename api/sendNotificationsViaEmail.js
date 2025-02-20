@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+
 export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -14,11 +16,35 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Handle GET and POST methods
+  // Initialize Supabase client
+  const supabase = createClient(
+    process.env.VITE_SUPABASE_URL,
+    process.env.VITE_SUPABASE_ANON_KEY
+  );
+
   if (req.method === 'GET') {
-    return res.status(200).json({ 
-      message: 'Hello World from GET method!'
-    });
+    try {
+      // Fetch first 5 notifications
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .limit(5)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('First 5 notifications:', data);
+
+      return res.status(200).json({ 
+        message: 'Notifications retrieved successfully'
+      });
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      return res.status(500).json({ 
+        error: 'Failed to fetch notifications',
+        details: error.message 
+      });
+    }
   }
   
   if (req.method === 'POST') {

@@ -91,7 +91,7 @@ export const emailNotification = async (notificationType, taskId) => {
         },
         actors: {
           assignedBy: {
-            email: user.email,
+            email: userDetails[user.id]?.email || 'Unknown',
             emailNotificationsEnabled: userDetails[user.id]?.emailNotificationsEnabled ?? false
           },
           assignedTo: taskData.assignee ? {
@@ -116,6 +116,38 @@ export const emailNotification = async (notificationType, taskId) => {
       };
 
       console.log('Task Assignment Notification Details:', notificationDetails);
+
+      const emailEnabledUsers = new Set();
+
+      // Process assignedBy
+      if (notificationDetails.actors.assignedBy.emailNotificationsEnabled) {
+        emailEnabledUsers.add(notificationDetails.actors.assignedBy.email);
+      }
+
+      // Process assignedTo
+      if (notificationDetails.actors.assignedTo?.emailNotificationsEnabled) {
+        emailEnabledUsers.add(notificationDetails.actors.assignedTo.email);
+      }
+
+      // Process taskCreator
+      if (notificationDetails.actors.taskCreator.emailNotificationsEnabled) {
+        emailEnabledUsers.add(notificationDetails.actors.taskCreator.email);
+      }
+
+      // Process starredBy users
+      notificationDetails.stakeholders.starredBy.forEach(user => {
+        if (user.emailNotificationsEnabled) {
+          emailEnabledUsers.add(user.email);
+        }
+      });
+
+      // Convert Set to Array of objects
+      const emailNotificationRecipients = Array.from(emailEnabledUsers).map(email => ({
+        email,
+        emailNotificationsEnabled: true
+      }));
+
+      console.log('Email Notification Recipients:', emailNotificationRecipients);
     } else {
       // Default notification logging
       console.log('EmailNotification:', {

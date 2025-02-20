@@ -42,16 +42,30 @@ export default {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const { data, error } = await supabase
+        // First check if user has any settings
+        const { data: existingSettings, error: settingsError } = await supabase
           .from('user_settings')
           .select('settings')
           .eq('user_id', session.user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle() instead of single()
 
-        if (error) throw error;
+        if (settingsError) throw settingsError;
 
-        if (data?.settings?.emailNotificationsEnabled !== undefined) {
-          settings.value.emailNotificationsEnabled = data.settings.emailNotificationsEnabled;
+        // If user has settings, use them. Otherwise, use defaults
+        if (existingSettings?.settings?.emailNotificationsEnabled !== undefined) {
+          settings.value.emailNotificationsEnabled = existingSettings.settings.emailNotificationsEnabled;
+        } else {
+          // Create initial settings for the user
+          const { error: insertError } = await supabase
+            .from('user_settings')
+            .insert({
+              user_id: session.user.id,
+              settings: {
+                emailNotificationsEnabled: false
+              }
+            });
+
+          if (insertError) throw insertError;
         }
       } catch (error) {
         ElMessage.error('Error loading settings: ' + error.message);

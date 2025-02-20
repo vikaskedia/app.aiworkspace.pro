@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       const { data: notifications, error } = await supabase
         .from('notifications')
         .select('*')
-        .limit(5)
+        .limit(50)
         .order('created_at', { ascending: false });
       metrics.fetchNotificationsTime = performance.now() - fetchStart;
 

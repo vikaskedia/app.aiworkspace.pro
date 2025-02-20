@@ -23,30 +23,52 @@ export default async function handler(req, res) {
   );
 
   if (req.method === 'GET') {
+    const startTime = performance.now();
+    const metrics = {
+      totalTime: 0,
+      fetchNotificationsTime: 0,
+      processNotificationsTime: 0,
+      cacheHits: 0,
+      cacheMisses: 0
+    };
+
     try {
+      // Cache for user settings
+      const userSettingsCache = new Map();
+
       // Fetch notifications
+      const fetchStart = performance.now();
       const { data: notifications, error } = await supabase
         .from('notifications')
         .select('*')
         .limit(5)
         .order('created_at', { ascending: false });
+      metrics.fetchNotificationsTime = performance.now() - fetchStart;
 
       if (error) throw error;
 
       // Process each notification and check user settings
+      const processStart = performance.now();
       const processedNotifications = await Promise.all(
         notifications.map(async (notification) => {
-          // Get user settings
-          const { data: userSettings } = await supabase
-            .from('user_settings')
-            .select('settings')
-            .eq('user_id', notification.user_id)
-            .maybeSingle();
-
-          // Check if email notifications are enabled
           let emailEnabled = false;
-          if (userSettings?.settings) {
-            emailEnabled = userSettings.settings.emailNotificationsEnabled ?? false;
+
+          // Check cache first
+          if (userSettingsCache.has(notification.user_id)) {
+            emailEnabled = userSettingsCache.get(notification.user_id);
+            metrics.cacheHits++;
+          } else {
+            // Get user settings from database if not in cache
+            metrics.cacheMisses++;
+            const { data: userSettings } = await supabase
+              .from('user_settings')
+              .select('settings')
+              .eq('user_id', notification.user_id)
+              .maybeSingle();
+
+            // Parse settings and cache the result
+            emailEnabled = userSettings?.settings?.emailNotificationsEnabled ?? false;
+            userSettingsCache.set(notification.user_id, emailEnabled);
           }
 
           return {
@@ -55,16 +77,29 @@ export default async function handler(req, res) {
           };
         })
       );
+      metrics.processNotificationsTime = performance.now() - processStart;
+      metrics.totalTime = performance.now() - startTime;
 
       return res.status(200).json({ 
         message: 'Notifications retrieved successfully',
-        data: processedNotifications
+        data: processedNotifications,
+        metrics: {
+          ...metrics,
+          totalTimeMs: Math.round(metrics.totalTime),
+          fetchTimeMs: Math.round(metrics.fetchNotificationsTime),
+          processTimeMs: Math.round(metrics.processNotificationsTime),
+          cacheEfficiency: `${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses} hits`
+        }
       });
     } catch (error) {
+      metrics.totalTime = performance.now() - startTime;
       console.error('Error fetching notifications:', error);
       return res.status(500).json({ 
         error: 'Failed to fetch notifications',
-        details: error.message 
+        details: error.message,
+        metrics: {
+          totalTimeMs: Math.round(metrics.totalTime)
+        }
       });
     }
   }

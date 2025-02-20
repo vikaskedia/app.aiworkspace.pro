@@ -127,6 +127,10 @@ export default {
           // Show notifications dialog
           this.showNotificationsDialog = true;
           break;
+        case 'email_notifications':
+          // Navigate to email notifications settings
+          this.$router.push('/settings/email-notifications');
+          break;
         case 'talktodev':
           // TODO: Implement talk to dev route
           this.$router.push('/talk-to-dev');
@@ -365,6 +369,9 @@ export default {
                 :value="unreadCount" 
                 :hidden="unreadCount === 0" 
                 class="notification-badge" />
+            </el-dropdown-item>
+            <el-dropdown-item command="email_notifications">
+              Email Notifications
             </el-dropdown-item>
             <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>

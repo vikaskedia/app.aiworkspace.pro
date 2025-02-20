@@ -207,6 +207,20 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/settings/email-notifications',
+    component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'EmailNotifications',
+        component: () => import('./components/settings/EmailNotificationsCt.vue'),
+        meta: {
+          requiresAuth: true
+        }
+      }
+    ]
+  },
+  {
     path: '/',
     redirect: '/login'
   }

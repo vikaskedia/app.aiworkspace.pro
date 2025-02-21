@@ -66,14 +66,16 @@ export default async function handler(req, res) {
           let emailEnabled = false;
           const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
-          // Add debug snapshot before processing each notification
-          debugInfo.push({
+          // Add debug snapshot before processing
+          const debugEntry = {
             notificationId: notification.id,
             beforeProcessing: {
               userIdsToProcess: userIds,
               currentProcessedIds: Array.from(processedUserIds)
-            }
-          });
+            },
+            processedIds: []  // Track which IDs were processed for this notification
+          };
+          debugInfo.push(debugEntry);
 
           for (const userId of userIds) {
             if (!processedUserIds.has(userId)) {
@@ -93,14 +95,15 @@ export default async function handler(req, res) {
               });
               
               processedUserIds.add(userId);
-
-              // Add debug info after processing each user
-              debugInfo[debugInfo.length - 1].afterProcessing = {
-                processedId: userId,
-                updatedProcessedIds: Array.from(processedUserIds)
-              };
+              debugEntry.processedIds.push(userId);
             }
           }
+
+          // Add after processing info
+          debugEntry.afterProcessing = {
+            processedIds: debugEntry.processedIds,
+            updatedProcessedIds: Array.from(processedUserIds)
+          };
 
           const userInfo = userInfoArray.find(u => u.id === notification.user_id);
           emailEnabled = userInfo?.emailNotificationsEnabled ?? false;

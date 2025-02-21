@@ -36,6 +36,7 @@ export default async function handler(req, res) {
       // Cache for user settings and info
       const userSettingsCache = new Map();
       const userInfoArray = [];
+      const processedUserIds = new Set();
 
       // Fetch notifications
       const fetchStart = performance.now();
@@ -68,7 +69,7 @@ export default async function handler(req, res) {
           const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
           for (const userId of userIds) {
-            if (!userInfoArray.some(u => u.id === userId)) {
+            if (!processedUserIds.has(userId)) {
               const { data: userData } = await supabase
                 .rpc('get_user_info_by_id', { user_id: userId });
 
@@ -83,6 +84,8 @@ export default async function handler(req, res) {
                 email: userData?.[0]?.email || 'Unknown',
                 emailNotificationsEnabled: userSettings?.settings?.emailNotificationsEnabled ?? false
               });
+              
+              processedUserIds.add(userId);
             }
           }
 

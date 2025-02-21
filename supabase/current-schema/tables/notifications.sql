@@ -19,6 +19,13 @@
 
     COMMENT ON COLUMN notifications.metadata IS 'Additional data specific to the notification type';
 
+
+    alter table notifications add column if not exists email_status varchar(50) default 'not_attempted';
+    alter table notifications add column if not exists email_message text;
+    alter table notifications add column if not exists last_email_attempt timestamptz;
+    alter table notifications add column if not exists email_enabled boolean default false;
+    alter table notifications add column if not exists retry_count int default 0;
+
     -- Policies for notifications
     CREATE POLICY "Users can create notifications" ON notifications
     AS PERMISSIVE

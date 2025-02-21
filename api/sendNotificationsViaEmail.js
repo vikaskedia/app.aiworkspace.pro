@@ -87,7 +87,27 @@ export default async function handler(req, res) {
         }
 
         const userInfo = userInfoArray.find(u => u.id === notification.user_id);
+        const actorInfo = userInfoArray.find(u => u.id === notification.actor_id);
         emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
+
+        // Send email if notifications are enabled
+        if (emailEnabled && userInfo?.email) {
+          try {
+            const actorEmail = actorInfo?.email || 'Someone';
+            await fetch('https://app.associateattorney.ai/api/sendemail', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                to: userInfo.email,
+                text: `Hi,\n${actorEmail} assigned you a task: ${notification.data.task_title}`
+              })
+            });
+          } catch (error) {
+            console.error('Error sending email notification:', error);
+          }
+        }
 
         processedNotifications.push({
           ...notification,

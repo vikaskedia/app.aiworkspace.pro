@@ -36,7 +36,6 @@ export default async function handler(req, res) {
       const userSettingsCache = new Map();
       const userInfoArray = [];
       const processedUserIds = new Set();
-      const debugInfo = [];
 
       // Fetch notifications
       const fetchStart = performance.now();
@@ -59,7 +58,6 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
-      // Process each notification and check user settings
       const processStart = performance.now();
       const processedNotifications = [];
 
@@ -67,18 +65,6 @@ export default async function handler(req, res) {
         let emailEnabled = false;
         const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
-        // Add debug snapshot before processing
-        const debugEntry = {
-          notificationId: notification.id,
-          beforeProcessing: {
-            userIdsToProcess: userIds,
-            currentProcessedIds: Array.from(processedUserIds)
-          },
-          processedIds: []
-        };
-        debugInfo.push(debugEntry);
-
-        // Process each user ID
         for (const userId of userIds) {
           if (!processedUserIds.has(userId)) {
             const { data: userData } = await supabase
@@ -97,15 +83,8 @@ export default async function handler(req, res) {
             });
             
             processedUserIds.add(userId);
-            debugEntry.processedIds.push(userId);
           }
         }
-
-        // Add after processing info
-        debugEntry.afterProcessing = {
-          processedIds: debugEntry.processedIds,
-          currentProcessedIds: Array.from(processedUserIds)
-        };
 
         const userInfo = userInfoArray.find(u => u.id === notification.user_id);
         emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
@@ -123,7 +102,6 @@ export default async function handler(req, res) {
         message: 'Notifications retrieved successfully',
         data: processedNotifications,
         userInfo: userInfoArray,
-        debug: debugInfo,
         metrics: {
           ...metrics,
           totalTimeMs: Math.round(metrics.totalTime),

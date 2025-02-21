@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     };
 
     try {
-      const MAX_RETRIES = 3;
+      const MAX_RETRIES = 24;
       const MAX_AGE_HOURS = 24;
 
       // Get notifications that haven't been processed or failed

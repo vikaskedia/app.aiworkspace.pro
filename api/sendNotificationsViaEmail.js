@@ -33,106 +33,90 @@ export default async function handler(req, res) {
     };
 
     try {
-      const userSettingsCache = new Map();
-      const userInfoArray = [];
-      const processedUserIds = new Set();
+      const MAX_RETRIES = 3;
+      const MAX_AGE_HOURS = 24;
 
-      // Fetch notifications
-      const fetchStart = performance.now();
-      // Original query for reference:
-      // const { data: notifications, error } = await supabase
-      //   .from('notifications')
-      //   .select('*')
-      //   .limit(50)
-      //   .order('created_at', { ascending: false });
-
-      // Modified query for specific user and type
-      const { data: notifications, error } = await supabase
+      // Get notifications that haven't been processed or failed
+      const { data: notifications, error: notifError } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', '455ea50c-960c-4f62-b98e-b968e6fe57aa')
-        // .eq('type', 'mention')
-        .limit(2)
-        .order('created_at', { ascending: false });
-      metrics.fetchNotificationsTime = performance.now() - fetchStart;
+        .in('email_status', ['not_attempted', 'failed'])
+        .lt('retry_count', MAX_RETRIES)
+        .gt('created_at', new Date(Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (notifError) throw notifError;
 
       const processStart = performance.now();
       const processedNotifications = [];
 
       for (const notification of notifications) {
-        let emailEnabled = false;
-        let emailSendStatus = 'not_attempted'; // Track email status
-        let emailSendMessage = '';
-        const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
+        // First update status to processing
+        await supabase
+          .from('notifications')
+          .update({
+            email_status: 'processing',
+            last_email_attempt: new Date().toISOString()
+          })
+          .eq('id', notification.id);
 
-        for (const userId of userIds) {
-          if (!processedUserIds.has(userId)) {
-            const { data: userData } = await supabase
-              .rpc('get_user_info_by_id', { user_id: userId });
+        // Check user settings
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('settings')
+          .eq('user_id', notification.user_id)
+          .maybeSingle();
 
-            const { data: userSettings } = await supabase
-              .from('user_settings')
-              .select('settings')
-              .eq('user_id', userId)
-              .maybeSingle();
+        const emailEnabled = userSettings?.settings?.emailNotificationsEnabled ?? false;
 
-            userInfoArray.push({
-              id: userId,
-              email: userData?.[0]?.email || 'Unknown',
-              emailNotificationsEnabled: userSettings?.settings?.emailNotificationsEnabled ?? false
-            });
-            
-            processedUserIds.add(userId);
-          }
-        }
+        // Update notification with email enabled status
+        await supabase
+          .from('notifications')
+          .update({
+            email_enabled: emailEnabled,
+            email_status: emailEnabled ? 'pending' : 'disabled',
+            email_message: emailEnabled ? 'Preparing to send email' : 'Email notifications disabled for user',
+            last_email_attempt: new Date().toISOString()
+          })
+          .eq('id', notification.id);
 
-        const userInfo = userInfoArray.find(u => u.id === notification.user_id);
-        const actorInfo = userInfoArray.find(u => u.id === notification.actor_id);
-        emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
-
-        // Send email if notifications are enabled
-        if (emailEnabled && userInfo?.email) {
+        if (emailEnabled) {
           try {
-            const actorEmail = actorInfo?.email || 'Someone';
-            const timestamp = new Date(notification.created_at).toLocaleString('en-US', {
+            const userInfo = await supabase
+              .rpc('get_user_info_by_id', { user_id: notification.user_id });
+
+            const actorInfo = await supabase
+              .rpc('get_user_info_by_id', { user_id: notification.actor_id });
+
+            const emailText = `${actorInfo[0].email} ${notification.type.replace('_', ' ')}: ${notification.data.task_title}\n${new Date(notification.created_at).toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
               hour12: true
-            });
+            })}`;
 
-            let taskUrl;
-            if (notification.type.includes('task')) {
-              // Fetch matter_id for task-related notifications
-              const { data: taskData, error: taskError } = await supabase
-                .from('tasks')
-                .select('matter_id')
-                .eq('id', notification.data.task_id)
-                .single();
-
-              if (!taskError && taskData) {
-                taskUrl = `https://app.associateattorney.ai/single-matter/${taskData.matter_id}/tasks/${notification.data.task_id}`;
-              }
-            }
-            
-            let emailText;
             let emailHtml;
+            let taskUrl;
 
             switch (notification.type) {
               case 'task_assigned':
-                emailText = `${actorEmail} assigned you a task: ${notification.data.task_title}\n${timestamp}`;
+                taskUrl = `https://app.associateattorney.ai/single-matter/${notification.data.task_id}/tasks/${notification.data.task_id}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
-                    <p><strong>${actorEmail}</strong> assigned you a task:</p>
+                    <p><strong>${actorInfo[0].email}</strong> assigned you a task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #007bff;">
                       ${taskUrl ? `<a href="${taskUrl}" style="color: #333; text-decoration: none;">` : ''}
                         ${notification.data.task_title}
                       ${taskUrl ? '</a>' : ''}
-                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
                     </div>
                     ${taskUrl ? `
                     <p style="margin-top: 15px;">
@@ -142,16 +126,22 @@ export default async function handler(req, res) {
                   </div>`;
                 break;
               case 'task_created':
-                emailText = `${actorEmail} created a new task: ${notification.data.task_title}\n${timestamp}`;
+                taskUrl = `https://app.associateattorney.ai/single-matter/${notification.data.task_id}/tasks/${notification.data.task_id}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
-                    <p><strong>${actorEmail}</strong> created a new task:</p>
+                    <p><strong>${actorInfo[0].email}</strong> created a new task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #28a745;">
                       <a href="${taskUrl}" style="color: #333; text-decoration: none;">
                         ${notification.data.task_title}
                       </a>
-                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
                     </div>
                     <p style="margin-top: 15px;">
                       <a href="${taskUrl}" style="color: #28a745; text-decoration: none;">View Task →</a>
@@ -159,43 +149,57 @@ export default async function handler(req, res) {
                   </div>`;
                 break;
               case 'task_updated':
-                emailText = `${actorEmail} updated task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
-                    <p><strong>${actorEmail}</strong> updated task:</p>
+                    <p><strong>${actorInfo[0].email}</strong> updated task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #ffc107;">
                       ${notification.data.task_title}
-                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
                     </div>
                   </div>`;
                 break;
               case 'matter_shared':
-                emailText = `${actorEmail} shared a matter with you: ${notification.data.matter_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
-                    <p><strong>${actorEmail}</strong> shared a matter with you:</p>
+                    <p><strong>${actorInfo[0].email}</strong> shared a matter with you:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #17a2b8;">
                       ${notification.data.matter_title}
-                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
                     </div>
                   </div>`;
                 break;
               case 'mention':
-                emailText = `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${notification.data.comment_by}</strong> mentioned you in task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #6f42c1;">
                       ${notification.data.task_title}
-                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
                     </div>
                   </div>`;
                 break;
               default:
-                emailText = 'New notification';
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
@@ -205,41 +209,47 @@ export default async function handler(req, res) {
 
             const emailResponse = await fetch('https://app.associateattorney.ai/api/sendemail', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                to: userInfo.email,
-                text: `Hi,\n${emailText}`,
+                to: userInfo[0].email,
+                text: emailText,
                 html: emailHtml
               })
             });
 
             const emailResult = await emailResponse.json();
-            
-            if (emailResponse.ok) {
-              emailSendStatus = 'success';
-              emailSendMessage = 'Email sent successfully';
-            } else {
-              emailSendStatus = 'failed';
-              emailSendMessage = `Email send failed: ${emailResult.error || 'Unknown error'}`;
-            }
-          } catch (error) {
-            emailSendStatus = 'error';
-            emailSendMessage = `Error sending email: ${error.message}`;
-            console.error('Error sending email notification:', error);
-          }
-        } else {
-          emailSendStatus = 'skipped';
-          emailSendMessage = emailEnabled ? 'No email address available' : 'Email notifications disabled';
-        }
 
-        processedNotifications.push({
-          ...notification,
-          emailNotificationsEnabled: emailEnabled,
-          emailSendStatus,
-          emailSendMessage
-        });
+            // Update notification based on email send result
+            await supabase
+              .from('notifications')
+              .update({
+                email_status: emailResponse.ok ? 'success' : 'failed',
+                email_message: emailResponse.ok 
+                  ? 'Email sent successfully' 
+                  : `Failed to send: ${emailResult.error || 'Unknown error'}`,
+                retry_count: (notification.retry_count || 0) + 1,
+                last_email_attempt: new Date().toISOString()
+              })
+              .eq('id', notification.id);
+
+            processedNotifications.push({
+              ...notification,
+              emailNotificationsEnabled: emailEnabled,
+              emailSendStatus: emailResponse.ok ? 'success' : 'failed',
+              emailSendMessage: emailResponse.ok ? 'Email sent successfully' : `Failed to send: ${emailResult.error || 'Unknown error'}`
+            });
+          } catch (error) {
+            await supabase
+              .from('notifications')
+              .update({
+                email_status: 'failed',
+                email_message: `Error: ${error.message}`,
+                retry_count: (notification.retry_count || 0) + 1,
+                last_email_attempt: new Date().toISOString()
+              })
+              .eq('id', notification.id);
+          }
+        }
       }
 
       metrics.processNotificationsTime = performance.now() - processStart;
@@ -248,7 +258,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         message: 'Notifications retrieved successfully',
         data: processedNotifications,
-        userInfo: userInfoArray,
         metrics: {
           ...metrics,
           totalTimeMs: Math.round(metrics.totalTime),
@@ -258,9 +267,9 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       metrics.totalTime = performance.now() - startTime;
-      console.error('Error fetching notifications:', error);
+      console.error('Error processing notifications:', error);
       return res.status(500).json({ 
-        error: 'Failed to fetch notifications',
+        error: 'Failed to process notifications',
         details: error.message,
         metrics: {
           totalTimeMs: Math.round(metrics.totalTime)

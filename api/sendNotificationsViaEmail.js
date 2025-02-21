@@ -38,10 +38,20 @@ export default async function handler(req, res) {
 
       // Fetch notifications
       const fetchStart = performance.now();
+      // Original query for reference:
+      // const { data: notifications, error } = await supabase
+      //   .from('notifications')
+      //   .select('*')
+      //   .limit(50)
+      //   .order('created_at', { ascending: false });
+
+      // Modified query for specific user and type
       const { data: notifications, error } = await supabase
         .from('notifications')
         .select('*')
-        .limit(50)
+        .eq('user_id', '455ea50c-960c-4f62-b98e-b968e6fe57aa')
+        .eq('type', 'task_assigned')
+        .limit(2)
         .order('created_at', { ascending: false });
       metrics.fetchNotificationsTime = performance.now() - fetchStart;
 

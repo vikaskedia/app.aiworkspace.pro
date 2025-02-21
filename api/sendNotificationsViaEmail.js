@@ -96,62 +96,101 @@ export default async function handler(req, res) {
         if (emailEnabled && userInfo?.email) {
           try {
             const actorEmail = actorInfo?.email || 'Someone';
+            const timestamp = new Date(notification.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+
+            let taskUrl;
+            if (notification.type.includes('task')) {
+              // Fetch matter_id for task-related notifications
+              const { data: taskData, error: taskError } = await supabase
+                .from('tasks')
+                .select('matter_id')
+                .eq('id', notification.data.task_id)
+                .single();
+
+              if (!taskError && taskData) {
+                taskUrl = `https://app.associateattorney.ai/single-matter/${taskData.matter_id}/tasks/${notification.data.task_id}`;
+              }
+            }
+            
             let emailText;
             let emailHtml;
 
             switch (notification.type) {
               case 'task_assigned':
-                emailText = `${actorEmail} assigned you a task: ${notification.data.task_title}`;
+                emailText = `${actorEmail} assigned you a task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${actorEmail}</strong> assigned you a task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #007bff;">
-                      ${notification.data.task_title}
+                      ${taskUrl ? `<a href="${taskUrl}" style="color: #333; text-decoration: none;">` : ''}
+                        ${notification.data.task_title}
+                      ${taskUrl ? '</a>' : ''}
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
                     </div>
+                    ${taskUrl ? `
+                    <p style="margin-top: 15px;">
+                      <a href="${taskUrl}" style="color: #007bff; text-decoration: none;">View Task →</a>
+                    </p>
+                    ` : ''}
                   </div>`;
                 break;
               case 'task_created':
-                emailText = `${actorEmail} created a new task: ${notification.data.task_title}`;
+                emailText = `${actorEmail} created a new task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${actorEmail}</strong> created a new task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #28a745;">
-                      ${notification.data.task_title}
+                      <a href="${taskUrl}" style="color: #333; text-decoration: none;">
+                        ${notification.data.task_title}
+                      </a>
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
                     </div>
+                    <p style="margin-top: 15px;">
+                      <a href="${taskUrl}" style="color: #28a745; text-decoration: none;">View Task →</a>
+                    </p>
                   </div>`;
                 break;
               case 'task_updated':
-                emailText = `${actorEmail} updated task: ${notification.data.task_title}`;
+                emailText = `${actorEmail} updated task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${actorEmail}</strong> updated task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #ffc107;">
                       ${notification.data.task_title}
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
                     </div>
                   </div>`;
                 break;
               case 'matter_shared':
-                emailText = `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
+                emailText = `${actorEmail} shared a matter with you: ${notification.data.matter_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${actorEmail}</strong> shared a matter with you:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #17a2b8;">
                       ${notification.data.matter_title}
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
                     </div>
                   </div>`;
                 break;
               case 'mention':
-                emailText = `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;
+                emailText = `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}\n${timestamp}`;
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
                     <p><strong>${notification.data.comment_by}</strong> mentioned you in task:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #6f42c1;">
                       ${notification.data.task_title}
+                      <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${timestamp}</p>
                     </div>
                   </div>`;
                 break;

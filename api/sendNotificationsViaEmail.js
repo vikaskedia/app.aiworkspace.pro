@@ -61,59 +61,61 @@ export default async function handler(req, res) {
 
       // Process each notification and check user settings
       const processStart = performance.now();
-      const processedNotifications = await Promise.all(
-        notifications.map(async (notification) => {
-          let emailEnabled = false;
-          const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
+      const processedNotifications = [];
 
-          // Add debug snapshot before processing
-          const debugEntry = {
-            notificationId: notification.id,
-            beforeProcessing: {
-              userIdsToProcess: userIds,
-              currentProcessedIds: Array.from(processedUserIds)
-            },
-            processedIds: []  // Track which IDs were processed for this notification
-          };
-          debugInfo.push(debugEntry);
+      for (const notification of notifications) {
+        let emailEnabled = false;
+        const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
-          for (const userId of userIds) {
-            if (!processedUserIds.has(userId)) {
-              const { data: userData } = await supabase
-                .rpc('get_user_info_by_id', { user_id: userId });
+        // Add debug snapshot before processing
+        const debugEntry = {
+          notificationId: notification.id,
+          beforeProcessing: {
+            userIdsToProcess: userIds,
+            currentProcessedIds: Array.from(processedUserIds)
+          },
+          processedIds: []
+        };
+        debugInfo.push(debugEntry);
 
-              const { data: userSettings } = await supabase
-                .from('user_settings')
-                .select('settings')
-                .eq('user_id', userId)
-                .maybeSingle();
+        // Process each user ID
+        for (const userId of userIds) {
+          if (!processedUserIds.has(userId)) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', { user_id: userId });
 
-              userInfoArray.push({
-                id: userId,
-                email: userData?.[0]?.email || 'Unknown',
-                emailNotificationsEnabled: userSettings?.settings?.emailNotificationsEnabled ?? false
-              });
-              
-              processedUserIds.add(userId);
-              debugEntry.processedIds.push(userId);
-            }
+            const { data: userSettings } = await supabase
+              .from('user_settings')
+              .select('settings')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            userInfoArray.push({
+              id: userId,
+              email: userData?.[0]?.email || 'Unknown',
+              emailNotificationsEnabled: userSettings?.settings?.emailNotificationsEnabled ?? false
+            });
+            
+            processedUserIds.add(userId);
+            debugEntry.processedIds.push(userId);
           }
+        }
 
-          // Add after processing info
-          debugEntry.afterProcessing = {
-            processedIds: debugEntry.processedIds,
-            updatedProcessedIds: Array.from(processedUserIds)
-          };
+        // Add after processing info
+        debugEntry.afterProcessing = {
+          processedIds: debugEntry.processedIds,
+          currentProcessedIds: Array.from(processedUserIds)
+        };
 
-          const userInfo = userInfoArray.find(u => u.id === notification.user_id);
-          emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
+        const userInfo = userInfoArray.find(u => u.id === notification.user_id);
+        emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
 
-          return {
-            ...notification,
-            emailNotificationsEnabled: emailEnabled
-          };
-        })
-      );
+        processedNotifications.push({
+          ...notification,
+          emailNotificationsEnabled: emailEnabled
+        });
+      }
+
       metrics.processNotificationsTime = performance.now() - processStart;
       metrics.totalTime = performance.now() - startTime;
 

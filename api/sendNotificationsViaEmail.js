@@ -82,13 +82,16 @@ export default async function handler(req, res) {
 
         if (emailEnabled) {
           try {
-            const userInfo = await supabase
+            const { data: userInfo, error: userError } = await supabase
               .rpc('get_user_info_by_id', { user_id: notification.user_id });
 
-            const actorInfo = await supabase
+            const { data: actorInfo, error: actorError } = await supabase
               .rpc('get_user_info_by_id', { user_id: notification.actor_id });
 
-            const emailText = `${actorInfo[0].email} ${notification.type.replace('_', ' ')}: ${notification.data.task_title}\n${new Date(notification.created_at).toLocaleString('en-US', {
+            // Safely access actor email
+            const actorEmail = actorInfo?.[0]?.email || 'Someone';
+
+            const emailText = `${actorEmail} ${notification.type.replace('_', ' ')}: ${notification.data.task_title}\n${new Date(notification.created_at).toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',

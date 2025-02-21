@@ -68,19 +68,16 @@ export default async function handler(req, res) {
           const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
           for (const userId of userIds) {
-            if (!userInfoArray.find(u => u.id === userId)) {
-              // Fetch user info
+            if (!userInfoArray.some(u => u.id === userId)) {
               const { data: userData } = await supabase
                 .rpc('get_user_info_by_id', { user_id: userId });
 
-              // Fetch user settings
               const { data: userSettings } = await supabase
                 .from('user_settings')
                 .select('settings')
                 .eq('user_id', userId)
                 .maybeSingle();
 
-              // Add to user info array
               userInfoArray.push({
                 id: userId,
                 email: userData?.[0]?.email || 'Unknown',
@@ -89,7 +86,6 @@ export default async function handler(req, res) {
             }
           }
 
-          // Get email enabled status for the notification user
           const userInfo = userInfoArray.find(u => u.id === notification.user_id);
           emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
 

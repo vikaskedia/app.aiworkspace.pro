@@ -257,12 +257,14 @@ export default async function handler(req, res) {
 
       return res.status(200).json({ 
         message: 'Notifications retrieved successfully',
-        data: processedNotifications,
+        rawNotifications: notifications,
+        processedNotifications: processedNotifications,
         metrics: {
           ...metrics,
           totalTimeMs: Math.round(metrics.totalTime),
           fetchTimeMs: Math.round(metrics.fetchNotificationsTime),
-          processTimeMs: Math.round(metrics.processNotificationsTime)
+          processTimeMs: Math.round(metrics.processNotificationsTime),
+          notificationsCount: notifications?.length || 0
         }
       });
     } catch (error) {

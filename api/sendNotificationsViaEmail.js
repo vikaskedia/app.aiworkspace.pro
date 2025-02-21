@@ -63,6 +63,8 @@ export default async function handler(req, res) {
 
       for (const notification of notifications) {
         let emailEnabled = false;
+        let emailSendStatus = 'not_attempted'; // Track email status
+        let emailSendMessage = '';
         const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
         for (const userId of userIds) {
@@ -94,24 +96,63 @@ export default async function handler(req, res) {
         if (emailEnabled && userInfo?.email) {
           try {
             const actorEmail = actorInfo?.email || 'Someone';
-            await fetch('https://app.associateattorney.ai/api/sendemail', {
+            let emailText;
+
+            switch (notification.type) {
+              case 'task_assigned':
+                emailText = `${actorEmail} assigned you a task: ${notification.data.task_title}`;
+                break;
+              case 'task_created':
+                emailText = `${actorEmail} created a new task: ${notification.data.task_title}`;
+                break;
+              case 'task_updated':
+                emailText = `${actorEmail} updated task: ${notification.data.task_title}`;
+                break;
+              case 'matter_shared':
+                emailText = `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
+                break;
+              case 'mention':
+                emailText = `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;
+                break;
+              default:
+                emailText = 'New notification';
+            }
+
+            const emailResponse = await fetch('https://app.associateattorney.ai/api/sendemail', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
                 to: userInfo.email,
-                text: `Hi,\n${actorEmail} assigned you a task: ${notification.data.task_title}`
+                text: `Hi,\n${emailText}`
               })
             });
+
+            const emailResult = await emailResponse.json();
+            
+            if (emailResponse.ok) {
+              emailSendStatus = 'success';
+              emailSendMessage = 'Email sent successfully';
+            } else {
+              emailSendStatus = 'failed';
+              emailSendMessage = `Email send failed: ${emailResult.error || 'Unknown error'}`;
+            }
           } catch (error) {
+            emailSendStatus = 'error';
+            emailSendMessage = `Error sending email: ${error.message}`;
             console.error('Error sending email notification:', error);
           }
+        } else {
+          emailSendStatus = 'skipped';
+          emailSendMessage = emailEnabled ? 'No email address available' : 'Email notifications disabled';
         }
 
         processedNotifications.push({
           ...notification,
-          emailNotificationsEnabled: emailEnabled
+          emailNotificationsEnabled: emailEnabled,
+          emailSendStatus,
+          emailSendMessage
         });
       }
 

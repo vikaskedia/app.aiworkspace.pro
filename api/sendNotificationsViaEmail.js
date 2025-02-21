@@ -33,10 +33,10 @@ export default async function handler(req, res) {
     };
 
     try {
-      // Cache for user settings and info
       const userSettingsCache = new Map();
       const userInfoArray = [];
       const processedUserIds = new Set();
+      const debugInfo = [];
 
       // Fetch notifications
       const fetchStart = performance.now();
@@ -64,9 +64,16 @@ export default async function handler(req, res) {
       const processedNotifications = await Promise.all(
         notifications.map(async (notification) => {
           let emailEnabled = false;
-
-          // Check both actor_id and user_id
           const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
+
+          // Add debug snapshot before processing each notification
+          debugInfo.push({
+            notificationId: notification.id,
+            beforeProcessing: {
+              userIdsToProcess: userIds,
+              currentProcessedIds: Array.from(processedUserIds)
+            }
+          });
 
           for (const userId of userIds) {
             if (!processedUserIds.has(userId)) {
@@ -86,6 +93,12 @@ export default async function handler(req, res) {
               });
               
               processedUserIds.add(userId);
+
+              // Add debug info after processing each user
+              debugInfo[debugInfo.length - 1].afterProcessing = {
+                processedId: userId,
+                updatedProcessedIds: Array.from(processedUserIds)
+              };
             }
           }
 
@@ -105,12 +118,12 @@ export default async function handler(req, res) {
         message: 'Notifications retrieved successfully',
         data: processedNotifications,
         userInfo: userInfoArray,
+        debug: debugInfo,
         metrics: {
           ...metrics,
           totalTimeMs: Math.round(metrics.totalTime),
           fetchTimeMs: Math.round(metrics.fetchNotificationsTime),
-          processTimeMs: Math.round(metrics.processNotificationsTime),
-          cacheEfficiency: `${metrics.cacheHits}/${metrics.cacheHits + metrics.cacheMisses} hits`
+          processTimeMs: Math.round(metrics.processNotificationsTime)
         }
       });
     } catch (error) {

@@ -33,8 +33,9 @@ export default async function handler(req, res) {
     };
 
     try {
-      // Cache for user settings
+      // Cache for user settings and info
       const userSettingsCache = new Map();
+      const userInfoArray = [];
 
       // Fetch notifications
       const fetchStart = performance.now();
@@ -63,23 +64,34 @@ export default async function handler(req, res) {
         notifications.map(async (notification) => {
           let emailEnabled = false;
 
-          // Check cache first
-          if (userSettingsCache.has(notification.user_id)) {
-            emailEnabled = userSettingsCache.get(notification.user_id);
-            metrics.cacheHits++;
-          } else {
-            // Get user settings from database if not in cache
-            metrics.cacheMisses++;
-            const { data: userSettings } = await supabase
-              .from('user_settings')
-              .select('settings')
-              .eq('user_id', notification.user_id)
-              .maybeSingle();
+          // Check both actor_id and user_id
+          const userIds = [notification.actor_id, notification.user_id].filter(Boolean);
 
-            // Parse settings and cache the result
-            emailEnabled = userSettings?.settings?.emailNotificationsEnabled ?? false;
-            userSettingsCache.set(notification.user_id, emailEnabled);
+          for (const userId of userIds) {
+            if (!userInfoArray.find(u => u.id === userId)) {
+              // Fetch user info
+              const { data: userData } = await supabase
+                .rpc('get_user_info_by_id', { user_id: userId });
+
+              // Fetch user settings
+              const { data: userSettings } = await supabase
+                .from('user_settings')
+                .select('settings')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+              // Add to user info array
+              userInfoArray.push({
+                id: userId,
+                email: userData?.[0]?.email || 'Unknown',
+                emailNotificationsEnabled: userSettings?.settings?.emailNotificationsEnabled ?? false
+              });
+            }
           }
+
+          // Get email enabled status for the notification user
+          const userInfo = userInfoArray.find(u => u.id === notification.user_id);
+          emailEnabled = userInfo?.emailNotificationsEnabled ?? false;
 
           return {
             ...notification,
@@ -93,6 +105,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         message: 'Notifications retrieved successfully',
         data: processedNotifications,
+        userInfo: userInfoArray,
         metrics: {
           ...metrics,
           totalTimeMs: Math.round(metrics.totalTime),

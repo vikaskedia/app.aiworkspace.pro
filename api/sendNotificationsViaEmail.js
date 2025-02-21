@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         .from('notifications')
         .select('*')
         .eq('user_id', '455ea50c-960c-4f62-b98e-b968e6fe57aa')
-        .eq('type', 'task_assigned')
+        .eq('type', 'task_updated')
         .limit(2)
         .order('created_at', { ascending: false });
       metrics.fetchNotificationsTime = performance.now() - fetchStart;

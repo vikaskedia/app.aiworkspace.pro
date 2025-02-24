@@ -102,10 +102,28 @@ export default {
   },
   watch: {
     visible: {
-      handler(newVal) {
+      async handler(newVal) {
         if (newVal && this.task) {
-          this.loadComments();
-          this.setupRealtimeSubscription();
+          try {
+            // Load latest task data
+            const { data: taskData, error } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('id', this.task.id)
+              .single();
+
+            if (error) throw error;
+            
+            // Update local task data
+            this.$emit('update:task', { ...this.task, ...taskData });
+            
+            // Load comments and setup realtime subscription
+            await this.loadComments();
+            this.setupRealtimeSubscription();
+          } catch (error) {
+            console.error('Error loading task data:', error);
+            ElMessage.error('Error loading task data');
+          }
         } else {
           if (this.subscription) {
             this.subscription.unsubscribe();

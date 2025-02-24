@@ -70,6 +70,8 @@ export default {
       editingTitle: '',
       localTask: null,
       tempDueDate: null,
+      isEditingDescription: false,
+      editingDescription: '',
     };
   },
   computed: {
@@ -1186,6 +1188,41 @@ Please provide assistance based on this context, the comment history, the availa
         ElMessage.error('Error updating due date: ' + error.message);
       }
     },
+
+    startDescriptionEdit() {
+      this.isEditingDescription = true;
+      this.editingDescription = this.task.description || '';
+    },
+
+    async saveDescriptionEdit() {
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ 
+            description: this.editingDescription,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local task data
+        this.$emit('update:task', { ...this.task, ...data });
+        
+        this.isEditingDescription = false;
+        ElMessage.success('Description updated successfully');
+      } catch (error) {
+        console.error('Error updating description:', error);
+        ElMessage.error('Failed to update description');
+      }
+    },
+
+    cancelDescriptionEdit() {
+      this.isEditingDescription = false;
+      this.editingDescription = '';
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1393,12 +1430,42 @@ Please provide assistance based on this context, the comment history, the availa
       <div class="section-header">
         <div class="section-title">
           <span>Description</span>
+          <el-button 
+            v-if="!isEditingDescription" 
+            link 
+            @click="startDescriptionEdit"
+          >
+            <el-icon><Edit /></el-icon>
+            Edit
+          </el-button>
         </div>
       </div>
 
       <!-- Description section -->
       <div class="description-section">
-        <div v-if="task.description" class="task-description">
+        <div v-if="isEditingDescription" class="description-edit">
+          <TiptapEditor
+            v-model="editingDescription"
+            placeholder="Add a description..."
+            :autofocus="true"
+            :isTaskComment="false"
+            :sharedUsers="sharedUsers"
+            :taskId="String(task.id)"
+            :taskTitle="task.title"
+            :enable-typeahead="false"
+          />
+          <div class="description-edit-actions">
+            <el-button @click="cancelDescriptionEdit">Cancel</el-button>
+            <el-button 
+              type="primary" 
+              @click="saveDescriptionEdit"
+              :disabled="!editingDescription.trim() || editingDescription === task?.description"
+            >
+              Save
+            </el-button>
+          </div>
+        </div>
+        <div v-else-if="task.description" class="task-description">
           <div 
             :class="['description-content', { 'collapsed': !isDescriptionExpanded }]" 
             v-html="formatCommentContent(task.description)">
@@ -2097,8 +2164,23 @@ div.comment-text>span>p>a {
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.description-edit {
+  background-color: var(--el-color-info-light-9);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.description-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
 </style>

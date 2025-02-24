@@ -1,0 +1,12 @@
+name: Send Notifications
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Runs every 10 minutes
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make GET request to send notifications
+        run: curl -X GET https://app.associateattorney.ai/api/sendNotificationsViaEmail

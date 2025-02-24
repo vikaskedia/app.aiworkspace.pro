@@ -2069,4 +2069,15 @@ div.comment-text>span>p>a {
 .quick-task-view :deep(.el-drawer__header) {
   margin-bottom: 0 !important;
 }
+
+.star-icon {
+  cursor: pointer;
+  font-size: 18px;
+  color: #909399;
+  transition: color 0.3s;
+}
+
+.star-icon.starred {
+  color: #f0c541;
+}
 </style>

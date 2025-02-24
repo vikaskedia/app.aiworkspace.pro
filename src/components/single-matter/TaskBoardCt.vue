@@ -76,23 +76,34 @@
                         <span v-else>{{ currentMatter?.title || 'Single Matter' }}</span>
                       </div>
                       <div class="new-task-content">
-                        <el-icon class="cancel-icon" @click="cancelNewTask(task, column)" title="Cancel new task">
-                          <Close />
-                        </el-icon>
-                        <el-input
-                          v-model="task.title"
-                          placeholder="Enter task title..."
-                          size="small"
-                          @keyup.enter="handleSubmit(task)"
-                          @keyup.esc="cancelNewTask(task, column)"
-                        />
-                        <el-button 
-                          type="primary" 
-                          size="small" 
-                          @click="handleSubmit(task)"
-                          :disabled="!task.title.trim()">
-                          Save
-                        </el-button>
+                        <div class="input-row">
+                          <el-icon class="cancel-icon" @click="cancelNewTask(task, column)" title="Cancel new task">
+                            <Close />
+                          </el-icon>
+                          <el-input
+                            v-model="task.title"
+                            placeholder="Enter task title..."
+                            size="small"
+                            @keyup.enter="handleSubmit(task)"
+                            @keyup.esc="cancelNewTask(task, column)"
+                          />
+                        </div>
+                        <div class="button-row">
+                          <el-button 
+                            type="primary" 
+                            size="small" 
+                            @click="handleSubmit(task)"
+                            :disabled="!task.title.trim()">
+                            Save
+                          </el-button>
+                          <el-button 
+                            type="success" 
+                            size="small" 
+                            @click="handleSubmit(task, true)"
+                            :disabled="!task.title.trim()">
+                            Save and Open Task
+                          </el-button>
+                        </div>
                       </div>
                     </div>
                     <div v-else>
@@ -723,7 +734,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         }
       },
   
-      async handleSubmit(task) {
+      async handleSubmit(task, openAfterSave = false) {
         if (!task.title.trim()) return;
         
         try {
@@ -738,6 +749,15 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             created_by: user.id
           };
 
+          // Remove the temporary task from column first
+          const column = this.columns.find(col => col.tasks.includes(task));
+          if (column) {
+            const taskIndex = column.tasks.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+              column.tasks.splice(taskIndex, 1);
+            }
+          }
+
           const { data, error } = await supabase
             .from('tasks')
             .insert([taskData])
@@ -745,21 +765,20 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
           if (error) throw error;
 
-          // Emit event to parent to handle the new task
-          this.$emit('update-task', data[0]);
-
-          // Remove the temporary task from column
-          const column = this.columns.find(col => col.tasks.includes(task));
+          // Add the new task to the column
           if (column) {
-            const taskIndex = column.tasks.findIndex(t => t.id === task.id);
-            if (taskIndex !== -1) {
-              column.tasks.splice(taskIndex, 1);
-            }
-            // Add the new task to the column
             column.tasks.unshift(data[0]);
           }
 
+          // Emit event to parent to handle the new task after successful creation
+          this.$emit('update-task', data[0]);
+
           ElMessage.success('Task created successfully');
+
+          // If openAfterSave is true, navigate to the detailed view
+          if (openAfterSave) {
+            this.$router.push(`/single-matter/${data[0].matter_id}/tasks/${data[0].id}`);
+          }
         } catch (error) {
           ElMessage.error('Error creating task: ' + error.message);
         }
@@ -1300,12 +1319,24 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
   .new-task-content {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .input-row {
+    display: flex;
     gap: 8px;
     align-items: center;
   }
 
-  .new-task-content .el-input {
+  .input-row .el-input {
     flex: 1;
+  }
+
+  .button-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   .cancel-icon {

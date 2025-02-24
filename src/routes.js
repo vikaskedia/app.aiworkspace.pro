@@ -201,12 +201,6 @@ const routes = [
       meta: { requiresAuth: true }
     },
   {
-    path: '/email-test',
-    name: 'EmailTest',
-    component: () => import('./components/EmailTestPage.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/settings/email-notifications',
     component: () => import('./components/all-matters/AllMatterLayout.vue'),
     children: [

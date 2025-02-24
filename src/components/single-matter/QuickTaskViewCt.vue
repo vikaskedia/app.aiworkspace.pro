@@ -1389,10 +1389,10 @@ Please provide assistance based on this context, the comment history, the availa
     <el-divider />
 
     <div class="comments-container">
-      <!-- Comments Header -->
-      <div class="comments-header">
-        <div class="comments-title">
-          <span>Comments</span>
+      <!-- Description Header -->
+      <div class="section-header">
+        <div class="section-title">
+          <span>Description</span>
         </div>
       </div>
 
@@ -1411,6 +1411,13 @@ Please provide assistance based on this context, the comment history, the availa
               {{ isDescriptionExpanded ? 'Show Less' : 'Show More' }}
             </el-button>
           </div>
+        </div>
+      </div>
+
+      <!-- Comments Header -->
+      <div class="section-header">
+        <div class="section-title">
+          <span>Comments</span>
         </div>
       </div>
 
@@ -2079,5 +2086,19 @@ div.comment-text>span>p>a {
 
 .star-icon.starred {
   color: #f0c541;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
 }
 </style>

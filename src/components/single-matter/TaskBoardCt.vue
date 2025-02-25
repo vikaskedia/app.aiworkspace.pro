@@ -261,6 +261,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         @status-updated="handleStatusUpdate"
         @priority-updated="handlePriorityUpdate"
         @due-date-updated="handleDueDateUpdate"
+        @task-updated="handleTaskUpdated"
       />
     </div>
   </template>
@@ -913,6 +914,16 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             task.due_date = due_date;
           }
         });
+      },
+
+      async handleTaskUpdated(updateInfo) {
+        if (updateInfo.requiresReorder) {
+          // Emit to parent to trigger task reload and reordering
+          this.$emit('update-task', {
+            id: updateInfo.taskId,
+            [updateInfo.field]: updateInfo.value
+          });
+        }
       }
     },
   

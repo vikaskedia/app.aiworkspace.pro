@@ -32,7 +32,7 @@ export default {
       required: true
     }
   },
-  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated', 'due-date-updated', 'assignee-updated'],
+  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated', 'due-date-updated', 'assignee-updated', 'task-updated'],
   data() {
     return {
       comments: [],
@@ -1250,7 +1250,7 @@ Please provide assistance based on this context, the comment history, the availa
         const { data, error } = await supabase
           .from('tasks')
           .update({ 
-            assignee: userId === 'unassign' ? null : userId,
+            assignee: userId,
             updated_at: new Date().toISOString()
           })
           .eq('id', this.task.id)
@@ -1262,10 +1262,12 @@ Please provide assistance based on this context, the comment history, the availa
         // Update local task data
         this.$emit('update:task', { ...this.task, ...data });
         
-        // Emit assignee-updated event
-        this.$emit('assignee-updated', {
+        // Emit task-updated event for reordering
+        this.$emit('task-updated', {
           taskId: this.task.id,
-          assignee: userId === 'unassign' ? null : userId
+          field: 'assignee',
+          value: userId,
+          requiresReorder: true
         });
         
         ElMessage.success('Assignee updated successfully');

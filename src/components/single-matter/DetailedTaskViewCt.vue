@@ -1812,12 +1812,38 @@ export default {
     formatCommentContent(text) {
       if (!text) return '';
       
-      // Replace markdown file links with custom file links
-      return text.split('\n').map(line => line.trim()).join('<br>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, fileName, fileUrl) => {
-        return `<a class="file-link" href="${fileUrl}" target="_blank" title="Click to view file">
-          ${fileName}
-        </a>`;
-      });
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      
+      // Replace markdown file links with authenticated file links
+      return text.split('\n').map(line => line.trim()).join('<br>').replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g, 
+        (match, fileName, fileUrl) => {
+          let authenticatedUrl = fileUrl;
+          
+          // Only modify URLs that match the Gitea host
+          if (fileUrl.startsWith(giteaHost)) {
+            try {
+              const url = new URL(fileUrl);
+              
+              // Remove any existing token parameter
+              url.searchParams.delete('token');
+              
+              // Add token as query parameter
+              url.searchParams.set('token', giteaToken);
+              
+              // Remove any duplicate question marks
+              authenticatedUrl = url.toString().replace('??', '?');
+            } catch (error) {
+              console.error('Error creating authenticated URL:', error);
+            }
+          }
+
+          return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">
+            ${fileName}
+          </a>`;
+        }
+      );
     },
     async loadFiles() {
       try {

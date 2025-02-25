@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled, ArrowDown } from '@element-plus/icons-vue';
+import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled, ArrowDown, Remove } from '@element-plus/icons-vue';
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
@@ -19,7 +19,8 @@ export default {
     Edit,
     Star,
     StarFilled,
-    ArrowDown
+    ArrowDown,
+    Remove
   },
   props: {
     task: {
@@ -31,7 +32,7 @@ export default {
       required: true
     }
   },
-  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated', 'due-date-updated'],
+  emits: ['update:visible', 'update:task', 'status-updated', 'priority-updated', 'due-date-updated', 'assignee-updated'],
   data() {
     return {
       comments: [],
@@ -306,7 +307,9 @@ export default {
           })
         });
 
-        if (!response.ok) throw new Error('Failed to get AI response');
+        if (!response.ok) {
+          throw new Error('Failed to get AI response');
+        }
 
         const data = await response.json();
         return data.response;
@@ -1241,6 +1244,79 @@ Please provide assistance based on this context, the comment history, the availa
       this.isEditingDescription = false;
       this.editingDescription = '';
     },
+
+    async handleAssigneeChange(userId) {
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ 
+            assignee: userId === 'unassign' ? null : userId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local task data
+        this.$emit('update:task', { ...this.task, ...data });
+        
+        // Emit assignee-updated event
+        this.$emit('assignee-updated', {
+          taskId: this.task.id,
+          assignee: userId === 'unassign' ? null : userId
+        });
+        
+        ElMessage.success('Assignee updated successfully');
+      } catch (error) {
+        console.error('Error updating assignee:', error);
+        ElMessage.error('Failed to update assignee');
+      }
+    },
+
+    async loadTaskDetails() {
+      try {
+        this.loading = true;
+        
+        // Load task details
+        const { data: taskData, error: taskError } = await supabase
+          .from('tasks')
+          .select(`
+            *,
+            matter:matter_id (title),
+            task_stars (user_id),
+            task_hours_logs (time_taken)
+          `)
+          .eq('id', this.task.id)
+          .single();
+
+        if (taskError) throw taskError;
+
+        // Load assignee email if exists
+        if (taskData.assignee) {
+          const { data: userData, error: userError } = await supabase
+            .rpc('get_user_info_by_id', {
+              user_id: taskData.assignee
+            });
+          
+          if (userError) throw userError;
+          
+          if (userData?.[0]) {
+            this.userEmails[taskData.assignee] = userData[0].email;
+          }
+        }
+
+        // Update task data
+        this.$emit('update:task', { ...this.task, ...taskData });
+
+      } catch (error) {
+        console.error('Error loading task details:', error);
+        ElMessage.error('Failed to load task details');
+      } finally {
+        this.loading = false;
+      }
+    },
   },
   beforeUnmount() {
     if (this.subscription) {
@@ -1253,7 +1329,7 @@ Please provide assistance based on this context, the comment history, the availa
     const { data: { user } } = await supabase.auth.getUser();
     this.currentUser = user;
   },
-  mounted() {
+  async mounted() {
     this.handleClickOutside = (event) => {
       if (event.target.classList.contains('edited-marker')) {
         const commentId = event.target.dataset.commentId;
@@ -1262,13 +1338,16 @@ Please provide assistance based on this context, the comment history, the availa
         } else {
           this.expandedCommentHistories.add(commentId);
         }
-        // Force update
         this.$forceUpdate();
       }
     };
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.handleResize);
-    this.loadSharedUsers();
+    
+    await Promise.all([
+      this.loadSharedUsers(),
+      this.loadTaskDetails()
+    ]);
   }
 };
 </script>
@@ -1436,6 +1515,34 @@ Please provide assistance based on this context, the comment history, the availa
               />
             </el-dropdown-item>
             <el-dropdown-item divided command="clear">Clear due date</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+
+    <div class="assignee-section">
+      <span class="assignee-label">Assigned To:</span>
+      <el-dropdown @command="handleAssigneeChange" trigger="click">
+        <el-tag
+          type="info"
+          size="small"
+          class="assignee-tag">
+          {{ task.assignee ? userEmails[task.assignee] : 'Unassigned' }}
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-tag>
+        <template #dropdown>
+          <el-dropdown-menu class="compact-dropdown">
+            <el-dropdown-item 
+              v-for="user in sharedUsers" 
+              :key="user.id"
+              :command="user.id">
+              <div class="user-option">
+                <el-avatar :size="24">
+                  {{ user.email.charAt(0).toUpperCase() }}
+                </el-avatar>
+                {{ user.email }}
+              </div>
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -2096,7 +2203,8 @@ div.comment-text>span>p>a {
 
 .status-section,
 .priority-section,
-.due-date-section {
+.due-date-section,
+.assignee-section {
   display: grid;
   grid-template-columns: 100px 1fr;
   align-items: center;
@@ -2105,7 +2213,8 @@ div.comment-text>span>p>a {
 
 .status-label,
 .priority-label,
-.due-date-label {
+.due-date-label,
+.assignee-label {
   font-size: 13px;
   color: var(--el-text-color-secondary);
   display: flex;
@@ -2117,6 +2226,18 @@ div.comment-text>span>p>a {
 .priority-tag,
 .due-date-tag {
   text-transform: capitalize;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  height: 24px;
+  justify-content: flex-start;
+  width: auto;
+  min-width: 120px;
+}
+
+.assignee-tag {
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2145,7 +2266,8 @@ div.comment-text>span>p>a {
 @media (max-width: 768px) {
   .status-section,
   .priority-section,
-  .due-date-section {
+  .due-date-section,
+  .assignee-section {
     grid-template-columns: 90px 1fr;
     padding: 4px 16px;
   }

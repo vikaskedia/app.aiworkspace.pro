@@ -501,14 +501,42 @@ export default {
     formatMarkdownLinks(text) {
       if (!text) return '';
       
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      
       // First handle user mentions with el-tag
       text = text.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, 
         '<el-tag size="small" type="info" class="mention-tag">@$1</el-tag>'
       );
       
-      // Then handle regular markdown links
+      // Then handle regular markdown links with authentication for Gitea URLs
       text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
-        '<a href="$2" target="_blank" class="file-link">$1</a>'
+        (match, fileName, fileUrl) => {
+          let authenticatedUrl = fileUrl;
+          
+          // Only modify URLs that match the Gitea host
+          if (fileUrl.startsWith(giteaHost)) {
+            try {
+              const url = new URL(fileUrl);
+              
+              // Remove any existing token parameter
+              url.searchParams.delete('token');
+              
+              // Add token as a single query parameter
+              url.searchParams.set('token', giteaToken);
+              
+              // Add cache busting parameter
+              url.searchParams.set('t', Date.now().toString());
+              
+              // Remove any duplicate question marks
+              authenticatedUrl = url.toString().replace('??', '?');
+            } catch (error) {
+              console.error('Error creating authenticated URL:', error);
+            }
+          }
+
+          return `<a href="${authenticatedUrl}" target="_blank" class="file-link">${fileName}</a>`;
+        }
       );
       
       return text;

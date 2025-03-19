@@ -6,6 +6,7 @@ import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
 import { useCacheStore } from '../store/cache';
 import { ref } from 'vue';
+import { MP } from '../mixpanel';
 
 export default {
   components: {
@@ -104,11 +105,18 @@ export default {
       try {
         const { error } = await supabase.auth.signOut();
         if (error) {
+          MP.track('Logout Failed', {
+            error: error.message
+          });
           console.error('Error logging out:', error.message);
         } else {
+          MP.track('User Logout');
           this.$router.push('/login');
         }
       } catch (err) {
+        MP.track('Logout Failed', {
+          error: err.message
+        });
         console.error('Unexpected error during logout:', err);
       }
     },

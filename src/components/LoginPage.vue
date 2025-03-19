@@ -102,6 +102,7 @@
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { ref } from 'vue';
+import { MP } from '../mixpanel';
 
 export default {
   setup() {
@@ -151,13 +152,23 @@ export default {
         });
         
         if (error) {
+          MP.track('Login Failed', {
+            loginMethod: provider,
+            error: error.message
+          });
           ElMessage.error('Login failed: ' + error.message);
         } else {
+          MP.track('User Login Initiated', {
+            loginMethod: provider
+          });
           ElMessage.success('Redirecting to login provider...');
         }
       } catch (err) {
+        MP.track('Login Failed', {
+          loginMethod: provider,
+          error: err.message
+        });
         ElMessage.error('An unexpected error occurred');
-        console.error(err);
       }
     },
 
@@ -174,6 +185,20 @@ export default {
         });
 
         if (error) throw error;
+
+        // Track successful login
+        MP.identify(data.user.id);
+        MP.track('User Login', {
+          loginMethod: 'email',
+          userId: data.user.id,
+          email: data.user.email
+        });
+        MP.setUserProperties({
+          email: data.user.email,
+          name: data.user.user_metadata?.full_name,
+          accountType: 'email',
+          lastLoginAt: new Date().toISOString()
+        });
 
         ElMessage.success('Login successful');
 
@@ -205,7 +230,12 @@ export default {
       } 
         
       } catch (error) {
-        ElMessage.error(error.message || 'Login failed');
+        // Track failed login
+        MP.track('Login Failed', {
+          loginMethod: 'email',
+          error: error.message
+        });
+        ElMessage.error('Login failed: ' + error.message);
       } finally {
         this.loading = false;
       }

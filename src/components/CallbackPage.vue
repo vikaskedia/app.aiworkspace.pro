@@ -1,5 +1,6 @@
 <script>
 import { supabase } from '../supabase';
+import { MP } from '../mixpanel';
 
 export default {
   async mounted() {
@@ -12,6 +13,21 @@ export default {
       if (error) throw error;
       
       if (data?.session) {
+        const user = data.session.user;
+        
+        MP.identify(user.id);
+        MP.track('OAuth Login Complete', {
+          provider: user.app_metadata.provider,
+          userId: user.id,
+          email: user.email
+        });
+        MP.setUserProperties({
+          email: user.email,
+          name: user.user_metadata?.full_name,
+          accountType: user.app_metadata.provider,
+          lastLoginAt: new Date().toISOString()
+        });
+        
         // Get the original redirect origin from URL params if available
         const params = new URLSearchParams(window.location.search);
         const redirectOrigin = params.get('redirect_origin') || window.location.origin;

@@ -4,6 +4,8 @@ import App from './router.vue'
 import { createPinia } from 'pinia';
 import { useCacheStore } from './store/cache';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
+import { MP } from './mixpanel';
+import { AuthTracking } from './auth-tracking';
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
@@ -49,5 +51,11 @@ if (!import.meta.env.VITE_GITEA_HOST) {
 if (!import.meta.env.VITE_GITEA_TOKEN) {
   console.error('VITE_GITEA_TOKEN environment variable is not set');
 }
+
+// Add to global properties
+rootVueApp.config.globalProperties.$mp = MP;
+
+// Initialize auth tracking
+AuthTracking.setupAuthListener();
 
 rootVueApp.mount('#app')

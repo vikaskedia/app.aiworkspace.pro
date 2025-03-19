@@ -132,6 +132,7 @@
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, computed } from 'vue';
+import { MP } from '../mixpanel';
 
 export default {
   name: 'SignupPage',
@@ -280,13 +281,23 @@ export default {
         });
         
         if (error) {
-          ElMessage.error('Signup failed: ' + error.message);
+          MP.track('Login Failed', {
+            loginMethod: provider,
+            error: error.message
+          });
+          ElMessage.error('Login failed: ' + error.message);
         } else {
-          ElMessage.success('Redirecting to provider...');
+          MP.track('User Login Initiated', {
+            loginMethod: provider
+          });
+          ElMessage.success('Redirecting to login provider...');
         }
       } catch (err) {
+        MP.track('Login Failed', {
+          loginMethod: provider,
+          error: err.message
+        });
         ElMessage.error('An unexpected error occurred');
-        console.error(err);
       }
     },
     async handleEmailSignup() {
@@ -308,6 +319,20 @@ export default {
         });
 
         if (error) throw error;
+
+        // Track successful signup
+        MP.identify(data.user.id);
+        MP.track('User Signup', {
+          signupMethod: 'email',
+          userId: data.user.id,
+          email: data.user.email
+        });
+        MP.setUserProperties({
+          email: data.user.email,
+          name: data.user.user_metadata?.full_name,
+          accountType: 'email',
+          signupDate: new Date().toISOString()
+        });
 
         // Handle referral if exists
         if (data?.user) {
@@ -334,7 +359,12 @@ export default {
         ElMessage.success('Signup successful! Please check your email to confirm your account.');
         this.$router.push('/login');
       } catch (error) {
-        ElMessage.error(error.message || 'Signup failed');
+        // Track failed signup
+        MP.track('Signup Failed', {
+          signupMethod: 'email',
+          error: error.message
+        });
+        ElMessage.error('Signup failed: ' + error.message);
       } finally {
         this.loading = false;
       }

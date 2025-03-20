@@ -6,7 +6,7 @@ const MIXPANEL_TOKEN = import.meta.env.VITE_MIXPANEL_TOKEN;
 // Test user patterns to bypass
 const TEST_USER_PATTERNS = [
   'soumen+040225@grmtech.com',
-  /^SoumenE2Etest.+/
+  /^soumen\+.+@grmtech\.com$/  // Matches dynamic test emails like soumen+timestamp@grmtech.com
 ];
 
 // Helper function to check if user should be bypassed

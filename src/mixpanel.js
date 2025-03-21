@@ -21,13 +21,25 @@ const shouldBypassTracking = (userIdentifier) => {
   });
 };
 
+// Custom decide function to disable autocapture for test users
+const customDecideFunction = (event_name) => {
+  const currentUser = mixpanel.get_distinct_id();
+  if (shouldBypassTracking(currentUser)) {
+    return false; // Disable all automatic tracking for test users
+  }
+  return true; // Enable tracking for non-test users
+};
+
 // Configure Mixpanel
 mixpanel.init(MIXPANEL_TOKEN, {
   debug: import.meta.env.DEV,
   persistence: 'localStorage',
   api_host: 'https://api-js.mixpanel.com',
   ignore_dnt: false,
-  autocapture: true
+  autocapture: {
+    enabled: true,
+    decide_function: customDecideFunction
+  }
 });
 
 // Helper functions for tracking

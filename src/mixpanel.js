@@ -31,6 +31,8 @@ mixpanel.init(MIXPANEL_TOKEN, {
 });
 
 // Helper functions for tracking
+// Note: opt_out_tracking() is used for test users to prevent all tracking
+// opt_in_tracking() is used for normal users to ensure tracking is enabled
 export const MP = {
   identify: (id) => {
     const isTestUser = shouldBypassTracking(id);

@@ -21,55 +21,68 @@ const shouldBypassTracking = (userIdentifier) => {
   });
 };
 
-// Custom decide function to disable autocapture for test users
-const customDecideFunction = (event_name) => {
-  const currentUser = mixpanel.get_distinct_id();
-  if (shouldBypassTracking(currentUser)) {
-    return false; // Disable all automatic tracking for test users
-  }
-  return true; // Enable tracking for non-test users
-};
-
 // Configure Mixpanel
 mixpanel.init(MIXPANEL_TOKEN, {
   debug: import.meta.env.DEV,
   persistence: 'localStorage',
   api_host: 'https://api-js.mixpanel.com',
   ignore_dnt: false,
-  autocapture: {
-    enabled: true,
-    decide_function: customDecideFunction
-  }
+  autocapture: true
 });
 
 // Helper functions for tracking
 export const MP = {
   identify: (id) => {
-    if (shouldBypassTracking(id)) return;
+    const user = mixpanel.get_distinct_id();
+    // Check if current user is a test user
+    if (shouldBypassTracking(user)) {
+      mixpanel.opt_out_tracking();
+      return;
+    }
+    mixpanel.opt_in_tracking();
     mixpanel.identify(id);
   },
   
   alias: (id) => {
-    if (shouldBypassTracking(id)) return;
+    if (shouldBypassTracking(id)) {
+      mixpanel.opt_out_tracking();
+      return;
+    }
+    mixpanel.opt_in_tracking();
     mixpanel.alias(id);
   },
   
   track: (name, props) => {
     // Check both user ID and email in props
-    if (props?.userId && shouldBypassTracking(props.userId)) return;
-    if (props?.email && shouldBypassTracking(props.email)) return;
+    if (props?.userId && shouldBypassTracking(props.userId)) {
+      mixpanel.opt_out_tracking();
+      return;
+    }
+    if (props?.email && shouldBypassTracking(props.email)) {
+      mixpanel.opt_out_tracking();
+      return;
+    }
+    mixpanel.opt_in_tracking();
     mixpanel.track(name, props);
   },
   
   people: {
     set: (props) => {
-      if (props?.$email && shouldBypassTracking(props.$email)) return;
+      if (props?.$email && shouldBypassTracking(props.$email)) {
+        mixpanel.opt_out_tracking();
+        return;
+      }
+      mixpanel.opt_in_tracking();
       mixpanel.people.set(props);
     }
   },
   
   setUserProperties: (userProps) => {
-    if (shouldBypassTracking(userProps.email)) return;
+    if (shouldBypassTracking(userProps.email)) {
+      mixpanel.opt_out_tracking();
+      return;
+    }
+    mixpanel.opt_in_tracking();
     mixpanel.people.set({
       '$email': userProps.email,
       '$name': userProps.name,

@@ -215,6 +215,20 @@ const routes = [
     ]
   },
   {
+    path: '/billing',
+    component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'Billing',
+        component: () => import('./components/BillingCt.vue'),
+        meta: {
+          requiresAuth: true
+        }
+      }
+    ]
+  },
+  {
     path: '/',
     redirect: '/login'
   }

@@ -83,6 +83,9 @@ export default {
     },
     isReferralSystemRoute() {
       return this.$route.path.includes('/referral-system')
+    },
+    isBillingRoute() {
+      return this.$route.path.includes('/billing')
     }
   },
   async mounted() {
@@ -138,6 +141,9 @@ export default {
         case 'email_notifications':
           // Navigate to email notifications settings
           this.$router.push('/settings/email-notifications');
+          break;
+        case 'billing':
+          this.$router.push('/billing');
           break;
         case 'talktodev':
           // TODO: Implement talk to dev route
@@ -322,6 +328,9 @@ export default {
       <template v-else-if="isReferralSystemRoute">
         <h2 class="section-title">Referral System</h2>
       </template>
+      <template v-else-if="isBillingRoute">
+        <h2 class="section-title">Billing</h2>
+      </template>
       <template v-else>
         <MatterSelector @matter-selected="handleMatterSelect" />
         <span class="section-divider">/</span>
@@ -380,6 +389,9 @@ export default {
             </el-dropdown-item>
             <el-dropdown-item command="email_notifications">
               Email Notifications
+            </el-dropdown-item>
+            <el-dropdown-item command="billing">
+              Billing
             </el-dropdown-item>
             <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>

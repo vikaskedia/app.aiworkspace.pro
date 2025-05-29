@@ -18,8 +18,33 @@ export default {
       description: ''
     });
 
+    // Filter states
+    const selectedMatter = ref('');
+    const dateRange = ref([]);
+
+    const filteredWorkHours = computed(() => {
+      return workHours.value.filter(record => {
+        const matterMatch = !selectedMatter.value || record.matter_id === selectedMatter.value;
+        
+        // Date range filtering
+        if (dateRange.value && dateRange.value.length === 2) {
+          const recordDate = new Date(record.created_at);
+          const startDate = new Date(dateRange.value[0]);
+          const endDate = new Date(dateRange.value[1]);
+          
+          // Set end date to end of day
+          endDate.setHours(23, 59, 59, 999);
+          
+          const dateMatch = recordDate >= startDate && recordDate <= endDate;
+          return matterMatch && dateMatch;
+        }
+        
+        return matterMatch;
+      });
+    });
+
     const totalTime = computed(() => {
-      const totalMinutes = workHours.value.reduce((sum, record) => sum + record.minutes, 0);
+      const totalMinutes = filteredWorkHours.value.reduce((sum, record) => sum + record.minutes, 0);
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return { hours, minutes, totalMinutes };
@@ -113,7 +138,10 @@ export default {
       dialogVisible,
       form,
       handleSubmit,
-      totalTime
+      totalTime,
+      selectedMatter,
+      dateRange,
+      filteredWorkHours
     };
   }
 };
@@ -128,12 +156,67 @@ export default {
       </el-button>
     </div>
     
+    <div class="filters-section">
+      <div class="filter-controls">
+        <el-select
+          v-model="selectedMatter"
+          placeholder="Filter by matter"
+          clearable
+          style="width: 200px"
+        >
+          <el-option
+            v-for="matter in matters"
+            :key="matter.id"
+            :label="matter.title"
+            :value="matter.id"
+          />
+        </el-select>
+
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="To"
+          start-placeholder="Start date"
+          end-placeholder="End date"
+          :shortcuts="[
+            {
+              text: 'Last week',
+              value: () => {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+                return [start, end];
+              },
+            },
+            {
+              text: 'Last month',
+              value: () => {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+                return [start, end];
+              },
+            },
+            {
+              text: 'Last 3 months',
+              value: () => {
+                const end = new Date();
+                const start = new Date();
+                start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+                return [start, end];
+              },
+            },
+          ]"
+        />
+      </div>
+    </div>
+    
     <div v-if="loading" class="loading-state">
       <el-skeleton :rows="3" animated />
     </div>
     
     <div v-else class="billing-content">
-      <el-table :data="workHours" style="width: 100%">
+      <el-table :data="filteredWorkHours" style="width: 100%">
         <el-table-column prop="matters.title" label="Matter" min-width="200" />
         <el-table-column label="Time" width="150">
           <template #default="scope">
@@ -270,6 +353,21 @@ h1 {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+.filters-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 640px) {
   .billing-container {
     padding: 1rem;
@@ -308,6 +406,21 @@ h1 {
   .summary-value {
     font-size: 1.2em;
     padding: 0.4rem 0.8rem;
+  }
+
+  .filters-section {
+    margin: 1rem 0;
+    padding: 0.75rem;
+  }
+
+  .filter-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-controls .el-select,
+  .filter-controls .el-date-picker {
+    width: 100% !important;
   }
 }
 </style> 

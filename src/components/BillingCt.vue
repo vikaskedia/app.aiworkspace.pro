@@ -106,17 +106,20 @@ export default {
         // Get all users from the work_hours table
         const { data: workHoursData, error: workHoursError } = await supabase
           .from('work_hours')
-          .select('user_id')
+          .select('user_id, user_email')
           .order('created_at', { ascending: false });
 
         if (workHoursError) throw workHoursError;
 
         // Create a unique list of users from work hours
         const uniqueUsers = Array.from(new Set(workHoursData.map(wh => wh.user_id)))
-          .map(userId => ({
-            id: userId,
-            full_name: `User ${userId.slice(0, 8)}` // Using a truncated user ID as display name
-          }));
+          .map(userId => {
+            const userData = workHoursData.find(wh => wh.user_id === userId);
+            return {
+              id: userId,
+              full_name: userData.user_email || `User ${userId.slice(0, 8)}`
+            };
+          });
 
         users.value = uniqueUsers;
       } catch (error) {
@@ -133,6 +136,7 @@ export default {
           .from('work_hours')
           .insert([{
             user_id: user.id,
+            user_email: user.email,
             matter_id: form.value.matter_id,
             minutes: totalMinutes,
             description: form.value.description
@@ -271,7 +275,7 @@ export default {
         <el-table-column prop="description" label="Description" min-width="300" />
         <el-table-column label="Added By" width="180">
           <template #default="scope">
-            {{ `User ${scope.row.user_id.slice(0, 8)}` }}
+            {{ scope.row.user_email || `User ${scope.row.user_id.slice(0, 8)}` }}
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="Date" width="180">
@@ -347,11 +351,6 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-}
-
-.billing-content {
-  margin-top: 2rem;
 }
 
 .loading-state {
@@ -404,11 +403,12 @@ h1 {
 }
 
 .filters-section {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background-color: #f5f7fa;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background: linear-gradient(to right, #f0f7ff, #e6f3ff);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
   border-radius: 4px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #ccd9e5;
 }
 
 .filter-controls {

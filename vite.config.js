@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
+import vueJsx from '@vitejs/plugin-vue-jsx';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
@@ -11,7 +12,10 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      vueJsx()
+    ],
     base: "/",
     server: {
       port: 80,
@@ -22,6 +26,10 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       port: 80,
+    },
+    esbuild: {
+      jsxFactory: 'h',
+      jsxFragment: 'Fragment'
     }
   };
 });

@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-matter/MatterLayout.vue';
+import OutlineCt from './components/single-matter/OutlineCt.vue';
 // import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
 // import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
@@ -116,6 +117,11 @@ const routes = [
         path: 'files',
         name: 'ManageFilesPage',
         component: ManageFilesCt
+      },
+      {
+        path: 'outlines',
+        name: 'OutlinesPage',
+        component: OutlineCt
       },
       {
         path: 'settings',

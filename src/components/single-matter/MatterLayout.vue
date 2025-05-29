@@ -36,6 +36,7 @@ export default {
       if (path.includes('/files')) return 'files'
       if (path.includes('/goals')) return 'goals'
       if (path.includes('/events')) return 'events'
+      if (path.includes('/outlines')) return 'outlines'
       return 'dashboard'
     }
   },

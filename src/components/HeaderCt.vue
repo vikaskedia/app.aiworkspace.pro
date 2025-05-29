@@ -43,6 +43,7 @@ export default {
       if (path.includes('/tasks')) return 'Tasks';
       if (path.includes('/events')) return 'Events';
       if (path.includes('/files')) return 'Files';
+      if (path.includes('/outlines')) return 'Outlines';
       if (path.includes('/settings')) return 'Settings';
       if (path.includes('/dashboard')) return 'Dashboard';
       if (path.includes('/all-matters')) {
@@ -202,6 +203,9 @@ export default {
           case 'files':
             this.$router.push(`/single-matter/${this.currentMatter.id}/files`);
             break;
+          case 'outlines':
+            this.$router.push(`/single-matter/${this.currentMatter.id}/outlines`);
+            break;
           case 'settings':
             this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
             break;
@@ -348,6 +352,10 @@ export default {
                 <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
                 <el-dropdown-item command="events">Events</el-dropdown-item>
                 <el-dropdown-item command="files">Files</el-dropdown-item>
+                <el-dropdown-item 
+                  command="outlines"
+                  :class="{ 'is-active': $route.path.includes('/outlines') }"
+                >Outlines</el-dropdown-item>
                 <el-dropdown-item command="settings">Settings</el-dropdown-item>
               </template>
               <!-- Show these options when "All Matters" is selected -->

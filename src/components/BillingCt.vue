@@ -10,6 +10,7 @@ export default {
     const loading = ref(false);
     const workHours = ref([]);
     const matters = ref([]);
+    const users = ref([]);
     const dialogVisible = ref(false);
     const form = ref({
       matter_id: '',
@@ -21,10 +22,12 @@ export default {
     // Filter states
     const selectedMatter = ref('');
     const dateRange = ref([]);
+    const selectedUser = ref('');
 
     const filteredWorkHours = computed(() => {
       return workHours.value.filter(record => {
         const matterMatch = !selectedMatter.value || record.matter_id === selectedMatter.value;
+        const userMatch = !selectedUser.value || record.user_id === selectedUser.value;
         
         // Date range filtering
         if (dateRange.value && dateRange.value.length === 2) {
@@ -36,10 +39,10 @@ export default {
           endDate.setHours(23, 59, 59, 999);
           
           const dateMatch = recordDate >= startDate && recordDate <= endDate;
-          return matterMatch && dateMatch;
+          return matterMatch && userMatch && dateMatch;
         }
         
-        return matterMatch;
+        return matterMatch && userMatch;
       });
     });
 
@@ -62,11 +65,13 @@ export default {
               title
             )
           `)
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
         workHours.value = data;
+        
+        // Set default user filter to current user
+        selectedUser.value = user.id;
       } catch (error) {
         ElMessage.error('Error loading work hours: ' + error.message);
       } finally {
@@ -93,6 +98,29 @@ export default {
         matters.value = data;
       } catch (error) {
         ElMessage.error('Error loading matters: ' + error.message);
+      }
+    };
+
+    const loadUsers = async () => {
+      try {
+        // Get all users from the work_hours table
+        const { data: workHoursData, error: workHoursError } = await supabase
+          .from('work_hours')
+          .select('user_id')
+          .order('created_at', { ascending: false });
+
+        if (workHoursError) throw workHoursError;
+
+        // Create a unique list of users from work hours
+        const uniqueUsers = Array.from(new Set(workHoursData.map(wh => wh.user_id)))
+          .map(userId => ({
+            id: userId,
+            full_name: `User ${userId.slice(0, 8)}` // Using a truncated user ID as display name
+          }));
+
+        users.value = uniqueUsers;
+      } catch (error) {
+        ElMessage.error('Error loading users: ' + error.message);
       }
     };
 
@@ -129,18 +157,21 @@ export default {
     onMounted(() => {
       loadWorkHours();
       loadMatters();
+      loadUsers();
     });
 
     return {
       loading,
       workHours,
       matters,
+      users,
       dialogVisible,
       form,
       handleSubmit,
       totalTime,
       selectedMatter,
       dateRange,
+      selectedUser,
       filteredWorkHours
     };
   }
@@ -158,6 +189,20 @@ export default {
     
     <div class="filters-section">
       <div class="filter-controls">
+        <el-select
+          v-model="selectedUser"
+          placeholder="Filter by user"
+          clearable
+          style="width: 200px"
+        >
+          <el-option
+            v-for="user in users"
+            :key="user.id"
+            :label="user.full_name"
+            :value="user.id"
+          />
+        </el-select>
+
         <el-select
           v-model="selectedMatter"
           placeholder="Filter by matter"
@@ -224,6 +269,11 @@ export default {
           </template>
         </el-table-column>
         <el-table-column prop="description" label="Description" min-width="300" />
+        <el-table-column label="Added By" width="180">
+          <template #default="scope">
+            {{ `User ${scope.row.user_id.slice(0, 8)}` }}
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="Date" width="180">
           <template #default="scope">
             {{ new Date(scope.row.created_at).toLocaleString() }}

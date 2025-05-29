@@ -73,7 +73,7 @@ export default {
         // Set default user filter to current user
         selectedUser.value = user.id;
       } catch (error) {
-        ElMessage.error('Error loading work hours: ' + error.message);
+        ElMessage.error('Error loading client billing: ' + error.message);
       } finally {
         loading.value = false;
       }
@@ -111,7 +111,7 @@ export default {
 
         if (workHoursError) throw workHoursError;
 
-        // Create a unique list of users from work hours
+        // Create a unique list of users from client billing
         const uniqueUsers = Array.from(new Set(workHoursData.map(wh => wh.user_id)))
           .map(userId => {
             const userData = workHoursData.find(wh => wh.user_id === userId);
@@ -144,7 +144,7 @@ export default {
 
         if (error) throw error;
 
-        ElMessage.success('Work hours logged successfully');
+        ElMessage.success('Client billing logged successfully');
         dialogVisible.value = false;
         form.value = {
           matter_id: '',
@@ -154,7 +154,7 @@ export default {
         };
         await loadWorkHours();
       } catch (error) {
-        ElMessage.error('Error logging work hours: ' + error.message);
+        ElMessage.error('Error logging client billing: ' + error.message);
       }
     };
 
@@ -185,9 +185,9 @@ export default {
 <template>
   <div class="billing-container">
     <div class="billing-header">
-      <h1>Work Hours</h1>
+      <h1>Client Billing</h1>
       <el-button type="primary" @click="dialogVisible = true">
-        Add Work Hours
+        Add Client Billing
       </el-button>
     </div>
     
@@ -295,7 +295,7 @@ export default {
 
     <el-dialog
       v-model="dialogVisible"
-      title="Add Work Hours"
+      title="Add Client Billing"
       width="500px"
     >
       <el-form :model="form" label-width="120px">

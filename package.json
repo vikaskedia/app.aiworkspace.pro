@@ -33,7 +33,7 @@
     "mixpanel-browser": "^2.61.2",
     "moment": "^2.29.4",
     "pinia": "^2.3.0",
-    "pinia-plugin-persistedstate": "^4.2.0",
+    "pinia-plugin-persistedstate": "4.2.0",
     "sass": "^1.83.0",
     "showdown": "^2.1.0",
     "splitpanes": "^3.1.5",

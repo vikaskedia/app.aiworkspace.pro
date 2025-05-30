@@ -1,7 +1,12 @@
 <template>
   <div class="outline-container">
     <div class="outline-header">
-      <el-button type="primary" @click="saveOutline" :loading="saving">
+      <el-button 
+        type="primary" 
+        @click="saveOutline" 
+        :loading="saving"
+        :disabled="!hasChanges"
+      >
         Save Outline
       </el-button>
     </div>
@@ -21,10 +26,9 @@
 <script>
 import { ref, watch, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { ElNotification } from 'element-plus';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
-
-const LOCAL_KEY = 'outline';
 
 export default {
   name: 'OutlineCt',
@@ -35,6 +39,19 @@ export default {
     const saving = ref(false);
     const outline = ref([]);
     const outlineId = ref(null);
+    const currentVersion = ref(1);
+    const hasChanges = ref(false);
+    const lastSavedContent = ref(null);
+
+    // Get localStorage keys for current matter
+    const getLocalStorageKey = () => `outline_${matterId}`;
+    const getVersionKey = () => `outline_version_${matterId}`;
+
+    // Function to check if content has changed
+    const checkForChanges = (newContent) => {
+      if (!lastSavedContent.value) return false;
+      return JSON.stringify(newContent) !== JSON.stringify(lastSavedContent.value);
+    };
 
     // Default outline data
     const defaultOutline = [
@@ -86,53 +103,80 @@ export default {
 
     // Load from localStorage or use default
     onMounted(async () => {
+      if (!matterId) return;
+
       // First load from localStorage
-      const data = localStorage.getItem(LOCAL_KEY);
+      const localStorageKey = getLocalStorageKey();
+      const versionKey = getVersionKey();
+      const data = localStorage.getItem(localStorageKey);
+      const storedVersion = localStorage.getItem(versionKey);
+
       if (data) {
         try {
           outline.value = JSON.parse(data);
+          currentVersion.value = storedVersion ? parseInt(storedVersion) : 1;
         } catch {
           outline.value = defaultOutline;
+          currentVersion.value = 1;
         }
       } else {
         outline.value = defaultOutline;
+        currentVersion.value = 1;
       }
 
       // Then fetch from Supabase
-      if (matterId) {
-        try {
-          // Get the latest outline for this matter
-          const { data: outlineData, error: outlineError } = await supabase
-            .from('outlines')
-            .select('*')
-            .eq('matter_id', matterId)
-            .order('version', { ascending: false })
-            .limit(1)
-            .single();
+      try {
+        // Get the latest outline for this matter
+        const { data: outlineData, error: outlineError } = await supabase
+          .from('outlines')
+          .select('*')
+          .eq('matter_id', matterId)
+          .order('version', { ascending: false })
+          .limit(1)
+          .single();
 
-          if (outlineError && outlineError.code !== 'PGRST116') {
-            console.error('Error fetching outline:', outlineError);
-            return;
-          }
-
-          if (outlineData) {
-            outlineId.value = outlineData.id;
-            // Only update if the content is different
-            if (JSON.stringify(outlineData.content) !== JSON.stringify(outline.value)) {
-              outline.value = outlineData.content;
-              localStorage.setItem(LOCAL_KEY, JSON.stringify(outlineData.content));
-            }
-          }
-          // If no outline data in Supabase, keep the localStorage/default data
-        } catch (error) {
-          console.error('Error in outline setup:', error);
+        if (outlineError && outlineError.code !== 'PGRST116') {
+          console.error('Error fetching outline:', outlineError);
+          return;
         }
+
+        if (outlineData) {
+          outlineId.value = outlineData.id;
+          
+          // If versions match, check for content differences
+          if (outlineData.version === currentVersion.value) {
+            const localContent = JSON.stringify(outline.value);
+            const supabaseContent = JSON.stringify(outlineData.content);
+            hasChanges.value = localContent !== supabaseContent;
+            lastSavedContent.value = outlineData.content;
+          } else if (outlineData.version > currentVersion.value) {
+            // If Supabase version is newer, update local content
+            outline.value = outlineData.content;
+            currentVersion.value = outlineData.version;
+            localStorage.setItem(localStorageKey, JSON.stringify(outlineData.content));
+            localStorage.setItem(versionKey, outlineData.version.toString());
+            hasChanges.value = false;
+            lastSavedContent.value = outlineData.content;
+          }
+        } else {
+          // If no outline in Supabase, mark as changed if we have local content
+          hasChanges.value = outline.value !== defaultOutline;
+          lastSavedContent.value = outline.value;
+        }
+      } catch (error) {
+        console.error('Error in outline setup:', error);
+        // In case of error, assume we have changes if we have local content
+        hasChanges.value = outline.value !== defaultOutline;
+        lastSavedContent.value = outline.value;
       }
     });
 
-    // Save to localStorage on change
+    // Watch for changes in outline
     watch(outline, (val) => {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(val));
+      if (matterId) {
+        localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
+        hasChanges.value = checkForChanges(val);
+      }
     }, { deep: true });
 
     async function saveOutline() {
@@ -147,16 +191,25 @@ export default {
         if (!user) throw new Error('No authenticated user');
 
         if (outlineId.value) {
-          // Update existing outline
-          const { error: updateError } = await supabase
+          // First get the new version number
+          const { data: newVersion, error: versionError } = await supabase
+            .rpc('increment_version', { outline_id: outlineId.value });
+
+          if (versionError) throw versionError;
+
+          // Then update the outline with the new version
+          const { data: updatedOutline, error: updateError } = await supabase
             .from('outlines')
             .update({
               content: outline.value,
-              version: supabase.rpc('increment_version', { outline_id: outlineId.value })
+              version: newVersion
             })
-            .eq('id', outlineId.value);
+            .eq('id', outlineId.value)
+            .select()
+            .single();
 
           if (updateError) throw updateError;
+          currentVersion.value = updatedOutline.version;
         } else {
           // Create new outline
           const { data: newOutline, error: insertError } = await supabase
@@ -172,6 +225,7 @@ export default {
 
           if (insertError) throw insertError;
           outlineId.value = newOutline.id;
+          currentVersion.value = newOutline.version;
         }
 
         // Create version record
@@ -180,14 +234,36 @@ export default {
           .insert([{
             outline_id: outlineId.value,
             content: outline.value,
-            version: outlineId.value ? (await supabase.rpc('get_latest_version', { outline_id: outlineId.value })).data : 1,
+            version: currentVersion.value,
             created_by: user.id
           }]);
 
         if (versionError) throw versionError;
 
+        // Update version in localStorage
+        localStorage.setItem(getVersionKey(), currentVersion.value.toString());
+
+        // Update last saved content and reset changes flag
+        lastSavedContent.value = JSON.parse(JSON.stringify(outline.value));
+        hasChanges.value = false;
+
+        // Show success notification
+        ElNotification({
+          title: 'Success',
+          message: 'Outline saved successfully',
+          type: 'success',
+          duration: 3000
+        });
+
       } catch (error) {
         console.error('Error saving outline:', error);
+        // Show error notification
+        ElNotification({
+          title: 'Error',
+          message: 'Failed to save outline. Please try again.',
+          type: 'error',
+          duration: 5000
+        });
       } finally {
         saving.value = false;
       }
@@ -312,6 +388,7 @@ export default {
     return { 
       outline, 
       saving,
+      hasChanges,
       onOutlineUpdate, 
       handleMove, 
       handleDelete,

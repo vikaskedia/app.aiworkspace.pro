@@ -27,7 +27,11 @@
     <el-dialog v-model="historyDialogVisible" title="Outline Version History" width="700px">
       <el-table :data="versionHistory" style="width: 100%" v-loading="loadingHistory">
         <el-table-column prop="version" label="Version" width="80" />
-        <el-table-column prop="created_at" label="Saved At" width="250" />
+        <el-table-column label="Saved At" width="250">
+          <template #default="scope">
+            {{ formatDate(scope.row.created_at) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="creator_email" label="Created By" width="250" />
         <el-table-column label="Action" width="80">
           <template #default="scope">
@@ -45,7 +49,7 @@
         <div class="version-info">
           <p><strong>Version:</strong> {{ selectedVersion.version }}</p>
           <p><strong>Created By:</strong> {{ selectedVersion.creator_email }}</p>
-          <p><strong>Created At:</strong> {{ selectedVersion.created_at }}</p>
+          <p><strong>Created At:</strong> {{ formatDate(selectedVersion.created_at) }}</p>
         </div>
         <div class="version-outline">
           <ul class="outline-list">
@@ -571,6 +575,18 @@ export default {
       viewVersionDialogVisible.value = true;
     }
 
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
     return { 
       outline, 
       saving,
@@ -595,6 +611,7 @@ export default {
       loadingHistory,
       selectedVersion,
       viewVersion,
+      formatDate,
     };
   }
 };

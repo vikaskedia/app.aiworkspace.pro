@@ -174,19 +174,40 @@ export default {
   },
   watch: {
     showArchived() {
-      this.loadMatters();
+      this.loadMattersWithCache();
     }
   },
   mounted() {
-    this.loadMatters();
+    this.loadMattersWithCache();
   },
   methods: {
+    getCacheKey() {
+      return `matters_${this.showArchived ? 'archived' : 'active'}`;
+    },
+
+    async loadMattersWithCache() {
+      try {
+        // Try to get data from cache first
+        const cacheKey = this.getCacheKey();
+        const cachedData = localStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+          // Display cached data immediately
+          this.matters = JSON.parse(cachedData);
+        }
+        
+        // Always fetch fresh data
+        await this.loadMatters();
+      } catch (error) {
+        ElMessage.error('Error loading matters: ' + error.message);
+      }
+    },
+
     async loadMatters() {
       try {
-        this.loading = true;
+        this.loading = false;
         const { data: { user } } = await supabase.auth.getUser();
 
-        // Get all matters that the user has access to. Even without the join with matter_access this will work if RLS is enabled. But in Dec 2024, RLS is not enabled since giving errors.
         const query = supabase
           .from('matters')
           .select(`
@@ -208,6 +229,10 @@ export default {
           const stats = await this.loadMatterStats(matter.id);
           return { ...matter, stats };
         }));
+
+        // Update cache with new data
+        const cacheKey = this.getCacheKey();
+        localStorage.setItem(cacheKey, JSON.stringify(mattersWithStats));
 
         this.matters = mattersWithStats;
       } catch (error) {
@@ -323,6 +348,9 @@ export default {
           } 
         });
         
+        // Clear cache when creating new matter
+        this.clearMattersCache();
+        
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };
         ElMessage.success('Matter created successfully');
@@ -357,6 +385,9 @@ export default {
           this.matters[index] = { ...this.matters[index], ...data };
         }
 
+        // Clear cache when updating matter
+        this.clearMattersCache();
+
         this.editMatterDialog = false;
         ElMessage.success('Matter updated successfully');
       } catch (error) {
@@ -382,6 +413,10 @@ export default {
         if (error) throw error;
 
         this.matters = this.matters.filter(m => m.id !== matter.id);
+        
+        // Clear cache when archiving matter
+        this.clearMattersCache();
+        
         ElMessage.success('Matter archived successfully');
       } catch (error) {
         ElMessage.error('Error archiving matter: ' + error.message);
@@ -402,6 +437,10 @@ export default {
         if (error) throw error;
 
         this.matters = this.matters.filter(m => m.id !== matter.id);
+        
+        // Clear cache when restoring matter
+        this.clearMattersCache();
+        
         ElMessage.success('Matter restored successfully');
       } catch (error) {
         ElMessage.error('Error restoring matter: ' + error.message);
@@ -449,6 +488,11 @@ export default {
           }).catch(() => {});
           break;
       }
+    },
+
+    clearMattersCache() {
+      localStorage.removeItem('matters_active');
+      localStorage.removeItem('matters_archived');
     }
   }
 };

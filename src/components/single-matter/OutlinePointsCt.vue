@@ -15,11 +15,10 @@
     <span
       v-if="hasChildren"
       class="collapse-toggle"
-      :class="{ collapsed }"
-      @click="toggleCollapse"
+      @click="$emit('drilldown', item.id)"
+      style="cursor:pointer;"
     >
-      <span v-if="collapsed">&#9654;</span>
-      <span v-else>&#9660;</span>
+      ▶
     </span>
     <div 
       class="outline-bullet"
@@ -39,7 +38,7 @@
       class="outline-textarea"
       rows="1"
     ></textarea>
-    <ul v-if="hasChildren && !collapsed" class="outline-list">
+    <ul v-if="hasChildren" class="outline-list">
       <OutlinePointsCt
         v-for="child in item.children"
         :key="child.id"
@@ -47,6 +46,7 @@
         @update="updateChild"
         @move="handleMove"
         @delete="handleDelete"
+        @drilldown="$emit('drilldown', $event)"
       />
     </ul>
   </li>
@@ -58,12 +58,11 @@ export default {
   props: {
     item: { type: Object, required: true }
   },
-  emits: ['update', 'move', 'delete'],
+  emits: ['update', 'move', 'delete', 'drilldown'],
   data() {
     return {
       editing: false,
       editText: this.item.text,
-      collapsed: false,
       isDragOverTop: false,
       isDragOverBottom: false,
       isDragging: false
@@ -252,9 +251,6 @@ export default {
     },
     updateChild(payload) {
       this.$emit('update', payload);
-    },
-    toggleCollapse() {
-      this.collapsed = !this.collapsed;
     },
     handleBackspace(e) {
       // Only delete if the textarea is empty, we're at the start of the line, and there are no children

@@ -1,5 +1,15 @@
 <template>
   <div class="outline-container">
+    <div v-if="breadcrumbPath.length" class="outline-breadcrumbs">
+      <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
+        <span v-if="idx > 0"> &gt; </span>
+        <span
+          class="breadcrumb-link"
+          @click="handleBreadcrumb(node, idx)"
+          :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"
+        >{{ getBreadcrumbText(node.text) }}</span>
+      </template>
+    </div>
     <div class="outline-header">
       <el-button 
         type="primary" 
@@ -12,19 +22,20 @@
     </div>
     <ul class="outline-list">
       <OutlinePointsCt
-        v-for="item in outline"
+        v-for="item in getFocusedOutline()"
         :key="item.id"
         :item="item"
         @update="onOutlineUpdate"
         @move="handleMove"
         @delete="handleDelete"
+        @drilldown="handleDrilldown"
       />
     </ul>
   </div>
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElNotification } from 'element-plus';
 import { supabase } from '../../supabase';
@@ -42,6 +53,7 @@ export default {
     const currentVersion = ref(1);
     const hasChanges = ref(false);
     const lastSavedContent = ref(null);
+    const focusedId = ref(null);
 
     // Get localStorage keys for current matter
     const getLocalStorageKey = () => `outline_${matterId}`;
@@ -385,6 +397,59 @@ export default {
       outline.value = [...outline.value];
     }
 
+    function handleDrilldown(id) {
+      focusedId.value = id;
+    }
+
+    function handleBack() {
+      focusedId.value = null;
+    }
+
+    function getFocusedOutline() {
+      if (!focusedId.value) return outline.value;
+      function findById(items, id) {
+        for (const item of items) {
+          if (item.id.toString() === id.toString()) return [item];
+          if (item.children) {
+            const found = findById(item.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      }
+      return findById(outline.value, focusedId.value) || [];
+    }
+
+    // Helper to find the path from root to focused node
+    function findPathToNode(items, id, path = []) {
+      for (const item of items) {
+        const newPath = [...path, item];
+        if (item.id.toString() === id?.toString()) return newPath;
+        if (item.children) {
+          const found = findPathToNode(item.children, id, newPath);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    const breadcrumbPath = computed(() => {
+      if (!focusedId.value) return [];
+      return findPathToNode(outline.value, focusedId.value) || [];
+    });
+
+    function handleBreadcrumb(node, idx) {
+      // If last breadcrumb, do nothing (already focused)
+      if (idx === breadcrumbPath.value.length - 1) return;
+      focusedId.value = node.id;
+    }
+
+    function getBreadcrumbText(text) {
+      if (!text) return '';
+      const words = text.split(/\s+/);
+      return words.length > 5 ? words.slice(0, 5).join(' ') + '…' : text;
+    }
+
     return { 
       outline, 
       saving,
@@ -392,7 +457,16 @@ export default {
       onOutlineUpdate, 
       handleMove, 
       handleDelete,
-      saveOutline 
+      saveOutline,
+      // Drilldown
+      focusedId,
+      handleDrilldown,
+      handleBack,
+      getFocusedOutline,
+      // Breadcrumbs
+      breadcrumbPath,
+      handleBreadcrumb,
+      getBreadcrumbText,
     };
   }
 };
@@ -416,5 +490,21 @@ export default {
   list-style: none;
   padding-left: 0;
   margin: 0;
+}
+
+.outline-breadcrumbs {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: #888;
+}
+.breadcrumb-link {
+  cursor: pointer;
+  color: #1976d2;
+  text-decoration: none;
+}
+.breadcrumb-link[style*='bold'] {
+  color: #23272f;
+  text-decoration: none;
+  cursor: default;
 }
 </style> 

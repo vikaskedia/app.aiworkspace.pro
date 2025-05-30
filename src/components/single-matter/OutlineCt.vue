@@ -1,5 +1,10 @@
 <template>
   <div class="outline-container">
+    <div class="outline-header">
+      <el-button type="primary" @click="saveOutline" :loading="saving">
+        Save Outline
+      </el-button>
+    </div>
     <ul class="outline-list">
       <OutlinePointsCt
         v-for="item in outline"
@@ -15,6 +20,8 @@
 
 <script>
 import { ref, watch, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 
 const LOCAL_KEY = 'outline';
@@ -23,7 +30,13 @@ export default {
   name: 'OutlineCt',
   components: { OutlinePointsCt },
   setup() {
-    // Dummy outline data, n-level deep
+    const route = useRoute();
+    const matterId = route.params.matterId;
+    const saving = ref(false);
+    const outline = ref([]);
+    const outlineId = ref(null);
+
+    // Default outline data
     const defaultOutline = [
       {
         id: 1,
@@ -70,10 +83,10 @@ export default {
         ]
       }
     ];
-    const outline = ref([]);
 
     // Load from localStorage or use default
-    onMounted(() => {
+    onMounted(async () => {
+      // First load from localStorage
       const data = localStorage.getItem(LOCAL_KEY);
       if (data) {
         try {
@@ -84,12 +97,101 @@ export default {
       } else {
         outline.value = defaultOutline;
       }
+
+      // Then fetch from Supabase
+      if (matterId) {
+        try {
+          // Get the latest outline for this matter
+          const { data: outlineData, error: outlineError } = await supabase
+            .from('outlines')
+            .select('*')
+            .eq('matter_id', matterId)
+            .order('version', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (outlineError && outlineError.code !== 'PGRST116') {
+            console.error('Error fetching outline:', outlineError);
+            return;
+          }
+
+          if (outlineData) {
+            outlineId.value = outlineData.id;
+            // Only update if the content is different
+            if (JSON.stringify(outlineData.content) !== JSON.stringify(outline.value)) {
+              outline.value = outlineData.content;
+              localStorage.setItem(LOCAL_KEY, JSON.stringify(outlineData.content));
+            }
+          }
+          // If no outline data in Supabase, keep the localStorage/default data
+        } catch (error) {
+          console.error('Error in outline setup:', error);
+        }
+      }
     });
 
     // Save to localStorage on change
     watch(outline, (val) => {
       localStorage.setItem(LOCAL_KEY, JSON.stringify(val));
     }, { deep: true });
+
+    async function saveOutline() {
+      if (!matterId) {
+        console.error('No matter ID available');
+        return;
+      }
+
+      saving.value = true;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+
+        if (outlineId.value) {
+          // Update existing outline
+          const { error: updateError } = await supabase
+            .from('outlines')
+            .update({
+              content: outline.value,
+              version: supabase.rpc('increment_version', { outline_id: outlineId.value })
+            })
+            .eq('id', outlineId.value);
+
+          if (updateError) throw updateError;
+        } else {
+          // Create new outline
+          const { data: newOutline, error: insertError } = await supabase
+            .from('outlines')
+            .insert([{
+              matter_id: matterId,
+              title: 'Outline',
+              content: outline.value,
+              created_by: user.id
+            }])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          outlineId.value = newOutline.id;
+        }
+
+        // Create version record
+        const { error: versionError } = await supabase
+          .from('outline_versions')
+          .insert([{
+            outline_id: outlineId.value,
+            content: outline.value,
+            version: outlineId.value ? (await supabase.rpc('get_latest_version', { outline_id: outlineId.value })).data : 1,
+            created_by: user.id
+          }]);
+
+        if (versionError) throw versionError;
+
+      } catch (error) {
+        console.error('Error saving outline:', error);
+      } finally {
+        saving.value = false;
+      }
+    }
 
     // Update outline text by id (recursive)
     function updateTextById(items, id, text) {
@@ -207,7 +309,14 @@ export default {
       outline.value = [...outline.value];
     }
 
-    return { outline, onOutlineUpdate, handleMove, handleDelete };
+    return { 
+      outline, 
+      saving,
+      onOutlineUpdate, 
+      handleMove, 
+      handleDelete,
+      saveOutline 
+    };
   }
 };
 </script>
@@ -219,6 +328,13 @@ export default {
   padding: 2rem;
   min-height: 200px;
 }
+
+.outline-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
 .outline-list {
   list-style: none;
   padding-left: 0;

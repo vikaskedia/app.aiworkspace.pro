@@ -15,14 +15,17 @@
     <span
       v-if="hasChildren"
       class="collapse-toggle"
-      @click="$emit('drilldown', item.id)"
       style="cursor:pointer;"
+      @click.stop="toggleCollapse"
     >
-      ▶
+      <span v-if="collapsed">&#9654;</span>
+      <span v-else>&#9660;</span>
     </span>
     <div 
       class="outline-bullet"
       draggable="true"
+      @click="$emit('drilldown', item.id)"
+      style="cursor:pointer;"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
     ></div>
@@ -38,7 +41,7 @@
       class="outline-textarea"
       rows="1"
     ></textarea>
-    <ul v-if="hasChildren" class="outline-list">
+    <ul v-if="hasChildren && !collapsed" class="outline-list">
       <OutlinePointsCt
         v-for="child in item.children"
         :key="child.id"
@@ -63,6 +66,7 @@ export default {
     return {
       editing: false,
       editText: this.item.text,
+      collapsed: false,
       isDragOverTop: false,
       isDragOverBottom: false,
       isDragging: false
@@ -263,6 +267,9 @@ export default {
     },
     handleDelete(id) {
       this.$emit('delete', id);
+    },
+    toggleCollapse() {
+      this.collapsed = !this.collapsed;
     }
   }
 };

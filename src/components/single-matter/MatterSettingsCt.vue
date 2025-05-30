@@ -509,7 +509,7 @@ export default {
       </div>
 
       <!-- Email Storage Section -->
-      <div class="section">
+      <!--div class="section">
         <h3>Email Storage Settings</h3>
         <el-form label-position="top">
           <el-form-item 
@@ -538,7 +538,7 @@ export default {
             </el-text>
           </el-form-item>
         </el-form>
-      </div>
+      </div-->
 
       <!-- Form Fields Section -->
       <div class="section">

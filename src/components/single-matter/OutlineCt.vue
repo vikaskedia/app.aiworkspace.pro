@@ -16,10 +16,52 @@
         @click="saveOutline" 
         :loading="saving"
         :disabled="!hasChanges"
+        style="margin-right: 8px;"
       >
         Save Outline
       </el-button>
+      <el-button icon @click="openHistoryDialog" style="margin-right: 8px;">
+        <el-icon><Clock /></el-icon>
+      </el-button>
     </div>
+    <el-dialog v-model="historyDialogVisible" title="Outline Version History" width="700px">
+      <el-table :data="versionHistory" style="width: 100%" v-loading="loadingHistory">
+        <el-table-column prop="version" label="Version" width="80" />
+        <el-table-column prop="created_at" label="Saved At" width="250" />
+        <el-table-column prop="creator_email" label="Created By" width="250" />
+        <el-table-column label="Action" width="80">
+          <template #default="scope">
+            <el-button size="small" @click="viewVersion(scope.row)">View</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="historyDialogVisible = false">Close</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="viewVersionDialogVisible" title="Version Content" width="800px">
+      <div v-if="selectedVersion" class="version-content">
+        <div class="version-info">
+          <p><strong>Version:</strong> {{ selectedVersion.version }}</p>
+          <p><strong>Created By:</strong> {{ selectedVersion.creator_email }}</p>
+          <p><strong>Created At:</strong> {{ selectedVersion.created_at }}</p>
+        </div>
+        <div class="version-outline">
+          <ul class="outline-list">
+            <OutlinePointsCt
+              v-for="item in selectedVersion.content"
+              :key="item.id"
+              :item="item"
+              :readonly="true"
+            />
+          </ul>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="viewVersionDialogVisible = false">Close</el-button>
+      </template>
+    </el-dialog>
     <ul class="outline-list">
       <OutlinePointsCt
         v-for="item in getFocusedOutline()"
@@ -38,12 +80,13 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElNotification } from 'element-plus';
+import { Clock } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 
 export default {
   name: 'OutlineCt',
-  components: { OutlinePointsCt },
+  components: { OutlinePointsCt, Clock },
   setup() {
     const route = useRoute();
     const matterId = route.params.matterId;
@@ -54,6 +97,11 @@ export default {
     const hasChanges = ref(false);
     const lastSavedContent = ref(null);
     const focusedId = ref(null);
+    const historyDialogVisible = ref(false);
+    const viewVersionDialogVisible = ref(false);
+    const versionHistory = ref([]);
+    const loadingHistory = ref(false);
+    const selectedVersion = ref(null);
 
     // Get localStorage keys for current matter
     const getLocalStorageKey = () => `outline_${matterId}`;
@@ -450,6 +498,79 @@ export default {
       return words.length > 5 ? words.slice(0, 5).join(' ') + '…' : text;
     }
 
+    async function openHistoryDialog() {
+      if (!outlineId.value) {
+        ElNotification({
+          title: 'No Outline',
+          message: 'No outline found to show history.',
+          type: 'warning',
+          duration: 3000
+        });
+        return;
+      }
+      historyDialogVisible.value = true;
+      loadingHistory.value = true;
+      // Fetch version history from Supabase
+      const { data: versionsData, error: versionsError } = await supabase
+        .from('outline_versions')
+        .select('id, version, created_at, content, created_by')
+        .eq('outline_id', outlineId.value)
+        .order('version', { ascending: false });
+      
+      if (versionsError) {
+        ElNotification({
+          title: 'Error',
+          message: 'Failed to fetch version history.',
+          type: 'error',
+          duration: 4000
+        });
+        versionHistory.value = [];
+        loadingHistory.value = false;
+        return;
+      }
+
+      // Get unique creator IDs
+      const creatorIds = [...new Set(versionsData.map(v => v.created_by))];
+      
+      // Fetch creator information for each creator
+      const profilesData = [];
+      for (const creatorId of creatorIds) {
+        const { data: profileData, error: profileError } = await supabase
+          .rpc('get_user_info_by_id', {
+            user_id: creatorId
+          });
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          continue;
+        }
+        
+        if (profileData) {
+          console.log('profileData', profileData);
+          profilesData.push(profileData[0]);
+        }
+      }
+
+      // Create a map of creator IDs to names
+      const creatorMap = new Map(
+        profilesData.map(profile => [profile.id, profile.email])
+      );
+
+      console.log('creatorMap', creatorMap);
+      // Transform the data to include creator name
+      versionHistory.value = versionsData.map(version => ({
+        ...version,
+        creator_email: creatorMap.get(version.created_by) || 'Unknown'
+      }));
+      
+      loadingHistory.value = false;
+    }
+
+    function viewVersion(versionRow) {
+      selectedVersion.value = versionRow;
+      viewVersionDialogVisible.value = true;
+    }
+
     return { 
       outline, 
       saving,
@@ -467,6 +588,13 @@ export default {
       breadcrumbPath,
       handleBreadcrumb,
       getBreadcrumbText,
+      openHistoryDialog,
+      historyDialogVisible,
+      viewVersionDialogVisible,
+      versionHistory,
+      loadingHistory,
+      selectedVersion,
+      viewVersion,
     };
   }
 };
@@ -506,5 +634,25 @@ export default {
   color: #23272f;
   text-decoration: none;
   cursor: default;
+}
+
+.version-content {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.version-info {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f5f7fa;
+  border-radius: 4px;
+}
+
+.version-info p {
+  margin: 0.5rem 0;
+}
+
+.version-outline {
+  margin-top: 1rem;
 }
 </style> 

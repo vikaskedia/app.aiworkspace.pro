@@ -1,4 +1,15 @@
 {
+  "version": 2,
+  "functions": {
+    "api/process-emails.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "crons": [{
+    "path": "/api/process-emails",
+    "schedule": "*/15 * * * *"
+  }],
   "rewrites": [
     {
       "source": "/(.*)",

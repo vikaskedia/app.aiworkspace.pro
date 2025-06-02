@@ -44,6 +44,9 @@
     "vue-pdf-embed": "^2.1.1",
     "vue-router": "^4.2.2",
     "vue3-cookies": "^1.0.6",
+    "dotenv": "^16.5.0",
+    "mailparser": "^3.7.3",
+    "node-imap": "^0.9.6",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {

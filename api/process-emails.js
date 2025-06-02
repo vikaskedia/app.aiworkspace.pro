@@ -79,9 +79,9 @@ export default async function handler(req, res) {
     
     // Verify the request is authorized
     const authHeader = req.headers.authorization;
-    if (!isVercelCron && (!authHeader || authHeader !== `Bearer ${process.env.API_SECRET_KEY}`)) {
+    /* if (!isVercelCron && (!authHeader || authHeader !== `Bearer ${process.env.API_SECRET_KEY}`)) {
         return res.status(401).json({ error: 'Unauthorized' });
-    }
+    } */
 
     try {
         const imap = new Imap(imapConfig);

@@ -209,6 +209,7 @@
         v-model:filters="filters"
         @update-task="updateTask"
         @star-toggled="handleStarToggled"
+        @view-comments="navigateToTask"
       />
 
       <TaskBoardCt

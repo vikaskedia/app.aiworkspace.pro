@@ -68,8 +68,8 @@ export default {
     return {
       userEmails: {},
       deletedTooltips: {},
-      sortBy: null,
-      sortOrder: 'ascending',
+      sortBy: 'activity',  // Default to activity sorting
+      sortOrder: 'descending',  // Default to descending for activity
       editingAssignee: null,
       editingDueDate: null,
       hoveredTaskId: null,
@@ -176,6 +176,10 @@ export default {
               case 'priority':
                 const priorityOrder = { high: 3, medium: 2, low: 1 }
                 comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0)
+                break
+              case 'activity':
+                // Sort by updated_at timestamp
+                comparison = new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
                 break
               default:
                 comparison = 0
@@ -295,8 +299,13 @@ export default {
       return statusMap[status] || status;
     },
     handleSort({ prop, order }) {
-      this.sortBy = prop;
-      this.sortOrder = order === 'ascending' ? 'ascending' : 'descending';
+      this.sortBy = prop
+      this.sortOrder = order === 'ascending' ? 'ascending' : 'descending'
+      // Save sort preferences to localStorage
+      localStorage.setItem('taskListSort', JSON.stringify({
+        sortBy: this.sortBy,
+        sortOrder: this.sortOrder
+      }))
     },
     async toggleStar(task) {
       try {
@@ -501,11 +510,18 @@ export default {
     }
   },
   mounted() {
-    this.loadSavedFilters();
+    this.loadSavedFilters()
+    // Load saved sort preferences
+    const savedSort = localStorage.getItem('taskListSort')
+    if (savedSort) {
+      const { sortBy, sortOrder } = JSON.parse(savedSort)
+      this.sortBy = sortBy
+      this.sortOrder = sortOrder
+    }
     // Ensure completed status is excluded by default if no saved filters exist
     if (!this.filters.excludeStatus?.length) {
-      this.filters.excludeStatus = ['completed'];
-      this.saveFilters();
+      this.filters.excludeStatus = ['completed']
+      this.saveFilters()
     }
   },
   setup(props, { emit }) {

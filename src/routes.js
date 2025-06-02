@@ -127,6 +127,11 @@ const routes = [
         path: 'settings',
         name: 'SingleMatterSettingsPage',
         component: () => import('./components/single-matter/MatterSettingsCt.vue')
+      },
+      {
+        path: 'communications',
+        name: 'CommunicationsPage',
+        component: () => import('./components/single-matter/CommunicationsCt.vue')
       }
     ]
   },

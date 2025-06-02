@@ -481,10 +481,10 @@ export default {
 
       <!-- Git Repository Section -->
       <div class="section">
-        <h3>Git Repository Settings</h3>
+        <h3>Namespace Settings</h3>
         <el-form label-position="top">
           <el-form-item 
-            label="Repository Name" 
+            label="Namespace Name" 
             required
             :rules="[{ required: true, message: 'Repository name is required' }]">
             <div class="horizontal-form-layout">
@@ -502,7 +502,7 @@ export default {
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
-              This repository will be used to store all files related to this matter
+              This namespace will serve as a Git repository and email storage to store all files related to this matter
             </el-text>
           </el-form-item>
         </el-form>

@@ -761,18 +761,15 @@ export default {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No authenticated user');
 
-            const tasksList = this.$refs.tasksList;
-            if (!tasksList) {
-              ElMessage.error('Unable to access task list component');
-              return;
-            }
-
             const { data, error } = await supabase
               .from('saved_filters')
               .insert([{
                 user_id: user.id,
                 filter_name: filterName.value,
-                filters: tasksList.filters
+                filters: {
+                  ...this.filters,
+                  boardGroupBy: this.boardGroupBy
+                }
               }])
               .select();
 
@@ -790,12 +787,10 @@ export default {
       } else if (Array.isArray(command) && command[0] === 'load') {
         const filterId = command[1];
         const filter = this.savedFilters.find(f => f.id === filterId);
-        const tasksList = this.$refs.tasksList;
-        if (filter && tasksList) {
-          tasksList.filters = { ...filter.filters };
-          ElMessage.success('Filters loaded successfully');
+        if (filter) {
+          await this.loadSavedFilter(filter);
         } else {
-          ElMessage.error('Unable to load filters');
+          ElMessage.error('Filter not found');
         }
       }
     },

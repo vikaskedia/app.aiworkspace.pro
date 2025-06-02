@@ -8,7 +8,10 @@
   },
   "crons": [{
     "path": "/api/process-emails",
-    "schedule": "0 1 * * *"
+    "schedule": "0 1 * * *",
+    "headers": {
+      "Authorization": "Bearer wvL9x#mP2$kR5nQ8@jH3vF7"
+    }
   }],
   "rewrites": [
     {

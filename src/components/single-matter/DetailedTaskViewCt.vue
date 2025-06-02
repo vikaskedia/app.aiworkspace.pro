@@ -108,6 +108,29 @@
             </el-select>
           </div>
 
+          <!-- Child Tasks Section -->
+          <div class="task-children" v-if="childTasks.length">
+            <h4>Child Tasks</h4>
+            <div class="child-tasks-list">
+              <div v-for="childTask in childTasks" :key="childTask.id" class="child-task-item">
+                <div class="child-task-content">
+                  <el-tag :type="getStatusType(childTask)" size="small" class="status-tag">
+                    {{ formatStatus(childTask.status) }}
+                  </el-tag>
+                  <span class="child-task-title" @click="navigateToTask(childTask.id)">{{ childTask.title }}</span>
+                </div>
+                <div class="child-task-meta">
+                  <el-tag v-if="childTask.due_date" :type="getDueDateTagType(childTask.due_date)" size="small">
+                    {{ formatDate(childTask.due_date) }}
+                  </el-tag>
+                  <el-avatar v-if="childTask.assignee" :size="20" class="assignee-avatar">
+                    {{ getInitials(userEmails[childTask.assignee]) }}
+                  </el-avatar>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div v-if="showTaskHistory" class="edit-history">
             <div 
               v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
@@ -2481,7 +2504,19 @@ ${comment.content}
         console.error('Error downloading response:', error);
         ElMessage.error('Failed to download response');
       }
-    }    
+    },
+    navigateToTask(taskId) {
+      this.$router.push(`/single-matter/${this.currentMatter.id}/tasks/${taskId}`);
+    },
+    getDueDateTagType(dueDate) {
+      const today = new Date();
+      const taskDate = new Date(dueDate);
+      const diffDays = Math.ceil((taskDate - today) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return 'danger';
+      if (diffDays <= 3) return 'warning';
+      return 'info';
+    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2494,6 +2529,14 @@ ${comment.content}
       handler(newTitle) {
         if (newTitle) {
           document.title = `${newTitle} | TaskManager`;
+        }
+      }
+    },
+    '$route.params.taskId': {
+      immediate: true,
+      handler(newTaskId) {
+        if (newTaskId) {
+          this.loadTask(newTaskId);
         }
       }
     }
@@ -2614,7 +2657,7 @@ ${comment.content}
       flatten(organizedTasks);
       
       return flattened;
-  },
+    },
     filteredComments() {
       return this.comments.filter(comment => {
         // Handle archived comments
@@ -2658,6 +2701,10 @@ ${comment.content}
         default:
           return '';
       }
+    },
+    childTasks() {
+      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
+      return cachedTasks.filter(task => task.parent_task_id === this.task.id);
     }
   }
 };
@@ -4274,5 +4321,69 @@ table.editor-table {
 
 .bg-danger {
   background-color: var(--el-color-danger-light-9);
+}
+</style>
+
+<style scoped>
+.task-children {
+  margin-top: 16px;
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.task-children h4 {
+  margin-bottom: 8px;
+  color: #606266;
+}
+
+.task-children .child-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.child-task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.child-task-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.child-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-tag {
+  width: 100px;
+}
+
+.child-task-title {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.child-task-title:hover {
+  text-decoration: underline;
+}
+
+.assignee-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #409EFF;
+  color: white;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

@@ -801,11 +801,56 @@ export default {
     },
 
     async loadSavedFilters() {
-      const savedFilters = localStorage.getItem('taskListFilters');
-      if (savedFilters) {
-        const parsedFilters = JSON.parse(savedFilters);
-        // Extract boardGroupBy from saved filters
-        const { boardGroupBy, ...filters } = parsedFilters;
+      try {
+        // Load from database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('saved_filters')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        this.savedFilters = data || [];
+
+        // Load from localStorage
+        const savedFilters = localStorage.getItem('taskListFilters');
+        if (savedFilters) {
+          const parsedFilters = JSON.parse(savedFilters);
+          // Extract boardGroupBy from saved filters
+          const { boardGroupBy, ...filters } = parsedFilters;
+          
+          // Ensure excludeStatus is an array with 'completed' as default if not set
+          if (!filters.excludeStatus?.length) {
+            filters.excludeStatus = ['completed'];
+          }
+          
+          // Ensure orderBy has a default value
+          if (!filters.orderBy) {
+            filters.orderBy = 'priority_desc';
+          }
+          
+          // Set the filters
+          this.filters = filters;
+          
+          // Set the boardGroupBy if it exists
+          if (boardGroupBy) {
+            this.boardGroupBy = boardGroupBy;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved filters:', error);
+        ElMessage.error('Error loading saved filters: ' + error.message);
+        this.savedFilters = [];
+      }
+    },
+
+    async loadSavedFilter(filter) {
+      try {
+        // Extract boardGroupBy from saved filters if it exists
+        const { boardGroupBy, ...filters } = filter.filters;
         
         // Ensure excludeStatus is an array with 'completed' as default if not set
         if (!filters.excludeStatus?.length) {
@@ -824,17 +869,15 @@ export default {
         if (boardGroupBy) {
           this.boardGroupBy = boardGroupBy;
         }
-      }
-    },
 
-    async loadSavedFilter(filter) {
-      const tasksList = this.$refs.tasksList;
-      if (tasksList) {
-        tasksList.filters = { ...filter.filters };
+        // Save the current filter state
+        this.saveFilters();
+        
         this.savedFiltersDialogVisible = false;
         ElMessage.success('Filters loaded successfully');
-      } else {
-        ElMessage.error('Unable to load filters');
+      } catch (error) {
+        console.error('Error loading saved filter:', error);
+        ElMessage.error('Error loading saved filter: ' + error.message);
       }
     },
 
@@ -1176,33 +1219,6 @@ export default {
         ...this.filters,
         boardGroupBy: this.boardGroupBy
       }));
-    },
-
-    loadSavedFilters() {
-      const savedFilters = localStorage.getItem('taskListFilters');
-      if (savedFilters) {
-        const parsedFilters = JSON.parse(savedFilters);
-        // Extract boardGroupBy from saved filters
-        const { boardGroupBy, ...filters } = parsedFilters;
-        
-        // Ensure excludeStatus is an array with 'completed' as default if not set
-        if (!filters.excludeStatus?.length) {
-          filters.excludeStatus = ['completed'];
-        }
-        
-        // Ensure orderBy has a default value
-        if (!filters.orderBy) {
-          filters.orderBy = 'priority_desc';
-        }
-        
-        // Set the filters
-        this.filters = filters;
-        
-        // Set the boardGroupBy if it exists
-        if (boardGroupBy) {
-          this.boardGroupBy = boardGroupBy;
-        }
-      }
     },
   },
 

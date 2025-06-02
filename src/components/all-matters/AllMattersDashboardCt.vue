@@ -26,7 +26,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <template v-if="!showArchived">
-                    <el-dropdown-item command="view">View Dashboard</el-dropdown-item>
+                    <!--el-dropdown-item command="view">View Dashboard</el-dropdown-item-->
                     <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
                     <el-dropdown-item command="archive" divided>Archive</el-dropdown-item>
                   </template>

@@ -40,21 +40,21 @@
         </template>
 
         <div class="matter-stats">
-          <div class="stat-item">
+          <div class="stat-item clickable-stat" @click="navigateToGoals(matter)">
             <h4>Goals</h4>
             <div class="stat-numbers">
               <span>{{ matter.stats?.goals_total || 0 }} Total</span>
               <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
             </div>
           </div>
-          <div class="stat-item">
+          <div class="stat-item clickable-stat" @click="navigateToTasks(matter)">
             <h4>Tasks</h4>
             <div class="stat-numbers">
               <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
               <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
             </div>
           </div>
-          <div class="stat-item">
+          <div class="stat-item clickable-stat" @click="navigateToEvents(matter)">
             <h4>Upcoming Events</h4>
             <span>{{ matter.stats?.upcoming_events || 0 }}</span>
           </div>
@@ -493,7 +493,22 @@ export default {
     clearMattersCache() {
       localStorage.removeItem('matters_active');
       localStorage.removeItem('matters_archived');
-    }
+    },
+
+    navigateToGoals(matter) {
+      this.matterStore.setCurrentMatter(matter);
+      this.router.push(`/single-matter/${matter.id}/goals`);
+    },
+
+    navigateToTasks(matter) {
+      this.matterStore.setCurrentMatter(matter);
+      this.router.push(`/single-matter/${matter.id}/tasks`);
+    },
+
+    navigateToEvents(matter) {
+      this.matterStore.setCurrentMatter(matter);
+      this.router.push(`/single-matter/${matter.id}/events`);
+    },
   }
 };
 </script>
@@ -607,6 +622,29 @@ export default {
 }
 
 .clickable-title:hover {
+  color: var(--el-color-primary);
+}
+
+.clickable-stat {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.clickable-stat:hover {
+  background-color: var(--el-color-primary-light-9);
+  transform: translateY(-2px);
+}
+
+.stat-item h4 {
+  margin: 0 0 0.5rem 0;
+  color: #606266;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.clickable-stat:hover h4 {
   color: var(--el-color-primary);
 }
 </style> 

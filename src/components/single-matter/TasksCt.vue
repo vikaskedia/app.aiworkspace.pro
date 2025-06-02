@@ -795,6 +795,33 @@ export default {
       }
     },
 
+    async setDefaultFilter(filter) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+
+        // First, remove default status from all filters
+        await supabase
+          .from('saved_filters')
+          .update({ is_default: false })
+          .eq('user_id', user.id);
+
+        // Then set the selected filter as default
+        const { error } = await supabase
+          .from('saved_filters')
+          .update({ is_default: true })
+          .eq('id', filter.id);
+
+        if (error) throw error;
+
+        await this.loadSavedFilters();
+        ElMessage.success('Default filter updated successfully');
+      } catch (error) {
+        console.error('Error setting default filter:', error);
+        ElMessage.error('Error setting default filter: ' + error.message);
+      }
+    },
+
     async loadSavedFilters() {
       try {
         // Load from database
@@ -833,6 +860,14 @@ export default {
           // Set the boardGroupBy if it exists
           if (boardGroupBy) {
             this.boardGroupBy = boardGroupBy;
+          }
+        }
+
+        // Load default filter if no filters are set
+        if (!savedFilters) {
+          const defaultFilter = this.savedFilters.find(f => f.is_default);
+          if (defaultFilter) {
+            await this.loadSavedFilter(defaultFilter);
           }
         }
       } catch (error) {
@@ -1810,10 +1845,16 @@ export default {
             prop="filter_name"
             label="Filter Name"
             min-width="200">
+            <template #default="scope">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>{{ scope.row.filter_name }}</span>
+                <el-tag v-if="scope.row.is_default" size="small" type="success">Default</el-tag>
+              </div>
+            </template>
           </el-table-column>
           <el-table-column
             label="Actions"
-            width="150"
+            width="250"
             align="right">
             <template #default="scope">
               <el-button
@@ -1821,6 +1862,13 @@ export default {
                 link
                 @click="loadSavedFilter(scope.row)">
                 Load
+              </el-button>
+              <el-button
+                type="info"
+                link
+                @click="setDefaultFilter(scope.row)"
+                :disabled="scope.row.is_default">
+                Set as Default
               </el-button>
               <el-button
                 type="danger"

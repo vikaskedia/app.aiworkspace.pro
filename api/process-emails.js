@@ -74,9 +74,12 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Verify the request is authorized (you can add your own authentication logic here)
+    // Allow requests from Vercel's cron system
+    const isVercelCron = req.headers['x-vercel-cron'] === '1';
+    
+    // Verify the request is authorized
     const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${process.env.API_SECRET_KEY}`) {
+    if (!isVercelCron && (!authHeader || authHeader !== `Bearer ${process.env.API_SECRET_KEY}`)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 

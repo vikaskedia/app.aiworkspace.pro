@@ -11,6 +11,7 @@
     @dragenter.prevent.stop="handleDragEnter"
     @dragleave.prevent.stop="handleDragLeave"
     @drop.prevent.stop="handleDrop"
+    @dragend.prevent.stop="handleDragEnd"
   >
     <span
       v-if="hasChildren"
@@ -41,6 +42,51 @@
       class="outline-textarea"
       rows="1"
     ></textarea>
+    <div
+      class="dropzone"
+      :class="{ 'dropzone-active': isDragOver }"
+    ></div>
+
+    <!-- File Preview Section -->
+    <div v-if="item.fileUrl" class="file-preview">
+      <!-- Image Preview -->
+      <img 
+        v-if="isImageFile(item.text)" 
+        :src="getAuthenticatedUrl(item.fileUrl)" 
+        :alt="getFileName(item.text)"
+        class="preview-image"
+        @click="openImagePreview"
+        @error="handleImageError"
+        @load="handleImageLoad"
+      />
+      
+      <!-- Other File Types -->
+      <div v-else class="file-info">
+        <el-button 
+          type="primary" 
+          link 
+          @click="downloadFile(item.fileUrl, getFileName(item.text))"
+        >
+          Download
+        </el-button>
+      </div>
+    </div>
+
+    <!-- Image Preview Dialog -->
+    <el-dialog
+      v-model="imagePreviewVisible"
+      :title="getFileName(item.text)"
+      width="80%"
+      class="image-preview-dialog"
+    >
+      <img 
+        :src="getAuthenticatedUrl(item.fileUrl)" 
+        :alt="getFileName(item.text)"
+        class="preview-image-full"
+        @error="handleImageError"
+      />
+    </el-dialog>
+
     <ul v-if="hasChildren && !collapsed" class="outline-list">
       <OutlinePointsCt
         v-for="child in item.children"
@@ -56,10 +102,33 @@
 </template>
 
 <script>
+import { ref } from 'vue';
+import { Plus, ArrowRight, Delete } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import { supabase } from '../../supabase';
+import { useRoute } from 'vue-router';
+
+// Create a simple event bus
+const eventBus = {
+  listeners: new Set(),
+  emit(event, data) {
+    this.listeners.forEach(listener => listener(event, data));
+  },
+  on(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+};
+
 export default {
   name: 'OutlinePointsCt',
+  components: { Plus, ArrowRight, Delete },
   props: {
-    item: { type: Object, required: true }
+    item: { type: Object, required: true },
+    readonly: {
+      type: Boolean,
+      default: false
+    }
   },
   emits: ['update', 'move', 'delete', 'drilldown'],
   data() {
@@ -69,8 +138,33 @@ export default {
       collapsed: false,
       isDragOverTop: false,
       isDragOverBottom: false,
-      isDragging: false
+      isDragging: false,
+      isDragOver: false,
+      unsubscribe: null,
+      imagePreviewVisible: false
     };
+  },
+  setup() {
+    const route = useRoute();
+    return {
+      route
+    };
+  },
+  created() {
+    // Subscribe to drag events
+    this.unsubscribe = eventBus.on((event, data) => {
+      if (event === 'dragStart') {
+        this.isDragOver = false;
+      } else if (event === 'dragEnter' && data !== this.item.id) {
+        this.isDragOver = false;
+      }
+    });
+  },
+  beforeUnmount() {
+    // Clean up subscription
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
   },
   computed: {
     hasChildren() {
@@ -164,20 +258,29 @@ export default {
       }
     },
     handleDragEnd(e) {
-      // Remove dragging class from the entire item
-      this.isDragging = false;
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Reset all drag states
       this.isDragOverTop = false;
       this.isDragOverBottom = false;
-
-      // Remove dragging class from all children
-      const childItems = this.$el.querySelectorAll('.outline-item');
-      childItems.forEach(item => {
-        item.classList.remove('dragging');
-      });
+      this.isDragOver = false;
+      this.isDragging = false;
+      
+      // Notify other components
+      eventBus.emit('dragEnd');
     },
-    handleDragOver(e) {
+    handleDragEnter(e) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      e.stopPropagation();
+      
+      // Check if this is a file drag
+      if (e.dataTransfer.types.includes('Files')) {
+        // Notify other components
+        eventBus.emit('dragEnter', this.item.id);
+        this.isDragOver = true;
+        return;
+      }
       
       const rect = this.$el.getBoundingClientRect();
       const y = e.clientY - rect.top;
@@ -186,11 +289,16 @@ export default {
       this.isDragOverTop = y < threshold;
       this.isDragOverBottom = y >= threshold;
     },
-    handleDragEnter(e) {
+    handleDragOver(e) {
       e.preventDefault();
-      // Don't show drop zone if we're dragging over our own item or its children
-      const draggedId = e.dataTransfer.getData('text/plain');
-      if (draggedId === this.item.id) return;
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      
+      // Check if this is a file drag
+      if (e.dataTransfer.types.includes('Files')) {
+        this.isDragOver = true;
+        return;
+      }
       
       const rect = this.$el.getBoundingClientRect();
       const y = e.clientY - rect.top;
@@ -201,33 +309,45 @@ export default {
     },
     handleDragLeave(e) {
       e.preventDefault();
+      e.stopPropagation();
+      
       // Only remove the drop zone if we're leaving the item itself
-      if (e.target === this.$el) {
+      // and not entering a child element
+      const rect = this.$el.getBoundingClientRect();
+      const x = e.clientX;
+      const y = e.clientY;
+      
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
         this.isDragOverTop = false;
         this.isDragOverBottom = false;
+        this.isDragOver = false;
       }
     },
     handleDrop(e) {
       e.preventDefault();
-      e.stopPropagation(); // Stop event from bubbling up
+      e.stopPropagation();
+      
+      // Reset all drag states
       this.isDragOverTop = false;
       this.isDragOverBottom = false;
+      this.isDragOver = false;
       
-      console.log('handleDrop', e.dataTransfer);
-      console.log('this.item', this.item);
+      // Notify other components
+      eventBus.emit('dragEnd');
+      
+      // Check if this is a file drop
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        this.handleFileDrop(e.dataTransfer.files[0]);
+        return;
+      }
+      
+      // Handle outline item drag and drop
       const draggedId = e.dataTransfer.getData('text/plain');
       const targetId = this.item.id.toString();
       
       // Don't allow dropping onto itself
       if (draggedId === targetId) return;
       
-      console.log('Emitting move event from OutlinePointsCt:', {
-        draggedId,
-        targetId,
-        position: this.getDropPosition(e)
-      });
-      
-      // Emit move event with both IDs
       this.$emit('move', {
         draggedId,
         targetId,
@@ -270,6 +390,179 @@ export default {
     },
     toggleCollapse() {
       this.collapsed = !this.collapsed;
+    },
+    async handleFileDrop(file) {
+      try {
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+        
+        // Get the matter ID from the route
+        const matterId = this.route.params.matterId;
+        
+        if (!matterId) {
+          throw new Error('No matter ID found');
+        }
+        
+        // Create repo name for the matter
+        const repoName = `Matter_${matterId}_Outline`;
+        
+        // Try to create the repository if it doesn't exist
+        try {
+          await fetch(
+            `${giteaHost}/api/v1/org/associateattorney/repos`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache'
+              },
+              body: JSON.stringify({
+                name: repoName,
+                description: `Outline files for Matter ${matterId}`,
+                private: true,
+                auto_init: true,
+                trust_model: 'collaborator'
+              })
+            }
+          );
+        } catch (error) {
+          // Ignore 409 errors (repo already exists)
+          if (!error.message.includes('409')) {
+            throw error;
+          }
+        }
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const uniqueFileName = `${timestamp}-${file.name}`;
+        
+        // Convert file to base64
+        const base64Content = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        // Upload to Gitea
+        const response = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${repoName}/contents/${uniqueFileName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              message: `Upload ${uniqueFileName}`,
+              content: base64Content,
+              branch: 'main'
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('File upload response:', data);
+        
+        // Get the raw download URL
+        const downloadUrl = data.content.download_url;
+        console.log('File download URL:', downloadUrl);
+
+        // Add file as subpoint
+        const newSubpoint = {
+          id: Date.now().toString(),
+          text: file.name,
+          children: [],
+          fileUrl: downloadUrl
+        };
+
+        if (!this.item.children) {
+          this.item.children = [];
+        }
+        this.item.children.push(newSubpoint);
+        this.$emit('update', { id: this.item.id, text: this.item.text });
+
+        ElMessage.success('File uploaded successfully');
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        ElMessage.error('Failed to upload file: ' + error.message);
+      }
+    },
+    isImageFile(text) {
+      if (!text) return false;
+      const fileName = this.getFileName(text);
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      return imageExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+    },
+    getFileName(text) {
+      if (!text) return '';
+      // Remove the file icon (📎) and any leading/trailing spaces
+      return text.replace('📎', '').trim();
+    },
+    handleImageError(e) {
+      console.error('Error loading image:', e);
+      console.log('Failed URL:', e.target.src);
+      ElMessage.error('Failed to load image');
+      // If the image fails to load, show the file info view instead
+      this.$el.querySelector('.file-preview').innerHTML = `
+        <div class="file-info">
+          <el-button 
+            type="primary" 
+            link 
+            @click="downloadFile(this.item.fileUrl, this.getFileName(this.item.text))"
+          >
+            Download
+          </el-button>
+        </div>
+      `;
+    },
+    handleImageLoad(e) {
+      console.log('Image loaded successfully:', e.target.src);
+    },
+    openImagePreview() {
+      this.imagePreviewVisible = true;
+    },
+    getAuthenticatedUrl(url) {
+      if (!url) return '';
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      // Add token as query parameter
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}token=${giteaToken}`;
+    },
+    async downloadFile(url, fileName) {
+      try {
+        console.log('Downloading file from:', url);
+        const response = await fetch(this.getAuthenticatedUrl(url), {
+          headers: {
+            'Authorization': `token ${import.meta.env.VITE_GITEA_TOKEN}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        console.error('Error downloading file:', error);
+        ElMessage.error('Failed to download file: ' + error.message);
+      }
     }
   }
 };
@@ -280,8 +573,9 @@ export default {
   display: block;
   margin: 0.5rem 2.5rem;
   position: relative;
-  width: 100%;
+  max-width: 100%;
   transition: all 0.2s ease;
+  margin-right: 0px;
 }
 
 .outline-item.drag-over-top {
@@ -408,5 +702,73 @@ export default {
   padding: 0;
   font-family: inherit;
   background:transparent;
+}
+
+.dropzone {
+  height: 2px;
+  background: transparent;
+  transition: all 0.2s ease;
+  margin: 4px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.dropzone-active {
+  height: 4px;
+  background: #1976d2;
+  border-radius: 2px;
+  max-width: 100px;
+}
+
+.file-preview {
+  margin: 8px 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: transparent;
+  width: auto;
+}
+
+.preview-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.preview-image:hover {
+  transform: scale(1.02);
+}
+
+.preview-image-full {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.file-name {
+  flex: 1;
+  color: #606266;
+}
+
+.image-preview-dialog :deep(.el-dialog__body) {
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+}
+
+.image-preview-dialog :deep(.el-dialog__header) {
+  padding: 16px;
+  margin: 0;
+  background: #fff;
 }
 </style> 

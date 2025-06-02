@@ -437,8 +437,22 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             break;
         }
         
+        // Flatten task hierarchy and distribute tasks to columns
+        const flattenTasks = (tasks) => {
+          let flattened = [];
+          tasks.forEach(task => {
+            flattened.push(task);
+            if (task.children?.length) {
+              flattened = flattened.concat(flattenTasks(task.children));
+            }
+          });
+          return flattened;
+        };
+
+        const allTasks = flattenTasks(this.filteredTasks);
+        
         // Distribute tasks to columns
-        this.filteredTasks.forEach(task => {
+        allTasks.forEach(task => {
           if (this.groupBy === 'starred_by') {
             // Get all users who starred this task
             const starredByUsers = task.task_stars?.map(star => star.user_id) || [];
@@ -500,10 +514,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
         // After distributing tasks to columns
         this.timePeriods = {};
-        this.filteredTasks.forEach(task => {
+        allTasks.forEach(task => {
           if (task.task_hours_logs?.length) {
             this.timePeriods[task.id] = this.calculateTimeLogPeriods(task.task_hours_logs);
-            //console.log(task.id, this.timePeriods[task.id], task.task_hours_logs);
           }
         });
       },

@@ -18,7 +18,7 @@
       <el-card v-for="matter in matters" :key="matter.id" class="matter-card">
         <template #header>
           <div class="matter-header">
-            <h3>{{ matter.title }}</h3>
+            <h3 class="clickable-title" @click="handleCommand('view', matter)">{{ matter.title }}</h3>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
               <el-button type="primary" link>
                 <el-icon><More /></el-icon>
@@ -599,5 +599,14 @@ export default {
   :deep(.el-dialog) {
     width: 90% !important;
   }
+}
+
+.clickable-title {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clickable-title:hover {
+  color: var(--el-color-primary);
 }
 </style> 

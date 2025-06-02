@@ -859,6 +859,7 @@ export default {
         const { error } = await supabase
           .from('tasks')
           .update({
+            title: task.title,
             status: task.status,
             assignee: task.assignee,
             priority: task.priority,

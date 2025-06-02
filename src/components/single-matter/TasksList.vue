@@ -860,6 +860,7 @@ export default {
                     size="small"
                     @keyup.enter="handleSubmit(task)"
                     @keyup.esc="cancelEditing"
+                    @blur="handleSubmit(task)"
                     v-focus
                   />
                 </template>
@@ -974,6 +975,7 @@ export default {
                         size="small"
                         @keyup.enter="handleSubmit(childTask)"
                         @keyup.esc="cancelEditing"
+                        @blur="handleSubmit(childTask)"
                         v-focus
                       />
                     </template>

@@ -39,6 +39,9 @@ export default {
       newComment: '',
       loading: false,
       assigneeEmail: '',
+      statusValue: '',
+      priorityValue: '',
+      dueDateValue: null,
       subscription: null,
       files: [],
       folders: [],
@@ -132,6 +135,11 @@ export default {
               this.assigneeEmail = '';
             }
 
+            // Set local status, priority, due date
+            this.statusValue = taskData.status || '';
+            this.priorityValue = taskData.priority || '';
+            this.dueDateValue = taskData.due_date || null;
+
             // Load comments and setup realtime subscription
             await this.loadComments();
             this.setupRealtimeSubscription();
@@ -140,8 +148,11 @@ export default {
             ElMessage.error('Error loading task data');
           }
         } else {
-          // Drawer closed: clear assigneeEmail
+          // Drawer closed: clear all local variables
           this.assigneeEmail = '';
+          this.statusValue = '';
+          this.priorityValue = '';
+          this.dueDateValue = null;
           if (this.subscription) {
             this.subscription.unsubscribe();
           }
@@ -1178,6 +1189,7 @@ Please provide assistance based on this context, the comment history, the availa
         if (error) throw error
 
         // Update local task data
+        this.statusValue = status;
         this.$emit('update:task', { ...this.task, status })
         
         // Emit events to update parent components
@@ -1215,6 +1227,7 @@ Please provide assistance based on this context, the comment history, the availa
         if (error) throw error
 
         // Update local task data
+        this.priorityValue = priority;
         this.$emit('update:task', { ...this.task, priority })
         
         // Emit events to update parent components
@@ -1256,6 +1269,7 @@ Please provide assistance based on this context, the comment history, the availa
         if (error) throw error;
         
         // Update local task data
+        this.dueDateValue = this.tempDueDate;
         this.$emit('update:task', updatedTask);
         
         // Emit due-date-updated event
@@ -1521,8 +1535,8 @@ Please provide assistance based on this context, the comment history, the availa
         <div class="status-priority-group">
           <span class="status-label">Status:</span>
           <el-dropdown trigger="click" @command="handleStatusChange">
-            <el-tag :type="task?.status === 'completed' ? 'success' : task?.status === 'in_progress' ? 'warning' : task?.status === 'awaiting_external' || task?.status === 'awaiting_internal' ? 'info' : task?.status === 'not_started' ? 'info' : 'info'" size="small" class="status-tag clickable">
-              {{ task?.status ? task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.slice(1).replace('_', ' ') : 'New' }}
+            <el-tag :type="statusValue === 'completed' ? 'success' : statusValue === 'in_progress' ? 'warning' : statusValue === 'awaiting_external' || statusValue === 'awaiting_internal' ? 'info' : statusValue === 'not_started' ? 'info' : 'info'" size="small" class="status-tag clickable">
+              {{ statusValue ? statusValue.replace('_', ' ').charAt(0).toUpperCase() + statusValue.slice(1).replace('_', ' ') : 'New' }}
               <el-icon class="el-icon--right" :size="12"><ArrowDown /></el-icon>
             </el-tag>
             <template #dropdown>
@@ -1537,7 +1551,7 @@ Please provide assistance based on this context, the comment history, the availa
           </el-dropdown>
           <span class="priority-label">Priority:</span>
           <el-dropdown @command="handlePriorityChange" trigger="click">
-            <el-tag :type="getPriorityType(task.priority)" size="small" class="priority-tag">{{ task.priority || 'No priority' }}<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-tag>
+            <el-tag :type="getPriorityType(priorityValue)" size="small" class="priority-tag">{{ priorityValue || 'No priority' }}<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-tag>
             <template #dropdown>
               <el-dropdown-menu class="compact-dropdown">
                 <el-dropdown-item command="high"><el-tag size="small" type="danger" class="option-tag">High</el-tag></el-dropdown-item>
@@ -1556,7 +1570,7 @@ Please provide assistance based on this context, the comment history, the availa
             <template #dropdown>
               <el-dropdown-menu class="compact-dropdown">
                 <el-dropdown-item>
-                  <el-date-picker v-model="tempDueDate" type="date" placeholder="Select due date" style="width: 200px" size="small" @change="handleDueDateChange" />
+                  <el-date-picker v-model="dueDateValue" type="date" placeholder="Select due date" style="width: 200px" size="small" @change="handleDueDateChange" />
                 </el-dropdown-item>
                 <el-dropdown-item divided command="clear">Clear due date</el-dropdown-item>
               </el-dropdown-menu>

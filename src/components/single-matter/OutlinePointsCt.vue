@@ -193,6 +193,7 @@ export default {
         this.$nextTick(() => {
           if (this.$refs.textarea) {
             this.$refs.textarea.focus();
+            this.autoResize();
           }
         });
         this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });

@@ -11,12 +11,23 @@ import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 import TiptapEditor from '../common/TiptapEditor.vue'
 import TaskBoardCt from './TaskBoardCt.vue'
 
+import { useTaskStore } from '../../store/task';
+import { useUserStore } from '../../store/user';
+import { ref } from 'vue';
+
 export default {
   setup() {
     const matterStore = useMatterStore();
     const cacheStore = useCacheStore();
+    const taskStore = useTaskStore();
+    const userStore = useUserStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter, cacheStore };
+
+    
+    // Add loading state ref
+    const isInitialLoad = ref(true);
+
+    return { currentMatter, cacheStore, taskStore, userStore, isInitialLoad };
   },
   components: {
     QuickTaskViewCt,
@@ -87,25 +98,20 @@ export default {
       selectorBreadcrumbs: [],
       folderNavigationLoading: false,
       boardGroupBy: 'status',
+      isUpdating: false,
     };
   },
   watch: {
     currentMatter: {
-      async handler(newMatter, oldMatter) {
-        if (newMatter) {
+      async handler(newMatter) {
+        if (newMatter && this.isInitialLoad) {
+          this.isInitialLoad = false;
+
           await Promise.all([
             this.loadTasks(),
             this.loadSharedUsers()
           ]);
-          if (!oldMatter) {
-            this.setupRealtimeSubscription();
-          }
-        } else {
-          if (this.subscription) {
-            this.subscription.unsubscribe();
-          }
-          this.tasks = [];
-          this.sharedUsers = [];
+          this.setupRealtimeSubscription();
         }
       },
       immediate: true
@@ -118,13 +124,20 @@ export default {
     boardGroupBy(newValue) {
       this.saveFilters();
     },
+    'filters.showDeleted'(newValue) {
+      if (!this.isInitialLoad) {
+        this.loadTasks(newValue);
+      }
+    },
     filters: {
       deep: true,
       handler() {
-        this.loadTasks();
-        this.saveFilters();
+        if (!this.isInitialLoad) {
+          this.loadTasks();
+          this.saveFilters();
+        }
       }
-    }
+    },
   },
   methods: {
     async loadSharedUsers() {
@@ -143,24 +156,19 @@ export default {
               return null;
             }
             
-            const { data: userData } = await supabase
-              .rpc('get_user_info_by_id', {
-                user_id: share.shared_with_user_id
-              });
+            // Try to get user info from cache first
+            const userInfo = await this.userStore.getUserInfo(share.shared_with_user_id);
 
-            // Add console.log to debug user data
-            //console.log('User data from RPC:', userData);
-
-            if (!userData || !userData[0]) {
+            if (!userInfo) {
               console.error('No user data found for ID:', share.shared_with_user_id);
               return null;
             }
 
             return {
               id: share.shared_with_user_id,
-              email: userData[0].email,
-              username: userData[0].username || userData[0].email.split('@')[0], // Fallback to email username
-              fullName: userData[0].full_name,
+              email: userInfo.email,
+              username: userInfo.username || userInfo.email.split('@')[0],
+              fullName: userInfo.fullName,
               access_type: share.access_type
             };
           })
@@ -173,52 +181,38 @@ export default {
         ElMessage.error('Error loading shared users: ' + error.message);
       }
     },
-
+    async getUserEmail(userId) {
+      if (!userId) return 'Unknown User';
+      try {
+        const userInfo = await this.userStore.getUserInfo(userId);
+        return userInfo?.email || 'Unknown User';
+      } catch (error) {
+        console.error('Error getting user email:', error);
+        return 'Unknown User';
+      }
+    },
     async loadTasks(showDeleted = false) {
       if (!this.currentMatter) return;
       
       try {
         this.loading = true;
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        let query = supabase
-          .from('tasks')
-          .select(`
-            *,
-            task_stars (
-              user_id
-            )
-          `)
-          .eq('matter_id', this.currentMatter.id)
-          .order('created_at', { ascending: false });
-
-        if (!showDeleted) {
-          query = query.eq('deleted', false);
+        // First load from cache
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id);
+        if (cachedTasks) {
+          console.log('tasks loaded from cache');
+          this.tasks = this.organizeTasksHierarchy(cachedTasks);
         }
 
-        const { data: tasks, error } = await query;
+        console.log('tasks loaded from db');
+        // Then fetch fresh data
+        const tasks = await this.taskStore.fetchAndCacheTasks(
+          this.currentMatter.id,
+          showDeleted
+        );
 
-        if (error) throw error;
+        // Update UI with fresh data
+        this.tasks = this.organizeTasksHierarchy(tasks);
 
-        // Transform the data to include starred status
-        const transformedTasks = tasks.map(task => ({
-          ...task,
-          starred: Boolean(task.task_stars?.length),
-          total_hours: task.task_hours_logs?.reduce((sum, log) => {
-            if (!log.time_taken) return sum;
-            // Convert time_taken (PostgreSQL time type) to hours
-            const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
-            const totalHours = hours + minutes/60 + seconds/3600;
-            return sum + totalHours;
-          }, 0) || 0
-        }));
-
-        this.tasks = this.organizeTasksHierarchy(transformedTasks);
-        
-        // Update cache
-        if (!showDeleted) {
-          this.cacheStore.setCachedData('tasks', this.currentMatter.id, transformedTasks);
-        }
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);
       } finally {
@@ -350,7 +344,13 @@ export default {
     },
 
     async updateTask(task) {
+
+      // Prevent duplicate calls
+      if (this.isUpdating) return;
+
+
       try {
+        this.isUpdating = true;
         this.loading = true;
         
         // Helper function to find task in hierarchical structure
@@ -372,40 +372,32 @@ export default {
 
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Convert undefined to null for parent_task_id
-        const parent_task_id = task.parent_task_id === undefined ? null : task.parent_task_id;
-        
+        const updates = {
+          title: task.title,
+          assignee: task.assignee,
+          status: task.status,
+          priority: task.priority,
+          due_date: task.due_date,
+          parent_task_id: task.parent_task_id === undefined ? null : task.parent_task_id,
+          updated_at: new Date().toISOString()
+        };
+
+
         const { data, error } = await supabase
           .from('tasks')
-          .update({
-            title: task.title,
-            assignee: task.assignee,
-            status: task.status,
-            priority: task.priority,
-            due_date: task.due_date,
-            parent_task_id: parent_task_id
-          })
+          .update(updates)
           .eq('id', task.id)
           .select();
 
-        if (error) {
-          console.error('Supabase update error:', error);
-          throw error;
-        }
+        if (error) throw error;
 
-        // Get all cached tasks and update the modified task
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
-        const updatedCachedTasks = cachedTasks.map(t => 
-          t.id === task.id ? data[0] : t
-        );
+        // Clear cache
+        this.taskStore.clearTaskCache(this.currentMatter.id);
         
-        // Update cache with flat array
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
-        
-        // Update UI with hierarchical structure
-        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+        // Reload tasks
+        await this.loadTasks(this.filters.showDeleted);
 
-        // Create notifications for changes
+        // Handle notifications
         if (originalTask.assignee !== task.assignee && task.assignee) {
           await this.createNotification(
             task.assignee,
@@ -508,6 +500,7 @@ export default {
         ElMessage.error('Error updating task: ' + error.message);
       } finally {
         this.loading = false;
+        this.isUpdating = false;
       }
     },
 
@@ -526,8 +519,12 @@ export default {
             filter: `matter_id=eq.${this.currentMatter.id}`
           },
           async (payload) => {
-            // Reload all tasks to maintain proper hierarchy
-            await this.loadTasks();
+            if (!this.isInitialLoad) {
+              console.log('Realtime update received:', payload);
+              this.taskStore.clearTaskCache(this.currentMatter.id);
+              await this.loadTasks(this.filters.showDeleted);
+            }
+
           }
         )
         .subscribe();
@@ -569,22 +566,11 @@ export default {
 
         if (error) throw error;
 
-        // Remove the deleted task from the local state
-        const removeTaskRecursively = (tasks, taskId) => {
-          return tasks.filter(t => {
-            if (t.children?.length) {
-              t.children = removeTaskRecursively(t.children, taskId);
-            }
-            return t.id !== taskId;
-          });
-        };
+        // Clear cache
+        this.taskStore.clearTaskCache(this.currentMatter.id);
 
-        this.tasks = removeTaskRecursively(this.tasks, task.id);
-        
-        // Update cache
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
-        const updatedCachedTasks = cachedTasks.filter(t => t.id !== task.id);
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        // Reload tasks
+        await this.loadTasks(this.filters.showDeleted);
 
         ElMessage.success('Task deleted successfully');
       } catch (error) {
@@ -609,15 +595,11 @@ export default {
 
         if (error) throw error;
 
-        // Update cache
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
-        const updatedCachedTasks = [...cachedTasks, task].map(t => 
-          t.id === task.id ? { ...t, deleted: false, deleted_by: null, deleted_at: null } : t
-        );
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        // Clear cache
+        this.taskStore.clearTaskCache(this.currentMatter.id);
         
-        // Update UI
-        this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
+        // Reload tasks
+        await this.loadTasks(this.filters.showDeleted);
         
         ElMessage.success('Task restored successfully');
       } catch (error) {
@@ -1256,10 +1238,6 @@ export default {
 
   mounted() {
     this.loadSavedFilters();
-    if (this.currentMatter) {
-      this.setupRealtimeSubscription();
-      this.loadSharedUsers();
-    }
   },
 
   beforeUnmount() {
@@ -1270,20 +1248,44 @@ export default {
 
   computed: {
     flattenedTasks() {
-      const flattened = [];
-      const flatten = (tasks, depth = 0) => {
-        for (const task of tasks) {
+      const flattenTasks = (tasks, parentTitle = '') => {
+        let flattened = [];
+        tasks.forEach(task => {
+          // Skip the current task being edited to prevent self-reference
+          if (task.id === this.editingTask?.id) return;
+          
+          const taskTitle = parentTitle ? `${parentTitle} > ${task.title}` : task.title;
           flattened.push({
             id: task.id,
-            title: '  '.repeat(depth) + task.title // Add indentation to show hierarchy
+            title: taskTitle,
+            parent_task_id: task.parent_task_id
           });
+          
           if (task.children?.length) {
-            flatten(task.children, depth + 1);
+            flattened = flattened.concat(flattenTasks(task.children, taskTitle));
           }
-        }
+        });
+        return flattened;
       };
-      flatten(this.tasks);
-      return flattened;
+
+      // Get all tasks (both from current state and cache)
+      let allTasks = [...this.tasks];
+      
+      // Get cached tasks if available
+      const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter?.id);
+      if (cachedTasks) {
+        // Merge cached tasks with current tasks, removing duplicates
+        const taskIds = new Set(allTasks.map(t => t.id));
+        cachedTasks.forEach(task => {
+          if (!taskIds.has(task.id)) {
+            allTasks.push(task);
+          }
+        });
+      }
+
+      // Organize tasks into hierarchy and flatten
+      const organizedTasks = this.organizeTasksHierarchy(allTasks);
+      return flattenTasks(organizedTasks);
     },
     filteredTasks() {
       let result = [...this.tasks];

@@ -845,7 +845,8 @@ import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, Arr
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
-import { useCacheStore } from '../../store/cache';
+import { useTaskStore } from '../../store/task';
+import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
@@ -880,9 +881,15 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
-    const cacheStore = useCacheStore();
+    const taskStore = useTaskStore();
+    const userStore = useUserStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter, cacheStore };
+    
+    return { 
+      currentMatter, 
+      taskStore,
+      userStore
+    };
   },
   data() {
     return {
@@ -1610,17 +1617,12 @@ export default {
 
         if (error) throw error;
 
-        // Get user details for each share using the RPC function
         const sharesWithUserInfo = await Promise.all(
           shares.map(async (share) => {
-            const { data: userData } = await supabase
-              .rpc('get_user_info_by_id', {
-                user_id: share.shared_with_user_id
-              });
-
+            const userInfo = await this.userStore.getUserInfo(share.shared_with_user_id);
             return {
               id: share.shared_with_user_id,
-              email: userData?.[0]?.email
+              email: userInfo?.email || 'Unknown User'
             };
           })
         );
@@ -2530,18 +2532,49 @@ ${comment.content}
       return 'info';
     },
     getTaskIndentation(task) {
-      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
+      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
       let level = 0;
       let currentTask = task;
       
       while (currentTask.parent_task_id && currentTask.parent_task_id !== this.task.id) {
         level++;
-        currentTask = cachedTasks.find(t => t.id === currentTask.parent_task_id);
+        currentTask = tasks.find(t => t.id === currentTask.parent_task_id);
         if (!currentTask) break;
       }
       
       return level * 24;
-    }
+    },
+    // Add these helper methods
+    getPredecessorIds(taskId, taskMap) {
+      const predecessorIds = new Set();
+      let currentTaskId = taskId;
+      
+      while (currentTaskId) {
+        const currentTask = taskMap.get(currentTaskId);
+        if (!currentTask || predecessorIds.has(currentTaskId)) break;
+        predecessorIds.add(currentTaskId);
+        currentTaskId = currentTask.parent_task_id;
+      }
+      
+      return Array.from(predecessorIds);
+    },
+
+    getDescendantIds(taskId, taskMap) {
+      const descendantIds = new Set();
+      
+      const addDescendants = (id) => {
+        const tasks = Array.from(taskMap.values());
+        const children = tasks.filter(t => t.parent_task_id === id);
+        
+        children.forEach(child => {
+          descendantIds.add(child.id);
+          addDescendants(child.id);
+        });
+      };
+      
+      addDescendants(taskId);
+      return Array.from(descendantIds);
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2623,48 +2656,17 @@ ${comment.content}
         title: '- no parent -'
       }];
       
-      // Helper function to get all predecessor task IDs
-      const getPredecessorIds = (taskId, taskMap, visited = new Set()) => {
-        if (visited.has(taskId)) return [];
-        visited.add(taskId);
-        
-        const task = taskMap.get(taskId);
-        if (!task) return [];
-        
-        const predecessors = [taskId];
-        if (task.parent_task_id) {
-          predecessors.push(...getPredecessorIds(task.parent_task_id, taskMap, visited));
-        }
-        return predecessors;
-      };
-
-      // Helper function to get all descendant task IDs
-      const getDescendantIds = (taskId, taskMap) => {
-        const descendants = [];
-        const task = taskMap.get(taskId);
-        if (!task) return descendants;
-
-        for (const [id, t] of taskMap.entries()) {
-          if (t.parent_task_id === taskId) {
-            descendants.push(id);
-            descendants.push(...getDescendantIds(id, taskMap));
-          }
-        }
-        return descendants;
-      };
-
       const flatten = (tasks, depth = 0) => {
         const taskMap = new Map(tasks.map(task => [task.id, task]));
         
-        // Get all invalid task IDs (current task, predecessors, and descendants)
+        // Get all invalid task IDs (current task and its hierarchy)
         const invalidTaskIds = new Set([
           this.task?.id,
-          ...getPredecessorIds(this.task?.id, taskMap),
-          ...getDescendantIds(this.task?.id, taskMap)
+          ...this.getPredecessorIds(this.task?.id, taskMap),
+          ...this.getDescendantIds(this.task?.id, taskMap)
         ]);
 
         for (const task of tasks) {
-          // Only include tasks that aren't in the invalid set
           if (!invalidTaskIds.has(task.id)) {
             flattened.push({
               id: task.id || '',
@@ -2677,8 +2679,9 @@ ${comment.content}
         }
       };
       
-      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
-      const organizedTasks = this.organizeTasksHierarchy(cachedTasks);
+      // Get tasks from task store
+      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
+      const organizedTasks = this.organizeTasksHierarchy(tasks);
       flatten(organizedTasks);
       
       return flattened;
@@ -2728,14 +2731,13 @@ ${comment.content}
       }
     },
     childTasks() {
-      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
+      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
       
       // Helper function to recursively find all descendant tasks
       const findDescendants = (taskId) => {
-        const directChildren = cachedTasks.filter(task => task.parent_task_id === taskId);
+        const directChildren = tasks.filter(task => task.parent_task_id === taskId);
         const descendants = [...directChildren];
         
-        // Recursively find children of children
         directChildren.forEach(child => {
           descendants.push(...findDescendants(child.id));
         });

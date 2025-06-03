@@ -1515,130 +1515,68 @@ Please provide assistance based on this context, the comment history, the availa
       </div>
     </template>
 
-    <!-- Status Section -->
-    <div class="status-section">
-      <span class="status-label">Status:</span>
-      <el-dropdown 
-        trigger="click" 
-        @command="handleStatusChange"
-      >
-        <el-tag
-          :type="task?.status === 'completed' ? 'success' : 
-                 task?.status === 'in_progress' ? 'warning' : 
-                 task?.status === 'awaiting_external' || task?.status === 'awaiting_internal' ? 'info' :
-                 task?.status === 'not_started' ? 'info' : 'info'"
-          size="small"
-          class="status-tag clickable"
-        >
-          {{ task?.status ? task.status.replace('_', ' ').charAt(0).toUpperCase() + 
-             task.status.slice(1).replace('_', ' ') : 'New' }}
-          <el-icon class="el-icon--right" :size="12"><ArrowDown /></el-icon>
-        </el-tag>
-        <template #dropdown>
-          <el-dropdown-menu class="compact-dropdown">
-            <el-dropdown-item command="not_started">
-              <el-tag size="small" type="info" class="option-tag">Not Started</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="in_progress">
-              <el-tag size="small" type="warning" class="option-tag">In Progress</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="awaiting_external">
-              <el-tag size="small" type="info" class="option-tag">Awaiting External</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="awaiting_internal">
-              <el-tag size="small" type="info" class="option-tag">Awaiting Internal</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="completed">
-              <el-tag size="small" type="success" class="option-tag">Completed</el-tag>
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+    <!-- Compact Metadata Section -->
+    <div class="task-metadata-compact">
+      <div class="metadata-row">
+        <div class="status-priority-group">
+          <span class="status-label">Status:</span>
+          <el-dropdown trigger="click" @command="handleStatusChange">
+            <el-tag :type="task?.status === 'completed' ? 'success' : task?.status === 'in_progress' ? 'warning' : task?.status === 'awaiting_external' || task?.status === 'awaiting_internal' ? 'info' : task?.status === 'not_started' ? 'info' : 'info'" size="small" class="status-tag clickable">
+              {{ task?.status ? task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.slice(1).replace('_', ' ') : 'New' }}
+              <el-icon class="el-icon--right" :size="12"><ArrowDown /></el-icon>
+            </el-tag>
+            <template #dropdown>
+              <el-dropdown-menu class="compact-dropdown">
+                <el-dropdown-item command="not_started"><el-tag size="small" type="info" class="option-tag">Not Started</el-tag></el-dropdown-item>
+                <el-dropdown-item command="in_progress"><el-tag size="small" type="warning" class="option-tag">In Progress</el-tag></el-dropdown-item>
+                <el-dropdown-item command="awaiting_external"><el-tag size="small" type="info" class="option-tag">Awaiting External</el-tag></el-dropdown-item>
+                <el-dropdown-item command="awaiting_internal"><el-tag size="small" type="info" class="option-tag">Awaiting Internal</el-tag></el-dropdown-item>
+                <el-dropdown-item command="completed"><el-tag size="small" type="success" class="option-tag">Completed</el-tag></el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <span class="priority-label">Priority:</span>
+          <el-dropdown @command="handlePriorityChange" trigger="click">
+            <el-tag :type="getPriorityType(task.priority)" size="small" class="priority-tag">{{ task.priority || 'No priority' }}<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-tag>
+            <template #dropdown>
+              <el-dropdown-menu class="compact-dropdown">
+                <el-dropdown-item command="high"><el-tag size="small" type="danger" class="option-tag">High</el-tag></el-dropdown-item>
+                <el-dropdown-item command="medium"><el-tag size="small" type="warning" class="option-tag">Medium</el-tag></el-dropdown-item>
+                <el-dropdown-item command="low"><el-tag size="small" type="success" class="option-tag">Low</el-tag></el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+      <div class="metadata-row">
+        <div class="duedate-assignee-group">
+          <span class="due-date-label">Due Date:</span>
+          <el-dropdown @command="handleDueDateChange" trigger="click">
+            <el-tag :type="getDueDateType(task)" size="small" class="due-date-tag">{{ task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-tag>
+            <template #dropdown>
+              <el-dropdown-menu class="compact-dropdown">
+                <el-dropdown-item>
+                  <el-date-picker v-model="tempDueDate" type="date" placeholder="Select due date" style="width: 200px" size="small" @change="handleDueDateChange" />
+                </el-dropdown-item>
+                <el-dropdown-item divided command="clear">Clear due date</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <span class="assignee-label">Assigned To:</span>
+          <el-dropdown @command="handleAssigneeChange" trigger="click">
+            <el-tag type="info" size="small" class="assignee-tag">{{ assigneeEmail || 'Unassigned' }}<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-tag>
+            <template #dropdown>
+              <el-dropdown-menu class="compact-dropdown">
+                <el-dropdown-item v-for="user in sharedUsers" :key="user.id" :command="user.id">
+                  <div class="user-option"><el-avatar :size="24">{{ user.email.charAt(0).toUpperCase() }}</el-avatar>{{ user.email }}</div>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
     </div>
-
-    <div class="priority-section">
-      <span class="priority-label">Priority:</span>
-      <el-dropdown @command="handlePriorityChange" trigger="click">
-        <el-tag
-          :type="getPriorityType(task.priority)"
-          size="small"
-          class="priority-tag">
-          {{ task.priority || 'No priority' }}
-          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </el-tag>
-        <template #dropdown>
-          <el-dropdown-menu class="compact-dropdown">
-            <el-dropdown-item command="high">
-              <el-tag size="small" type="danger" class="option-tag">High</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="medium">
-              <el-tag size="small" type="warning" class="option-tag">Medium</el-tag>
-            </el-dropdown-item>
-            <el-dropdown-item command="low">
-              <el-tag size="small" type="success" class="option-tag">Low</el-tag>
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-
-    <div class="due-date-section">
-      <span class="due-date-label">Due Date:</span>
-      <el-dropdown @command="handleDueDateChange" trigger="click">
-        <el-tag
-          :type="getDueDateType(task)"
-          size="small"
-          class="due-date-tag">
-          {{ task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
-          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </el-tag>
-        <template #dropdown>
-          <el-dropdown-menu class="compact-dropdown">
-            <el-dropdown-item>
-              <el-date-picker
-                v-model="tempDueDate"
-                type="date"
-                placeholder="Select due date"
-                style="width: 200px"
-                size="small"
-                @change="handleDueDateChange"
-              />
-            </el-dropdown-item>
-            <el-dropdown-item divided command="clear">Clear due date</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-
-    <div class="assignee-section">
-      <span class="assignee-label">Assigned To:</span>
-      <el-dropdown @command="handleAssigneeChange" trigger="click">
-        <el-tag
-          type="info"
-          size="small"
-          class="assignee-tag">
-          {{ assigneeEmail || 'Unassigned' }}
-          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </el-tag>
-        <template #dropdown>
-          <el-dropdown-menu class="compact-dropdown">
-            <el-dropdown-item 
-              v-for="user in sharedUsers" 
-              :key="user.id"
-              :command="user.id">
-              <div class="user-option">
-                <el-avatar :size="24">
-                  {{ user.email.charAt(0).toUpperCase() }}
-                </el-avatar>
-                {{ user.email }}
-              </div>
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-
-    <el-divider />
+    <el-divider style="margin: 8px 0;" />
 
     <div class="comments-container">
       <!-- Description Header -->
@@ -1697,7 +1635,7 @@ Please provide assistance based on this context, the comment history, the availa
       </div>
 
       <!-- Comments Header -->
-      <div class="section-header">
+      <div class="section-header" style="margin-bottom: 10px;">
         <div class="section-title">
           <span>Comments</span>
         </div>
@@ -1884,7 +1822,7 @@ Please provide assistance based on this context, the comment history, the availa
 .comments-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px); /* Account for header and padding */
+  height: calc(100vh - 175px); /* Account for header and padding */
   overflow: hidden;
 }
 
@@ -1912,9 +1850,6 @@ Please provide assistance based on this context, the comment history, the availa
   max-height: none; /* Remove the max-height constraint */
   overflow-y: visible; /* Remove scroll */
   border-bottom: 1px solid var(--el-border-color-lighter);
-}
-.el-drawer__header {
-  margin-bottom: 0px !important;
 }
 .comments-section {
   flex: 1;
@@ -2291,126 +2226,49 @@ div.comment-text>span>p>a {
   margin-top: 8px;
 }
 
-.status-section,
-.priority-section,
-.due-date-section,
-.assignee-section {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  align-items: center;
-  padding: 4px 20px;
+.task-metadata-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 0 12px;
 }
-
-.status-label,
-.priority-label,
-.due-date-label,
-.assignee-label {
+.metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.status-priority-group, .duedate-assignee-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.status-label, .priority-label, .due-date-label, .assignee-label {
   font-size: 13px;
   color: var(--el-text-color-secondary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin-right: 2px;
 }
-
-.status-tag,
-.priority-tag,
-.due-date-tag {
-  text-transform: capitalize;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  height: 24px;
-  justify-content: flex-start;
-  width: auto;
-  min-width: 120px;
+.status-tag, .priority-tag, .due-date-tag, .assignee-tag {
+  min-width: 90px;
+  padding: 2px 8px;
+  font-size: 13px;
+  height: 22px;
+  margin-right: 4px;
 }
-
-.assignee-tag {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  height: 24px;
-  justify-content: flex-start;
-  width: auto;
-  min-width: 120px;
-}
-
-/* Remove any existing padding-left from status-content */
-.status-content {
-  padding-left: 0;
-}
-
-/* Ensure consistent spacing */
-.metadata-label {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: 100%;
-}
-
-/* Mobile adjustments */
 @media (max-width: 768px) {
-  .status-section,
-  .priority-section,
-  .due-date-section,
-  .assignee-section {
-    grid-template-columns: 90px 1fr;
-    padding: 4px 16px;
-  }
-
-  .status-tag,
-  .priority-tag,
-  .due-date-tag {
-    min-width: 100px;
-  }
+  .task-metadata-compact { padding: 2px 4px 0 4px; }
+  .metadata-row { gap: 6px; }
+  .status-tag, .priority-tag, .due-date-tag, .assignee-tag { min-width: 70px; font-size: 12px; }
 }
+.drawer-header { padding-bottom: 4px !important; margin-bottom: 0 !important; }
+.el-divider { margin: 8px 0 !important; }
+.comments-container { padding-top: 0 !important; }
+</style>
 
-/* Add this to remove margin from el-drawer__header */
-.quick-task-view :deep(.el-drawer__header) {
-  margin-bottom: 0 !important;
-}
-
-.star-icon {
-  cursor: pointer;
-  font-size: 18px;
-  color: #909399;
-  transition: color 0.3s;
-}
-
-.star-icon.starred {
-  color: #f0c541;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.description-edit {
-  background-color: var(--el-color-info-light-9);
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.description-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
+<style>
+.quick-task-view .el-drawer__header {
+  margin-bottom: 0px !important;
 }
 </style>

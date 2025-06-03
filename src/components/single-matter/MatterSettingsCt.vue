@@ -29,6 +29,9 @@ export default {
       emailSettings: {
         address: this.currentMatter?.email_storage || ''
       },
+      aiSettings: {
+        subtaskEnabled: this.currentMatter?.ai_subtask_enabled ?? true
+      },
       customFields: [],
       newField: {
         label: '',
@@ -116,7 +119,8 @@ export default {
           .from('matters')
           .update({
             title: this.editingMatter.title,
-            description: this.editingMatter.description
+            description: this.editingMatter.description,
+            ai_subtask_enabled: this.aiSettings.subtaskEnabled
           })
           .eq('id', this.currentMatter.id)
           .select()
@@ -424,6 +428,23 @@ export default {
               :disabled="!editingMatter.title">
               Save Changes
             </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- AI Settings Section -->
+      <div class="section">
+        <h3>AI Settings</h3>
+        <el-form label-position="top">
+          <el-form-item class="ai-settings">
+            <el-switch
+              v-model="aiSettings.subtaskEnabled"
+              active-text="Enable AI Subtask Suggestions"
+              @change="updateMatter"
+            />
+            <div class="setting-description">
+              When enabled, the AI will suggest subtasks when you create a new task
+            </div>
           </el-form-item>
         </el-form>
       </div>
@@ -905,4 +926,9 @@ h4 {
     margin-right: 0;
   }
 }
-</style> 
+</style>
+<style>
+.ai-settings .el-form-item__content {
+    display: block;
+}
+</style>

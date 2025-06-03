@@ -322,8 +322,10 @@ export default {
         this.resetForm();
         ElMessage.success('Task created successfully');
 
-        // Generate AI subtasks
-        await this.generateAISubtasks(data[0]);
+        // Generate AI subtasks only if enabled
+        if (this.currentMatter.ai_subtask_enabled) {
+          await this.generateAISubtasks(data[0]);
+        }
       } catch (error) {
         ElMessage.error('Error creating task: ' + error.message);
       } finally {

@@ -861,12 +861,13 @@ export default {
                     @keyup.enter="handleSubmit(task)"
                     @keyup.esc="cancelEditing"
                     @blur="handleSubmit(task)"
+                    @click.stop
                     v-focus
                   />
                 </template>
                 <div v-else class="title-hours-wrapper">
                   <div class="title-container">
-                    <span class="task-title" @dblclick="startEditing(task, 'title')">
+                    <span class="task-title" @dblclick.stop="startEditing(task, 'title')">
                       {{ task.title }}
                     </span>
                   </div>
@@ -976,12 +977,13 @@ export default {
                         @keyup.enter="handleSubmit(childTask)"
                         @keyup.esc="cancelEditing"
                         @blur="handleSubmit(childTask)"
+                        @click.stop
                         v-focus
                       />
                     </template>
                     <div v-else class="title-hours-wrapper">
                       <div class="title-container">
-                        <span class="task-title" @dblclick="startEditing(childTask, 'title')">
+                        <span class="task-title" @dblclick.stop="startEditing(childTask, 'title')">
                           {{ childTask.title }}
                         </span>
                       </div>

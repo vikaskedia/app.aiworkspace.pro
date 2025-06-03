@@ -14,13 +14,14 @@
     @dragend.prevent.stop="handleDragEnd"
   >
     <span
-      v-if="hasChildren"
       class="collapse-toggle"
-      style="cursor:pointer;"
-      @click.stop="toggleCollapse"
+      :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
+      @click.stop="hasChildren ? toggleCollapse() : undefined"
     >
-      <span v-if="collapsed">&#9654;</span>
-      <span v-else>&#9660;</span>
+      <span v-if="hasChildren">
+        <span v-if="collapsed">&#9654;</span>
+        <span v-else>&#9660;</span>
+      </span>
     </span>
     <div 
       class="outline-bullet"

@@ -92,6 +92,7 @@
         v-for="child in item.children"
         :key="child.id"
         :item="child"
+        :autoFocus="child.autoFocus"
         @update="updateChild"
         @move="handleMove"
         @delete="handleDelete"
@@ -126,6 +127,10 @@ export default {
   props: {
     item: { type: Object, required: true },
     readonly: {
+      type: Boolean,
+      default: false
+    },
+    autoFocus: {
       type: Boolean,
       default: false
     }
@@ -176,6 +181,18 @@ export default {
       this.editText = val;
     }
   },
+  mounted() {
+    if (this.autoFocus) {
+      this.editing = true;
+      this.$nextTick(() => {
+        if (this.$refs.textarea) {
+          this.$refs.textarea.focus();
+        }
+      });
+      // Optionally clear autoFocus after focusing
+      this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
+    }
+  },
   methods: {
     startEdit() {
       this.editing = true;
@@ -199,7 +216,8 @@ export default {
       const newSubPoint = {
         id: Date.now().toString(),
         text: '',
-        children: []
+        children: [],
+        autoFocus: true
       };
       
       // Initialize children array if it doesn't exist
@@ -212,27 +230,6 @@ export default {
       
       // Force Vue to update the DOM
       this.$forceUpdate();
-      
-      // Wait for the DOM to update and then focus the new textarea
-      this.$nextTick(() => {
-        // wait for 100ms
-        setTimeout(() => {
-          const newSubPointElement = this.$el.querySelector(`[data-id="${newSubPoint.id}"]`);
-          if (newSubPointElement) {
-            const newSubPointComponent = newSubPointElement.__vue__;
-            if (newSubPointComponent) {
-              // Set editing to true and focus the textarea
-              newSubPointComponent.editing = true;
-              this.$nextTick(() => {
-                const textarea = newSubPointElement.querySelector('textarea');
-                if (textarea) {
-                  textarea.focus();
-                }
-              });
-            }
-          }
-        }, 100);
-      });
     },
     handleDragStart(e) {
       // Only allow dragging from the bullet point
@@ -374,6 +371,11 @@ export default {
       }
     },
     updateChild(payload) {
+      // Remove autoFocus after focusing
+      if ('autoFocus' in payload) {
+        const child = this.item.children.find(c => c.id === payload.id);
+        if (child) child.autoFocus = false;
+      }
       this.$emit('update', payload);
     },
     handleBackspace(e) {

@@ -93,19 +93,30 @@
           <!-- Add this after the task title section -->
           <div class="task-parent">
             <h4>Parent Task</h4>
-            <el-select
-              v-model="task.parent_task_id"
-              style="width: 100%"
-              placeholder="Select parent task"
-              @change="updateParentTask"
-            >
-              <el-option
-                v-for="parentTask in flattenedTasks"
-                :key="parentTask.id ?? 'no-parent'"
-                :label="parentTask.title"
-                :value="parentTask.id ?? ''"
-              />
-            </el-select>
+            <div class="parent-task-selector">
+              <el-select
+                v-model="task.parent_task_id"
+                style="width: 100%"
+                placeholder="Select parent task"
+                @change="updateParentTask"
+              >
+                <el-option
+                  v-for="parentTask in flattenedTasks"
+                  :key="parentTask.id ?? 'no-parent'"
+                  :label="parentTask.title"
+                  :value="parentTask.id ?? ''"
+                />
+              </el-select>
+              <el-button
+                v-if="task.parent_task_id"
+                type="primary"
+                link
+                class="view-parent-btn"
+                @click="navigateToTask(task.parent_task_id)"
+              >
+                <el-icon><View /></el-icon>
+              </el-button>
+            </div>
           </div>
 
           <!-- Child Tasks Section -->
@@ -113,7 +124,7 @@
             <h4>Child Tasks</h4>
             <div class="child-tasks-list">
               <div v-for="childTask in childTasks" :key="childTask.id" class="child-task-item">
-                <div class="child-task-content">
+                <div class="child-task-content" :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }">
                   <el-tag :type="getStatusType(childTask)" size="small" class="status-tag">
                     {{ formatStatus(childTask.status) }}
                   </el-tag>
@@ -830,7 +841,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -864,7 +875,8 @@ export default {
     VerticalDotsIcon,
     Setting,
     Share,
-    Download
+    Download,
+    View
   },
   setup() {
     const matterStore = useMatterStore();
@@ -2516,6 +2528,19 @@ ${comment.content}
       if (diffDays < 0) return 'danger';
       if (diffDays <= 3) return 'warning';
       return 'info';
+    },
+    getTaskIndentation(task) {
+      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
+      let level = 0;
+      let currentTask = task;
+      
+      while (currentTask.parent_task_id && currentTask.parent_task_id !== this.task.id) {
+        level++;
+        currentTask = cachedTasks.find(t => t.id === currentTask.parent_task_id);
+        if (!currentTask) break;
+      }
+      
+      return level * 24;
     }
   },
   watch: {
@@ -2704,7 +2729,21 @@ ${comment.content}
     },
     childTasks() {
       const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter?.id) || [];
-      return cachedTasks.filter(task => task.parent_task_id === this.task.id);
+      
+      // Helper function to recursively find all descendant tasks
+      const findDescendants = (taskId) => {
+        const directChildren = cachedTasks.filter(task => task.parent_task_id === taskId);
+        const descendants = [...directChildren];
+        
+        // Recursively find children of children
+        directChildren.forEach(child => {
+          descendants.push(...findDescendants(child.id));
+        });
+        
+        return descendants;
+      };
+      
+      return findDescendants(this.task.id);
     }
   }
 };
@@ -4385,5 +4424,22 @@ table.editor-table {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+</style>
+
+<style scoped>
+.parent-task-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-parent-btn {
+  flex-shrink: 0;
+  padding: 8px;
+}
+
+.view-parent-btn .el-icon {
+  font-size: 16px;
 }
 </style>

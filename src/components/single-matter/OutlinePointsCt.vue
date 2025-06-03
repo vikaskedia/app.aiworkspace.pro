@@ -38,6 +38,8 @@
       @blur="finishEdit"
       @keydown.enter.prevent="handleEnter"
       @keydown.backspace="handleBackspace"
+      @keydown.up.prevent="handleArrowUp"
+      @keydown.down.prevent="handleArrowDown"
       @input="autoResize"
       class="outline-textarea"
       rows="1"
@@ -97,6 +99,7 @@
         @move="handleMove"
         @delete="handleDelete"
         @drilldown="$emit('drilldown', $event)"
+        @navigate="$emit('navigate', $event)"
       />
     </ul>
   </li>
@@ -135,7 +138,7 @@ export default {
       default: false
     }
   },
-  emits: ['update', 'move', 'delete', 'drilldown'],
+  emits: ['update', 'move', 'delete', 'drilldown', 'navigate'],
   data() {
     return {
       editing: false,
@@ -179,6 +182,17 @@ export default {
   watch: {
     'item.text'(val) {
       this.editText = val;
+    },
+    autoFocus(newVal) {
+      if (newVal) {
+        this.editing = true;
+        this.$nextTick(() => {
+          if (this.$refs.textarea) {
+            this.$refs.textarea.focus();
+          }
+        });
+        this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
+      }
     }
   },
   mounted() {
@@ -565,6 +579,12 @@ export default {
         console.error('Error downloading file:', error);
         ElMessage.error('Failed to download file: ' + error.message);
       }
+    },
+    handleArrowUp(e) {
+      this.$emit('navigate', { id: this.item.id, direction: 'up' });
+    },
+    handleArrowDown(e) {
+      this.$emit('navigate', { id: this.item.id, direction: 'down' });
     }
   }
 };

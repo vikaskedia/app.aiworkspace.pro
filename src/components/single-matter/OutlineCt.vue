@@ -75,6 +75,7 @@
         @move="handleMove"
         @delete="handleDelete"
         @drilldown="handleDrilldown"
+        @navigate="handleNavigate"
       />
     </ul>
   </div>
@@ -165,6 +166,16 @@ export default {
       }
     ];
 
+    // Helper to ensure all items have autoFocus: false
+    function ensureAutoFocusProp(items) {
+      for (const item of items) {
+        if (!('autoFocus' in item)) item.autoFocus = false;
+        if (item.children && item.children.length) {
+          ensureAutoFocusProp(item.children);
+        }
+      }
+    }
+
     // Load from localStorage or use default
     onMounted(async () => {
       if (!matterId) return;
@@ -178,13 +189,16 @@ export default {
       if (data) {
         try {
           outline.value = JSON.parse(data);
+          ensureAutoFocusProp(outline.value);
           currentVersion.value = storedVersion ? parseInt(storedVersion) : 1;
         } catch {
           outline.value = defaultOutline;
+          ensureAutoFocusProp(outline.value);
           currentVersion.value = 1;
         }
       } else {
         outline.value = defaultOutline;
+        ensureAutoFocusProp(outline.value);
         currentVersion.value = 1;
       }
 
@@ -216,6 +230,7 @@ export default {
           } else if (outlineData.version > currentVersion.value) {
             // If Supabase version is newer, update local content
             outline.value = outlineData.content;
+            ensureAutoFocusProp(outline.value);
             currentVersion.value = outlineData.version;
             localStorage.setItem(localStorageKey, JSON.stringify(outlineData.content));
             localStorage.setItem(versionKey, outlineData.version.toString());
@@ -587,6 +602,35 @@ export default {
       });
     }
 
+    // --- Keyboard navigation logic ---
+    function flattenOutline(items, result = []) {
+      for (const item of items) {
+        result.push(item);
+        if (item.children && item.children.length) {
+          flattenOutline(item.children, result);
+        }
+      }
+      return result;
+    }
+
+    function handleNavigate({ id, direction }) {
+      // Flatten the visible outline
+      const flat = flattenOutline(getFocusedOutline());
+      //console.log('Flat outline:', flat.map(i => i.text));
+      const idx = flat.findIndex(item => item.id.toString() === id.toString());
+      //console.log('Current item id:', id, 'index:', idx, 'direction:', direction);
+      if (idx === -1) return;
+      let targetIdx = null;
+      if (direction === 'up' && idx > 0) targetIdx = idx - 1;
+      if (direction === 'down' && idx < flat.length - 1) targetIdx = idx + 1;
+      //console.log('Target index:', targetIdx, 'Target item:', targetIdx !== null ? flat[targetIdx] : null);
+      if (targetIdx !== null) {
+        // Use Object.assign to ensure reactivity
+        Object.assign(flat[targetIdx], { autoFocus: true });
+        outline.value = [...outline.value];
+      }
+    }
+
     return { 
       outline, 
       saving,
@@ -612,6 +656,7 @@ export default {
       selectedVersion,
       viewVersion,
       formatDate,
+      handleNavigate,
     };
   }
 };

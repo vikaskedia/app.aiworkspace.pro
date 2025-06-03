@@ -76,6 +76,8 @@
         @delete="handleDelete"
         @drilldown="handleDrilldown"
         @navigate="handleNavigate"
+        @indent="handleIndent"
+        @outdent="handleOutdent"
       />
     </ul>
   </div>
@@ -631,6 +633,88 @@ export default {
       }
     }
 
+    // --- Indent/Outdent logic ---
+    function handleIndent({ id }) {
+      // Find parent and previous sibling
+      function findParentAndIndex(items, id, parent = null) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id.toString() === id.toString()) {
+            return { parent, index: i, items };
+          }
+          if (items[i].children && items[i].children.length) {
+            const res = findParentAndIndex(items[i].children, id, items[i]);
+            if (res) return res;
+          }
+        }
+        return null;
+      }
+      const res = findParentAndIndex(outline.value, id);
+      if (!res || res.index === 0) return; // No previous sibling
+      const { parent, index, items } = res;
+      const prevSibling = items[index - 1];
+      // Remove from current position
+      const [moved] = items.splice(index, 1);
+      // Add as last child of previous sibling
+      if (!prevSibling.children) prevSibling.children = [];
+      prevSibling.children.push(moved);
+      // Set autoFocus for moved node
+      moved.autoFocus = true;
+      outline.value = [...outline.value];
+    }
+
+    function handleOutdent({ id }) {
+      // Always use the latest structure from localStorage
+      const localStorageKey = getLocalStorageKey();
+      const latestOutline = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+
+      // Recursively find the node, its parent, and its grandparent
+      function findNodeAndAncestors(items, id, parent = null, grandparent = null) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.id.toString() === id.toString()) {
+            return { node: item, parent, grandparent, index: i, items };
+          }
+          if (item.children && item.children.length) {
+            const res = findNodeAndAncestors(item.children, id, item, parent);
+            if (res) return res;
+          }
+        }
+        return null;
+      }
+      const res = findNodeAndAncestors(latestOutline, id);
+      if (!res || !res.parent || !res.grandparent) {
+        console.log('Cannot outdent: node is at root or top-level', res);
+        return;
+      }
+      const { parent, grandparent, index, items } = res;
+
+      // Log before
+      console.log('Outline before:', JSON.stringify(latestOutline, null, 2));
+      console.log('Node:', res.node.text, 'Parent:', parent.text, 'Grandparent:', grandparent.text);
+      console.log('Removing from items:', items.map(i => i.text));
+      console.log('Inserting into gpChildren:', (grandparent.children || latestOutline).map(i => i.text));
+
+      // Remove from current position
+      const [moved] = items.splice(index, 1);
+
+      // Find parent in grandparent's children
+      const gpChildren = grandparent.children || latestOutline;
+      const parentIdx = gpChildren.findIndex(child => child.id === parent.id);
+      if (parentIdx === -1) {
+        console.log('Parent not found in grandparent children');
+        return;
+      }
+
+      gpChildren.splice(parentIdx + 1, 0, moved);
+
+      // Log after
+      console.log('Outline after:', JSON.stringify(latestOutline, null, 2));
+
+      // Set autoFocus for moved node
+      moved.autoFocus = true;
+      outline.value = [...latestOutline];
+    }
+
     return { 
       outline, 
       saving,
@@ -657,6 +741,8 @@ export default {
       viewVersion,
       formatDate,
       handleNavigate,
+      handleIndent,
+      handleOutdent,
     };
   }
 };

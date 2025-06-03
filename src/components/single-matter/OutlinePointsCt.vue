@@ -41,6 +41,7 @@
       @keydown.backspace="handleBackspace"
       @keydown.up.prevent="handleArrowUp"
       @keydown.down.prevent="handleArrowDown"
+      @keydown="handleKeydown"
       @input="autoResize"
       class="outline-textarea"
       rows="1"
@@ -101,6 +102,8 @@
         @delete="handleDelete"
         @drilldown="$emit('drilldown', $event)"
         @navigate="$emit('navigate', $event)"
+        @indent="$emit('indent', $event)"
+        @outdent="$emit('outdent', $event)"
       />
     </ul>
   </li>
@@ -139,7 +142,7 @@ export default {
       default: false
     }
   },
-  emits: ['update', 'move', 'delete', 'drilldown', 'navigate'],
+  emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent'],
   data() {
     return {
       editing: false,
@@ -586,6 +589,17 @@ export default {
     },
     handleArrowDown(e) {
       this.$emit('navigate', { id: this.item.id, direction: 'down' });
+    },
+    handleKeydown(e) {
+      if (e.key === 'Tab' && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.$emit('outdent', { id: this.item.id });
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.$emit('indent', { id: this.item.id });
+      }
     }
   }
 };

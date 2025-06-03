@@ -962,73 +962,64 @@ export default {
             <div 
               v-if="hasChildren(task) && isExpanded(task.id)" 
               class="child-tasks">
-              <div 
-                v-for="childTask in task.children" 
-                :key="childTask.id"
-                class="task-card child-task"
-                @click="openComments(childTask)"
-                @contextmenu.prevent="navigateToDetailedView(childTask)">
-                <div class="task-main">
-                  <div class="task-title-container">
-                    <template v-if="editingTaskId === childTask.id && editingField === 'title'">
-                      <el-input
-                        v-model="editingValue"
-                        size="small"
-                        @keyup.enter="handleSubmit(childTask)"
-                        @keyup.esc="cancelEditing"
-                        @blur="handleSubmit(childTask)"
-                        @click.stop
-                        v-focus
-                      />
-                    </template>
-                    <div v-else class="title-hours-wrapper">
-                      <div class="title-container">
-                        <span class="task-title" @dblclick.stop="startEditing(childTask, 'title')">
-                          {{ childTask.title }}
+              <template v-for="childTask in task.children" :key="childTask.id">
+                <!-- Recursive task component -->
+                <div 
+                  class="task-card"
+                  :class="{ 'child-task': true, 'has-children': hasChildren(childTask) }"
+                  @click="openComments(childTask)"
+                  @contextmenu.prevent="navigateToDetailedView(childTask)">
+                  <div class="task-main">
+                    <div 
+                      v-if="hasChildren(childTask)"
+                      class="expand-button"
+                      @click.stop="toggleExpand(childTask.id)">
+                      <el-icon :class="['expand-icon', { 'is-expanded': isExpanded(childTask.id) }]">
+                        <ArrowRight />
+                      </el-icon>
+                    </div>
+                    <div class="task-title-container">
+                      <template v-if="editingTaskId === childTask.id && editingField === 'title'">
+                        <el-input
+                          v-model="editingValue"
+                          size="small"
+                          @keyup.enter="handleSubmit(childTask)"
+                          @keyup.esc="cancelEditing"
+                          @blur="handleSubmit(childTask)"
+                          @click.stop
+                          v-focus
+                        />
+                      </template>
+                      <div v-else class="title-hours-wrapper">
+                        <div class="title-container">
+                          <span class="task-title" @dblclick.stop="startEditing(childTask, 'title')">
+                            {{ childTask.title }}
+                          </span>
+                        </div>
+                        <span class="logged-hours" v-if="childTask.total_hours">
+                          <el-tag size="small" class="logged-hours-tag">
+                            <el-icon><Timer /></el-icon>
+                            {{ childTask.total_hours.toFixed(1) }}h
+                          </el-tag>
                         </span>
                       </div>
-                      <span class="logged-hours" v-if="childTask.total_hours">
-                        <el-tag size="small" class="logged-hours-tag">
-                          <el-icon><Timer /></el-icon>
-                          {{ childTask.total_hours.toFixed(1) }}h
+                      <div class="hover-actions" v-if="editingTaskId !== childTask.id">
+                        <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
+                        <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
+                      </div>
+                    </div>
+
+                    <div class="metadata-scroll-container">
+                      <div class="task-metadata">
+                        <el-tag
+                          :type="getStatusType(childTask)"
+                          size="small"
+                          class="status-tag clickable"
+                          @click.stop="startEditing(childTask, 'status', $event)">
+                          <span>{{ formatStatus(childTask.status) }}</span>
                         </el-tag>
-                      </span>
-                    </div>
-                    <div class="hover-actions" v-if="editingTaskId !== childTask.id">
-                      <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
-                      <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
-                    </div>
-                  </div>
 
-                  <div class="metadata-scroll-container">
-                    <div class="task-metadata">
-                      <el-tag
-                        :type="getStatusType(childTask)"
-                        size="small"
-                        class="status-tag clickable"
-                        @click.stop="startEditing(childTask, 'status', $event)">
-                        <span>{{ formatStatus(childTask.status) }}</span>
-                      </el-tag>
-
-                      <div class="assignee-wrapper">
-                        <template v-if="editingTaskId === childTask.id && editingField === 'assignee'">
-                          <el-select
-                            v-model="editingValue"
-                            size="small"
-                            @change="handleSubmit(childTask)"
-                            @blur="cancelEditing"
-                            @click.stop
-                            @keyup.esc="cancelEditing"
-                            style="width: 120px">
-                            <el-option
-                              v-for="user in sharedUsers"
-                              :key="user.id"
-                              :label="user.email"
-                              :value="user.id"
-                            />
-                          </el-select>
-                        </template>
-                        <template v-else>
+                        <div class="assignee-wrapper">
                           <template v-if="childTask.assignee">
                             <el-tooltip
                               :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
@@ -1050,26 +1041,8 @@ export default {
                               </div>
                             </el-tooltip>
                           </template>
-                        </template>
-                      </div>
+                        </div>
 
-                      <template v-if="editingTaskId === childTask.id && editingField === 'priority'">
-                        <el-select
-                          v-model="editingValue"
-                          size="small"
-                          @change="handleSubmit(childTask)"
-                          @blur="cancelEditing"
-                          @click.stop
-                          @keyup.esc="cancelEditing"
-                          ref="prioritySelect"
-                          style="width: 120px">
-                          <el-option label="High" value="high" />
-                          <el-option label="Medium" value="medium" />
-                          <el-option label="Low" value="low" />
-                          <el-option label="No priority" value="" />
-                        </el-select>
-                      </template>
-                      <template v-else>
                         <el-tag
                           :type="getPriorityType(childTask.priority)"
                           size="small"
@@ -1077,30 +1050,140 @@ export default {
                           @click.stop="startEditing(childTask, 'priority', $event)">
                           <span>{{ childTask.priority || 'No priority' }}</span>
                         </el-tag>
-                      </template>
 
-                      <template v-if="childTask.due_date">
-                        <el-tag
-                          :type="getDueDateType(childTask)"
-                          size="small"
-                          class="due-date-tag clickable"
-                          @click.stop="startEditing(childTask, 'due_date', $event)">
-                          <el-icon><Calendar /></el-icon>
-                          {{ formatDueDate(childTask.due_date) }}
-                        </el-tag>
-                      </template>
-                      <template v-else>
-                        <div 
-                          class="due-date-empty clickable"
-                          @click.stop="startEditing(childTask, 'due_date', $event)">
-                          <el-icon><Calendar /></el-icon>
-                          <span>No due date</span>
-                        </div>
-                      </template>
+                        <template v-if="childTask.due_date">
+                          <el-tag
+                            :type="getDueDateType(childTask)"
+                            size="small"
+                            class="due-date-tag clickable"
+                            @click.stop="startEditing(childTask, 'due_date', $event)">
+                            <el-icon><Calendar /></el-icon>
+                            {{ formatDueDate(childTask.due_date) }}
+                          </el-tag>
+                        </template>
+                        <template v-else>
+                          <div 
+                            class="due-date-empty clickable"
+                            @click.stop="startEditing(childTask, 'due_date', $event)">
+                            <el-icon><Calendar /></el-icon>
+                            <span>No due date</span>
+                          </div>
+                        </template>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+
+                <!-- Recursively render grand children -->
+                <el-collapse-transition>
+                  <div 
+                    v-if="hasChildren(childTask) && isExpanded(childTask.id)" 
+                    class="child-tasks">
+                    <template v-for="grandChildTask in childTask.children" :key="grandChildTask.id">
+                      <div 
+                        class="task-card child-task"
+                        @click="openComments(grandChildTask)"
+                        @contextmenu.prevent="navigateToDetailedView(grandChildTask)">
+                        <div class="task-main">
+                          <div class="task-title-container">
+                            <template v-if="editingTaskId === grandChildTask.id && editingField === 'title'">
+                              <el-input
+                                v-model="editingValue"
+                                size="small"
+                                @keyup.enter="handleSubmit(grandChildTask)"
+                                @keyup.esc="cancelEditing"
+                                @blur="handleSubmit(grandChildTask)"
+                                @click.stop
+                                v-focus
+                              />
+                            </template>
+                            <div v-else class="title-hours-wrapper">
+                              <div class="title-container">
+                                <span class="task-title" @dblclick.stop="startEditing(grandChildTask, 'title')">
+                                  {{ grandChildTask.title }}
+                                </span>
+                              </div>
+                              <span class="logged-hours" v-if="grandChildTask.total_hours">
+                                <el-tag size="small" class="logged-hours-tag">
+                                  <el-icon><Timer /></el-icon>
+                                  {{ grandChildTask.total_hours.toFixed(1) }}h
+                                </el-tag>
+                              </span>
+                            </div>
+                            <div class="hover-actions" v-if="editingTaskId !== grandChildTask.id">
+                              <el-icon class="action-icon" @click.stop="startEditing(grandChildTask, 'title')"><Edit /></el-icon>
+                              <el-icon class="action-icon delete" @click.stop="handleAction('delete', grandChildTask)"><Delete /></el-icon>
+                            </div>
+                          </div>
+
+                          <div class="metadata-scroll-container">
+                            <div class="task-metadata">
+                              <el-tag
+                                :type="getStatusType(grandChildTask)"
+                                size="small"
+                                class="status-tag clickable"
+                                @click.stop="startEditing(grandChildTask, 'status', $event)">
+                                <span>{{ formatStatus(grandChildTask.status) }}</span>
+                              </el-tag>
+
+                              <div class="assignee-wrapper">
+                                <template v-if="grandChildTask.assignee">
+                                  <el-tooltip
+                                    :content="sharedUsers.find(u => u.id === grandChildTask.assignee)?.email"
+                                    placement="top">
+                                    <div 
+                                      class="assignee-badge clickable"
+                                      :style="{ backgroundColor: getAssigneeColor(grandChildTask.assignee) }"
+                                      @click.stop="startEditing(grandChildTask, 'assignee', $event)">
+                                      {{ sharedUsers.find(u => u.id === grandChildTask.assignee)?.email.charAt(0).toUpperCase() }}
+                                    </div>
+                                  </el-tooltip>
+                                </template>
+                                <template v-else>
+                                  <el-tooltip content="Assign task" placement="top">
+                                    <div 
+                                      class="assignee-badge unassigned clickable"
+                                      @click.stop="startEditing(grandChildTask, 'assignee', $event)">
+                                      <el-icon><Plus /></el-icon>
+                                    </div>
+                                  </el-tooltip>
+                                </template>
+                              </div>
+
+                              <el-tag
+                                :type="getPriorityType(grandChildTask.priority)"
+                                size="small"
+                                class="priority-tag clickable"
+                                @click.stop="startEditing(grandChildTask, 'priority', $event)">
+                                <span>{{ grandChildTask.priority || 'No priority' }}</span>
+                              </el-tag>
+
+                              <template v-if="grandChildTask.due_date">
+                                <el-tag
+                                  :type="getDueDateType(grandChildTask)"
+                                  size="small"
+                                  class="due-date-tag clickable"
+                                  @click.stop="startEditing(grandChildTask, 'due_date', $event)">
+                                  <el-icon><Calendar /></el-icon>
+                                  {{ formatDueDate(grandChildTask.due_date) }}
+                                </el-tag>
+                              </template>
+                              <template v-else>
+                                <div 
+                                  class="due-date-empty clickable"
+                                  @click.stop="startEditing(grandChildTask, 'due_date', $event)">
+                                  <el-icon><Calendar /></el-icon>
+                                  <span>No due date</span>
+                                </div>
+                              </template>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </el-collapse-transition>
+              </template>
             </div>
           </el-collapse-transition>
         </div>
@@ -1453,17 +1536,26 @@ span.logged-hours i {
   padding-left: 45px;
 }
 
-.child-task::before,
-.child-task-line,
-.child-task:hover::before,
-.child-task:hover .child-task-line {
-  display: none;
+.child-task.has-children {
+  padding-left: 45px;
 }
 
 .child-tasks {
   display: flex;
   flex-direction: column;
   margin-left: 24px;
+}
+
+.child-tasks .child-tasks {
+  margin-left: 24px;
+}
+
+.child-tasks .child-task {
+  padding-left: 50px;
+}
+
+.child-tasks .child-task.has-children {
+  padding-left: 33px;
 }
 
 .expand-button {
@@ -1475,6 +1567,7 @@ span.logged-hours i {
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.2s;
+  margin-right: 8px;
 }
 
 .expand-button:hover {

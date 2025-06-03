@@ -38,7 +38,7 @@ export default {
       comments: [],
       newComment: '',
       loading: false,
-      userEmails: {},
+      assigneeEmail: '',
       subscription: null,
       files: [],
       folders: [],
@@ -114,10 +114,24 @@ export default {
               .single();
 
             if (error) throw error;
-            
             // Update local task data
             this.$emit('update:task', { ...this.task, ...taskData });
-            
+
+            // Fetch assignee email
+            if (taskData.assignee) {
+              const { data: userData, error: userError } = await supabase
+                .rpc('get_user_info_by_id', {
+                  user_id: taskData.assignee
+                });
+              if (!userError && userData?.[0]) {
+                this.assigneeEmail = userData[0].email;
+              } else {
+                this.assigneeEmail = '';
+              }
+            } else {
+              this.assigneeEmail = '';
+            }
+
             // Load comments and setup realtime subscription
             await this.loadComments();
             this.setupRealtimeSubscription();
@@ -126,6 +140,8 @@ export default {
             ElMessage.error('Error loading task data');
           }
         } else {
+          // Drawer closed: clear assigneeEmail
+          this.assigneeEmail = '';
           if (this.subscription) {
             this.subscription.unsubscribe();
           }
@@ -193,19 +209,6 @@ export default {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-
-        // Load user emails for each comment
-        for (const comment of comments) {
-          if (!this.userEmails[comment.user_id] && comment.user_id) {
-            const { data: userData } = await supabase
-              .rpc('get_user_info_by_id', {
-                user_id: comment.user_id
-              });
-            if (userData?.[0]) {
-              this.userEmails[comment.user_id] = userData[0].email;
-            }
-          }
-        }
 
         this.comments = comments;
       } catch (error) {
@@ -315,7 +318,7 @@ export default {
         const commentsHistory = this.comments.map(comment => {
           const timestamp = comment.updated_at || comment.created_at;
           const formattedDate = new Date(timestamp).toLocaleString();
-          return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
+          return `[${formattedDate}] ${this.assigneeEmail}: ${comment.content}`;
         }).join('\n\n');
 
         const taskContext = `Task Title: "${this.task.title}"
@@ -366,13 +369,13 @@ export default {
             switch (payload.eventType) {
               case 'INSERT':
                 // Load user email for new comment if not already cached
-                if (!this.userEmails[payload.new.user_id] && payload.new.user_id) {
+                if (!this.assigneeEmail && payload.new.user_id) {
                   const { data: userData } = await supabase
                     .rpc('get_user_info_by_id', {
                       user_id: payload.new.user_id
                     });
                   if (userData?.[0]) {
-                    this.userEmails[payload.new.user_id] = userData[0].email;
+                    this.assigneeEmail = userData[0].email;
                   }
                 }
                 // Add new comment to the beginning of the list
@@ -696,7 +699,7 @@ export default {
         const commentsHistory = this.comments.map(comment => {
           const timestamp = comment.updated_at || comment.created_at;
           const formattedDate = new Date(timestamp).toLocaleString();
-          return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
+          return `[${formattedDate}] ${this.assigneeEmail}: ${comment.content}`;
         }).join('\n\n');
         
         // Create a system prompt that includes task context, comments history, and files
@@ -1316,9 +1319,33 @@ Please provide assistance based on this context, the comment history, the availa
 
         if (error) throw error;
 
-        // Update local task data
-        this.$emit('update:task', { ...this.task, ...data });
-        
+        // Fetch the latest task data
+        const { data: freshTask, error: fetchError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('id', this.task.id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Update assigneeEmail for the new assignee
+        if (userId) {
+          const { data: userData, error: userError } = await supabase
+            .rpc('get_user_info_by_id', {
+              user_id: userId
+            });
+          if (!userError && userData?.[0]) {
+            this.assigneeEmail = userData[0].email;
+          } else {
+            this.assigneeEmail = '';
+          }
+        } else {
+          this.assigneeEmail = '';
+        }
+
+        // Emit the updated task
+        this.$emit('update:task', { ...this.task, ...freshTask });
+
         // Emit task-updated event for reordering
         this.$emit('task-updated', {
           taskId: this.task.id,
@@ -1326,7 +1353,7 @@ Please provide assistance based on this context, the comment history, the availa
           value: userId,
           requiresReorder: true
         });
-        
+
         ElMessage.success('Assignee updated successfully');
       } catch (error) {
         console.error('Error updating assignee:', error);
@@ -1362,8 +1389,12 @@ Please provide assistance based on this context, the comment history, the availa
           if (userError) throw userError;
           
           if (userData?.[0]) {
-            this.userEmails[taskData.assignee] = userData[0].email;
+            this.assigneeEmail = userData[0].email;
+          } else {
+            this.assigneeEmail = '';
           }
+        } else {
+          this.assigneeEmail = '';
         }
 
         // Update task data
@@ -1586,7 +1617,7 @@ Please provide assistance based on this context, the comment history, the availa
           type="info"
           size="small"
           class="assignee-tag">
-          {{ task.assignee ? userEmails[task.assignee] : 'Unassigned' }}
+          {{ assigneeEmail || 'Unassigned' }}
           <el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </el-tag>
         <template #dropdown>
@@ -1680,11 +1711,11 @@ Please provide assistance based on this context, the comment history, the availa
               <div class="comment-header">
                 <div class="comment-author-info">
                   <div class="author-avatar">
-                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name?.charAt(0).toUpperCase() || 'AI' : userEmails[comment.user_id]?.charAt(0).toUpperCase() }}
+                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name?.charAt(0).toUpperCase() || 'AI' : assigneeEmail?.charAt(0).toUpperCase() }}
                   </div>
                   <div class="author-details">
                     <span class="comment-author">
-                      {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
+                      {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : assigneeEmail }}
                     </span>
                     <span class="comment-date">
                       {{ comment.updated_at 
@@ -1745,7 +1776,7 @@ Please provide assistance based on this context, the comment history, the availa
                   <div class="edit-history-header">Version {{ index + 1 }}:</div>
                   <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
                   <div class="edit-metadata">
-                    Edited by {{ userEmails[historyEntry.edited_by] }}
+                    Edited by {{ assigneeEmail }}
                     on {{ new Date(historyEntry.edited_at).toLocaleString() }}
                   </div>
                 </div>

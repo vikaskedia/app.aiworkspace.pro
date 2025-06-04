@@ -1710,7 +1710,8 @@ export default {
               <el-form-item label="Parent Task">
                 <el-select 
                   v-model="newTask.parent_task_id" 
-                  style="width: 100%"
+                  style="width: 100%" 
+                  filterable 
                   clearable
                   placeholder="Select parent task (optional)">
                   <el-option

@@ -1105,6 +1105,14 @@ Please provide assistance based on this context, the comment history, the availa
         // Update the local task object with the new data
         this.$emit('update:task', { ...this.task, ...data });
         
+        // Emit task-updated event to trigger cache reload
+        this.$emit('task-updated', {
+          taskId: this.task.id,
+          field: 'title',
+          value: this.editingTitle,
+          requiresReload: true
+        });
+        
         // Create activity log for title change
         const { data: { user } } = await supabase.auth.getUser();
         await supabase

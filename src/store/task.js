@@ -144,26 +144,26 @@ export const useTaskStore = defineStore('task', {
 
     async updateTask(task) {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('tasks')
           .update({
             title: task.title,
-            description: task.description,
             status: task.status,
-            priority: task.priority,
             assignee: task.assignee,
+            priority: task.priority,
             due_date: task.due_date,
             parent_task_id: task.parent_task_id,
             updated_at: new Date().toISOString()
           })
-          .eq('id', task.id);
+          .eq('id', task.id)
+          .select();
 
         if (error) throw error;
         
-        // Clear cache for this matter
-        this.clearTaskCache(task.matter_id);
+        // Clear all task caches since this could affect multiple views
+        this.clearAllTasksCache();
         
-        return true;
+        return data[0];
       } catch (error) {
         console.error('Error updating task:', error);
         throw error;

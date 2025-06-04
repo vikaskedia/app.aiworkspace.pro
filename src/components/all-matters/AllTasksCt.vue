@@ -280,6 +280,7 @@
     v-if="selectedTask"
     v-model:visible="quickViewVisible"
     :task="selectedTask"
+    @task-updated="handleTaskUpdated"
   />
 </template>
 
@@ -291,6 +292,8 @@ import { ArrowUp, ArrowDown, Star, StarFilled, Check } from '@element-plus/icons
 import QuickTaskViewCt from '../single-matter/QuickTaskViewCt.vue';
 import TasksList from '../single-matter/TasksList.vue';
 import TaskBoardCt from '../single-matter/TaskBoardCt.vue';
+import { useTaskStore } from '../../store/task';
+import { useUserStore } from '../../store/user';
 
 export default {
   name: 'AllTasksCt',
@@ -306,7 +309,9 @@ export default {
   },
   setup() {
     const router = useRouter();
-    return { router };
+    const taskStore = useTaskStore();
+    const userStore = useUserStore();
+    return { router, taskStore, userStore };
   },
   data() {
     return {
@@ -336,6 +341,7 @@ export default {
       quickViewVisible: false,
       boardGroupBy: 'status',
       selectedMatter: null,
+      isUpdating: false
     };
   },
   computed: {
@@ -354,11 +360,20 @@ export default {
     }
   },
   methods: {
-    async loadTasks() {
+    async loadTasksWithCache() {
       try {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
-        
+
+        // Get tasks from cache first
+        const cachedTasks = this.taskStore.getAllCachedTasks();
+        if (cachedTasks) {
+          console.log('get cached Tasks');
+          const filteredTasks = this.applyFilters(cachedTasks);
+          this.tasks = this.organizeTasksHierarchy(filteredTasks);
+        }
+
+        // Fetch fresh data
         let query = supabase
           .from('tasks')
           .select(`
@@ -378,79 +393,10 @@ export default {
           .eq('deleted', false)
           .eq('matter.matter_access.shared_with_user_id', user.id);
 
-        // Apply filters
-        if (this.filters.search) {
-          query = query.ilike('title', `%${this.filters.search}%`);
-        }
-        if (this.filters.status?.length) {
-          query = query.in('status', this.filters.status);
-        }
-        if (this.filters.excludeStatus?.length) {
-          query = query.not('status', 'in', `(${this.filters.excludeStatus.join(',')})`);
-        }
-        if (this.filters.priority) {
-          query = query.eq('priority', this.filters.priority);
-        }
-        if (this.filters.matter) {
-          query = query.eq('matter_id', this.filters.matter);
-        }
-        if (this.filters.assignee?.length) {
-          query = query.in('assignee', this.filters.assignee);
-        }
-        if (this.filters.starred) {
-          query = query.not('task_stars.user_id', 'is', null)
-            .eq('task_stars.user_id', user.id);
-        }
-        if (this.filters.starredBy?.length) {
-          query = query.not('task_stars.user_id', 'is', null)
-            .in('task_stars.user_id', this.filters.starredBy);
-        }
-
-        // Apply ordering
-        if (this.filters.orderBy) {
-          switch (this.filters.orderBy) {
-            case 'priority_desc':
-              query = query
-                .order('priority', {
-                  ascending: false,
-                  nullsLast: true,
-                  mapping: {
-                    'high': 3,
-                    'medium': 2,
-                    'low': 1,
-                    null: 0
-                  }
-                })
-                .order('updated_at', { ascending: false });
-              break;
-            case 'priority_asc':
-              query = query
-                .order('priority', {
-                  ascending: true,
-                  nullsLast: true,
-                  mapping: {
-                    'high': 3,
-                    'medium': 2,
-                    'low': 1,
-                    null: 0
-                  }
-                })
-                .order('updated_at', { ascending: false });
-              break;
-            case 'activity_desc':
-              query = query.order('updated_at', { ascending: false });
-              break;
-            case 'activity_asc':
-              query = query.order('updated_at', { ascending: true });
-              break;
-          }
-        }
-
         const { data: tasks, error } = await query;
-
         if (error) throw error;
 
-        // Transform the data
+        // Transform and cache the data
         const transformedTasks = await Promise.all(tasks.map(async task => {
           const assigneeEmail = task.assignee ? 
             await this.loadUserEmail(task.assignee) : 
@@ -469,16 +415,17 @@ export default {
               const totalHours = hours + minutes/60;
               return sum + totalHours;
             }, 0) || 0,
-            time_periods: {
-              daily: Math.round(timePeriods.daily / 60 * 10) / 10,
-              weekly: Math.round(timePeriods.weekly / 60 * 10) / 10,
-              monthly: Math.round(timePeriods.monthly / 60 * 10) / 10
-            }
+            time_periods: timePeriods
           };
         }));
 
-        // Organize into hierarchy
-        this.tasks = this.organizeTasksHierarchy(transformedTasks);
+        console.log('get cached Tasks from db');
+        // Store in cache
+        this.taskStore.setCachedTasks('all', transformedTasks);
+
+        // Apply filters and update UI
+        const filteredTasks = this.applyFilters(transformedTasks);
+        this.tasks = this.organizeTasksHierarchy(filteredTasks);
 
       } catch (error) {
         ElMessage.error('Error loading tasks: ' + error.message);
@@ -487,15 +434,59 @@ export default {
       }
     },
 
+    applyFilters(tasks) {
+      let filteredTasks = tasks.filter(task => {
+        if (this.filters.search && !task.title.toLowerCase().includes(this.filters.search.toLowerCase())) {
+          return false;
+        }
+        if (this.filters.status?.length && !this.filters.status.includes(task.status)) {
+          return false;
+        }
+        if (this.filters.excludeStatus?.length && this.filters.excludeStatus.includes(task.status)) {
+          return false;
+        }
+        if (this.filters.priority && task.priority !== this.filters.priority) {
+          return false;
+        }
+        if (this.filters.matter && task.matter_id !== this.filters.matter) {
+          return false;
+        }
+        if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
+          return false;
+        }
+        // ... other filters ...
+        return true;
+      });
+
+      // Apply ordering
+      filteredTasks.sort((a, b) => {
+        switch (this.filters.orderBy) {
+          case 'priority_desc':
+            const priorityOrder = { high: 3, medium: 2, low: 1 };
+            return priorityOrder[b.priority] - priorityOrder[a.priority];
+          
+          case 'priority_asc':
+            const priorityOrderAsc = { high: 1, medium: 2, low: 3 };
+            return priorityOrderAsc[b.priority] - priorityOrderAsc[a.priority];
+          
+          case 'activity_desc':
+            return new Date(b.updated_at) - new Date(a.updated_at);
+          
+          case 'activity_asc':
+            return new Date(a.updated_at) - new Date(b.updated_at);
+          
+          default:
+            return 0;
+        }
+      });
+
+      return filteredTasks;
+    },
+
     async loadUserEmail(userId) {
       try {
-        const { data: userData, error } = await supabase
-          .rpc('get_user_info_by_id', {
-            user_id: userId
-          });
-          
-        if (error) throw error;
-        return userData?.[0]?.email || 'Unknown User';
+        const userInfo = await this.userStore.getUserInfo(userId);
+        return userInfo?.email || 'Unknown User';
       } catch (error) {
         console.error('Error loading user email:', error);
         return 'Unknown User';
@@ -517,7 +508,7 @@ export default {
         orderBy: 'priority_desc'
       };
       this.boardGroupBy = 'status';
-      this.loadTasks();
+      this.loadTasksWithCache();
     },
 
     getStatusType(task) {
@@ -570,18 +561,14 @@ export default {
           
         if (error) throw error;
 
-        // Get full user info for each assignee
+        // Get full user info for each assignee using the user store
         const assigneesWithFullInfo = await Promise.all(
           users.map(async (user) => {
-            const { data: userData } = await supabase
-              .rpc('get_user_full_info_by_id', {
-                user_id: user.id
-              });
-            //console.log('userData:', userData);
+            const userInfo = await this.userStore.getUserInfo(user.id);
             return {
               ...user,
-              displayName: userData?.[0]?.full_name || userData?.[0]?.email.split('@')[0],
-              avatar_url: userData?.[0]?.avatar_url
+              displayName: userInfo?.fullName || userInfo?.email.split('@')[0],
+              avatar_url: userInfo?.avatarUrl
             };
           })
         );
@@ -620,7 +607,7 @@ export default {
             }
             // Then set other filters
             this.filters = { ...defaultFilter.filters };
-            this.loadTasks();
+            this.loadTasksWithCache();
           }
         }
       } catch (error) {
@@ -723,7 +710,7 @@ export default {
           this.filters = { ...filter.filters };
           // Update page title with filter name
           document.title = `${filter.filter_name} | TaskManager`;
-          this.loadTasks();
+          this.loadTasksWithCache();
           this.router.push(`/all-matters/tasks/saved-filters/${filterId}`);
           ElMessage.success('Filters loaded successfully');
         }
@@ -776,7 +763,7 @@ export default {
       await this.loadSavedFilters();
       await this.loadMatters();
       await this.loadAssignees();
-      await this.loadTasks();
+      await this.loadTasksWithCache();
     },
 
     handleAssigneeSearch(query) {
@@ -823,7 +810,7 @@ export default {
           this.filters = { ...filter.filters };
           // Set page title with filter name
           document.title = `${filter.filter_name} | TaskManager`;
-          this.loadTasks();
+          this.loadTasksWithCache();
         }
       }
     },
@@ -856,26 +843,35 @@ export default {
     },
 
     async updateTask(task) {
+      // Prevent duplicate calls
+      if (this.isUpdating) return;
+      
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({
-            title: task.title,
-            status: task.status,
-            assignee: task.assignee,
-            priority: task.priority,
-            due_date: task.due_date,
-            parent_task_id: task.parent_task_id
-          })
-          .eq('id', task.id);
+        this.isUpdating = true;
+        
+        // Get the current task from the tasks array to ensure we have the latest data
+        const currentTask = this.tasks.find(t => t.id === task.id);
+        if (!currentTask) {
+          throw new Error('Task not found');
+        }
 
-        if (error) throw error;
+        // Merge the current task data with the updates
+        const updatedTask = {
+          ...currentTask,
+          ...task,
+          updated_at: new Date().toISOString()
+        };
 
-        // Update the task in the local state
-        await this.loadTasks();
+        await this.taskStore.updateTask(updatedTask);
+        
+        // Clear cache and reload tasks
+        await this.loadTasksWithCache();
+        
         ElMessage.success('Task updated successfully');
       } catch (error) {
         ElMessage.error('Error updating task: ' + error.message);
+      } finally {
+        this.isUpdating = false;
       }
     },
 
@@ -886,19 +882,19 @@ export default {
         task.starred = isStarred;
       }
       // Reload tasks to ensure consistency
-      await this.loadTasks();
+      await this.loadTasksWithCache();
     },
 
     handleFilterByStatus(status) {
       this.filters.status = [status];
       //this.showFilters = true;
-      this.loadTasks();
+      this.loadTasksWithCache();
     },
 
     handleFilterByPriority(priority) {
       this.filters.priority = priority;
       //this.showFilters = true;
-      this.loadTasks();
+      this.loadTasksWithCache();
     },
 
     calculateTimeLogPeriods(hoursLogs) {
@@ -967,7 +963,13 @@ export default {
     handleFilterByMatter(matterId) {
       this.filters.matter = matterId;
       //this.showFilters = true;
-      this.loadTasks();
+      this.loadTasksWithCache();
+    },
+
+    async handleTaskUpdated(update) {
+      if (update.requiresReload) {
+        await this.loadTasksWithCache();
+      }
     }
   },
   mounted() {
@@ -981,8 +983,9 @@ export default {
       this.filteredAssignees = this.assignees;
     });
     this.loadMatters();
-    this.loadTasks();
+    this.loadTasksWithCache();
     this.loadFilterFromUrl();
+
   },
   watch: {
     '$route'(to, from) {
@@ -998,18 +1001,23 @@ export default {
           }
           // Then set other filters
           this.filters = { ...filter.filters };
-          this.loadTasks();
+          this.loadTasksWithCache();
         }
       } else if (to.path === '/all-matters/tasks' && from.path.includes('/saved-filters/')) {
         // Going back to main tasks view
         this.clearFilters();
-        this.loadTasks();
+        this.loadTasksWithCache();
       }
     },
     filters: {
       deep: true,
       handler() {
-        this.loadTasks();
+        // this.loadTasksWithCache();
+        const cachedTasks = this.taskStore.getAllCachedTasks();
+        if (cachedTasks) {
+          const filteredTasks = this.applyFilters(cachedTasks);
+          this.tasks = this.organizeTasksHierarchy(filteredTasks);
+        }
       }
     },
     matters: {

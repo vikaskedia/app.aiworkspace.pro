@@ -362,6 +362,7 @@ export default {
     },
 
     resetForm() {
+      const currentOrderBy = this.filters.orderBy;
       this.filters = {
         search: '',
         status: [],
@@ -372,7 +373,7 @@ export default {
         showDeleted: false,
         starredBy: [],
         viewType: 'list',
-        orderBy: 'priority_desc'
+        orderBy: currentOrderBy
       };
       this.loadSharedUsers();
     },

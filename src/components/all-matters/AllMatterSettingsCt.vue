@@ -11,6 +11,13 @@
           <el-switch v-model="settings.emailNotifications" />
         </el-form-item>
 
+        <el-form-item label="Suggested AI Tasks">
+          <el-switch v-model="settings.suggestedAiTasks" />
+          <div class="help-text">
+            When enabled, AI will suggest subtasks when you create a new task to help break down complex tasks into manageable steps.
+          </div>
+        </el-form-item>
+
         <!-- Telegram Integration -->
         <div class="telegram-section">
           <h4>Telegram Integration</h4>
@@ -59,8 +66,12 @@
       </div>
 
       <div class="form-actions">
-        <el-button type="primary" @click="saveSettings" :loading="saving">
-          Save Settings
+        <el-button 
+          type="primary" 
+          @click="saveSettings" 
+          :loading="saving"
+          :disabled="saving">
+          {{ saving ? 'Saving...' : 'Save Settings' }}
         </el-button>
       </div>
     </el-form>
@@ -80,7 +91,8 @@ export default {
       telegramEnabled: false,
       telegramId: '',
       notificationTypes: ['task_assignments', 'task_updates'],
-      telegramVerified: false
+      telegramVerified: false,
+      suggestedAiTasks: true
     });
     const saving = ref(false);
 
@@ -101,9 +113,31 @@ export default {
           .eq('user_id', session.user.id)
           .single();
 
-        if (error) throw error;
+        if (error?.code === 'PGRST116') {
+          // Create default settings if they don't exist
+          const defaultSettings = {
+            user_id: session.user.id,
+            settings: {
+              emailNotifications: true,
+              telegramEnabled: false,
+              telegramId: '',
+              notificationTypes: ['task_assignments', 'task_updates'],
+              telegramVerified: false,
+              suggestedAiTasks: true
+            }
+          };
 
-        if (data) {
+          const { data: newSettings, error: insertError } = await supabase
+            .from('user_settings')
+            .insert([defaultSettings])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          this.settings = newSettings.settings;
+        } else if (error) {
+          throw error;
+        } else if (data) {
           this.settings = {
             ...this.settings,
             ...data.settings
@@ -135,22 +169,51 @@ export default {
     },
 
     async saveSettings() {
+      console.log('Saving settings...', this.settings);
       this.saving = true;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('No active session');
+        console.log('User session:', session.user.id);
 
-        const { error } = await supabase
+        // First check if settings exist
+        const { data: existingSettings, error: fetchError } = await supabase
           .from('user_settings')
-          .upsert({
-            user_id: session.user.id,
-            settings: this.settings
-          });
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
 
-        if (error) throw error;
+        console.log('Existing settings:', existingSettings, 'Fetch error:', fetchError);
+
+        if (fetchError?.code === 'PGRST116') {
+          console.log('Creating new settings...');
+          // Create new settings if they don't exist
+          const { error: insertError } = await supabase
+            .from('user_settings')
+            .insert([{
+              user_id: session.user.id,
+              settings: this.settings
+            }]);
+
+          if (insertError) throw insertError;
+          console.log('New settings created successfully');
+        } else {
+          console.log('Updating existing settings...');
+          // Update existing settings
+          const { error: updateError } = await supabase
+            .from('user_settings')
+            .update({
+              settings: this.settings
+            })
+            .eq('user_id', session.user.id);
+
+          if (updateError) throw updateError;
+          console.log('Settings updated successfully');
+        }
 
         ElMessage.success('Settings saved successfully');
       } catch (error) {
+        console.error('Error saving settings:', error);
         ElMessage.error('Error saving settings: ' + error.message);
       } finally {
         this.saving = false;

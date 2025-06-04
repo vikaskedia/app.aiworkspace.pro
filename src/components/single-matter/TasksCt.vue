@@ -316,9 +316,43 @@ export default {
         this.resetForm();
         ElMessage.success('Task created successfully');
 
-        // Generate AI subtasks only if enabled
-        if (this.currentMatter.ai_subtask_enabled) {
-          await this.generateAISubtasks(data[0]);
+        // Generate AI subtasks only if enabled in global settings
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // First try to get existing settings
+          let { data: userSettings, error } = await supabase
+            .from('user_settings')
+            .select('settings')
+            .eq('user_id', session.user.id)
+            .single();
+
+          // If no settings exist, create default settings
+          if (error?.code === 'PGRST116') {
+            const defaultSettings = {
+              user_id: session.user.id,
+              settings: {
+                emailNotifications: true,
+                telegramEnabled: false,
+                telegramId: '',
+                notificationTypes: ['task_assignments', 'task_updates'],
+                telegramVerified: false,
+                suggestedAiTasks: true
+              }
+            };
+
+            const { data: newSettings, error: insertError } = await supabase
+              .from('user_settings')
+              .insert([defaultSettings])
+              .select()
+              .single();
+
+            if (insertError) throw insertError;
+            userSettings = newSettings;
+          }
+
+          if (userSettings?.settings?.suggestedAiTasks) {
+            await this.generateAISubtasks(data[0]);
+          }
         }
       } catch (error) {
         ElMessage.error('Error creating task: ' + error.message);

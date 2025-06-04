@@ -432,23 +432,6 @@ export default {
         </el-form>
       </div>
 
-      <!-- AI Settings Section -->
-      <div class="section">
-        <h3>AI Settings</h3>
-        <el-form label-position="top">
-          <el-form-item class="ai-settings">
-            <el-switch
-              v-model="aiSettings.subtaskEnabled"
-              active-text="Enable AI Subtask Suggestions"
-              @change="updateMatter"
-            />
-            <div class="setting-description">
-              When enabled, the AI will suggest subtasks when you create a new task
-            </div>
-          </el-form-item>
-        </el-form>
-      </div>
-
       <!-- Share Matter Section -->
       <div class="section">
         <h3>Share Matter</h3>

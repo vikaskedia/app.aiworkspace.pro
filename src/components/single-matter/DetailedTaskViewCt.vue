@@ -96,7 +96,8 @@
             <div class="parent-task-selector">
               <el-select
                 v-model="task.parent_task_id"
-                style="width: 100%"
+                style="width: 100%" 
+                filterable 
                 placeholder="Select parent task"
                 @change="updateParentTask"
               >

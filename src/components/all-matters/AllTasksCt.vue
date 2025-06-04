@@ -89,6 +89,9 @@
               <el-select
                 v-model="filters.matter"
                 placeholder="All matters"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
                 clearable
                 filterable
                 style="width: 200px">
@@ -326,7 +329,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
-        matter: null,
+        matter: [],
         assignee: [],
         starred: false,
         starredBy: [],
@@ -352,7 +355,7 @@ export default {
       if (this.filters.excludeStatus?.length) count++;
       if (this.filters.priority) count++;
       if (this.filters.dueDate) count++;
-      if (this.filters.matter) count++;
+      if (this.filters.matter?.length) count++;
       if (this.filters.assignee?.length) count++;
       if (this.filters.starred) count++;
       if (this.filters.starredBy?.length) count++;
@@ -448,7 +451,7 @@ export default {
         if (this.filters.priority && task.priority !== this.filters.priority) {
           return false;
         }
-        if (this.filters.matter && task.matter_id !== this.filters.matter) {
+        if (this.filters.matter?.length && !this.filters.matter.includes(task.matter_id)) {
           return false;
         }
         if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
@@ -500,7 +503,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
-        matter: null,
+        matter: [],
         assignee: [],
         starred: false,
         starredBy: [],
@@ -961,7 +964,7 @@ export default {
     },
 
     handleFilterByMatter(matterId) {
-      this.filters.matter = matterId;
+      this.filters.matter = [matterId];
       //this.showFilters = true;
       this.loadTasksWithCache();
     },

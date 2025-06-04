@@ -222,6 +222,10 @@ export default {
         starred: false
       });
     },
+    navigateToMatter(matterId) {
+      if (!matterId) return;
+      this.$router.push(`/single-matter/${matterId}`);
+    },
     async loadUserEmail(userId) {
       if (!userId) return 'Unknown User';
       
@@ -869,7 +873,15 @@ export default {
                   <div class="title-container">
                     <span class="task-title" @dblclick.stop="startEditing(task, 'title')">
                       {{ task.title }}
-                    </span>
+                    </span>&nbsp;
+                    <el-tag 
+                      v-if="task.matter_title" 
+                      size="small" 
+                      type="success" 
+                      class="matter-tag"
+                      @click.stop="navigateToMatter(task.matter_id)">
+                      {{ task.matter_title }}
+                    </el-tag>
                   </div>
                   <span class="logged-hours" v-if="task.total_hours">
                     <el-tag size="small" class="logged-hours-tag">

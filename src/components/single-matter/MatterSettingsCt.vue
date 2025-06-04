@@ -26,6 +26,9 @@ export default {
       gitSettings: {
         repoName: this.currentMatter?.git_repo || ''
       },
+      calendarSettings: {
+        calendarId: this.currentMatter?.google_calendar_id || ''
+      },
       emailSettings: {
         address: this.currentMatter?.email_storage || ''
       },
@@ -70,6 +73,7 @@ export default {
             description: newMatter.description || ''
           };
           this.gitSettings.repoName = newMatter.git_repo || '';
+          this.calendarSettings.calendarId = newMatter.google_calendar_id || '';
           this.emailSettings.address = newMatter.email_storage || '';
           this.loadSharedUsers();
           this.loadCustomFields();
@@ -231,6 +235,22 @@ export default {
         ElMessage.success('Git repository settings updated successfully');
       } catch (error) {
         ElMessage.error('Error updating Git settings: ' + error.message);
+      }
+    },
+
+    async updateCalendarSettings() {
+      try {
+        const { error } = await supabase
+          .from('matters')
+          .update({
+            google_calendar_id: this.calendarSettings.calendarId
+          })
+          .eq('id', this.currentMatter.id);
+
+        if (error) throw error;
+        ElMessage.success('Calendar settings updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating calendar settings: ' + error.message);
       }
     },
 
@@ -507,6 +527,35 @@ export default {
           <el-form-item>
             <el-text class="text-sm text-gray-500">
               This namespace will serve as a Git repository and email storage to store all files related to this matter
+            </el-text>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Calendar Settings Section -->
+      <div class="section">
+        <h3>Calendar Settings</h3>
+        <el-form label-position="top">
+          <el-form-item 
+            label="Google Calendar ID" 
+            required
+            :rules="[{ required: true, message: 'Calendar ID is required' }]">
+            <div class="horizontal-form-layout">
+              <el-input 
+                v-model="calendarSettings.calendarId" 
+                placeholder="Enter Google Calendar ID"
+                maxlength="100" />
+              <el-button 
+                type="primary"
+                @click="updateCalendarSettings"
+                :disabled="!calendarSettings.calendarId">
+                Save Changes
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <el-text class="text-sm text-gray-500">
+              This calendar ID will be used to sync events related to this matter
             </el-text>
           </el-form-item>
         </el-form>

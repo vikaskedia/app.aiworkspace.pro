@@ -3,8 +3,7 @@
     class="outline-item" 
     :data-id="item.id"
     :class="{ 
-      'drag-over-top': isDragOverTop,
-      'drag-over-bottom': isDragOverBottom,
+      'drag-over': isDragOverTop || isDragOverBottom,
       'dragging': isDragging
     }"
     @dragover.prevent.stop="handleDragOver"
@@ -13,6 +12,14 @@
     @drop.prevent.stop="handleDrop"
     @dragend.prevent.stop="handleDragEnd"
   >
+    <div 
+      class="drop-indicator"
+      :class="{ 
+        'indicator-top': isDragOverTop,
+        'indicator-bottom': isDragOverBottom,
+        'indicator-child': isDragOverChild
+      }"
+    ></div>
     <span
       class="collapse-toggle"
       :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
@@ -110,11 +117,12 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Plus, ArrowRight, Delete } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase';
 import { useRoute } from 'vue-router';
+import { dragState } from './dragState.js';
 
 // Create a simple event bus
 const eventBus = {
@@ -148,8 +156,6 @@ export default {
       editing: false,
       editText: this.item.text,
       collapsed: false,
-      isDragOverTop: false,
-      isDragOverBottom: false,
       isDragging: false,
       isDragOver: false,
       unsubscribe: null,
@@ -169,6 +175,11 @@ export default {
         this.isDragOver = false;
       } else if (event === 'dragEnter' && data !== this.item.id) {
         this.isDragOver = false;
+      } else if (event === 'dragEnd') {
+        dragState.hoveredId = null;
+        dragState.hoveredPosition = null;
+        this.isDragOver = false;
+        this.isDragging = false;
       }
     });
   },
@@ -181,6 +192,15 @@ export default {
   computed: {
     hasChildren() {
       return this.item.children && this.item.children.length > 0;
+    },
+    isDragOverTop() {
+      return dragState.hoveredId === this.item.id && dragState.hoveredPosition === 'top';
+    },
+    isDragOverBottom() {
+      return dragState.hoveredId === this.item.id && dragState.hoveredPosition === 'bottom';
+    },
+    isDragOverChild() {
+      return dragState.hoveredId === this.item.id && dragState.hoveredPosition === 'child';
     }
   },
   watch: {
@@ -283,8 +303,8 @@ export default {
       e.stopPropagation();
       
       // Reset all drag states
-      this.isDragOverTop = false;
-      this.isDragOverBottom = false;
+      dragState.hoveredId = null;
+      dragState.hoveredPosition = null;
       this.isDragOver = false;
       this.isDragging = false;
       
@@ -294,66 +314,69 @@ export default {
     handleDragEnter(e) {
       e.preventDefault();
       e.stopPropagation();
-      
       // Check if this is a file drag
       if (e.dataTransfer.types.includes('Files')) {
-        // Notify other components
         eventBus.emit('dragEnter', this.item.id);
         this.isDragOver = true;
         return;
       }
-      
       const rect = this.$el.getBoundingClientRect();
       const y = e.clientY - rect.top;
       const threshold = rect.height / 2;
-      
-      this.isDragOverTop = y < threshold;
-      this.isDragOverBottom = y >= threshold;
+      // If hovering near the bottom 20%, show child indicator (regardless of children)
+      if (y > rect.height * 0.8) {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'child';
+      } else if (y < threshold) {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'top';
+      } else {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'bottom';
+      }
     },
     handleDragOver(e) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
-      
-      // Check if this is a file drag
       if (e.dataTransfer.types.includes('Files')) {
         this.isDragOver = true;
         return;
       }
-      
       const rect = this.$el.getBoundingClientRect();
       const y = e.clientY - rect.top;
       const threshold = rect.height / 2;
-      
-      this.isDragOverTop = y < threshold;
-      this.isDragOverBottom = y >= threshold;
+      if (y > rect.height * 0.8) {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'child';
+      } else if (y < threshold) {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'top';
+      } else {
+        dragState.hoveredId = this.item.id;
+        dragState.hoveredPosition = 'bottom';
+      }
     },
     handleDragLeave(e) {
       e.preventDefault();
       e.stopPropagation();
-      
-      // Only remove the drop zone if we're leaving the item itself
-      // and not entering a child element
       const rect = this.$el.getBoundingClientRect();
       const x = e.clientX;
       const y = e.clientY;
-      
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-        this.isDragOverTop = false;
-        this.isDragOverBottom = false;
+        if (dragState.hoveredId === this.item.id) {
+          dragState.hoveredId = null;
+          dragState.hoveredPosition = null;
+        }
         this.isDragOver = false;
       }
     },
     handleDrop(e) {
       e.preventDefault();
       e.stopPropagation();
-      
-      // Reset all drag states
-      this.isDragOverTop = false;
-      this.isDragOverBottom = false;
+      dragState.hoveredId = null;
+      dragState.hoveredPosition = null;
       this.isDragOver = false;
-      
-      // Notify other components
       eventBus.emit('dragEnd');
       
       // Check if this is a file drop
@@ -379,8 +402,13 @@ export default {
       const rect = this.$el.getBoundingClientRect();
       const y = e.clientY - rect.top;
       const threshold = rect.height / 2;
-      
-      return y < threshold ? 'before' : 'after';
+      if (y > rect.height * 0.8) {
+        return 'child';
+      } else if (y < threshold) {
+        return 'before';
+      } else {
+        return 'after';
+      }
     },
     handleMove(payload) {
       console.log('Propagating move event in OutlinePointsCt:', payload);
@@ -622,49 +650,41 @@ export default {
   margin-right: 0px;
 }
 
-.outline-item.drag-over-top {
-  margin-top: 1.5rem;
-  position: relative;
-}
-
-/* Only show top indicator when dragging is active */
-.outline-item.drag-over-top:not(.dragging)::before {
-  content: '';
+.drop-indicator {
   position: absolute;
-  top: -0.5rem;
   left: 0;
   right: 0;
   height: 2px;
-  background: #ECEEF0;
-  border-radius: 2px;
+  background: #1976d2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.outline-item.drag-over-bottom {
-  margin-bottom: 1.5rem;
-  position: relative;
+.drop-indicator.indicator-top {
+  top: -1px;
+  opacity: 1;
 }
 
-/* Only show bottom indicator when dragging is active */
-.outline-item.drag-over-bottom:not(.dragging)::after {
-  content: '';
-  position: absolute;
-  bottom: -0.5rem;
+.drop-indicator.indicator-bottom {
+  bottom: -1px;
+  opacity: 1;
+}
+
+.drop-indicator.indicator-child {
   left: 0;
   right: 0;
+  width: auto;
+  bottom: -1px;
   height: 2px;
-  background: #ECEEF0;
+  background: #1976d2;
+  opacity: 1;
   border-radius: 2px;
 }
 
 .outline-item.dragging {
   opacity: 0.5;
   cursor: move;
-}
-
-/* Show indicators only when dragging is active */
-.outline-item:not(.dragging).drag-over-top::before,
-.outline-item:not(.dragging).drag-over-bottom::after {
-  display: none;
 }
 
 .outline-bullet {

@@ -433,7 +433,6 @@ export default {
       // Get the parent of the target item
       const targetParent = findParentById(outline.value, targetId);
 
-      // If position is 'after', add as sibling
       if (position === 'after') {
         if (targetParent) {
           // Add as sibling in parent's children array
@@ -444,12 +443,17 @@ export default {
           const targetIndex = outline.value.findIndex(item => item.id.toString() === targetId);
           outline.value.splice(targetIndex + 1, 0, draggedItem);
         }
-      } else {
-        // If position is 'before', add as child
+      } else if (position === 'child') {
+        // Add as last child of the target item
         if (!targetItem.children) {
           targetItem.children = [];
         }
-        // Add as first child
+        targetItem.children.push(draggedItem);
+      } else {
+        // If position is 'before', add as child (first child)
+        if (!targetItem.children) {
+          targetItem.children = [];
+        }
         targetItem.children.unshift(draggedItem);
       }
 

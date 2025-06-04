@@ -112,6 +112,17 @@ export default {
             this.loadSharedUsers()
           ]);
           this.setupRealtimeSubscription();
+        } else if (newMatter) {
+          // When matter changes, reload tasks and shared users
+          await Promise.all([
+            this.loadTasks(),
+            this.loadSharedUsers()
+          ]);
+          // Reset subscription for new matter
+          if (this.subscription) {
+            this.subscription.unsubscribe();
+          }
+          this.setupRealtimeSubscription();
         }
       },
       immediate: true

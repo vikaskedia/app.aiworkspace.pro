@@ -212,6 +212,11 @@ export default {
       this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
     }
   },
+  updated() {
+    if (this.editing && this.$refs.textarea) {
+      this.autoResize();
+    }
+  },
   methods: {
     startEdit() {
       this.editing = true;
@@ -387,6 +392,7 @@ export default {
       if (textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
+        //console.log('Auto-resized textarea to:', textarea.scrollHeight + 'px');
       }
     },
     updateChild(payload) {

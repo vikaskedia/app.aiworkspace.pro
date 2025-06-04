@@ -683,16 +683,16 @@ export default {
       }
       const res = findNodeAndAncestors(latestOutline, id);
       if (!res || !res.parent || !res.grandparent) {
-        console.log('Cannot outdent: node is at root or top-level', res);
+        //console.log('Cannot outdent: node is at root or top-level', res);
         return;
       }
       const { parent, grandparent, index, items } = res;
 
       // Log before
-      console.log('Outline before:', JSON.stringify(latestOutline, null, 2));
-      console.log('Node:', res.node.text, 'Parent:', parent.text, 'Grandparent:', grandparent.text);
-      console.log('Removing from items:', items.map(i => i.text));
-      console.log('Inserting into gpChildren:', (grandparent.children || latestOutline).map(i => i.text));
+      //console.log('Outline before:', JSON.stringify(latestOutline, null, 2));
+      //console.log('Node:', res.node.text, 'Parent:', parent.text, 'Grandparent:', grandparent.text);
+      //console.log('Removing from items:', items.map(i => i.text));
+      //console.log('Inserting into gpChildren:', (grandparent.children || latestOutline).map(i => i.text));
 
       // Remove from current position
       const [moved] = items.splice(index, 1);
@@ -701,14 +701,14 @@ export default {
       const gpChildren = grandparent.children || latestOutline;
       const parentIdx = gpChildren.findIndex(child => child.id === parent.id);
       if (parentIdx === -1) {
-        console.log('Parent not found in grandparent children');
+        //console.log('Parent not found in grandparent children');
         return;
       }
 
       gpChildren.splice(parentIdx + 1, 0, moved);
 
       // Log after
-      console.log('Outline after:', JSON.stringify(latestOutline, null, 2));
+      //console.log('Outline after:', JSON.stringify(latestOutline, null, 2));
 
       // Set autoFocus for moved node
       moved.autoFocus = true;

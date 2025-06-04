@@ -544,7 +544,7 @@ export default {
               <el-input 
                 v-model="calendarSettings.calendarId" 
                 placeholder="Enter Google Calendar ID"
-                maxlength="100" />
+                class="calendar-input" />
               <el-button 
                 type="primary"
                 @click="updateCalendarSettings"
@@ -956,6 +956,16 @@ h4 {
   .notification-checkboxes .el-checkbox {
     min-width: 100%;
     margin-right: 0;
+  }
+}
+
+.calendar-input {
+  min-width: 600px;
+}
+
+@media (max-width: 768px) {
+  .calendar-input {
+    min-width: 100%;
   }
 }
 </style>

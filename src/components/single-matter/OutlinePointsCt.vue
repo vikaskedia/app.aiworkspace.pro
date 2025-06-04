@@ -11,52 +11,79 @@
     @dragleave.prevent.stop="handleDragLeave"
     @drop.prevent.stop="handleDrop"
     @dragend.prevent.stop="handleDragEnd"
+    tabindex="0"
   >
-    <div 
-      class="drop-indicator"
-      :class="{ 
-        'indicator-top': isDragOverTop,
-        'indicator-bottom': isDragOverBottom,
-        'indicator-child': isDragOverChild
-      }"
-    ></div>
-    <span
-      class="collapse-toggle"
-      :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
-      @click.stop="hasChildren ? toggleCollapse() : undefined"
-    >
-      <span v-if="hasChildren">
-        <span v-if="collapsed">&#9654;</span>
-        <span v-else>&#9660;</span>
+    <div class="outline-row">
+      <div 
+        class="drop-indicator"
+        :class="{ 
+          'indicator-top': isDragOverTop,
+          'indicator-bottom': isDragOverBottom,
+          'indicator-child': isDragOverChild
+        }"
+      ></div>
+      <span
+        class="collapse-toggle"
+        :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
+        @click.stop="hasChildren ? toggleCollapse() : undefined"
+      >
+        <span v-if="hasChildren">
+          <span v-if="collapsed">&#9654;</span>
+          <span v-else>&#9660;</span>
+        </span>
       </span>
-    </span>
-    <div 
-      class="outline-bullet"
-      draggable="true"
-      @click="$emit('drilldown', item.id)"
-      style="cursor:pointer;"
-      @dragstart="handleDragStart"
-      @dragend="handleDragEnd"
-    ></div>
-    <span v-if="!editing && item.text.length > 0" class="outline-text" @click="startEdit">{{ item.text || 'Click to edit...' }}</span>
-    <textarea
-      v-else
-      ref="textarea"
-      v-model="editText"
-      @blur="finishEdit"
-      @keydown.enter.prevent="handleEnter"
-      @keydown.backspace="handleBackspace"
-      @keydown.up.prevent="handleArrowUp"
-      @keydown.down.prevent="handleArrowDown"
-      @keydown="handleKeydown"
-      @input="autoResize"
-      class="outline-textarea"
-      rows="1"
-    ></textarea>
+      <div 
+        class="outline-bullet"
+        draggable="true"
+        @click="$emit('drilldown', item.id)"
+        style="cursor:pointer;"
+        @dragstart="handleDragStart"
+        @dragend="handleDragEnd"
+      ></div>
+      <span v-if="!editing && item.text.length > 0" class="outline-text" @click="startEdit">{{ item.text || 'Click to edit...' }}</span>
+      <textarea
+        v-else
+        ref="textarea"
+        v-model="editText"
+        @blur="finishEdit"
+        @keydown.enter.prevent="handleEnter"
+        @keydown.backspace="handleBackspace"
+        @keydown.up.prevent="handleArrowUp"
+        @keydown.down.prevent="handleArrowDown"
+        @keydown="handleKeydown"
+        @input="autoResize"
+        class="outline-textarea"
+        rows="1"
+      ></textarea>
+      <span v-if="hasComments" class="comment-icon" @click.stop="openCommentDialog" title="Show comments">
+        💬
+      </span>
+    </div>
     <div
       class="dropzone"
       :class="{ 'dropzone-active': isDragOver }"
     ></div>
+
+    <!-- Comment Dialog -->
+    <el-dialog v-model="commentDialogVisible" title="Comments" width="350px" @close="resetCommentDialog">
+      <div class="comments-list">
+        <div v-for="(comment, idx) in comments" :key="idx" class="comment-item">
+          <textarea v-model="comment.text" class="comment-edit-textarea" rows="2"
+            :ref="'commentEditTextarea' + idx"
+            @input="autoResizeComment(idx)"></textarea>
+          <!-- <div class="comment-actions">
+            <el-button size="small" @click="saveComment(idx)">Save</el-button>
+            <el-button size="small" type="danger" @click="deleteComment(idx)">Delete</el-button>
+          </div> -->
+        </div>
+      </div>
+      <div class="add-comment-section">
+        <textarea v-model="newComment" class="comment-add-textarea" rows="2"
+          ref="addCommentTextarea"
+          @input="autoResizeAddComment"></textarea>
+        <el-button size="small" type="primary" @click="addComment" :disabled="!newComment.trim()">Add</el-button>
+      </div>
+    </el-dialog>
 
     <!-- File Preview Section -->
     <div v-if="item.fileUrl" class="file-preview">
@@ -159,7 +186,10 @@ export default {
       isDragging: false,
       isDragOver: false,
       unsubscribe: null,
-      imagePreviewVisible: false
+      imagePreviewVisible: false,
+      commentDialogVisible: false,
+      comments: this.item.comments ? JSON.parse(JSON.stringify(this.item.comments)) : [],
+      newComment: ''
     };
   },
   setup() {
@@ -201,6 +231,9 @@ export default {
     },
     isDragOverChild() {
       return dragState.hoveredId === this.item.id && dragState.hoveredPosition === 'child';
+    },
+    hasComments() {
+      return this.comments && this.comments.length > 0;
     }
   },
   watch: {
@@ -231,6 +264,25 @@ export default {
       // Optionally clear autoFocus after focusing
       this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
     }
+    // Add global keydown listener for Ctrl+M
+    this._onKeydown = (e) => {
+      if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
+        // Only open if this node is focused or being edited
+        const isNodeFocused = document.activeElement === this.$el || (this.$refs.textarea && document.activeElement === this.$refs.textarea);
+        if (isNodeFocused || this.editing) {
+          e.preventDefault();
+          this.openCommentDialog();
+        }
+      }
+    };
+    window.addEventListener('keydown', this._onKeydown);
+  },
+  beforeUnmount() {
+    // Clean up subscription
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
+    window.removeEventListener('keydown', this._onKeydown);
   },
   updated() {
     if (this.editing && this.$refs.textarea) {
@@ -635,6 +687,60 @@ export default {
         e.stopPropagation();
         this.$emit('indent', { id: this.item.id });
       }
+    },
+    openCommentDialog() {
+      this.commentDialogVisible = true;
+      this.comments = this.item.comments ? JSON.parse(JSON.stringify(this.item.comments)) : [];
+      this.newComment = '';
+      this.$nextTick(() => {
+        // Auto-resize all comment edit textareas
+        this.comments.forEach((c, idx) => this.autoResizeComment(idx));
+        this.autoResizeAddComment();
+      });
+    },
+    autoResizeComment(idx) {
+      this.$nextTick(() => {
+        const refName = 'commentEditTextarea' + idx;
+        const textarea = this.$refs[refName];
+        if (textarea && textarea[0]) {
+          textarea[0].style.height = 'auto';
+          textarea[0].style.height = textarea[0].scrollHeight + 'px';
+        }
+      });
+    },
+    autoResizeAddComment() {
+      this.$nextTick(() => {
+        const textarea = this.$refs.addCommentTextarea;
+        if (textarea) {
+          textarea.style.height = 'auto';
+          textarea.style.height = textarea.scrollHeight + 'px';
+        }
+      });
+    },
+    resetCommentDialog() {
+      this.newComment = '';
+      this.comments = this.item.comments ? JSON.parse(JSON.stringify(this.item.comments)) : [];
+    },
+    addComment() {
+      if (!this.newComment.trim()) return;
+      this.comments.push({ text: this.newComment.trim(), created: Date.now() });
+      this.saveCommentsToNode();
+      this.newComment = '';
+    },
+    saveComment(idx) {
+      if (!this.comments[idx].text.trim()) return;
+      this.comments[idx].text = this.comments[idx].text.trim();
+      this.saveCommentsToNode();
+    },
+    deleteComment(idx) {
+      this.comments.splice(idx, 1);
+      this.saveCommentsToNode();
+    },
+    saveCommentsToNode() {
+      // Save to node
+      this.item.comments = JSON.parse(JSON.stringify(this.comments));
+      // Save to localStorage (bubble up to parent)
+      this.$emit('update', { id: this.item.id, text: this.item.text, comments: this.item.comments });
     }
   }
 };
@@ -648,6 +754,18 @@ export default {
   max-width: 100%;
   transition: all 0.2s ease;
   margin-right: 0px;
+}
+
+.outline-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+.outline-text,
+.outline-textarea {
+  padding-right: 32px;
 }
 
 .drop-indicator {
@@ -834,5 +952,53 @@ export default {
   padding: 16px;
   margin: 0;
   background: #fff;
+}
+
+.comment-icon {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+  cursor: pointer;
+  font-size: 1.1em;
+  vertical-align: middle;
+  z-index: 2;
+}
+
+.comments-list {
+  margin-bottom: 10px;
+}
+
+.comment-item {
+  margin-bottom: 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.comment-edit-textarea {
+  width: 100%;
+  font-size: 0.95em;
+  margin-bottom: 4px;
+  border-radius: 3px;
+  border: 1px solid #e0e0e0;
+  resize: vertical;
+}
+
+.add-comment-section {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comment-add-textarea {
+  width: 100%;
+  font-size: 0.95em;
+  border-radius: 3px;
+  border: 1px solid #e0e0e0;
+  resize: vertical;
+  margin-bottom: 4px;
 }
 </style> 

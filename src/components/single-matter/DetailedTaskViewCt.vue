@@ -1197,7 +1197,6 @@ export default {
       isEditingDescription: false,
       editingDescription: '',
       showArchivedComments: false,
-      filteredComments: [],
       showSystemComments: false,
       isEditingStatus: false,
       statusText: '',

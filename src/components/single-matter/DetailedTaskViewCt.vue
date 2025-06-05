@@ -135,9 +135,39 @@
             </div>
             <div v-if="sortedChildTasks.length" class="child-tasks-table">
               <div class="child-tasks-header">
-                <div class="column-description">Description</div>
-                <div class="column-status">Status</div>
-                <div class="column-priority">Priority</div>
+                <div 
+                  class="column-description sortable-column" 
+                  @click="sortBy('title')"
+                  :class="{ 'active': sortColumn === 'title' }"
+                >
+                  Description
+                  <el-icon v-if="sortColumn === 'title'" class="sort-icon">
+                    <ArrowUp v-if="sortDirection === 'asc'" />
+                    <ArrowDown v-else />
+                  </el-icon>
+                </div>
+                <div 
+                  class="column-status sortable-column" 
+                  @click="sortBy('status')"
+                  :class="{ 'active': sortColumn === 'status' }"
+                >
+                  Status
+                  <el-icon v-if="sortColumn === 'status'" class="sort-icon">
+                    <ArrowUp v-if="sortDirection === 'asc'" />
+                    <ArrowDown v-else />
+                  </el-icon>
+                </div>
+                <div 
+                  class="column-priority sortable-column" 
+                  @click="sortBy('priority')"
+                  :class="{ 'active': sortColumn === 'priority' }"
+                >
+                  Priority
+                  <el-icon v-if="sortColumn === 'priority'" class="sort-icon">
+                    <ArrowUp v-if="sortDirection === 'asc'" />
+                    <ArrowDown v-else />
+                  </el-icon>
+                </div>
               </div>
               <div 
                 v-for="childTask in sortedChildTasks" 
@@ -1033,7 +1063,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -1054,6 +1084,7 @@ export default {
     Document,
     TiptapEditor,
     ArrowDown,
+    ArrowUp,
     Star,
     StarFilled,
     Clock,
@@ -1180,7 +1211,9 @@ export default {
       childTaskPopoverVisibility: {
         status: {},
         priority: {}
-      }
+      },
+      sortColumn: 'priority',
+      sortDirection: 'desc' // 'asc' or 'desc'
     };
   },
   async created() {
@@ -3052,6 +3085,17 @@ ${comment.content}
         ElMessage.error('Failed to update child task priority');
       }
     },
+
+    sortBy(column) {
+      if (this.sortColumn === column) {
+        // If clicking the same column, toggle direction
+        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        // If clicking a new column, set it as active with appropriate default direction
+        this.sortColumn = column;
+        this.sortDirection = column === 'priority' ? 'desc' : 'asc'; // Priority defaults to desc (high to low)
+      }
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -3231,18 +3275,48 @@ ${comment.content}
     },
 
     sortedChildTasks() {
-      const priorityOrder = { high: 3, medium: 2, low: 1, '': 0, null: 0, undefined: 0 };
-      
       return [...this.childTasks].sort((a, b) => {
-        const aPriority = priorityOrder[a.priority] || 0;
-        const bPriority = priorityOrder[b.priority] || 0;
+        let aValue, bValue;
         
-        // Sort by priority (high to low), then by title
-        if (aPriority !== bPriority) {
-          return bPriority - aPriority;
+        switch (this.sortColumn) {
+          case 'title':
+            aValue = a.title || '';
+            bValue = b.title || '';
+            break;
+            
+          case 'status':
+            // Define a custom order for status
+            const statusOrder = { 
+              'not_started': 1, 
+              'in_progress': 2, 
+              'awaiting_external': 3, 
+              'awaiting_internal': 4, 
+              'completed': 5 
+            };
+            aValue = statusOrder[a.status] || 0;
+            bValue = statusOrder[b.status] || 0;
+            break;
+            
+          case 'priority':
+            const priorityOrder = { high: 3, medium: 2, low: 1, '': 0, null: 0, undefined: 0 };
+            aValue = priorityOrder[a.priority] || 0;
+            bValue = priorityOrder[b.priority] || 0;
+            break;
+            
+          default:
+            aValue = a.title || '';
+            bValue = b.title || '';
         }
         
-        return a.title.localeCompare(b.title);
+        // Handle different data types
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          const comparison = aValue.localeCompare(bValue);
+          return this.sortDirection === 'asc' ? comparison : -comparison;
+        } else {
+          // Numeric comparison
+          const comparison = aValue - bValue;
+          return this.sortDirection === 'asc' ? comparison : -comparison;
+        }
       });
     }
   }
@@ -5087,5 +5161,42 @@ table.editor-table {
 .clickable-tag:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sortable-column {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.sortable-column:hover {
+  background-color: var(--el-fill-color-light);
+  color: var(--el-color-primary);
+}
+
+.sortable-column.active {
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.sort-icon {
+  font-size: 14px;
+  color: var(--el-color-primary);
+  flex-shrink: 0;
+}
+
+/* Ensure the sort icon doesn't interfere with mobile layout */
+@media (max-width: 768px) {
+  .sortable-column {
+    font-size: 13px;
+  }
+  
+  .sort-icon {
+    font-size: 12px;
+  }
 }
 </style>

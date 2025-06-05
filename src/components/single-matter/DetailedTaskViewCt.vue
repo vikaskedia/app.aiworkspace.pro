@@ -121,29 +121,38 @@
           </div>
 
           <!-- Child Tasks Section -->
-          <div class="task-children" v-if="childTasks.length">
+          <div class="task-children" v-if="sortedChildTasks.length">
             <h4>Child Tasks</h4>
-            <div class="child-tasks-list">
-              <div v-for="childTask in childTasks" :key="childTask.id" class="child-task-item">
-                <div class="child-task-content" :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }">
-                  <el-tag :type="getStatusType(childTask)" size="small" class="status-tag">
-                    {{ formatStatus(childTask.status) }}
-                  </el-tag>
+            <div class="child-tasks-table">
+              <div class="child-tasks-header">
+                <div class="column-description">Description</div>
+                <div class="column-status">Status</div>
+                <div class="column-priority">Priority</div>
+              </div>
+              <div 
+                v-for="childTask in sortedChildTasks" 
+                :key="childTask.id" 
+                class="child-task-row"
+              >
+                <div class="column-description">
                   <span 
                     class="child-task-title" 
                     @click="navigateToTask(childTask.id)"
                     @contextmenu="showContextMenu($event, childTask)"
+                    :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }"
                   >
                     {{ childTask.title }}
                   </span>
                 </div>
-                <div class="child-task-meta">
-                  <el-tag v-if="childTask.due_date" :type="getDueDateTagType(childTask.due_date)" size="small">
-                    {{ formatDate(childTask.due_date) }}
+                <div class="column-status">
+                  <el-tag :type="getStatusType(childTask)" size="small">
+                    {{ formatStatus(childTask.status) }}
                   </el-tag>
-                  <el-avatar v-if="childTask.assignee" :size="20" class="assignee-avatar">
-                    {{ getInitials(userEmails[childTask.assignee]) }}
-                  </el-avatar>
+                </div>
+                <div class="column-priority">
+                  <el-tag :type="getPriorityType(childTask)" size="small">
+                    {{ formatPriority(childTask.priority) }}
+                  </el-tag>
                 </div>
               </div>
             </div>
@@ -1250,7 +1259,7 @@ export default {
     },
 
     getInitials(email) {
-      if (!email) return '?';
+      if (!email) return '--';
       const [name] = email.split('@');
       return name.substring(0, 2).toUpperCase();
     },
@@ -2835,6 +2844,22 @@ ${comment.content}
       };
       
       return findDescendants(this.task.id);
+    },
+
+    sortedChildTasks() {
+      const priorityOrder = { high: 3, medium: 2, low: 1, '': 0, null: 0, undefined: 0 };
+      
+      return [...this.childTasks].sort((a, b) => {
+        const aPriority = priorityOrder[a.priority] || 0;
+        const bPriority = priorityOrder[b.priority] || 0;
+        
+        // Sort by priority (high to low), then by title
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority;
+        }
+        
+        return a.title.localeCompare(b.title);
+      });
     }
   }
 };
@@ -4464,57 +4489,92 @@ table.editor-table {
 }
 
 .task-children h4 {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   color: #606266;
 }
 
-.task-children .child-tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.child-tasks-table {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.child-task-item {
+.child-tasks-header {
+  display: grid;
+  grid-template-columns: 1fr 150px 120px;
+  background: var(--el-fill-color-light);
+  border-bottom: 1px solid var(--el-border-color-light);
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.child-tasks-header > div {
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.child-task-row {
+  display: grid;
+  grid-template-columns: 1fr 150px 120px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  transition: background-color 0.2s;
+}
+
+.child-task-row:last-child {
+  border-bottom: none;
+}
+
+.child-task-row:hover {
+  background-color: var(--el-fill-color-lighter);
+}
+
+.child-task-row > div {
+  padding: 12px 16px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
 }
 
-.child-task-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.column-description {
+  min-width: 0; /* Allow text to wrap/truncate */
 }
 
-.child-task-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-tag {
-  width: 100px;
+.column-status,
+.column-priority {
+  justify-content: flex-start;
 }
 
 .child-task-title {
   cursor: pointer;
   color: #409EFF;
+  text-decoration: none;
+  transition: color 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .child-task-title:hover {
   text-decoration: underline;
+  color: var(--el-color-primary-dark-2);
 }
 
-.assignee-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background-color: #409EFF;
-  color: white;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .child-tasks-header,
+  .child-task-row {
+    grid-template-columns: 1fr 100px 80px;
+  }
+  
+  .child-tasks-header > div,
+  .child-task-row > div {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .child-task-title {
+    font-size: 13px;
+  }
 }
 </style>
 

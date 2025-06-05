@@ -151,11 +151,36 @@
                   @click="sortBy('status')"
                   :class="{ 'active': sortColumn === 'status' }"
                 >
-                  Status
-                  <el-icon v-if="sortColumn === 'status'" class="sort-icon">
-                    <ArrowUp v-if="sortDirection === 'asc'" />
-                    <ArrowDown v-else />
-                  </el-icon>
+                  <span class="column-title">Status</span>
+                  <div class="column-controls">
+                    <el-icon v-if="sortColumn === 'status'" class="sort-icon">
+                      <ArrowUp v-if="sortDirection === 'asc'" />
+                      <ArrowDown v-else />
+                    </el-icon>
+                    <el-popover
+                      placement="bottom-start"
+                      trigger="click"
+                      :width="200"
+                      popper-class="status-settings-popover"
+                      @click.stop
+                    >
+                      <template #reference>
+                        <el-icon class="status-settings-icon" @click.stop>
+                          <Setting />
+                        </el-icon>
+                      </template>
+                      <div class="status-settings">
+                        <div class="status-setting-item">
+                          <el-switch
+                            v-model="showCompletedTasks"
+                            size="small"
+                            active-text="Show completed tasks"
+                            @change="onShowCompletedChange"
+                          />
+                        </div>
+                      </div>
+                    </el-popover>
+                  </div>
                 </div>
                 <div 
                   class="column-priority sortable-column" 
@@ -1213,13 +1238,15 @@ export default {
         priority: {}
       },
       sortColumn: 'priority',
-      sortDirection: 'desc' // 'asc' or 'desc'
+      sortDirection: 'desc', // 'asc' or 'desc'
+      showCompletedTasks: true
     };
   },
   async created() {
     const taskId = this.$route.params.taskId;
     const { data: { user } } = await supabase.auth.getUser();
     this.currentUser = user;
+    this.loadUserSettings();
     await this.loadTask(taskId);
     await this.loadSharedUsers();
     this.setupRealtimeSubscription();
@@ -3096,6 +3123,41 @@ ${comment.content}
         this.sortDirection = column === 'priority' ? 'desc' : 'asc'; // Priority defaults to desc (high to low)
       }
     },
+
+    loadUserSettings() {
+      // Load user-specific settings from localStorage
+      const userId = this.currentUser?.id;
+      if (userId) {
+        const settingsKey = `task-settings-${userId}`;
+        const savedSettings = localStorage.getItem(settingsKey);
+        if (savedSettings) {
+          try {
+            const settings = JSON.parse(savedSettings);
+            this.showCompletedTasks = settings.showCompletedTasks !== undefined ? settings.showCompletedTasks : true;
+          } catch (error) {
+            console.error('Error loading user settings:', error);
+            this.showCompletedTasks = true;
+          }
+        }
+      }
+    },
+
+    saveUserSettings() {
+      // Save user-specific settings to localStorage
+      const userId = this.currentUser?.id;
+      if (userId) {
+        const settingsKey = `task-settings-${userId}`;
+        const settings = {
+          showCompletedTasks: this.showCompletedTasks
+        };
+        localStorage.setItem(settingsKey, JSON.stringify(settings));
+      }
+    },
+
+    onShowCompletedChange() {
+      this.saveUserSettings();
+      ElMessage.success(`Completed tasks ${this.showCompletedTasks ? 'shown' : 'hidden'}`);
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -3275,7 +3337,12 @@ ${comment.content}
     },
 
     sortedChildTasks() {
-      return [...this.childTasks].sort((a, b) => {
+      // First filter out completed tasks if the setting is disabled
+      let filteredTasks = this.showCompletedTasks 
+        ? [...this.childTasks] 
+        : this.childTasks.filter(task => task.status !== 'completed');
+      
+      return filteredTasks.sort((a, b) => {
         let aValue, bValue;
         
         switch (this.sortColumn) {
@@ -5169,7 +5236,7 @@ table.editor-table {
   transition: background-color 0.2s, color 0.2s;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 6px;
 }
 
@@ -5183,10 +5250,43 @@ table.editor-table {
   font-weight: 600;
 }
 
+.column-title {
+  flex: 1;
+}
+
+.column-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .sort-icon {
   font-size: 14px;
   color: var(--el-color-primary);
   flex-shrink: 0;
+}
+
+.status-settings-icon {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  padding: 2px;
+  transition: color 0.2s;
+}
+
+.status-settings-icon:hover {
+  color: var(--el-color-primary);
+}
+
+.status-settings {
+  padding: 8px;
+}
+
+.status-setting-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Ensure the sort icon doesn't interfere with mobile layout */
@@ -5195,7 +5295,8 @@ table.editor-table {
     font-size: 13px;
   }
   
-  .sort-icon {
+  .sort-icon,
+  .status-settings-icon {
     font-size: 12px;
   }
 }

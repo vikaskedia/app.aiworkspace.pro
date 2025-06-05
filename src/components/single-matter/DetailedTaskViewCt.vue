@@ -1227,6 +1227,13 @@ export default {
     await this.loadSharedUsers();
     this.setupRealtimeSubscription();
     await this.loadHoursLogs();
+    // Ensure task cache is fresh on component creation
+    await this.refreshTaskCache();
+  },
+
+  async activated() {
+    // Refresh cache when component becomes active (e.g., when navigating back from child task)
+    await this.refreshTaskCache();
   },
   unmounted() {
     if (this.subscription) {
@@ -1814,7 +1821,7 @@ export default {
       }
       
       this.subscription = supabase
-        .channel('task-comments-changes')
+        .channel('task-comments-and-tasks-changes')
         .on('postgres_changes', 
           { 
             event: '*',
@@ -1852,6 +1859,27 @@ export default {
                   this.comments.splice(deleteIndex, 1);
                 }
                 break;
+            }
+          }
+        )
+        .on('postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+            filter: `matter_id=eq.${this.currentMatter.id}`
+          },
+          async (payload) => {
+            try {
+              // Refresh task store cache when any task in the matter is updated
+              await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+              
+              // If the current task was updated, refresh it
+              if (payload.new?.id === this.task.id) {
+                await this.loadTask(this.task.id);
+              }
+            } catch (error) {
+              console.error('Error handling realtime task update:', error);
             }
           }
         )
@@ -3081,6 +3109,13 @@ ${comment.content}
       this.saveUserSettings();
       ElMessage.success(`Completed tasks ${this.showCompletedTasks ? 'shown' : 'hidden'}`);
     },
+
+    async refreshTaskCache() {
+      // Refresh the task store cache to ensure we have the latest task data
+      if (this.currentMatter?.id) {
+        await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+      }
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -3098,9 +3133,11 @@ ${comment.content}
     },
     '$route.params.taskId': {
       immediate: true,
-      handler(newTaskId) {
-        if (newTaskId) {
-          this.loadTask(newTaskId);
+      async handler(newTaskId, oldTaskId) {
+        if (newTaskId && newTaskId !== oldTaskId) {
+          // Refresh cache when navigating to a different task
+          await this.refreshTaskCache();
+          await this.loadTask(newTaskId);
         }
       }
     },

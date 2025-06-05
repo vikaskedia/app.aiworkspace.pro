@@ -165,8 +165,9 @@
             <el-form-item label="View As">
               <el-select
                 v-model="filters.viewType"
-                style="width: 140px">
-                <el-option label="List View" value="list" />
+                style="width: 160px">
+                <el-option label="Tree and List View" value="tree" />
+                <el-option label="Flat List View" value="flat" />
                 <el-option label="Board View" value="board" />
               </el-select>
             </el-form-item>
@@ -205,10 +206,11 @@
 
       <!-- Tasks Table -->
       <TasksList
-        v-if="filters.viewType === 'list'"
-        :tasks="tasks"
+        v-if="filters.viewType === 'tree' || filters.viewType === 'flat'"
+        :tasks="filters.viewType === 'tree' ? tasks : flattenTasks(tasks)"
         :loading="loading"
         :shared-users="assignees"
+        :isFlatView="filters.viewType === 'flat'"
         v-model:filters="filters"
         @update-task="updateTask"
         @star-toggled="handleStarToggled"
@@ -216,7 +218,7 @@
       />
 
       <TaskBoardCt
-        v-else
+        v-else-if="filters.viewType === 'board'"
         :tasks="tasks"
         :loading="loading"
         :group-by="boardGroupBy"
@@ -333,7 +335,7 @@ export default {
         assignee: [],
         starred: false,
         starredBy: [],
-        viewType: 'list',
+        viewType: 'tree',
         orderBy: 'priority_desc'
       },
       savedFilters: [],
@@ -507,7 +509,7 @@ export default {
         assignee: [],
         starred: false,
         starredBy: [],
-        viewType: 'list',
+        viewType: 'tree',
         orderBy: 'priority_desc'
       };
       this.boardGroupBy = 'status';
@@ -608,8 +610,12 @@ export default {
             if (defaultFilter.filters.boardGroupBy) {
               this.boardGroupBy = defaultFilter.filters.boardGroupBy;
             }
-            // Then set other filters
-            this.filters = { ...defaultFilter.filters };
+            // Then set other filters, but convert old 'list' viewType to 'tree'
+            const filterData = { ...defaultFilter.filters };
+            if (filterData.viewType === 'list') {
+              filterData.viewType = 'tree';
+            }
+            this.filters = filterData;
             this.loadTasksWithCache();
           }
         }
@@ -710,7 +716,12 @@ export default {
           if (filter.filters.boardGroupBy) {
             this.boardGroupBy = filter.filters.boardGroupBy;
           }
-          this.filters = { ...filter.filters };
+          // Convert old 'list' viewType to 'tree'
+          const filterData = { ...filter.filters };
+          if (filterData.viewType === 'list') {
+            filterData.viewType = 'tree';
+          }
+          this.filters = filterData;
           // Update page title with filter name
           document.title = `${filter.filter_name} | TaskManager`;
           this.loadTasksWithCache();
@@ -725,7 +736,12 @@ export default {
       if (filter.filters.boardGroupBy) {
         this.boardGroupBy = filter.filters.boardGroupBy;
       }
-      this.filters = { ...filter.filters };
+      // Convert old 'list' viewType to 'tree'
+      const filterData = { ...filter.filters };
+      if (filterData.viewType === 'list') {
+        filterData.viewType = 'tree';
+      }
+      this.filters = filterData;
       // Update page title with filter name
       document.title = `${filter.filter_name} | TaskManager`;
       this.savedFiltersDialogVisible = false;
@@ -796,6 +812,134 @@ export default {
       }
 
       return rootTasks;
+    },
+
+    flattenTasks(tasks) {
+      // Return a flat array of all tasks without hierarchy
+      const flatTasks = [];
+      
+      const addTasksRecursively = (taskList) => {
+        taskList.forEach(task => {
+          // Create a copy without children for flat view
+          const flatTask = { ...task };
+          delete flatTask.children;
+          flatTasks.push(flatTask);
+          
+          // Add children recursively
+          if (task.children && task.children.length > 0) {
+            addTasksRecursively(task.children);
+          }
+        });
+      };
+      
+      addTasksRecursively(tasks);
+      
+      // Apply flat-specific filtering and sorting
+      let result = flatTasks;
+      
+      // Apply search filter
+      if (this.filters.search) {
+        const searchTerm = this.filters.search.toLowerCase();
+        result = result.filter(task => 
+          task.title.toLowerCase().includes(searchTerm) ||
+          (task.description && task.description.toLowerCase().includes(searchTerm)) ||
+          (task.matter_title && task.matter_title.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply status filter
+      if (this.filters.status?.length) {
+        result = result.filter(task => this.filters.status.includes(task.status));
+      }
+      
+      // Apply priority filter
+      if (this.filters.priority) {
+        result = result.filter(task => task.priority === this.filters.priority);
+      }
+      
+      // Apply matter filter
+      if (this.filters.matter?.length) {
+        result = result.filter(task => this.filters.matter.includes(task.matter_id));
+      }
+      
+      // Apply assignee filter
+      if (this.filters.assignee?.length) {
+        result = result.filter(task => 
+          this.filters.assignee.includes(task.assignee)
+        );
+      }
+      
+      // Apply due date filter
+      if (this.filters.dueDate) {
+        const selectedDate = new Date(this.filters.dueDate);
+        selectedDate.setHours(0, 0, 0, 0);
+        
+        result = result.filter(task => {
+          if (!task.due_date) return false;
+          
+          const dueDate = new Date(task.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          
+          return dueDate.getTime() === selectedDate.getTime();
+        });
+      }
+      
+      // Apply starred filter
+      if (this.filters.starred) {
+        result = result.filter(task => task.starred);
+      }
+      
+      // Apply starred by filter
+      if (this.filters.starredBy?.length) {
+        result = result.filter(task => {
+          if (!task.task_stars) return false;
+          return this.filters.starredBy.some(userId => 
+            task.task_stars.some(star => star.user_id === userId)
+          );
+        });
+      }
+      
+      // Apply exclude status filter
+      if (this.filters.excludeStatus?.length) {
+        result = result.filter(task => 
+          !this.filters.excludeStatus.includes(task.status)
+        );
+      }
+      
+      // Sort flat tasks
+      if (this.filters.orderBy) {
+        result = result.sort((a, b) => {
+          let comparison = 0;
+          
+          switch (this.filters.orderBy) {
+            case 'priority_desc': {
+              const priorityOrder = { high: 3, medium: 2, low: 1 };
+              comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+              break;
+            }
+            case 'priority_asc': {
+              const priorityOrder = { high: 3, medium: 2, low: 1 };
+              comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
+              break;
+            }
+            case 'activity_desc': {
+              const dateA = new Date(a.updated_at || a.created_at || 0);
+              const dateB = new Date(b.updated_at || b.created_at || 0);
+              comparison = dateB - dateA;
+              break;
+            }
+            case 'activity_asc': {
+              const dateA = new Date(a.updated_at || a.created_at || 0);
+              const dateB = new Date(b.updated_at || b.created_at || 0);
+              comparison = dateA - dateB;
+              break;
+            }
+          }
+          return comparison;
+        });
+      }
+      
+      return result;
     },
 
     async loadFilterFromUrl() {
@@ -1002,8 +1146,12 @@ export default {
           if (filter.filters.boardGroupBy) {
             this.boardGroupBy = filter.filters.boardGroupBy;
           }
-          // Then set other filters
-          this.filters = { ...filter.filters };
+          // Then set other filters, but convert old 'list' viewType to 'tree'
+          const filterData = { ...filter.filters };
+          if (filterData.viewType === 'list') {
+            filterData.viewType = 'tree';
+          }
+          this.filters = filterData;
           this.loadTasksWithCache();
         }
       } else if (to.path === '/all-matters/tasks' && from.path.includes('/saved-filters/')) {

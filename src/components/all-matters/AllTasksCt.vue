@@ -166,8 +166,8 @@
               <el-select
                 v-model="filters.viewType"
                 style="width: 160px">
-                <el-option label="Tree and List View" value="tree" />
-                <el-option label="Flat List View" value="flat" />
+                <el-option label="List View - Tree" value="tree" />
+                <el-option label="List View - Flat" value="flat" />
                 <el-option label="Board View" value="board" />
               </el-select>
             </el-form-item>

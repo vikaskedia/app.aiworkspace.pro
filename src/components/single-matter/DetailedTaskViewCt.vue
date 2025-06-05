@@ -2861,7 +2861,7 @@ ${comment.content}
         this.createChildTaskDialogVisible = false;
 
         // Reload task store to get updated child tasks
-        await this.taskStore.loadTasks(this.currentMatter.id);
+        await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
         
         ElMessage.success('Child task created successfully');
       } catch (error) {

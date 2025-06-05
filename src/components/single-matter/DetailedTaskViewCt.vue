@@ -155,14 +155,60 @@
                   </span>
                 </div>
                 <div class="column-status">
-                  <el-tag :type="getStatusType(childTask)" size="small">
-                    {{ formatStatus(childTask.status) }}
-                  </el-tag>
+                  <el-popover
+                    v-model:visible="childTaskPopoverVisibility.status[childTask.id]"
+                    placement="bottom-start"
+                    trigger="click"
+                    :width="200"
+                    popper-class="metadata-popover"
+                  >
+                    <template #reference>
+                      <el-tag :type="getStatusType(childTask)" size="small" class="clickable-tag">
+                        {{ formatStatus(childTask.status) }}
+                      </el-tag>
+                    </template>
+                    <div class="metadata-options">
+                      <div 
+                        v-for="option in statusOptions" 
+                        :key="option.value"
+                        class="metadata-option"
+                        :class="{ 'selected': childTask.status === option.value }"
+                        @click="handleChildTaskStatusChange(childTask, option.value)"
+                      >
+                        <el-tag :type="getStatusType({ status: option.value })" size="small">
+                          {{ option.label }}
+                        </el-tag>
+                      </div>
+                    </div>
+                  </el-popover>
                 </div>
                 <div class="column-priority">
-                  <el-tag :type="getPriorityType(childTask)" size="small">
-                    {{ formatPriority(childTask.priority) }}
-                  </el-tag>
+                  <el-popover
+                    v-model:visible="childTaskPopoverVisibility.priority[childTask.id]"
+                    placement="bottom-start"
+                    trigger="click"
+                    :width="200"
+                    popper-class="metadata-popover"
+                  >
+                    <template #reference>
+                      <el-tag :type="getPriorityType(childTask)" size="small" class="clickable-tag">
+                        {{ formatPriority(childTask.priority) }}
+                      </el-tag>
+                    </template>
+                    <div class="metadata-options">
+                      <div 
+                        v-for="option in priorityOptions" 
+                        :key="option.value"
+                        class="metadata-option"
+                        :class="{ 'selected': childTask.priority === option.value }"
+                        @click="handleChildTaskPriorityChange(childTask, option.value)"
+                      >
+                        <el-tag :type="getPriorityType({ priority: option.value })" size="small">
+                          {{ option.label }}
+                        </el-tag>
+                      </div>
+                    </div>
+                  </el-popover>
                 </div>
               </div>
             </div>
@@ -1130,6 +1176,10 @@ export default {
         priority: 'medium',
         due_date: null,
         assignee: null
+      },
+      childTaskPopoverVisibility: {
+        status: {},
+        priority: {}
       }
     };
   },
@@ -2881,6 +2931,126 @@ ${comment.content}
         due_date: null,
         assignee: null
       };
+    },
+
+    async handleChildTaskStatusChange(childTask, newStatus) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const oldStatus = childTask.status;
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', childTask.id);
+
+        if (error) throw error;
+
+        // Update local state
+        childTask.status = newStatus;
+        
+        // Create activity log for the child task
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: childTask.id,
+            user_id: user.id,
+            content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(newStatus)}"`,
+            type: 'activity',
+            metadata: {
+              action: 'update',
+              changes: {
+                status: {
+                  from: oldStatus,
+                  to: newStatus
+                }
+              }
+            }
+          });
+
+        // Send Telegram notification (optional - don't fail if no groups configured)
+        try {
+          await sendTelegramNotification({
+            matterId: this.currentMatter.id,
+            activityType: 'CHILD_TASK_STATUS_UPDATED',
+            message: `Child task status updated: "${childTask.title}"\nFrom: ${this.formatStatus(oldStatus)} → To: ${this.formatStatus(newStatus)}\nParent: "${this.task.title}"`
+          });
+        } catch (telegramError) {
+          console.warn('Telegram notification failed:', telegramError.message);
+          // Continue without failing the status update
+        }
+
+        ElMessage.success('Child task status updated successfully');
+        
+        // Close the popover
+        this.childTaskPopoverVisibility.status[childTask.id] = false;
+      } catch (error) {
+        console.error('Error updating child task status:', error);
+        ElMessage.error('Failed to update child task status');
+      }
+    },
+
+    async handleChildTaskPriorityChange(childTask, newPriority) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const oldPriority = childTask.priority;
+        
+        const { error } = await supabase
+          .from('tasks')
+          .update({ 
+            priority: newPriority,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', childTask.id);
+
+        if (error) throw error;
+
+        // Update local state
+        childTask.priority = newPriority;
+        
+        // Create activity log for the child task
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: childTask.id,
+            user_id: user.id,
+            content: `Updated priority from "${this.formatPriority(oldPriority)}" to "${this.formatPriority(newPriority)}"`,
+            type: 'activity',
+            metadata: {
+              action: 'update',
+              changes: {
+                priority: {
+                  from: oldPriority,
+                  to: newPriority
+                }
+              }
+            }
+          });
+
+        // Send Telegram notification (optional - don't fail if no groups configured)
+        try {
+          await sendTelegramNotification({
+            matterId: this.currentMatter.id,
+            activityType: 'CHILD_TASK_PRIORITY_UPDATED',
+            message: `Child task priority updated: "${childTask.title}"\nFrom: ${this.formatPriority(oldPriority)} → To: ${this.formatPriority(newPriority)}\nParent: "${this.task.title}"`
+          });
+        } catch (telegramError) {
+          console.warn('Telegram notification failed:', telegramError.message);
+          // Continue without failing the priority update
+        }
+
+        ElMessage.success('Child task priority updated successfully');
+        
+        // Close the popover
+        this.childTaskPopoverVisibility.priority[childTask.id] = false;
+      } catch (error) {
+        console.error('Error updating child task priority:', error);
+        ElMessage.error('Failed to update child task priority');
+      }
     },
   },
   watch: {
@@ -4907,5 +5077,15 @@ table.editor-table {
     width: 90% !important;
     margin: 5vh auto !important;
   }
+}
+
+.clickable-tag {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 </style>

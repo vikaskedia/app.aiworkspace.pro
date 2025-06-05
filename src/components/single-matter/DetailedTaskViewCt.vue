@@ -121,9 +121,19 @@
           </div>
 
           <!-- Child Tasks Section -->
-          <div class="task-children" v-if="sortedChildTasks.length">
-            <h4>Child Tasks</h4>
-            <div class="child-tasks-table">
+          <div class="task-children">
+            <div class="child-tasks-header-section">
+              <h4>Child Tasks</h4>
+              <el-button 
+                type="primary" 
+                size="small"
+                @click="createChildTaskDialogVisible = true"
+                class="create-child-btn">
+                <el-icon><Plus /></el-icon>
+                Create Child Task
+              </el-button>
+            </div>
+            <div v-if="sortedChildTasks.length" class="child-tasks-table">
               <div class="child-tasks-header">
                 <div class="column-description">Description</div>
                 <div class="column-status">Status</div>
@@ -155,6 +165,9 @@
                   </el-tag>
                 </div>
               </div>
+            </div>
+            <div v-else class="no-child-tasks">
+              <p>No child tasks yet. Create one to get started!</p>
             </div>
           </div>
 
@@ -871,6 +884,102 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Create Child Task Dialog -->
+    <el-dialog
+      v-model="createChildTaskDialogVisible"
+      title="Create Child Task"
+      width="600px"
+      class="create-child-task-dialog"
+    >
+      <el-form :model="newChildTask" label-position="top" ref="childTaskForm">
+        <el-form-item label="Title" required>
+          <el-input
+            v-model="newChildTask.title"
+            placeholder="Enter child task title..."
+            maxlength="255"
+            show-word-limit
+          />
+        </el-form-item>
+        
+        <el-form-item label="Description">
+          <TiptapEditor
+            v-model="newChildTask.description"
+            placeholder="Add a description..."
+            :sharedUsers="sharedUsers"
+            :taskId="String(task.id)"
+            :taskTitle="task.title"
+            :isTaskComment="false"
+            :enable-typeahead="false"
+          />
+        </el-form-item>
+
+        <div class="child-task-metadata">
+          <div class="metadata-row">
+            <el-form-item label="Status" class="metadata-field">
+              <el-select v-model="newChildTask.status" placeholder="Select status">
+                <el-option
+                  v-for="option in statusOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="Priority" class="metadata-field">
+              <el-select v-model="newChildTask.priority" placeholder="Select priority">
+                <el-option
+                  v-for="option in priorityOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-form-item>
+          </div>
+
+          <div class="metadata-row">
+            <el-form-item label="Due Date" class="metadata-field">
+              <el-date-picker
+                v-model="newChildTask.due_date"
+                type="date"
+                placeholder="Select due date"
+                style="width: 100%"
+              />
+            </el-form-item>
+
+            <el-form-item label="Assigned To" class="metadata-field">
+              <el-select
+                v-model="newChildTask.assignee"
+                placeholder="Select assignee"
+                clearable
+              >
+                <el-option
+                  v-for="user in sharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="createChildTaskDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="createChildTask"
+            :disabled="!newChildTask.title.trim()"
+            :loading="creatingChildTask">
+            Create Child Task
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
   <div v-else class="loading-state">
     <el-skeleton :rows="3" animated />
@@ -878,7 +987,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -916,7 +1025,8 @@ export default {
     Download,
     View,
     CopyDocument,
-    Link
+    Link,
+    Plus
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1010,7 +1120,17 @@ export default {
       contextMenuVisible: false,
       contextMenuX: 0,
       contextMenuY: 0,
-      selectedChildTask: null
+      selectedChildTask: null,
+      createChildTaskDialogVisible: false,
+      creatingChildTask: false,
+      newChildTask: {
+        title: '',
+        description: '',
+        status: 'not_started',
+        priority: 'medium',
+        due_date: null,
+        assignee: null
+      }
     };
   },
   async created() {
@@ -2673,6 +2793,95 @@ ${comment.content}
       
       this.hideContextMenu();
     },
+
+    async createChildTask() {
+      if (!this.newChildTask.title.trim()) return;
+
+      try {
+        this.creatingChildTask = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const taskData = {
+          title: this.newChildTask.title.trim(),
+          description: this.newChildTask.description,
+          status: this.newChildTask.status,
+          priority: this.newChildTask.priority,
+          due_date: this.newChildTask.due_date,
+          assignee: this.newChildTask.assignee,
+          matter_id: this.currentMatter.id,
+          parent_task_id: this.task.id,
+          created_by: user.id
+        };
+
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert(taskData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Create activity log for parent task
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: `Created child task: "${this.newChildTask.title}"`,
+            type: 'activity',
+            metadata: {
+              action: 'create_child',
+              child_task_id: data.id,
+              child_task_title: this.newChildTask.title
+            }
+          });
+
+        // Create notification for assignee if assigned
+        if (this.newChildTask.assignee) {
+          await this.createNotification(
+            this.newChildTask.assignee,
+            'task_assigned',
+            { 
+              task_id: data.id, 
+              task_title: this.newChildTask.title,
+              parent_task_title: this.task.title
+            }
+          );
+        }
+
+        // Send Telegram notification
+        await sendTelegramNotification({
+          matterId: this.currentMatter.id,
+          activityType: 'CHILD_TASK_CREATED',
+          message: `Child task created under "${this.task.title}"\n\nChild Task: "${this.newChildTask.title}"\nCreated by: ${user.email}`
+        });
+
+        // Reset form
+        this.resetChildTaskForm();
+        this.createChildTaskDialogVisible = false;
+
+        // Reload task store to get updated child tasks
+        await this.taskStore.loadTasks(this.currentMatter.id);
+        
+        ElMessage.success('Child task created successfully');
+      } catch (error) {
+        console.error('Error creating child task:', error);
+        ElMessage.error('Failed to create child task: ' + error.message);
+      } finally {
+        this.creatingChildTask = false;
+      }
+    },
+
+    resetChildTaskForm() {
+      this.newChildTask = {
+        title: '',
+        description: '',
+        status: 'not_started',
+        priority: 'medium',
+        due_date: null,
+        assignee: null
+      };
+    },
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -2694,6 +2903,11 @@ ${comment.content}
         if (newTaskId) {
           this.loadTask(newTaskId);
         }
+      }
+    },
+    createChildTaskDialogVisible(newVal) {
+      if (!newVal) {
+        this.resetChildTaskForm();
       }
     }
   },
@@ -4627,5 +4841,71 @@ table.editor-table {
 
 .child-task-title {
   user-select: none; /* Prevent text selection when right-clicking */
+}
+
+.child-tasks-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.child-tasks-header-section h4 {
+  margin: 0;
+}
+
+.create-child-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.no-child-tasks {
+  text-align: center;
+  padding: 2rem;
+  color: var(--el-text-color-secondary);
+  font-style: italic;
+}
+
+.no-child-tasks p {
+  margin: 0;
+}
+
+.create-child-task-dialog .child-task-metadata {
+  margin-top: 1rem;
+}
+
+.create-child-task-dialog .metadata-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.create-child-task-dialog .metadata-field {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .child-tasks-header-section {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .create-child-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .create-child-task-dialog .metadata-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
+  .create-child-task-dialog {
+    width: 90% !important;
+    margin: 5vh auto !important;
+  }
 }
 </style>

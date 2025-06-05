@@ -200,14 +200,13 @@
                 class="child-task-row"
               >
                 <div class="column-description">
-                  <span 
+                  <a 
                     class="child-task-title" 
-                    @click="navigateToTask(childTask.id)"
-                    @contextmenu="showContextMenu($event, childTask)"
+                    :href="`/single-matter/${currentMatter.id}/tasks/${childTask.id}`"
                     :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }"
                   >
                     {{ childTask.title }}
-                  </span>
+                  </a>
                 </div>
                 <div class="column-status">
                   <el-popover
@@ -272,26 +271,7 @@
             </div>
           </div>
 
-          <!-- Context Menu -->
-          <div 
-            v-if="contextMenuVisible" 
-            class="context-menu"
-            :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }"
-            @click.stop
-          >
-            <div class="context-menu-item" @click="openInNewWindow">
-              <el-icon><CopyDocument /></el-icon>
-              Open in new window
-            </div>
-            <div class="context-menu-item" @click="openInNewTab">
-              <el-icon><Link /></el-icon>
-              Open in new tab
-            </div>
-            <div class="context-menu-item" @click="copyTaskLink">
-              <el-icon><DocumentCopy /></el-icon>
-              Copy link
-            </div>
-          </div>
+
 
           <div v-if="showTaskHistory" class="edit-history">
             <div 
@@ -1218,10 +1198,7 @@ export default {
       USERS_TO_BYPASS_AI_INTERACTION: [
           'soumen+040225@grmtech.com'
       ],
-      contextMenuVisible: false,
-      contextMenuX: 0,
-      contextMenuY: 0,
-      selectedChildTask: null,
+
       createChildTaskDialogVisible: false,
       creatingChildTask: false,
       newChildTask: {
@@ -1256,8 +1233,6 @@ export default {
       this.subscription.unsubscribe();
     }
     document.title = 'TaskManager';
-    // Clean up context menu listener
-    document.removeEventListener('click', this.hideContextMenu);
   },
   methods: { 
     async handleDueDateChange(date) {
@@ -2850,58 +2825,7 @@ ${comment.content}
       return Array.from(descendantIds);
     },
 
-    showContextMenu(event, childTask) {
-      event.preventDefault();
-      this.selectedChildTask = childTask;
-      this.contextMenuX = event.clientX;
-      this.contextMenuY = event.clientY;
-      this.contextMenuVisible = true;
-      
-      // Close context menu when clicking elsewhere
-      document.addEventListener('click', this.hideContextMenu);
-    },
 
-    hideContextMenu() {
-      this.contextMenuVisible = false;
-      this.selectedChildTask = null;
-      document.removeEventListener('click', this.hideContextMenu);
-    },
-
-    openInNewWindow() {
-      if (!this.selectedChildTask) return;
-      
-      const taskUrl = `${window.location.origin}/single-matter/${this.currentMatter.id}/tasks/${this.selectedChildTask.id}`;
-      
-      // Open in a new window (not tab) with specific dimensions
-      const windowFeatures = 'width=1200,height=800,left=100,top=100,resizable=yes,scrollbars=yes,status=yes';
-      window.open(taskUrl, '_blank', windowFeatures);
-      
-      this.hideContextMenu();
-    },
-
-    openInNewTab() {
-      if (!this.selectedChildTask) return;
-      
-      const taskUrl = `${window.location.origin}/single-matter/${this.currentMatter.id}/tasks/${this.selectedChildTask.id}`;
-      window.open(taskUrl, '_blank', 'noopener');
-      this.hideContextMenu();
-    },
-
-    async copyTaskLink() {
-      if (!this.selectedChildTask) return;
-      
-      const taskUrl = `${window.location.origin}/single-matter/${this.currentMatter.id}/tasks/${this.selectedChildTask.id}`;
-      
-      try {
-        await navigator.clipboard.writeText(taskUrl);
-        ElMessage.success('Task link copied to clipboard');
-      } catch (error) {
-        console.error('Failed to copy link:', error);
-        ElMessage.error('Failed to copy link');
-      }
-      
-      this.hideContextMenu();
-    },
 
     async createChildTask() {
       if (!this.newChildTask.title.trim()) return;
@@ -5118,40 +5042,7 @@ table.editor-table {
   font-size: 16px;
 }
 
-.context-menu {
-  position: fixed;
-  background: white;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
-  min-width: 160px;
-  padding: 4px 0;
-}
 
-.context-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--el-text-color-primary);
-  transition: background-color 0.2s;
-}
-
-.context-menu-item:hover {
-  background-color: var(--el-fill-color-light);
-}
-
-.context-menu-item .el-icon {
-  font-size: 16px;
-  color: var(--el-text-color-secondary);
-}
-
-.child-task-title {
-  user-select: none; /* Prevent text selection when right-clicking */
-}
 
 .child-tasks-header-section {
   display: flex;

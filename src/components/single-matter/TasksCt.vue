@@ -81,7 +81,7 @@ export default {
         dueDate: null,
         showDeleted: false,
         starredBy: [],
-        viewType: 'list',
+        viewType: 'tree',
         orderBy: 'priority_desc'
       },
       showTypeahead: false,
@@ -248,6 +248,127 @@ export default {
       return rootTasks;
     },
 
+    flattenTasks(tasks) {
+      // Return a flat array of all tasks without hierarchy
+      const flatTasks = [];
+      
+      const addTasksRecursively = (taskList) => {
+        taskList.forEach(task => {
+          // Create a copy without children for flat view
+          const flatTask = { ...task };
+          delete flatTask.children;
+          flatTasks.push(flatTask);
+          
+          // Add children recursively
+          if (task.children && task.children.length > 0) {
+            addTasksRecursively(task.children);
+          }
+        });
+      };
+      
+      addTasksRecursively(tasks);
+      
+      // Apply flat-specific filtering and sorting
+      let result = flatTasks;
+      
+      // Apply search filter
+      if (this.filters.search) {
+        const searchTerm = this.filters.search.toLowerCase();
+        result = result.filter(task => 
+          task.title.toLowerCase().includes(searchTerm) ||
+          (task.description && task.description.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      // Apply status filter
+      if (this.filters.status?.length) {
+        result = result.filter(task => this.filters.status.includes(task.status));
+      }
+      
+      // Apply priority filter
+      if (this.filters.priority) {
+        result = result.filter(task => task.priority === this.filters.priority);
+      }
+      
+      // Apply assignee filter
+      if (this.filters.assignee?.length) {
+        result = result.filter(task => 
+          this.filters.assignee.includes(task.assignee)
+        );
+      }
+      
+      // Apply due date filter
+      if (this.filters.dueDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        result = result.filter(task => {
+          if (!task.due_date) return false;
+          
+          const dueDate = new Date(task.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          
+          switch (this.filters.dueDate) {
+            case 'overdue':
+              return dueDate < today;
+            case 'today':
+              return dueDate.getTime() === today.getTime();
+            case 'week':
+              const weekFromNow = new Date(today);
+              weekFromNow.setDate(weekFromNow.getDate() + 7);
+              return dueDate >= today && dueDate <= weekFromNow;
+            default:
+              return true;
+          }
+        });
+      }
+      
+      // Apply starred filter
+      if (this.filters.starredBy?.length) {
+        result = result.filter(task => {
+          if (!task.starred) return false;
+          return this.filters.starredBy.some(userId => 
+            task.starred.includes(userId)
+          );
+        });
+      }
+      
+      // Sort flat tasks
+      if (this.filters.orderBy) {
+        result = result.sort((a, b) => {
+          let comparison = 0;
+          
+          switch (this.filters.orderBy) {
+            case 'priority_desc': {
+              const priorityOrder = { high: 3, medium: 2, low: 1 };
+              comparison = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+              break;
+            }
+            case 'priority_asc': {
+              const priorityOrder = { high: 3, medium: 2, low: 1 };
+              comparison = (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
+              break;
+            }
+            case 'activity_desc': {
+              const dateA = new Date(a.updated_at || a.created_at || 0);
+              const dateB = new Date(b.updated_at || b.created_at || 0);
+              comparison = dateB - dateA;
+              break;
+            }
+            case 'activity_asc': {
+              const dateA = new Date(a.updated_at || a.created_at || 0);
+              const dateB = new Date(b.updated_at || b.created_at || 0);
+              comparison = dateA - dateB;
+              break;
+            }
+          }
+          return comparison;
+        });
+      }
+      
+      return result;
+    },
+
     async createTask() {
       if (!this.currentMatter) {
         ElMessage.warning('Please select a matter first');
@@ -383,7 +504,7 @@ export default {
         dueDate: null,
         showDeleted: false,
         starredBy: [],
-        viewType: 'list',
+        viewType: 'tree',
         orderBy: currentOrderBy
       };
       this.loadSharedUsers();
@@ -1354,8 +1475,12 @@ export default {
         );
       }
 
-      // Apply other filters...
-      // ... rest of the filtering logic ...
+      // For flat view, we'll apply filtering later after flattening
+      // For tree view, apply hierarchical filtering here
+      if (this.filters.viewType !== 'flat') {
+        // Apply other filters for hierarchical view...
+        // ... rest of the filtering logic for tree view ...
+      }
 
       // Sort tasks if needed
       if (this.filters.orderBy) {
@@ -1390,13 +1515,17 @@ export default {
             return comparison;
           });
 
-          // Sort children recursively
-          return sortedTasks.map(task => {
-            if (task.children?.length) {
-              task.children = sortTasksRecursively(task.children);
-            }
-            return task;
-          });
+          // Sort children recursively only for tree view
+          if (this.filters.viewType === 'tree') {
+            return sortedTasks.map(task => {
+              if (task.children?.length) {
+                task.children = sortTasksRecursively(task.children);
+              }
+              return task;
+            });
+          }
+          
+          return sortedTasks;
         };
 
         result = sortTasksRecursively(result);
@@ -1582,8 +1711,9 @@ export default {
             <el-form-item label="View As">
               <el-select
                 v-model="filters.viewType"
-                style="width: 140px">
-                <el-option label="List View" value="list" />
+                style="width: 160px">
+                <el-option label="Tree and List View" value="tree" />
+                <el-option label="Flat List View" value="flat" />
                 <el-option label="Board View" value="board" />
               </el-select>
             </el-form-item>
@@ -1621,11 +1751,12 @@ export default {
       </el-collapse-transition>
 
       <TasksList
-        v-if="filters.viewType === 'list'"
+        v-if="filters.viewType === 'tree' || filters.viewType === 'flat'"
         ref="tasksList"
-        :tasks="filteredTasks"
+        :tasks="filters.viewType === 'tree' ? filteredTasks : flattenTasks(filteredTasks)"
         :loading="loading"
         :shared-users="sharedUsers"
+        :isFlatView="filters.viewType === 'flat'"
         v-model:filters="filters"
         @update-task="updateTask"
         @delete="deleteTask"
@@ -1642,7 +1773,7 @@ export default {
       />
       
       <TaskBoardCt
-        v-else
+        v-else-if="filters.viewType === 'board'"
         :tasks="filteredTasks"
         :loading="loading"
         :group-by="boardGroupBy"

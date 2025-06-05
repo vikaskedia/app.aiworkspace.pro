@@ -48,6 +48,10 @@ export default {
     filters: {
       type: Object,
       required: true
+    },
+    isFlatView: {
+      type: Boolean,
+      default: false
     }
   },
   emits: [

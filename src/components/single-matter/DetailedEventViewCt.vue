@@ -33,6 +33,7 @@
                       <el-option label="Court Hearing" value="court_hearing" />
                       <el-option label="Deposition" value="deposition" />
                       <el-option label="Client Call" value="client_call" />
+                      <el-option label="Google Calendar Event" value="google_calendar_event" />
                       <el-option label="Other" value="other" />
                     </el-select>
                     <template #reference>
@@ -246,6 +247,7 @@ export default {
         { label: 'Court Hearing', value: 'court_hearing' },
         { label: 'Deposition', value: 'deposition' },
         { label: 'Client Call', value: 'client_call' },
+        { label: 'Google Calendar Event', value: 'google_calendar_event' },
         { label: 'Other', value: 'other' }
       ];
       const selectedOption = options.find(option => option.value === event.value.event_type);

@@ -543,7 +543,7 @@ export default {
             <div class="horizontal-form-layout">
               <el-input 
                 v-model="calendarSettings.calendarId" 
-                placeholder="Enter Google Calendar ID"
+                placeholder="Secret address in iCal format"
                 class="calendar-input" />
               <el-button 
                 type="primary"

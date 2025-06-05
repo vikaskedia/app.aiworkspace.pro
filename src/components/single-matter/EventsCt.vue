@@ -274,12 +274,12 @@ export default {
     <div class="content">
       <div class="events-header">
         <div class="header-buttons">
-          <el-button 
+          <!-- <el-button 
             type="primary" 
             @click="dialogVisible = true"
             :disabled="!currentMatter">
             New Event
-          </el-button>
+          </el-button> -->
           <el-button 
             type="success" 
             @click="syncWithGoogleCalendar"
@@ -468,4 +468,4 @@ h2 {
   display: flex;
   gap: 1rem;
 }
-</style> 
+</style>

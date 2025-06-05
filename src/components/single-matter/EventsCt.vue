@@ -5,6 +5,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
+import ICAL from 'ical.js';
 
 export default {
   setup() {
@@ -37,7 +38,8 @@ export default {
         end_time: null,
         location: '',
         attendees: []
-      }
+      },
+      syncing: false
     };
   },
   watch: {
@@ -137,6 +139,131 @@ export default {
       } catch (error) {
         ElMessage.error('Error archiving event: ' + error.message);
       }
+    },
+
+    async syncWithGoogleCalendar() {
+      if (!this.currentMatter?.google_calendar_id) {
+        ElMessage.warning('Please set up Google Calendar ID in matter settings first');
+        return;
+      }
+
+      try {
+        this.syncing = true;
+        const icalUrl = this.currentMatter.google_calendar_id;
+        console.log('Syncing with Google Calendar:', icalUrl);
+        
+        // Use CORS proxy for development (since Vercel API functions don't work in Vite dev server)
+        const corsProxy = 'https://api.allorigins.win/raw?url=';
+        const proxyUrl = corsProxy + encodeURIComponent(icalUrl);
+        console.log('Using CORS proxy URL:', proxyUrl);
+        
+        const response = await fetch(proxyUrl);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch calendar data: ${response.status} ${response.statusText}`);
+        }
+        
+        const icalData = await response.text();
+        console.log('Raw iCal data received:');
+        console.log('First 500 characters:', icalData.substring(0, 500));
+        console.log('Data type:', typeof icalData);
+        console.log('Data length:', icalData.length);
+        
+        // Check if the response looks like iCal data
+        if (!icalData.includes('BEGIN:VCALENDAR')) {
+          console.error('Response does not appear to be iCal data:', icalData);
+          throw new Error('Invalid iCal data received from server');
+        }
+        
+        // Parse iCal data
+        console.log('Attempting to parse iCal data...');
+        const jcalData = ICAL.parse(icalData);
+        const comp = new ICAL.Component(jcalData);
+        const vevents = comp.getAllSubcomponents('vevent');
+        
+        console.log('Found events:', vevents.length);
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        const eventsToInsert = [];
+        
+        // Process each event
+        for (const vevent of vevents) {
+          const event = new ICAL.Event(vevent);
+          
+          // Extract event data
+          const eventData = {
+            matter_id: this.currentMatter.id,
+            created_by: user.id,
+            title: event.summary || 'Untitled Event',
+            description: event.description || '',
+            event_type: 'google_calendar_event', // Default type for synced events
+            start_time: event.startDate ? event.startDate.toJSDate().toISOString() : null,
+            end_time: event.endDate ? event.endDate.toJSDate().toISOString() : null,
+            location: event.location || '',
+            attendees: [], // Can be extended later
+            synced_from_google: true, // Flag to identify synced events
+            google_event_id: event.uid || null // Store Google event ID for future reference
+          };
+          
+          console.log('Processed event:', eventData);
+          eventsToInsert.push(eventData);
+        }
+        
+        // Check for existing events to prevent duplicates
+        const googleEventIds = eventsToInsert.map(e => e.google_event_id).filter(id => id);
+        let existingEvents = [];
+        
+        if (googleEventIds.length > 0) {
+          const { data: existing, error: existingError } = await supabase
+            .from('events')
+            .select('google_event_id')
+            .eq('matter_id', this.currentMatter.id)
+            .in('google_event_id', googleEventIds);
+          
+          if (existingError) {
+            console.warn('Error checking existing events:', existingError);
+          } else {
+            existingEvents = existing || [];
+          }
+        }
+        
+        const existingEventIds = new Set(existingEvents.map(e => e.google_event_id));
+        
+        // Filter out events that already exist
+        const newEventsToInsert = eventsToInsert.filter(event => 
+          !event.google_event_id || !existingEventIds.has(event.google_event_id)
+        );
+        
+        console.log(`Total events from calendar: ${eventsToInsert.length}`);
+        console.log(`Existing events in database: ${existingEvents.length}`);
+        console.log(`New events to insert: ${newEventsToInsert.length}`);
+        
+        // Store events in database
+        if (newEventsToInsert.length > 0) {
+          const { data: insertedEvents, error } = await supabase
+            .from('events')
+            .insert(newEventsToInsert)
+            .select();
+          
+          if (error) throw error;
+          
+          console.log('Events stored in database:', insertedEvents);
+          
+          // Refresh the events list to show newly synced events
+          await this.loadEvents();
+          
+          ElMessage.success(`Successfully synced ${newEventsToInsert.length} new events from Google Calendar`);
+        } else {
+          ElMessage.info('No new events found to sync - all events are already up to date');
+        }
+        
+      } catch (error) {
+        console.error('Error syncing with Google Calendar:', error);
+        ElMessage.error('Error syncing with Google Calendar: ' + error.message);
+      } finally {
+        this.syncing = false;
+      }
     }
   }
 };
@@ -146,12 +273,21 @@ export default {
   <div class="events-container">
     <div class="content">
       <div class="events-header">
-        <el-button 
-          type="primary" 
-          @click="dialogVisible = true"
-          :disabled="!currentMatter">
-          New Event
-        </el-button>
+        <div class="header-buttons">
+          <el-button 
+            type="primary" 
+            @click="dialogVisible = true"
+            :disabled="!currentMatter">
+            New Event
+          </el-button>
+          <el-button 
+            type="success" 
+            @click="syncWithGoogleCalendar"
+            :disabled="!currentMatter?.google_calendar_id"
+            :loading="syncing">
+            Sync with Google Calendar
+          </el-button>
+        </div>
       </div>
 
       <el-table
@@ -179,7 +315,7 @@ export default {
         <el-table-column 
           prop="event_type" 
           label="Type"
-          width="120">
+          width="180">
           <template #default="scope">
             <el-tag>{{ scope.row.event_type }}</el-tag>
           </template>
@@ -228,6 +364,7 @@ export default {
               <el-option label="Court Hearing" value="court_hearing" />
               <el-option label="Deposition" value="deposition" />
               <el-option label="Client Call" value="client_call" />
+              <el-option label="Google Calendar Event" value="google_calendar_event" />
               <el-option label="Other" value="other" />
             </el-select>
           </el-form-item>
@@ -325,5 +462,10 @@ h2 {
 .title-link {
   text-decoration: none;
   color: #1890ff;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 1rem;
 }
 </style> 

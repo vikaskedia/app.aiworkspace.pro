@@ -537,7 +537,7 @@ export default {
         <h3>Calendar Settings</h3>
         <el-form label-position="top">
           <el-form-item 
-            label="Google Calendar ID" 
+            label="Secret address in iCal format" 
             required
             :rules="[{ required: true, message: 'Calendar ID is required' }]">
             <div class="horizontal-form-layout">
@@ -555,7 +555,7 @@ export default {
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
-              This calendar ID will be used to sync events related to this matter
+              This calendar address will be used to sync events related to this matter
             </el-text>
           </el-form-item>
         </el-form>

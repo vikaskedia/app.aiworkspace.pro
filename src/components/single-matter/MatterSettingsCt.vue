@@ -61,7 +61,12 @@ export default {
         { label: 'Matter Updates', value: 'matter_updates' },
         { label: 'Comments', value: 'comments' },
         { label: 'Document Updates', value: 'document_updates' }
-      ]
+      ],
+      phoneNumbers: [],
+      newPhoneNumber: {
+        label: '',
+        number: ''
+      }
     };
   },
   watch: {
@@ -78,6 +83,7 @@ export default {
           this.loadSharedUsers();
           this.loadCustomFields();
           this.loadTelegramGroups();
+          this.loadPhoneNumbers();
         }
       },
       immediate: true
@@ -417,6 +423,69 @@ export default {
         name: '',
         notification_types: []
       };
+    },
+
+    async loadPhoneNumbers() {
+      try {
+        // Phone numbers are stored in the current matter's phone_numbers field
+        this.phoneNumbers = this.currentMatter?.phone_numbers || [];
+      } catch (error) {
+        ElMessage.error('Error loading phone numbers: ' + error.message);
+      }
+    },
+
+    async addPhoneNumber() {
+      try {
+        const newPhone = {
+          id: Date.now(), // Simple ID for frontend use
+          label: this.newPhoneNumber.label,
+          number: this.newPhoneNumber.number
+        };
+
+        const updatedPhoneNumbers = [...this.phoneNumbers, newPhone];
+
+        const { data, error } = await supabase
+          .from('matters')
+          .update({ phone_numbers: updatedPhoneNumbers })
+          .eq('id', this.currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.phoneNumbers = data.phone_numbers;
+        this.resetNewPhoneNumber();
+        ElMessage.success('Phone number added successfully');
+      } catch (error) {
+        ElMessage.error('Error adding phone number: ' + error.message);
+      }
+    },
+
+    async removePhoneNumber(phoneId) {
+      try {
+        const updatedPhoneNumbers = this.phoneNumbers.filter(p => p.id !== phoneId);
+
+        const { data, error } = await supabase
+          .from('matters')
+          .update({ phone_numbers: updatedPhoneNumbers })
+          .eq('id', this.currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.phoneNumbers = data.phone_numbers;
+        ElMessage.success('Phone number removed successfully');
+      } catch (error) {
+        ElMessage.error('Error removing phone number: ' + error.message);
+      }
+    },
+
+    resetNewPhoneNumber() {
+      this.newPhoneNumber = {
+        label: '',
+        number: ''
+      };
     }
   }
 };
@@ -559,6 +628,56 @@ export default {
             </el-text>
           </el-form-item>
         </el-form>
+      </div>
+
+      <!-- Phone Number Settings Section -->
+      <div class="section">
+        <h3>Phone Number Settings</h3>
+        
+        <!-- Add New Phone Number -->
+        <el-form :model="newPhoneNumber" label-position="top">
+          <div class="phone-number-form">
+            <el-form-item label="Label" required>
+              <el-input 
+                v-model="newPhoneNumber.label" 
+                placeholder="e.g., Client Mobile, Office Line" />
+            </el-form-item>
+            
+            <el-form-item label="Phone Number" required>
+              <el-input 
+                v-model="newPhoneNumber.number" 
+                placeholder="Enter phone number"
+                type="tel" />
+            </el-form-item>
+
+            <div class="button-container">
+              <el-button 
+                type="primary"
+                @click="addPhoneNumber"
+                :disabled="!newPhoneNumber.label || !newPhoneNumber.number">
+                Add Phone No.
+              </el-button>
+            </div>
+          </div>
+        </el-form>
+
+        <!-- Phone Numbers List -->
+        <div class="phone-numbers-list">
+          <el-table :data="phoneNumbers">
+            <el-table-column prop="label" label="Label" />
+            <el-table-column prop="number" label="Phone Number" />
+            <el-table-column label="Actions" width="100" align="right">
+              <template #default="{ row }">
+                <el-button 
+                  type="danger" 
+                  size="small"
+                  @click="removePhoneNumber(row.id)">
+                  Remove
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </div>
 
       <!-- Email Storage Section -->
@@ -966,6 +1085,37 @@ h4 {
 @media (max-width: 768px) {
   .calendar-input {
     min-width: 100%;
+  }
+}
+
+.phone-number-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  margin-bottom: 1.5rem;
+}
+
+.phone-number-form .button-container {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.phone-numbers-list {
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .phone-number-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .phone-number-form .button-container {
+    justify-content: center;
   }
 }
 </style>

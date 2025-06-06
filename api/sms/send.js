@@ -17,6 +17,7 @@ export default async function handler(req, res) {
 
   try {
     const { from, to, message, matter_id } = req.body
+    console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })
 
     // Validate required fields
     if (!from || !to || !message || !matter_id) {
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
       })
     }
 
+    console.log('Finding/creating conversation...')
     // Find or create conversation
     let { data: conversation, error: convError } = await supabase
       .from('conversations')
@@ -46,8 +48,11 @@ export default async function handler(req, res) {
       throw convError
     }
 
+    console.log('Conversation found/created:', conversation?.id)
+
     // Create conversation if it doesn't exist
     if (!conversation) {
+      console.log('Creating new conversation...')
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
         .insert({
@@ -66,6 +71,7 @@ export default async function handler(req, res) {
       conversation = newConv
     }
 
+    console.log('Creating message record...')
     // Create message record with pending status
     const { data: messageRecord, error: msgError } = await supabase
       .from('messages')
@@ -82,12 +88,17 @@ export default async function handler(req, res) {
 
     if (msgError) throw msgError
 
+    console.log('Message record created:', messageRecord.id)
+    console.log('Sending SMS via Telnyx...')
+    
     // Send SMS via Telnyx
     const smsResponse = await telnyxClient.messages.create({
       from: from,
       to: to,
       text: message
     })
+
+    console.log('Telnyx response:', smsResponse.data.id)
 
     // Update message record with Telnyx message ID and sent status
     const { error: updateError } = await supabase
@@ -119,10 +130,16 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('SMS Send Error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
     
     return res.status(500).json({ 
       error: 'Failed to send SMS',
-      details: error.message 
+      details: error.message,
+      errorType: error.name
     })
   }
 } 

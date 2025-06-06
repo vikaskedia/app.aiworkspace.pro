@@ -1478,6 +1478,8 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
+        const oldStatus = this.task.status;
+        
         const { error } = await supabase
           .from('tasks')
           .update({ 
@@ -1488,7 +1490,7 @@ export default {
 
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately
         this.task.status = status;
         
         // Create activity log
@@ -1497,13 +1499,13 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: user.id,
-            content: `Updated status from "${this.task.status}" to "${status}"`,
+            content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(status)}"`,
             type: 'activity',
             metadata: {
               action: 'update',
               changes: {
                 status: {
-                  from: this.task.status,
+                  from: oldStatus,
                   to: status
                 }
               }
@@ -1871,11 +1873,17 @@ export default {
           },
           async (payload) => {
             try {
-              // Refresh task store cache when any task in the matter is updated
-              await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+              // Only refresh cache if it's not an update to the current task or child tasks
+              // to avoid unnecessary cache refreshes that cause flickering
+              const isCurrentTask = payload.new?.id === this.task.id;
+              const isChildTask = this.childTasks.some(child => child.id === payload.new?.id);
+              
+              if (!isCurrentTask && !isChildTask) {
+                await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+              }
               
               // If the current task was updated, refresh it
-              if (payload.new?.id === this.task.id) {
+              if (isCurrentTask) {
                 await this.loadTask(this.task.id);
               }
             } catch (error) {
@@ -2920,9 +2928,6 @@ ${comment.content}
         // Reset form
         this.resetChildTaskForm();
         this.createChildTaskDialogVisible = false;
-
-        // Reload task store to get updated child tasks
-        await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
         
         ElMessage.success('Child task created successfully');
       } catch (error) {
@@ -2960,8 +2965,15 @@ ${comment.content}
 
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately
         childTask.status = newStatus;
+        
+        // Also update the task in the task store cache if it exists
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const taskIndex = cachedTasks.findIndex(t => t.id === childTask.id);
+        if (taskIndex !== -1) {
+          cachedTasks[taskIndex].status = newStatus;
+        }
         
         // Create activity log for the child task
         await supabase
@@ -3020,8 +3032,15 @@ ${comment.content}
 
         if (error) throw error;
 
-        // Update local state
+        // Update local state immediately
         childTask.priority = newPriority;
+        
+        // Also update the task in the task store cache if it exists
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const taskIndex = cachedTasks.findIndex(t => t.id === childTask.id);
+        if (taskIndex !== -1) {
+          cachedTasks[taskIndex].priority = newPriority;
+        }
         
         // Create activity log for the child task
         await supabase

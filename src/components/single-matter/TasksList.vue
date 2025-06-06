@@ -1256,7 +1256,7 @@ export default {
       <!-- Assignee options -->
       <template v-if="editingField === 'assignee'">
         <div 
-          v-for="user in sharedUsers" 
+          v-for="user in sharedUsers.slice().sort((a, b) => a.email.localeCompare(b.email))" 
           :key="user.id"
           class="popup-item"
           :class="{ 'selected': editingValue === user.id }"

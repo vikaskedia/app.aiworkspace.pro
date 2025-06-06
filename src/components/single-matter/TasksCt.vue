@@ -78,6 +78,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         assignee: [],
+        createdBy: [],
         dueDate: null,
         showDeleted: false,
         starredBy: [],
@@ -297,6 +298,13 @@ export default {
         );
       }
       
+      // Apply created by filter
+      if (this.filters.createdBy?.length) {
+        result = result.filter(task => 
+          this.filters.createdBy.includes(task.created_by)
+        );
+      }
+      
       // Apply due date filter
       if (this.filters.dueDate) {
         const today = new Date();
@@ -501,6 +509,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         assignee: [],
+        createdBy: [],
         dueDate: null,
         showDeleted: false,
         starredBy: [],
@@ -1381,6 +1390,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         assignee: [],
+        createdBy: [],
         dueDate: null,
         showDeleted: false,
         starredBy: [],
@@ -1478,8 +1488,78 @@ export default {
       // For flat view, we'll apply filtering later after flattening
       // For tree view, apply hierarchical filtering here
       if (this.filters.viewType !== 'flat') {
-        // Apply other filters for hierarchical view...
-        // ... rest of the filtering logic for tree view ...
+        // Apply search filter
+        if (this.filters.search) {
+          const searchTerm = this.filters.search.toLowerCase();
+          result = filterTasksRecursively(result, task => 
+            task.title.toLowerCase().includes(searchTerm) ||
+            (task.description && task.description.toLowerCase().includes(searchTerm))
+          );
+        }
+        
+        // Apply status filter
+        if (this.filters.status?.length) {
+          result = filterTasksRecursively(result, task => 
+            this.filters.status.includes(task.status)
+          );
+        }
+        
+        // Apply priority filter
+        if (this.filters.priority) {
+          result = filterTasksRecursively(result, task => 
+            task.priority === this.filters.priority
+          );
+        }
+        
+        // Apply assignee filter
+        if (this.filters.assignee?.length) {
+          result = filterTasksRecursively(result, task => 
+            this.filters.assignee.includes(task.assignee)
+          );
+        }
+        
+        // Apply created by filter
+        if (this.filters.createdBy?.length) {
+          result = filterTasksRecursively(result, task => 
+            this.filters.createdBy.includes(task.created_by)
+          );
+        }
+        
+        // Apply due date filter
+        if (this.filters.dueDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          result = filterTasksRecursively(result, task => {
+            if (!task.due_date) return false;
+            
+            const dueDate = new Date(task.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            switch (this.filters.dueDate) {
+              case 'overdue':
+                return dueDate < today;
+              case 'today':
+                return dueDate.getTime() === today.getTime();
+              case 'week':
+                const weekFromNow = new Date(today);
+                weekFromNow.setDate(weekFromNow.getDate() + 7);
+                return dueDate >= today && dueDate <= weekFromNow;
+              default:
+                return true;
+            }
+          });
+        }
+        
+        // Apply starred filter
+        if (this.filters.starredBy?.length) {
+          result = filterTasksRecursively(result, task => {
+            if (!task.starred) return false;
+            return this.filters.starredBy.some(userId => 
+              task.starred.includes(userId)
+            );
+          });
+        }
       }
 
       // Sort tasks if needed
@@ -1645,6 +1725,23 @@ export default {
               <el-select 
                 v-model="filters.assignee" 
                 placeholder="Assignee" 
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="user in sharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Created By">
+              <el-select 
+                v-model="filters.createdBy" 
+                placeholder="Created by" 
                 multiple
                 collapse-tags
                 collapse-tags-tooltip

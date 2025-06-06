@@ -124,6 +124,24 @@
                 />
               </el-select>
             </el-form-item>
+            <el-form-item label="Created By">
+              <el-select
+                v-model="filters.createdBy"
+                placeholder="All creators"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                filterable
+                style="width: 200px">
+                <el-option
+                  v-for="user in assignees"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id"
+                />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-switch
                 v-model="filters.starred"
@@ -333,6 +351,7 @@ export default {
         dueDate: null,
         matter: [],
         assignee: [],
+        createdBy: [],
         starred: false,
         starredBy: [],
         viewType: 'tree',
@@ -359,6 +378,7 @@ export default {
       if (this.filters.dueDate) count++;
       if (this.filters.matter?.length) count++;
       if (this.filters.assignee?.length) count++;
+      if (this.filters.createdBy?.length) count++;
       if (this.filters.starred) count++;
       if (this.filters.starredBy?.length) count++;
       return count;
@@ -459,6 +479,9 @@ export default {
         if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
           return false;
         }
+        if (this.filters.createdBy?.length && !this.filters.createdBy.includes(task.created_by)) {
+          return false;
+        }
         // ... other filters ...
         return true;
       });
@@ -507,6 +530,7 @@ export default {
         dueDate: null,
         matter: [],
         assignee: [],
+        createdBy: [],
         starred: false,
         starredBy: [],
         viewType: 'tree',

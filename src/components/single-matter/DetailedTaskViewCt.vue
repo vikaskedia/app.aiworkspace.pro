@@ -427,39 +427,26 @@
                     <span class="status-label">Assigned To</span>
                   </div>
                   <div class="status-content">
-                    <el-popover
-                      ref="assigneePopover"
-                      placement="bottom-start"
-                      trigger="click"
-                      :width="200"
-                      popper-class="metadata-popover"
+                    <el-select
+                      v-model="task.assignee"
+                      placeholder="Select assignee"
+                      filterable
+                      clearable
+                      @change="handleAssigneeChange"
+                      class="assignee-select"
                     >
-                      <template #reference>
-                        <div class="status-display">
-                          <div class="assignee-info">
-                            <el-avatar v-if="assigneeEmail" :size="20">
-                              {{ getInitials(assigneeEmail) }}
-                            </el-avatar>
-                            <span class="status-text">{{ assigneeEmail || 'Unassigned' }}</span>
-                          </div>
-                          <el-icon class="edit-icon"><Edit /></el-icon>
+                      <el-option
+                        v-for="user in sortedSharedUsers"
+                        :key="user.id"
+                        :label="user.email"
+                        :value="user.id"
+                      >
+                        <div class="user-option">
+                          <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
+                          <span>{{ user.email }}</span>
                         </div>
-                      </template>
-                      <div class="metadata-options">
-                        <div 
-                          v-for="user in sharedUsers" 
-                          :key="user.id"
-                          class="metadata-option"
-                          :class="{ 'selected': task?.assignee === user.id }"
-                          @click="handleAssigneeChange(user.id)"
-                        >
-                          <div class="user-option">
-                            <el-avatar :size="24">{{ getInitials(user.email) }}</el-avatar>
-                            <span>{{ user.email }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </el-popover>
+                      </el-option>
+                    </el-select>
                   </div>
                 </div>
               </div>
@@ -1408,12 +1395,6 @@ export default {
 
       this.task.assignee = userId;
       this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
-      
-      // Use nextTick to ensure DOM updates before closing popover
-      await this.$nextTick();
-      if (this.$refs.assigneePopover) {
-        this.$refs.assigneePopover.hide();
-      }
       
       ElMessage.success('Assignee updated successfully');
       
@@ -3364,6 +3345,12 @@ ${comment.content}
           return this.sortDirection === 'asc' ? comparison : -comparison;
         }
       });
+    },
+
+    sortedSharedUsers() {
+      return [...this.sharedUsers].sort((a, b) => 
+        a.email.localeCompare(b.email)
+      );
     }
   }
 };
@@ -3758,6 +3745,25 @@ ${comment.content}
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 4px 0;
+}
+
+.assignee-select {
+  width: 100%;
+}
+
+.assignee-select :deep(.el-select__wrapper) {
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.assignee-select :deep(.el-select__wrapper:hover) {
+  border-color: var(--el-color-primary);
+}
+
+.assignee-select :deep(.el-option .user-option) {
+  width: 100%;
   padding: 4px 0;
 }
 

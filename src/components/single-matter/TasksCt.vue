@@ -1424,6 +1424,13 @@ export default {
   },
 
   computed: {
+    sortedSharedUsers() {
+      return [...this.sharedUsers].sort((a, b) => {
+        const nameA = a.email.toLowerCase();
+        const nameB = b.email.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+    },
     flattenedTasks() {
       const flattenTasks = (tasks, parentTitle = '') => {
         let flattened = [];
@@ -1729,9 +1736,10 @@ export default {
                 collapse-tags
                 collapse-tags-tooltip
                 clearable
+                filterable
                 style="width: 200px">
                 <el-option
-                  v-for="user in sharedUsers"
+                  v-for="user in sortedSharedUsers"
                   :key="user.id"
                   :label="user.email"
                   :value="user.id"
@@ -1746,9 +1754,10 @@ export default {
                 collapse-tags
                 collapse-tags-tooltip
                 clearable
+                filterable
                 style="width: 200px">
                 <el-option
-                  v-for="user in sharedUsers"
+                  v-for="user in sortedSharedUsers"
                   :key="user.id"
                   :label="user.email"
                   :value="user.id"
@@ -1796,9 +1805,10 @@ export default {
                 collapse-tags
                 collapse-tags-tooltip
                 clearable
+                filterable
                 style="width: 200px">
                 <el-option
-                  v-for="user in sharedUsers"
+                  v-for="user in sortedSharedUsers"
                   :key="user.id"
                   :label="user.email"
                   :value="user.id"
@@ -1975,9 +1985,14 @@ export default {
                   style="width: 100%" />
               </el-form-item>
               <el-form-item label="Assignee">
-                <el-select v-model="newTask.assignee" style="width: 100%">
+                <el-select 
+                  v-model="newTask.assignee" 
+                  style="width: 100%"
+                  filterable
+                  clearable
+                  placeholder="Select assignee">
                   <el-option
-                    v-for="user in sharedUsers"
+                    v-for="user in sortedSharedUsers"
                     :key="user.id"
                     :label="user.email"
                     :value="user.id" />
@@ -2041,9 +2056,12 @@ export default {
             <el-select 
               v-model="editingTask.assignee" 
               style="width: 100%"
+              filterable
+              clearable
+              placeholder="Select assignee"
               :loading="loading">
               <el-option
-                v-for="user in sharedUsers"
+                v-for="user in sortedSharedUsers"
                 :key="user.id"
                 :label="user.email"
                 :value="user.id" />

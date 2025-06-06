@@ -132,6 +132,11 @@ const routes = [
         path: 'communications',
         name: 'CommunicationsPage',
         component: () => import('./components/single-matter/CommunicationsCt.vue')
+      },
+      {
+        path: 'ai_phone',
+        name: 'AiPhonePage',
+        component: () => import('./components/single-matter/AiPhoneCt.vue')
       }
     ]
   },

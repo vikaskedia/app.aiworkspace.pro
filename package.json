@@ -42,6 +42,7 @@
     "showdown": "^2.1.0",
     "splitpanes": "^3.1.5",
     "supabase": "^2.1.1",
+    "telnyx": "^2.0.0",
     "vue": "^3.2.47",
     "vue-draggable-next": "^2.2.1",
     "vue-pdf": "^4.3.0",

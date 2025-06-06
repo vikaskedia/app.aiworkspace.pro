@@ -45,6 +45,7 @@ export default {
       if (path.includes('/files')) return 'Files';
       if (path.includes('/outlines')) return 'Outlines';
       if (path.includes('/communications')) return 'Communications';
+      if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/settings')) return 'Settings';
       if (path.includes('/dashboard')) return 'Dashboard';
       if (path.includes('/all-matters')) {
@@ -210,6 +211,9 @@ export default {
           case 'communications':
             this.$router.push(`/single-matter/${this.currentMatter.id}/communications`);
             break;
+          case 'ai_phone':
+            this.$router.push(`/single-matter/${this.currentMatter.id}/ai_phone`);
+            break;
           case 'settings':
             this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
             break;
@@ -361,6 +365,7 @@ export default {
                   :class="{ 'is-active': $route.path.includes('/outlines') }"
                 >Outlines</el-dropdown-item>
                 <el-dropdown-item command="communications">Communications</el-dropdown-item>
+                <el-dropdown-item command="ai_phone">AI Phone</el-dropdown-item>
                 <el-dropdown-item command="settings">Settings</el-dropdown-item>
               </template>
               <!-- Show these options when "All Matters" is selected -->

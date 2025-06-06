@@ -15,6 +15,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // Debug: Check if API key is loaded
+  console.log('Telnyx API Key exists:', !!process.env.TELNYX_API_KEY)
+  console.log('Telnyx API Key starts with KEY:', process.env.TELNYX_API_KEY?.startsWith('KEY'))
+
   try {
     const { from, to, message, matter_id } = req.body
     console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })

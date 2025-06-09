@@ -1,8 +1,5 @@
 <template>
   <div class="ai-phone-interface">
-    <div class="header">
-      <h2>AI Phone & SMS</h2>
-    </div>
 
     <div class="phone-layout">
       <!-- Left Panel: Inbox/Navigation -->

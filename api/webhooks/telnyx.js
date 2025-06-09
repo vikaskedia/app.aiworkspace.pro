@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     const eventData = payload.data?.payload
 
     console.log('Telnyx Webhook Event:', eventType, eventData?.id)
+    console.log('Full webhook payload:', JSON.stringify(payload, null, 2))
 
     switch (eventType) {
       case 'message.sent':

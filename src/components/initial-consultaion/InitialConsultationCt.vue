@@ -728,7 +728,7 @@ export default {
           `)
           .eq('archived', false)
           .eq('matter_access.shared_with_user_id', userId)
-          .order('created_at', { ascending: false });
+          .order('last_activity_at', { ascending: false, nullsFirst: false });
 
         if (error) throw error;
         return sharedMatters || [];
@@ -760,7 +760,7 @@ export default {
           `)
           .eq('archived', false)
           .eq('matter_access.shared_with_user_id', user.id)
-          .order('created_at', { ascending: false });
+          .order('last_activity_at', { ascending: false, nullsFirst: false });
 
         if (error) throw error;
         userMatters.value = sharedMatters || [];

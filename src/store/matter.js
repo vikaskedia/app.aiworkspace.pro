@@ -21,7 +21,7 @@ export const useMatterStore = defineStore('matter', {
         const query = supabase
           .from('matters')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('last_activity_at', { ascending: false, nullsFirst: false });
 
         if (!includeArchived) {
           query.eq('archived', false);

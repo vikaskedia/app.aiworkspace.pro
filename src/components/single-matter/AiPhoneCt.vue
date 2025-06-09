@@ -106,18 +106,18 @@
               </div>
               <div>
                 <h4>{{ currentChat.contact }}</h4>
-                <p>{{ currentChat.phoneNumber }}</p>
+                <!-- <p>{{ currentChat.phoneNumber }}</p> -->
               </div>
             </div>
             
-            <div class="chat-actions">
+            <!-- <div class="chat-actions">
               <el-button size="small" circle>
                 <el-icon><Phone /></el-icon>
               </el-button>
               <el-button size="small" circle>
                 <el-icon><More /></el-icon>
               </el-button>
-            </div>
+            </div> -->
           </div>
 
           <!-- Messages Area -->

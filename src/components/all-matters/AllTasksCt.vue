@@ -317,6 +317,7 @@ import TasksList from '../single-matter/TasksList.vue';
 import TaskBoardCt from '../single-matter/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   name: 'AllTasksCt',
@@ -385,19 +386,7 @@ export default {
     }
   },
   methods: {
-    async updateMatterActivity(matterId) {
-      try {
-        await supabase
-          .from('matters')
-          .update({ 
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('id', matterId);
-      } catch (error) {
-        console.error('Error updating matter activity:', error);
-        // Don't throw error to avoid breaking the main functionality
-      }
-    },
+
 
     async loadTasksWithCache() {
       try {
@@ -702,7 +691,7 @@ export default {
         }
 
         // Update matter activity
-        await this.updateMatterActivity(task.matter_id);
+        await updateMatterActivity(task.matter_id);
 
         // Update the task in the local state
         this.tasks = this.tasks.map(t => 
@@ -1054,7 +1043,7 @@ export default {
         await this.taskStore.updateTask(updatedTask);
         
         // Update matter activity
-        await this.updateMatterActivity(updatedTask.matter_id);
+        await updateMatterActivity(updatedTask.matter_id);
         
         // Clear cache and reload tasks
         await this.loadTasksWithCache();

@@ -1,10 +1,11 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check, ArrowLeft } from '@element-plus/icons-vue'
-import { supabase } from '../../supabase'
-import { ElMessage } from 'element-plus'
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check, ArrowLeft } from '@element-plus/icons-vue';
+import { supabase } from '../../supabase';
+import { ElMessage } from 'element-plus';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   name: 'TasksList',
@@ -214,19 +215,6 @@ export default {
     }
   },
   methods: {
-    async updateMatterActivity(matterId) {
-      try {
-        await supabase
-          .from('matters')
-          .update({ 
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('id', matterId);
-      } catch (error) {
-        console.error('Error updating matter activity:', error);
-        // Don't throw error to avoid breaking the main functionality
-      }
-    },
     clearFilters() {
       this.$emit('update:filters', {
         search: '',
@@ -346,7 +334,7 @@ export default {
         }
         
         // Update matter activity
-        await this.updateMatterActivity(task.matter_id);
+        await updateMatterActivity(task.matter_id);
         
         // Emit an event to notify the parent component
         this.$emit('star-toggled', task.id, !task.starred);

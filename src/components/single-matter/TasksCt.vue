@@ -5,15 +5,15 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
-import TasksList from './TasksList.vue'
-import { ArrowDown, Close, Folder, Loading, Check } from '@element-plus/icons-vue'
-import QuickActionDrawer from '../common/QuickActionDrawer.vue'
-import TiptapEditor from '../common/TiptapEditor.vue'
-import TaskBoardCt from './TaskBoardCt.vue'
-
+import TasksList from './TasksList.vue';
+import { ArrowDown, Close, Folder, Loading, Check } from '@element-plus/icons-vue';
+import QuickActionDrawer from '../common/QuickActionDrawer.vue';
+import TiptapEditor from '../common/TiptapEditor.vue';
+import TaskBoardCt from './TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { ref } from 'vue';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   setup() {
@@ -152,20 +152,7 @@ export default {
     },
   },
   methods: {
-    // Add helper method at the beginning of methods
-    async updateMatterActivity() {
-      try {
-        await supabase
-          .from('matters')
-          .update({ 
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('id', this.currentMatter.id);
-      } catch (error) {
-        console.error('Error updating matter activity:', error);
-        // Don't throw error to avoid breaking the main functionality
-      }
-    },
+
     async loadSharedUsers() {
       try {
         const { data: shares, error } = await supabase
@@ -468,7 +455,7 @@ export default {
         this.tasks = this.organizeTasksHierarchy(updatedTasks);
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         this.dialogVisible = false;
         this.resetForm();
@@ -689,7 +676,7 @@ export default {
         }
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         this.editDialogVisible = false;
         this.editingTask = null;
@@ -771,7 +758,7 @@ export default {
         await this.loadTasks(this.filters.showDeleted);
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Task deleted successfully');
       } catch (error) {
@@ -803,7 +790,7 @@ export default {
         await this.loadTasks(this.filters.showDeleted);
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Task restored successfully');
       } catch (error) {
@@ -1373,7 +1360,7 @@ export default {
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Task title updated successfully');
       } catch (error) {

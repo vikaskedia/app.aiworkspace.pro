@@ -1066,6 +1066,7 @@ import { ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   components: {
@@ -1228,21 +1229,7 @@ export default {
     }
     document.title = 'TaskManager';
   },
-  methods: { 
-    // Add this helper method at the beginning of methods
-    async updateMatterActivity() {
-      try {
-        await supabase
-          .from('matters')
-          .update({ 
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('id', this.currentMatter.id);
-      } catch (error) {
-        console.error('Error updating matter activity:', error);
-        // Don't throw error to avoid breaking the main functionality
-      }
-    },
+  methods: {
 
     async handleDueDateChange(date) {
     try {
@@ -1259,7 +1246,7 @@ export default {
       this.task.due_date = date;
       
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
       
       ElMessage.success('Due date updated successfully');
     } catch (error) {
@@ -1284,7 +1271,7 @@ export default {
       this.tempDueDate = null;
       
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
       
       ElMessage.success('Due date cleared successfully');
     } catch (error) {
@@ -1325,7 +1312,7 @@ export default {
       this.task.description = this.editingDescription;
       
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
       
       ElMessage.success('Task description updated successfully');
       this.isEditingDescription = false;
@@ -1374,7 +1361,7 @@ export default {
       this.task.title = this.editingTitle;
       
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
       
       ElMessage.success('Task title updated successfully');
       this.isEditingTitle = false;
@@ -1428,7 +1415,7 @@ export default {
       this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
       
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
       
       ElMessage.success('Assignee updated successfully');
       
@@ -1529,7 +1516,7 @@ export default {
           });
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Task status updated successfully');
         
@@ -1555,7 +1542,7 @@ export default {
         this.task.priority = priority;
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Task priority updated successfully');
         
@@ -1598,7 +1585,7 @@ export default {
       }
 
       // Update matter activity
-      await this.updateMatterActivity();
+      await updateMatterActivity(this.currentMatter.id);
 
       ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
     } catch (error) {
@@ -1735,7 +1722,7 @@ export default {
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         this.newComment = '';
         await this.loadComments();
@@ -2336,7 +2323,7 @@ export default {
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         this.cancelEditing();
         ElMessage.success('Comment updated successfully');
@@ -2626,7 +2613,7 @@ export default {
         if (error) throw error;
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
@@ -2718,7 +2705,7 @@ export default {
           });
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success(activityMessage);
       } catch (error) {
@@ -2759,7 +2746,7 @@ export default {
         comment.archived = newArchivedState;
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success(`Comment ${newArchivedState ? 'archived' : 'unarchived'} successfully`);
         
@@ -2974,7 +2961,7 @@ ${comment.content}
         });
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         // Reset form
         this.resetChildTaskForm();
@@ -3059,7 +3046,7 @@ ${comment.content}
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Child task status updated successfully');
         
@@ -3130,7 +3117,7 @@ ${comment.content}
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Child task priority updated successfully');
         

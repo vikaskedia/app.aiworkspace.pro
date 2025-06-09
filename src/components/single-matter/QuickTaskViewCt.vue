@@ -5,7 +5,8 @@ import { FullScreen, Close, Folder, Document, Edit, Star, StarFilled, ArrowDown,
 import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
-import TiptapEditor from '../common/TiptapEditor.vue'
+import TiptapEditor from '../common/TiptapEditor.vue';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   components: {
@@ -171,19 +172,7 @@ export default {
     }
   },
   methods: {
-    async updateMatterActivity() {
-      try {
-        await supabase
-          .from('matters')
-          .update({ 
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('id', this.task.matter_id);
-      } catch (error) {
-        console.error('Error updating matter activity:', error);
-        // Don't throw error to avoid breaking the main functionality
-      }
-    },
+
     formatCommentContent(text) {
       if (!text) return '';
       
@@ -307,7 +296,7 @@ export default {
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         this.newComment = '';
         await this.loadComments();
@@ -1156,7 +1145,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.task.title = this.editingTitle;
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         this.isEditingTitle = false;
         ElMessage.success('Task title updated successfully');
@@ -1201,7 +1190,7 @@ Please provide assistance based on this context, the comment history, the availa
         }
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         // Emit update event
         this.$emit('update:task', this.task);
@@ -1230,7 +1219,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('status-updated', { taskId: this.task.id, status })
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Status updated successfully')
       } catch (error) {
@@ -1271,7 +1260,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('priority-updated', { taskId: this.task.id, priority })
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Priority updated successfully')
       } catch (error) {
@@ -1319,7 +1308,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {
@@ -1350,7 +1339,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('update:task', { ...this.task, ...data });
         
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
         
         this.isEditingDescription = false;
         ElMessage.success('Description updated successfully');
@@ -1415,7 +1404,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
 
         // Update matter activity
-        await this.updateMatterActivity();
+        await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Assignee updated successfully');
       } catch (error) {

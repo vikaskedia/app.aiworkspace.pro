@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia';
 import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
 import goalsAiTaskResponce from '../../../public/goals-ai-task-responce.json';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   components: { 
@@ -154,6 +155,9 @@ export default {
         
         // Update local state
         this.goals.unshift(data);
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -343,6 +347,9 @@ export default {
         // Close the specific goal's popover
         goal.statusPopoverVisible = false;
         
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Goal status updated successfully');
       } catch (error) {
         ElMessage.error('Error updating goal status: ' + error.message);
@@ -378,6 +385,10 @@ export default {
         
         goal.title = goal.editingTitle;
         goal.isEditingTitle = false;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Goal title updated successfully');
       } catch (error) {
         ElMessage.error('Error updating goal title: ' + error.message);
@@ -395,6 +406,10 @@ export default {
           .eq('id', goal.id);
 
         if (error) throw error;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Progress updated successfully');
       } catch (error) {
         ElMessage.error('Error updating progress: ' + error.message);
@@ -427,6 +442,10 @@ export default {
         
         goal.description = goal.editingDescription;
         goal.isEditingDescription = false;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Goal description updated successfully');
       } catch (error) {
         ElMessage.error('Error updating goal description: ' + error.message);
@@ -467,6 +486,10 @@ export default {
 
         goal.priority = newPriority;
         goal.priorityPopoverVisible = false;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Goal priority updated successfully');
       } catch (error) {
         ElMessage.error('Error updating goal priority: ' + error.message);
@@ -491,6 +514,10 @@ export default {
 
         goal.due_date = goal.tempDueDate;
         goal.dueDatePopoverVisible = false;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Due date updated successfully');
       } catch (error) {
         ElMessage.error('Error updating due date: ' + error.message);

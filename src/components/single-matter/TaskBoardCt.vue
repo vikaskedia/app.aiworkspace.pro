@@ -908,7 +908,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         // Update matter activity
         const matterId = updatedTask.matter_id || this.currentMatter?.id;
         if (matterId) {
-          await this.updateMatterActivity(matterId);
+          await updateMatterActivity(matterId);
         }
         
         // Update the task in selectedTask
@@ -932,7 +932,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           // Update matter activity
           const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
           if (matterId) {
-            await this.updateMatterActivity(matterId);
+            await updateMatterActivity(matterId);
           }
         }
       },
@@ -946,7 +946,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           // Update matter activity
           const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
           if (matterId) {
-            await this.updateMatterActivity(matterId);
+            await updateMatterActivity(matterId);
           }
         }
       },

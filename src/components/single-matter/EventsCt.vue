@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
 import ICAL from 'ical.js';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   setup() {
@@ -99,6 +100,10 @@ export default {
         if (error) throw error;
         
         this.events.push(data[0]);
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         this.dialogVisible = false;
         this.resetForm();
         ElMessage.success('Event created successfully');
@@ -135,6 +140,10 @@ export default {
         if (error) throw error;
 
         this.events = this.events.filter(e => e.id !== event.id);
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
         ElMessage.success('Event archived successfully');
       } catch (error) {
         ElMessage.error('Error archiving event: ' + error.message);
@@ -252,6 +261,9 @@ export default {
           
           // Refresh the events list to show newly synced events
           await this.loadEvents();
+          
+          // Update matter activity
+          await updateMatterActivity(this.currentMatter.id);
           
           ElMessage.success(`Successfully synced ${newEventsToInsert.length} new events from Google Calendar`);
         } else {

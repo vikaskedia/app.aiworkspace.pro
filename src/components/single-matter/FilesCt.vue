@@ -11,6 +11,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import FilePreviewPane from './FilePreviewPane.vue';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 const route = useRoute();
 const matterStore = useMatterStore();
@@ -285,6 +286,10 @@ async function handleFileUpload(file) {
     uploadDialogVisible.value = false;
     fileList.value = [];
     selectedTags.value = [];
+    
+    // Update matter activity
+    await updateMatterActivity(currentMatter.value.id);
+    
     ElMessage.success('File uploaded successfully');
 
   } catch (error) {
@@ -321,6 +326,10 @@ async function deleteFile(file) {
 
     // Remove from local state
     files.value = files.value.filter(f => f.id !== file.id);
+    
+    // Update matter activity
+    await updateMatterActivity(currentMatter.value.id);
+    
     ElMessage.success('File deleted successfully');
 
   } catch (error) {
@@ -457,6 +466,10 @@ async function createFolder() {
     folders.value.push(newFolder);
     newFolderDialogVisible.value = false;
     newFolderName.value = '';
+    
+    // Update matter activity
+    await updateMatterActivity(currentMatter.value.id);
+    
     ElMessage.success('Folder created successfully');
   } catch (error) {
     ElMessage.error('Error creating folder: ' + error.message);

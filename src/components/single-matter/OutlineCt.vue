@@ -90,6 +90,7 @@ import { ElNotification } from 'element-plus';
 import { Clock } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   name: 'OutlineCt',
@@ -327,6 +328,9 @@ export default {
         // Update last saved content and reset changes flag
         lastSavedContent.value = JSON.parse(JSON.stringify(outline.value));
         hasChanges.value = false;
+
+        // Update matter activity
+        await updateMatterActivity(matterId);
 
         // Show success notification
         ElNotification({

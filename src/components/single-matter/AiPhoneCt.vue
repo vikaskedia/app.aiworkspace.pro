@@ -404,7 +404,7 @@ export default {
         const selectedPhone = this.getSelectedPhoneNumber();
         if (selectedPhone) {
           filtered = filtered.filter(conv => 
-            conv.phoneNumber === selectedPhone.number
+            conv.fromPhoneNumber === selectedPhone.number
           );
         }
       }

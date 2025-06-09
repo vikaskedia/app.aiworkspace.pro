@@ -214,6 +214,19 @@ export default {
     }
   },
   methods: {
+    async updateMatterActivity(matterId) {
+      try {
+        await supabase
+          .from('matters')
+          .update({ 
+            last_activity_at: new Date().toISOString()
+          })
+          .eq('id', matterId);
+      } catch (error) {
+        console.error('Error updating matter activity:', error);
+        // Don't throw error to avoid breaking the main functionality
+      }
+    },
     clearFilters() {
       this.$emit('update:filters', {
         search: '',
@@ -331,6 +344,9 @@ export default {
 
           if (error) throw error;
         }
+        
+        // Update matter activity
+        await this.updateMatterActivity(task.matter_id);
         
         // Emit an event to notify the parent component
         this.$emit('star-toggled', task.id, !task.starred);

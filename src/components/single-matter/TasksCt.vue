@@ -152,6 +152,20 @@ export default {
     },
   },
   methods: {
+    // Add helper method at the beginning of methods
+    async updateMatterActivity() {
+      try {
+        await supabase
+          .from('matters')
+          .update({ 
+            last_activity_at: new Date().toISOString()
+          })
+          .eq('id', this.currentMatter.id);
+      } catch (error) {
+        console.error('Error updating matter activity:', error);
+        // Don't throw error to avoid breaking the main functionality
+      }
+    },
     async loadSharedUsers() {
       try {
         const { data: shares, error } = await supabase
@@ -453,6 +467,9 @@ export default {
         // Update UI
         this.tasks = this.organizeTasksHierarchy(updatedTasks);
         
+        // Update matter activity
+        await this.updateMatterActivity();
+
         this.dialogVisible = false;
         this.resetForm();
         ElMessage.success('Task created successfully');
@@ -671,6 +688,9 @@ export default {
             });
         }
         
+        // Update matter activity
+        await this.updateMatterActivity();
+        
         this.editDialogVisible = false;
         this.editingTask = null;
         ElMessage.success('Task updated successfully');
@@ -750,6 +770,9 @@ export default {
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         ElMessage.success('Task deleted successfully');
       } catch (error) {
         ElMessage.error('Error deleting task: ' + error.message);
@@ -778,6 +801,9 @@ export default {
         
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
+        
+        // Update matter activity
+        await this.updateMatterActivity();
         
         ElMessage.success('Task restored successfully');
       } catch (error) {
@@ -1345,6 +1371,9 @@ export default {
               }
             });
         }
+
+        // Update matter activity
+        await this.updateMatterActivity();
 
         ElMessage.success('Task title updated successfully');
       } catch (error) {

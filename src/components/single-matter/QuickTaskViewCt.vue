@@ -171,6 +171,19 @@ export default {
     }
   },
   methods: {
+    async updateMatterActivity() {
+      try {
+        await supabase
+          .from('matters')
+          .update({ 
+            last_activity_at: new Date().toISOString()
+          })
+          .eq('id', this.task.matter_id);
+      } catch (error) {
+        console.error('Error updating matter activity:', error);
+        // Don't throw error to avoid breaking the main functionality
+      }
+    },
     formatCommentContent(text) {
       if (!text) return '';
       
@@ -292,6 +305,9 @@ export default {
             );
           }
         }
+
+        // Update matter activity
+        await this.updateMatterActivity();
 
         this.newComment = '';
         await this.loadComments();
@@ -1139,6 +1155,9 @@ Please provide assistance based on this context, the comment history, the availa
         // Update local task title
         this.task.title = this.editingTitle;
         
+        // Update matter activity
+        await this.updateMatterActivity();
+        
         this.isEditingTitle = false;
         ElMessage.success('Task title updated successfully');
       } catch (error) {
@@ -1181,6 +1200,9 @@ Please provide assistance based on this context, the comment history, the availa
           this.task.task_stars = [...(this.task.task_stars || []), data[0]];
         }
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         // Emit update event
         this.$emit('update:task', this.task);
         ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
@@ -1206,6 +1228,9 @@ Please provide assistance based on this context, the comment history, the availa
         
         // Emit events to update parent components
         this.$emit('status-updated', { taskId: this.task.id, status })
+        
+        // Update matter activity
+        await this.updateMatterActivity();
         
         ElMessage.success('Status updated successfully')
       } catch (error) {
@@ -1244,6 +1269,9 @@ Please provide assistance based on this context, the comment history, the availa
         
         // Emit events to update parent components
         this.$emit('priority-updated', { taskId: this.task.id, priority })
+        
+        // Update matter activity
+        await this.updateMatterActivity();
         
         ElMessage.success('Priority updated successfully')
       } catch (error) {
@@ -1290,6 +1318,9 @@ Please provide assistance based on this context, the comment history, the availa
           due_date: this.tempDueDate
         });
         
+        // Update matter activity
+        await this.updateMatterActivity();
+        
         ElMessage.success('Due date updated successfully');
       } catch (error) {
         ElMessage.error('Error updating due date: ' + error.message);
@@ -1317,6 +1348,9 @@ Please provide assistance based on this context, the comment history, the availa
 
         // Update local task data
         this.$emit('update:task', { ...this.task, ...data });
+        
+        // Update matter activity
+        await this.updateMatterActivity();
         
         this.isEditingDescription = false;
         ElMessage.success('Description updated successfully');
@@ -1379,6 +1413,9 @@ Please provide assistance based on this context, the comment history, the availa
           value: userId,
           requiresReorder: true
         });
+
+        // Update matter activity
+        await this.updateMatterActivity();
 
         ElMessage.success('Assignee updated successfully');
       } catch (error) {

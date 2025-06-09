@@ -1229,6 +1229,21 @@ export default {
     document.title = 'TaskManager';
   },
   methods: { 
+    // Add this helper method at the beginning of methods
+    async updateMatterActivity() {
+      try {
+        await supabase
+          .from('matters')
+          .update({ 
+            last_activity_at: new Date().toISOString()
+          })
+          .eq('id', this.currentMatter.id);
+      } catch (error) {
+        console.error('Error updating matter activity:', error);
+        // Don't throw error to avoid breaking the main functionality
+      }
+    },
+
     async handleDueDateChange(date) {
     try {
       const { error } = await supabase
@@ -1242,6 +1257,10 @@ export default {
       if (error) throw error;
       this.tempDueDate = date;
       this.task.due_date = date;
+      
+      // Update matter activity
+      await this.updateMatterActivity();
+      
       ElMessage.success('Due date updated successfully');
     } catch (error) {
       console.error('Error updating due date:', error);
@@ -1263,6 +1282,10 @@ export default {
       if (error) throw error;
       this.task.due_date = null;
       this.tempDueDate = null;
+      
+      // Update matter activity
+      await this.updateMatterActivity();
+      
       ElMessage.success('Due date cleared successfully');
     } catch (error) {
       console.error('Error clearing due date:', error);
@@ -1300,6 +1323,10 @@ export default {
       });
 
       this.task.description = this.editingDescription;
+      
+      // Update matter activity
+      await this.updateMatterActivity();
+      
       ElMessage.success('Task description updated successfully');
       this.isEditingDescription = false;
     } catch (error) {
@@ -1345,6 +1372,10 @@ export default {
       });
 
       this.task.title = this.editingTitle;
+      
+      // Update matter activity
+      await this.updateMatterActivity();
+      
       ElMessage.success('Task title updated successfully');
       this.isEditingTitle = false;
     } catch (error) {
@@ -1395,6 +1426,9 @@ export default {
 
       this.task.assignee = userId;
       this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
+      
+      // Update matter activity
+      await this.updateMatterActivity();
       
       ElMessage.success('Assignee updated successfully');
       
@@ -1494,6 +1528,9 @@ export default {
             }
           });
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         ElMessage.success('Task status updated successfully');
         
         // Close the popover using the ref
@@ -1516,6 +1553,10 @@ export default {
 
         // Update local task priority
         this.task.priority = priority;
+        
+        // Update matter activity
+        await this.updateMatterActivity();
+        
         ElMessage.success('Task priority updated successfully');
         
         // Close the popover using the ref
@@ -1555,6 +1596,9 @@ export default {
         if (error) throw error;
         this.task.task_stars = [...(this.task.task_stars || []), data[0]];
       }
+
+      // Update matter activity
+      await this.updateMatterActivity();
 
       ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
     } catch (error) {
@@ -1689,6 +1733,9 @@ export default {
             });
           }
         }
+
+        // Update matter activity
+        await this.updateMatterActivity();
 
         this.newComment = '';
         await this.loadComments();
@@ -2288,6 +2335,9 @@ export default {
           };
         }
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         this.cancelEditing();
         ElMessage.success('Comment updated successfully');
       } catch (error) {
@@ -2575,6 +2625,9 @@ export default {
 
         if (error) throw error;
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
         await this.loadHoursLogs();
@@ -2664,6 +2717,9 @@ export default {
             }
           });
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         ElMessage.success(activityMessage);
       } catch (error) {
         console.error('Error updating parent task:', error);
@@ -2701,6 +2757,10 @@ export default {
 
         // Update local comment
         comment.archived = newArchivedState;
+        
+        // Update matter activity
+        await this.updateMatterActivity();
+        
         ElMessage.success(`Comment ${newArchivedState ? 'archived' : 'unarchived'} successfully`);
         
         await this.loadComments();
@@ -2913,6 +2973,9 @@ ${comment.content}
           message: `Child task created under "${this.task.title}"\n\nChild Task: "${this.newChildTask.title}"\nCreated by: ${user.email}`
         });
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         // Reset form
         this.resetChildTaskForm();
         this.createChildTaskDialogVisible = false;
@@ -2995,6 +3058,9 @@ ${comment.content}
           // Continue without failing the status update
         }
 
+        // Update matter activity
+        await this.updateMatterActivity();
+
         ElMessage.success('Child task status updated successfully');
         
         // Close the popover
@@ -3062,6 +3128,9 @@ ${comment.content}
           console.warn('Telegram notification failed:', telegramError.message);
           // Continue without failing the priority update
         }
+
+        // Update matter activity
+        await this.updateMatterActivity();
 
         ElMessage.success('Child task priority updated successfully');
         

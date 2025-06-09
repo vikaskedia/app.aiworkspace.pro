@@ -355,6 +355,20 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     },
   
     methods: {
+      async updateMatterActivity(matterId) {
+        try {
+          await supabase
+            .from('matters')
+            .update({ 
+              last_activity_at: new Date().toISOString()
+            })
+            .eq('id', matterId);
+        } catch (error) {
+          console.error('Error updating matter activity:', error);
+          // Don't throw error to avoid breaking the main functionality
+        }
+      },
+
       initializeColumns() {
         let columns = [];
         
@@ -891,6 +905,12 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       },
 
       async handleTaskUpdate(updatedTask) {
+        // Update matter activity
+        const matterId = updatedTask.matter_id || this.currentMatter?.id;
+        if (matterId) {
+          await this.updateMatterActivity(matterId);
+        }
+        
         // Update the task in selectedTask
         this.selectedTask = updatedTask;
         
@@ -908,6 +928,12 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         const taskIndex = this.tasks.findIndex(t => t.id === taskId);
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
+          
+          // Update matter activity
+          const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
+          if (matterId) {
+            await this.updateMatterActivity(matterId);
+          }
         }
       },
 
@@ -916,6 +942,12 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         const taskIndex = this.tasks.findIndex(t => t.id === taskId);
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
+          
+          // Update matter activity
+          const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
+          if (matterId) {
+            await this.updateMatterActivity(matterId);
+          }
         }
       },
 

@@ -476,18 +476,20 @@ export default {
     },
     
     formatTime(date) {
+      // Convert to Date object if it's a string
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
       const now = new Date();
-      const diffTime = Math.abs(now - date);
+      const diffTime = Math.abs(now - dateObj);
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
       if (diffDays === 0) {
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       } else if (diffDays === 1) {
         return 'Yesterday';
       } else if (diffDays < 7) {
-        return date.toLocaleDateString([], { weekday: 'short' });
+        return dateObj.toLocaleDateString([], { weekday: 'short' });
       } else {
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
       }
     },
     

@@ -468,9 +468,12 @@ export default {
       const convIndex = this.conversations.findIndex(c => c.id === conversation.id);
       if (convIndex !== -1) {
         this.conversations[convIndex].messages = messages;
-        // Mark as read
+        // Mark as read in frontend
         this.conversations[convIndex].unread = 0;
       }
+      
+      // Mark conversation as read in database
+      await this.markConversationAsRead(conversation.id);
     },
     
     getInitials(name) {
@@ -565,6 +568,9 @@ export default {
         }
         
         console.log('Message sent successfully from conversation:', result);
+        
+        // Mark conversation as read when sending a message
+        await this.markConversationAsRead(this.currentChat.id);
         
       } catch (error) {
         console.error('Error sending message:', error);
@@ -751,6 +757,30 @@ export default {
       }
     },
     
+    async markConversationAsRead(conversationId) {
+      try {
+        const response = await fetch('/api/conversations/mark-read', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversationId: conversationId
+          })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          console.error('Failed to mark conversation as read:', result.error);
+        } else {
+          console.log('Conversation marked as read in database');
+        }
+      } catch (error) {
+        console.error('Error marking conversation as read:', error);
+      }
+    },
+
     goToSettings() {
       // Navigate to matter settings page
       this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);

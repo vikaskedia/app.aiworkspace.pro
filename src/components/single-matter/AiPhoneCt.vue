@@ -495,29 +495,90 @@ export default {
       }
     },
     
-    sendMessage() {
+    async sendMessage() {
       if (!this.newMessage.trim() || !this.currentChat) return;
       
-      const newMsg = {
-        id: Date.now(),
-        text: this.newMessage,
-        direction: 'outbound',
-        timestamp: new Date()
-      };
+      const messageText = this.newMessage;
+      this.newMessage = ''; // Clear input immediately for better UX
       
-      this.currentChat.messages.push(newMsg);
-      this.currentChat.lastMessage = this.newMessage;
-      this.currentChat.lastMessageTime = new Date();
-      
-      this.newMessage = '';
-      
-      // Scroll to bottom
-      this.$nextTick(() => {
-        const container = this.$refs.messagesContainer;
-        if (container) {
-          container.scrollTop = container.scrollHeight;
+      try {
+        // Get the selected phone number for this conversation
+        const fromPhone = this.currentChat.fromPhoneNumber;
+        const toPhone = this.currentChat.phoneNumber;
+        
+        if (!fromPhone || !toPhone) {
+          throw new Error('Missing phone number information');
         }
-      });
+        
+        // Add message to UI immediately (optimistic update)
+        const tempMsg = {
+          id: `temp-${Date.now()}`,
+          text: messageText,
+          direction: 'outbound',
+          timestamp: new Date(),
+          status: 'sending'
+        };
+        
+        this.currentChat.messages.push(tempMsg);
+        this.currentChat.lastMessage = messageText;
+        this.currentChat.lastMessageTime = new Date();
+        
+        // Scroll to bottom
+        this.$nextTick(() => {
+          const container = this.$refs.messagesContainer;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+        
+        // Send via API
+        const response = await fetch('/api/sms/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromPhone,
+            to: toPhone,
+            message: messageText,
+            matter_id: this.currentMatter.id
+          })
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to send message');
+        }
+        
+        // Update the temporary message with real data
+        const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
+        if (msgIndex !== -1) {
+          this.currentChat.messages[msgIndex] = {
+            id: result.message_id,
+            text: messageText,
+            direction: 'outbound',
+            timestamp: new Date(),
+            status: 'sent',
+            telnyxId: result.telnyx_message_id
+          };
+        }
+        
+        console.log('Message sent successfully from conversation:', result);
+        
+      } catch (error) {
+        console.error('Error sending message:', error);
+        this.$message.error(error.message || 'Failed to send message');
+        
+        // Remove the failed message from UI
+        const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
+        if (msgIndex !== -1) {
+          this.currentChat.messages.splice(msgIndex, 1);
+        }
+        
+        // Restore the message text
+        this.newMessage = messageText;
+      }
     },
     
     composeMessage() {
@@ -700,7 +761,7 @@ export default {
 
 <style scoped>
 .ai-phone-interface {
-  height: 100vh;
+  height: 80vh;
   display: flex;
   flex-direction: column;
   background: #f5f5f5;

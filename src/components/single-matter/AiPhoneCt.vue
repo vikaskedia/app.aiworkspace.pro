@@ -657,6 +657,8 @@ export default {
         if (response.ok && result.success) {
           this.conversations = result.conversations || [];
           console.log('Loaded conversations:', this.conversations.length);
+          console.log('Conversation data:', this.conversations);
+          console.log('Filtered conversations:', this.filteredConversations);
         } else {
           console.error('Failed to load conversations:', result.error);
           // Keep the sample data if API fails

@@ -432,14 +432,14 @@ export default {
       return 'Conversations';   
     }
   },
-  mounted() {
+  async mounted() {
     // Auto-select first phone number if available
     if (this.currentMatter?.phone_numbers?.length > 0) {
       this.selectedInboxItem = `phone_${this.currentMatter.phone_numbers[0].id}`;
     }
     
     // Load conversations from database
-    this.loadConversations();
+    await this.loadConversations();
   },
   methods: {
     selectInboxItem(itemId) {
@@ -456,10 +456,19 @@ export default {
       return null;
     },
     
-    selectConversation(conversation) {
+    async selectConversation(conversation) {
       this.selectedConversation = conversation.id;
-      // Mark as read
-      conversation.unread = 0;
+      
+      // Load messages for this conversation
+      const messages = await this.loadMessages(conversation.id);
+      
+      // Update the conversation object with loaded messages
+      const convIndex = this.conversations.findIndex(c => c.id === conversation.id);
+      if (convIndex !== -1) {
+        this.conversations[convIndex].messages = messages;
+        // Mark as read
+        this.conversations[convIndex].unread = 0;
+      }
     },
     
     getInitials(name) {
@@ -611,11 +620,22 @@ export default {
           throw new Error(result.error || 'Failed to send message');
         }
 
+        console.log('Message sent successfully:', result);
         this.closeNewMessageDialog();
         this.$message.success('Message sent successfully!');
         
         // Reload conversations to show the new message
         await this.loadConversations();
+        
+        // If we have a conversation ID, auto-select it
+        if (result.conversation_id) {
+          setTimeout(() => {
+            const conversation = this.conversations.find(c => c.id === result.conversation_id);
+            if (conversation) {
+              this.selectConversation(conversation);
+            }
+          }, 500);
+        }
         
       } catch (error) {
         console.error('Error sending message:', error);
@@ -634,11 +654,16 @@ export default {
         
         if (response.ok && result.success) {
           this.conversations = result.conversations || [];
+          console.log('Loaded conversations:', this.conversations.length);
         } else {
           console.error('Failed to load conversations:', result.error);
+          // Keep the sample data if API fails
+          console.log('Using sample data due to API error');
         }
       } catch (error) {
         console.error('Error loading conversations:', error);
+        // Keep the sample data if API fails
+        console.log('Using sample data due to network error');
       }
     },
 
@@ -656,21 +681,6 @@ export default {
       } catch (error) {
         console.error('Error loading messages:', error);
         return [];
-      }
-    },
-
-    async selectConversation(conversation) {
-      this.selectedConversation = conversation.id;
-      
-      // Load messages for this conversation
-      const messages = await this.loadMessages(conversation.id);
-      
-      // Update the conversation object with loaded messages
-      const convIndex = this.conversations.findIndex(c => c.id === conversation.id);
-      if (convIndex !== -1) {
-        this.conversations[convIndex].messages = messages;
-        // Mark as read
-        this.conversations[convIndex].unread = 0;
       }
     },
     

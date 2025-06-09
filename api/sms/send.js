@@ -125,11 +125,19 @@ export default async function handler(req, res) {
       })
       .eq('id', conversation.id)
 
+    console.log('SMS sent successfully!')
+    console.log('Conversation updated, sending success response')
+    
     return res.status(200).json({
       success: true,
       message_id: messageRecord.id,
       telnyx_message_id: smsResponse.data.id,
-      conversation_id: conversation.id
+      conversation_id: conversation.id,
+      debug: {
+        conversation_id: conversation.id,
+        message_count: 1,
+        matter_id: matter_id
+      }
     })
 
   } catch (error) {

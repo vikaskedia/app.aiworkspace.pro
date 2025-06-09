@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       .from('conversations')
       .select(`
         *,
-        messages!inner(
+        messages(
           id,
           message_body,
           created_at,

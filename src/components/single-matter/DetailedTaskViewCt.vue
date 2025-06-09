@@ -2,13 +2,12 @@
   <div class="single-task-view" v-if="task">
     <div class="task-header">
       <div class="back-button">
-        <el-button 
-          type="primary" 
-          link 
-          @click="$router.push(`/single-matter/${currentMatter?.id}/tasks`)">
+        <router-link 
+          :to="`/single-matter/${currentMatter?.id}/tasks`"
+          class="back-link">
           <el-icon><ArrowLeft /></el-icon>
           Back to Tasks
-        </el-button>
+        </router-link>
       </div>
       <div class="header-actions">
         <el-button 
@@ -819,7 +818,7 @@
                 placeholder="Select recipients"
                 style="width: 100%">
                 <el-option
-                  v-for="user in sharedUsers"
+                  v-for="user in sortedSharedUsers"
                   :key="user.id"
                   :label="user.email"
                   :value="user.email" />
@@ -1021,10 +1020,11 @@
               <el-select
                 v-model="newChildTask.assignee"
                 placeholder="Select assignee"
-                clearable
+                clearable 
+                filterable
               >
                 <el-option
-                  v-for="user in sharedUsers"
+                  v-for="user in sortedSharedUsers"
                   :key="user.id"
                   :label="user.email"
                   :value="user.id"
@@ -3940,6 +3940,29 @@ ${comment.content}
 }
 .single-task-view {
   padding: 20px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.back-link:hover {
+  background-color: var(--el-color-primary-light-9);
+  color: var(--el-color-primary-dark-2);
+}
+
+.back-link:active {
+  transform: translateY(1px);
 }
 
 .task-header {

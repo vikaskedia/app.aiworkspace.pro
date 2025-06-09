@@ -246,6 +246,7 @@ import {
 } from '@element-plus/icons-vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { createClient } from '@supabase/supabase-js';
 
 export default {
   name: 'AiPhoneCt',
@@ -265,7 +266,14 @@ export default {
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    
+    // Initialize Supabase client for realtime
+    const supabase = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
+    
+    return { currentMatter, supabase };
   },
   data() {
     return {
@@ -281,6 +289,10 @@ export default {
         message: ''
       },
       sendingMessage: false,
+      
+      // Realtime subscriptions
+      conversationSubscription: null,
+      messageSubscription: null,
       
       conversations: [
         {
@@ -442,6 +454,18 @@ export default {
     
     // Load conversations from database
     await this.loadConversations();
+    
+    // Setup realtime subscriptions
+    this.setupRealtimeSubscriptions();
+  },
+  beforeUnmount() {
+    // Clean up realtime subscriptions
+    if (this.conversationSubscription) {
+      this.supabase.removeChannel(this.conversationSubscription);
+    }
+    if (this.messageSubscription) {
+      this.supabase.removeChannel(this.messageSubscription);
+    }
   },
   methods: {
     selectInboxItem(itemId) {
@@ -778,6 +802,78 @@ export default {
         }
       } catch (error) {
         console.error('Error marking conversation as read:', error);
+      }
+    },
+
+    setupRealtimeSubscriptions() {
+      if (!this.currentMatter?.id) return;
+      
+      // Subscribe to conversations changes
+      this.conversationSubscription = this.supabase
+        .channel('conversations-changes')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'conversations',
+            filter: `matter_id=eq.${this.currentMatter.id}`
+          }, 
+          (payload) => {
+            console.log('Conversation change:', payload);
+            this.handleConversationChange(payload);
+          }
+        )
+        .subscribe();
+
+      // Subscribe to messages changes
+      this.messageSubscription = this.supabase
+        .channel('messages-changes')
+        .on('postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            console.log('New message:', payload);
+            this.handleNewMessage(payload);
+          }
+        )
+        .subscribe();
+    },
+
+    async handleConversationChange(payload) {
+      // Reload conversations when there are changes
+      await this.loadConversations();
+    },
+
+    async handleNewMessage(payload) {
+      const newMessage = payload.new;
+      
+      // Find the conversation this message belongs to
+      const conversation = this.conversations.find(c => c.id === newMessage.conversation_id);
+      
+      if (conversation) {
+        // If conversation is currently selected, reload its messages
+        if (this.selectedConversation === conversation.id) {
+          const messages = await this.loadMessages(conversation.id);
+          const convIndex = this.conversations.findIndex(c => c.id === conversation.id);
+          if (convIndex !== -1) {
+            this.conversations[convIndex].messages = messages;
+          }
+        }
+        
+        // Update conversation preview and unread count
+        conversation.lastMessage = newMessage.message_body;
+        conversation.lastMessageTime = newMessage.created_at;
+        
+        // Only increment unread if message is inbound and conversation is not selected
+        if (newMessage.direction === 'inbound' && this.selectedConversation !== conversation.id) {
+          conversation.unread = (conversation.unread || 0) + 1;
+        }
+      } else {
+        // New conversation, reload all conversations
+        await this.loadConversations();
       }
     },
 

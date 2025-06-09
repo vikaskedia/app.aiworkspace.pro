@@ -1120,6 +1120,27 @@ export default {
   padding: 1rem;
   overflow-y: auto;
   background: #f9f9f9;
+  max-height: calc(80vh - 200px);
+  min-height: 300px;
+}
+
+/* Custom scrollbar styling */
+.messages-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages-area::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.messages-area::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.messages-area::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .message {

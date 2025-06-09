@@ -69,7 +69,7 @@
             
             <div class="conversation-avatar">
               <div class="avatar-circle">
-                {{ getInitials(conversation.contact) }}
+                <el-icon><User /></el-icon>
               </div>
               <div v-if="conversation.unread" class="unread-indicator"></div>
             </div>
@@ -83,7 +83,7 @@
                 <span class="last-message">{{ conversation.lastMessage }}</span>
                 <span v-if="conversation.unread" class="unread-count">{{ conversation.unread }}</span>
               </div>
-              <div class="phone-number">{{ conversation.phoneNumber }}</div>
+              <!-- <div class="phone-number">{{ conversation.phoneNumber }}</div> -->
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@
           <div class="chat-header">
             <div class="chat-contact-info">
               <div class="contact-avatar">
-                {{ getInitials(currentChat.contact) }}
+                <el-icon><User /></el-icon>
               </div>
               <div>
                 <h4>{{ currentChat.contact }}</h4>
@@ -241,7 +241,8 @@ import {
   Message,
   UserFilled,
   Bell,
-  Check
+  Check,
+  User
 } from '@element-plus/icons-vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
@@ -258,7 +259,8 @@ export default {
     Message,
     UserFilled,
     Bell,
-    Check
+    Check,
+    User
   },
   setup() {
     const matterStore = useMatterStore();
@@ -885,6 +887,10 @@ export default {
   font-size: 1.1rem;
 }
 
+.avatar-circle .el-icon {
+  font-size: 24px;
+}
+
 .unread-indicator {
   position: absolute;
   top: 0;
@@ -996,6 +1002,10 @@ export default {
   align-items: center;
   justify-content: center;
   font-weight: bold;
+}
+
+.contact-avatar .el-icon {
+  font-size: 20px;
 }
 
 .chat-contact-info h4 {

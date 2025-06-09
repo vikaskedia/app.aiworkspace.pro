@@ -12,16 +12,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract matterId from path or query
     const { matterId } = req.query
-    const pathMatterId = req.url?.split('/').pop()
-    const finalMatterId = matterId || pathMatterId
 
-    console.log('Conversations API called with matterId:', finalMatterId)
-    console.log('Request URL:', req.url)
-    console.log('Query params:', req.query)
+    console.log('Conversations API called with matterId:', matterId)
 
-    if (!finalMatterId) {
+    if (!matterId) {
       return res.status(400).json({ error: 'Matter ID is required' })
     }
 
@@ -38,10 +33,12 @@ export default async function handler(req, res) {
           status
         )
       `)
-      .eq('matter_id', finalMatterId)
+      .eq('matter_id', matterId)
       .order('last_message_at', { ascending: false })
 
     if (error) throw error
+
+    console.log('Found conversations:', conversations?.length || 0)
 
     // Transform the data to match frontend format
     const transformedConversations = conversations.map(conv => {

@@ -649,7 +649,7 @@ export default {
       if (!this.currentMatter?.id) return;
       
       try {
-        const response = await fetch(`/api/conversations/${this.currentMatter.id}`);
+        const response = await fetch(`/api/conversations?matterId=${this.currentMatter.id}`);
         const result = await response.json();
         
         if (response.ok && result.success) {

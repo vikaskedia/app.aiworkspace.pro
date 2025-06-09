@@ -242,7 +242,8 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: user.id,
-            content: this.newComment.trim()
+            content: this.newComment.trim(),
+            matter_id: this.task.matter_id
           })
           .select();
 
@@ -311,6 +312,7 @@ export default {
             user_id: null,
             content: response,
             type: 'ai_response',
+            matter_id: this.task.matter_id,
             metadata: {
               is_ai: true,
               ai_name: attorneyName || 'AI Attorney'
@@ -1122,6 +1124,7 @@ Please provide assistance based on this context, the comment history, the availa
             user_id: user.id,
             content: `Updated title from "${this.task.title}" to "${this.editingTitle}"`,
             type: 'activity',
+            matter_id: this.task.matter_id,
             metadata: {
               action: 'update',
               changes: {
@@ -1169,7 +1172,8 @@ Please provide assistance based on this context, the comment history, the availa
             .from('task_stars')
             .insert({
               task_id: this.task.id,
-              user_id: this.currentUser.id
+              user_id: this.currentUser.id,
+              matter_id: this.task.matter_id
             })
             .select();
 

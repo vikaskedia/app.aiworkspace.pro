@@ -438,6 +438,7 @@ export default {
             user_id: user.id,
             content: 'Created this task',
             type: 'activity',
+            matter_id: this.currentMatter.id,
             metadata: {
               action: 'create',
               task_title: data[0].title
@@ -637,6 +638,7 @@ export default {
               user_id: user.id,
               content: `Updated ${changes.join(' and ')}`,
               type: 'activity',
+              matter_id: this.currentMatter.id,
               metadata: {
                 action: 'update',
                 changes: {

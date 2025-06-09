@@ -325,7 +325,8 @@ export default {
             .from('task_stars')
             .insert({
               task_id: task.id,
-              user_id: user.id
+              user_id: user.id,
+              matter_id: task.matter_id
             });
 
           if (error) throw error;

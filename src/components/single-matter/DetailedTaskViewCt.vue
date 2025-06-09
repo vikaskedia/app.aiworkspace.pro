@@ -1482,6 +1482,7 @@ export default {
             user_id: user.id,
             content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(status)}"`,
             type: 'activity',
+            matter_id: this.task.matter_id,
             metadata: {
               action: 'update',
               changes: {
@@ -1546,7 +1547,8 @@ export default {
           .from('task_stars')
           .insert({
             task_id: this.task.id,
-            user_id: this.currentUser.id
+            user_id: this.currentUser.id,
+            matter_id: this.task.matter_id
           })
           .select();
 
@@ -1632,7 +1634,8 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: user.id,
-            content: this.newComment.trim()
+            content: this.newComment.trim(),
+            matter_id: this.task.matter_id
           })
           .select();
 
@@ -1767,6 +1770,7 @@ export default {
             user_id: null,
             content: response.template_content,
             type: 'ai_response',
+            matter_id: this.task.matter_id,
             metadata: {
               is_ai: true,
               ai_name: attorneyName || 'AI Attorney'
@@ -2565,7 +2569,8 @@ export default {
             task_id: this.task.id,
             user_id: user.id,
             time_taken: this.newHoursLog.time_taken,
-            comment: this.newHoursLog.comment
+            comment: this.newHoursLog.comment,
+            matter_id: this.task.matter_id
           });
 
         if (error) throw error;
@@ -2647,6 +2652,7 @@ export default {
             user_id: user.id,
             content: activityMessage,
             type: 'activity',
+            matter_id: this.task.matter_id,
             metadata: {
               action: 'update',
               changes: {
@@ -2879,6 +2885,7 @@ ${comment.content}
             user_id: user.id,
             content: `Created child task: "${this.newChildTask.title}"`,
             type: 'activity',
+            matter_id: this.task.matter_id,
             metadata: {
               action: 'create_child',
               child_task_id: data.id,
@@ -2964,6 +2971,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(newStatus)}"`,
             type: 'activity',
+            matter_id: this.currentMatter.id,
             metadata: {
               action: 'update',
               changes: {
@@ -3031,6 +3039,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated priority from "${this.formatPriority(oldPriority)}" to "${this.formatPriority(newPriority)}"`,
             type: 'activity',
+            matter_id: this.currentMatter.id,
             metadata: {
               action: 'update',
               changes: {

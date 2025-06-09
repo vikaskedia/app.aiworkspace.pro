@@ -71,7 +71,7 @@
               <div class="avatar-circle">
                 <el-icon><User /></el-icon>
               </div>
-              <div v-if="conversation.unread" class="unread-indicator"></div>
+              <!-- <div v-if="conversation.unread" class="unread-indicator"></div> -->
             </div>
             
             <div class="conversation-info">

@@ -11,9 +11,9 @@ const supabase = createClient(
 )
 
 // Gitea configuration (server-side only)
-const GITEA_HOST = process.env.GITEA_HOST
-const GITEA_TOKEN = process.env.GITEA_TOKEN
-const GITEA_USERNAME = process.env.GITEA_USERNAME || 'associateattorney'
+const GITEA_HOST = process.env.VITE_GITEA_HOST
+const GITEA_TOKEN = process.env.VITE_GITEA_TOKEN
+const GITEA_USERNAME = 'associateattorney'
 
 // Supported file types for MMS
 const SUPPORTED_MIME_TYPES = [

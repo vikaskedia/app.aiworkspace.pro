@@ -1079,7 +1079,7 @@ export default {
   width: calc(90% - 50px);
   font-size: 0.95rem;
   font-weight: normal;
-  color: #23272f;
+  color: #2a3135;
   cursor: pointer;
   vertical-align: middle;
   line-height: 1.4;
@@ -1087,7 +1087,7 @@ export default {
 .outline-item > .outline-text {
   font-size: 1rem;
   font-weight: normal;
-  color: #23272f;
+  color: #2a3135;
 }
 .outline-item ul {
   margin-left: 5px;
@@ -1100,7 +1100,7 @@ export default {
   max-width: 90%;
   font-size: 1rem;
   font-weight: normal;
-  color: #23272f;
+  color: #2a3135;
   border: 0px;
   margin: -2px 0px 0px -2px;
   outline: none;
@@ -1302,7 +1302,7 @@ export default {
   margin-left: -6px;
 }
 
-.three-dot-menu:hover {
+.outline-row:hover .three-dot-menu {
   opacity: 1;
 }
 

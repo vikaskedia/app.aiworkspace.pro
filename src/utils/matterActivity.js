@@ -14,13 +14,50 @@ export async function updateMatterActivity(matterId) {
       return;
     }
 
-    await supabase
+    // First check if records already exist for this matter-user combination
+    const { data: existingActivities } = await supabase
       .from('matter_activities')
-      .insert({
-        matter_id: matterId,
-        user_id: user.id,
-        updated_at: new Date().toISOString()
-      });
+      .select('id, updated_at')
+      .eq('matter_id', matterId)
+      .eq('user_id', user.id);
+
+    const timestamp = new Date().toISOString();
+
+    if (existingActivities && existingActivities.length > 0) {
+      // If multiple records exist, delete all duplicates
+      if (existingActivities.length > 1) {
+        await supabase
+          .from('matter_activities')
+          .delete()
+          .eq('matter_id', matterId)
+          .eq('user_id', user.id);
+        
+        // Insert a fresh record
+        await supabase
+          .from('matter_activities')
+          .insert({
+            matter_id: matterId,
+            user_id: user.id,
+            updated_at: timestamp
+          });
+      } else {
+        // Update the single existing record
+        await supabase
+          .from('matter_activities')
+          .update({ updated_at: timestamp })
+          .eq('matter_id', matterId)
+          .eq('user_id', user.id);
+      }
+    } else {
+      // Insert new record
+      await supabase
+        .from('matter_activities')
+        .insert({
+          matter_id: matterId,
+          user_id: user.id,
+          updated_at: timestamp
+        });
+    }
   } catch (error) {
     console.error('Error recording matter activity:', error);
     // Don't throw error to avoid breaking the main functionality

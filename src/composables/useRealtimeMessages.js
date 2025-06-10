@@ -95,23 +95,13 @@ export function useRealtimeMessages(matterId) {
     if (conversationIndex !== -1) {
       const conversation = conversations.value[conversationIndex]
       
-      // Update conversation with latest message info
-      conversation.lastMessage = newMessage.message_body
-      conversation.lastMessageTime = newMessage.created_at || new Date().toISOString()
-      
-      // If it's an inbound message, increment unread count
-      if (newMessage.direction === 'inbound') {
-        conversation.unread = (conversation.unread || 0) + 1
-      }
-      
-      // Move conversation to top
-      const updatedConversation = conversations.value.splice(conversationIndex, 1)[0]
-      conversations.value.unshift(updatedConversation)
-      
       // If conversation has messages loaded, add the new message
       if (conversation.messages && Array.isArray(conversation.messages)) {
         conversation.messages.push(transformMessage(newMessage))
       }
+      
+      // Note: We don't update unread count or move conversation here
+      // because the conversation UPDATE event will handle that with accurate database data
     } else {
       // Message for conversation not in current list - refresh conversations
       console.log('Message for unknown conversation, refreshing...')

@@ -136,7 +136,7 @@
                     
                     <!-- Image -->
                     <img 
-                      v-if="media.mimetype.startsWith('image/')"
+                      v-if="media.mimetype && media.mimetype.startsWith('image/')"
                       :src="media.public_url"
                       :alt="media.filename"
                       class="media-image"
@@ -145,7 +145,7 @@
                     
                     <!-- Video -->
                     <video 
-                      v-else-if="media.mimetype.startsWith('video/')"
+                      v-else-if="media.mimetype && media.mimetype.startsWith('video/')"
                       :src="media.public_url"
                       controls
                       class="media-video"

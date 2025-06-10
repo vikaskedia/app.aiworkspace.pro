@@ -122,15 +122,6 @@
 
           <!-- Messages Area -->
           <div class="messages-area" ref="messagesContainer">
-            <!-- Debug info -->
-            <div style="background: #f0f0f0; padding: 10px; margin: 10px; border-radius: 5px; font-size: 12px;">
-              <strong>Debug:</strong><br>
-              Selected Conversation: {{ selectedConversation }}<br>
-              CurrentChat ID: {{ currentChat?.id }}<br>
-              Messages Length: {{ currentChat?.messages?.length || 0 }}<br>
-              Messages: {{ JSON.stringify(currentChat?.messages || [], null, 2) }}
-            </div>
-            
             <div 
               v-for="message in (currentChat?.messages || [])"
               :key="message.id"
@@ -143,7 +134,7 @@
             
             <!-- Show loading state when no messages -->
             <div v-if="!currentChat?.messages?.length" class="no-messages">
-              <p>No messages yet. CurrentChat: {{ !!currentChat }}</p>
+              <p>No messages yet</p>
             </div>
           </div>
 
@@ -494,15 +485,10 @@ export default {
     },
     
     async selectConversation(conversation) {
-      console.log('📱 Selecting conversation:', conversation.id, conversation);
       this.selectedConversation = conversation.id;
       
       // Load messages for this conversation using real-time composable
-      const messages = await this.loadMessagesForConversation(conversation.id);
-      console.log('💬 Messages returned:', messages.length);
-      
-      // Check if the currentChat now has messages
-      console.log('🔍 CurrentChat after loading:', this.currentChat);
+      await this.loadMessagesForConversation(conversation.id);
       
       // Mark conversation as read using real-time composable
       await this.realtimeMarkAsRead(conversation.id);

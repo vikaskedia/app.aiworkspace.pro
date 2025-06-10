@@ -3,11 +3,12 @@
     <div v-if="breadcrumbPath.length" class="outline-breadcrumbs">
       <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
         <span v-if="idx > 0"> &gt; </span>
-        <span
+        <a
+          :href="matterId ? '/single-matter/' + matterId + '/outlines?focus=' + node.id : '#'"
           class="breadcrumb-link"
-          @click="handleBreadcrumb(node, idx)"
+          @click.prevent="handleBreadcrumb(node, idx)"
           :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"
-        >{{ getBreadcrumbText(node.text) }}</span>
+        >{{ getBreadcrumbText(node.text) }}</a>
       </template>
     </div>
     <div class="outline-header">
@@ -97,7 +98,7 @@ export default {
   components: { OutlinePointsCt, Clock },
   setup() {
     const route = useRoute();
-    const matterId = route.params.matterId;
+    const matterId = computed(() => route.params.matterId);
     const saving = ref(false);
     const outline = ref([]);
     const outlineId = ref(null);
@@ -112,8 +113,8 @@ export default {
     const selectedVersion = ref(null);
 
     // Get localStorage keys for current matter
-    const getLocalStorageKey = () => `outline_${matterId}`;
-    const getVersionKey = () => `outline_version_${matterId}`;
+    const getLocalStorageKey = () => `outline_${matterId.value}`;
+    const getVersionKey = () => `outline_version_${matterId.value}`;
 
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
@@ -181,7 +182,13 @@ export default {
 
     // Load from localStorage or use default
     onMounted(async () => {
-      if (!matterId) return;
+      if (!matterId.value) return;
+
+      // Check for focus query parameter
+      const focusParam = route.query.focus;
+      if (focusParam) {
+        focusedId.value = focusParam;
+      }
 
       // First load from localStorage
       const localStorageKey = getLocalStorageKey();
@@ -211,7 +218,7 @@ export default {
         const { data: outlineData, error: outlineError } = await supabase
           .from('outlines')
           .select('*')
-          .eq('matter_id', matterId)
+          .eq('matter_id', matterId.value)
           .order('version', { ascending: false })
           .limit(1)
           .single();
@@ -255,14 +262,14 @@ export default {
 
     // Watch for changes in outline
     watch(outline, (val) => {
-      if (matterId) {
+      if (matterId.value) {
         localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
         hasChanges.value = checkForChanges(val);
       }
     }, { deep: true });
 
     async function saveOutline() {
-      if (!matterId) {
+      if (!matterId.value) {
         console.error('No matter ID available');
         return;
       }
@@ -297,7 +304,7 @@ export default {
           const { data: newOutline, error: insertError } = await supabase
             .from('outlines')
             .insert([{
-              matter_id: matterId,
+              matter_id: matterId.value,
               title: 'Outline',
               content: outline.value,
               created_by: user.id
@@ -330,7 +337,7 @@ export default {
         hasChanges.value = false;
 
         // Update matter activity
-        await updateMatterActivity(matterId);
+        await updateMatterActivity(matterId.value);
 
         // Show success notification
         ElNotification({
@@ -724,6 +731,7 @@ export default {
     }
 
     return { 
+      matterId,
       outline, 
       saving,
       hasChanges,

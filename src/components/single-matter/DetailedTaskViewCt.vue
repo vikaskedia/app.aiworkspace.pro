@@ -69,6 +69,7 @@
                       type="primary" 
                       @click="saveTitleEdit" 
                       size="small"
+                      :loading="savingTitle"
                       :disabled="!editingTitle.trim() || editingTitle === task?.title"
                     >
                       Save
@@ -127,7 +128,8 @@
                 type="primary" 
                 size="small"
                 @click="createChildTaskDialogVisible = true"
-                class="create-child-btn">
+                class="create-child-btn"
+                :loading="creatingChildTask">
                 <el-icon><Plus /></el-icon>
                 Create Child Task
               </el-button>
@@ -197,6 +199,7 @@
                 v-for="childTask in sortedChildTasks" 
                 :key="childTask.id" 
                 class="child-task-row"
+                :class="{ 'updating': updatingChildTasks.has(childTask.id) }"
               >
                 <div class="column-description">
                   <a 
@@ -268,6 +271,12 @@
             <div v-else class="no-child-tasks">
               <p>No child tasks yet. Create one to get started!</p>
             </div>
+            
+            <!-- Loading message when creating child task -->
+            <div v-if="creatingChildTask" class="creating-child-task-message">
+              <el-icon class="loading-spinner"><Loading /></el-icon>
+              <span>Creating child task...</span>
+            </div>
           </div>
 
 
@@ -313,9 +322,10 @@
                       popper-class="metadata-popover"
                     >
                       <template #reference>
-                        <div class="status-display" :class="statusBackgroundClass">
+                        <div class="status-display" :class="[statusBackgroundClass, { 'updating': updatingStatus }]">
                           <span class="status-text">{{ formatStatus(task?.status) }}</span>
-                          <el-icon class="edit-icon"><Edit /></el-icon>
+                          <el-icon v-if="!updatingStatus" class="edit-icon"><Edit /></el-icon>
+                          <el-icon v-else class="loading-icon"><Loading /></el-icon>
                         </div>
                       </template>
                       <div class="metadata-options">
@@ -352,9 +362,10 @@
                       popper-class="metadata-popover"
                     >
                       <template #reference>
-                        <div class="status-display" :class="priorityBackgroundClass">
+                        <div class="status-display" :class="[priorityBackgroundClass, { 'updating': updatingPriority }]">
                           <span class="status-text">{{ formatPriority(task?.priority) }}</span>
-                          <el-icon class="edit-icon"><Edit /></el-icon>
+                          <el-icon v-if="!updatingPriority" class="edit-icon"><Edit /></el-icon>
+                          <el-icon v-else class="loading-icon"><Loading /></el-icon>
                         </div>
                       </template>
                       <div class="metadata-options">
@@ -426,14 +437,15 @@
                     <span class="status-label">Assigned To</span>
                   </div>
                   <div class="status-content">
-                    <el-select
-                      v-model="task.assignee"
-                      placeholder="Select assignee"
-                      filterable
-                      clearable
-                      @change="handleAssigneeChange"
-                      class="assignee-select"
-                    >
+                                  <el-select
+                v-model="task.assignee"
+                placeholder="Select assignee"
+                filterable
+                clearable
+                @change="handleAssigneeChange"
+                class="assignee-select"
+                :loading="updatingAssignee"
+              >
                       <el-option
                         v-for="user in sortedSharedUsers"
                         :key="user.id"
@@ -445,10 +457,16 @@
                           <span>{{ user.email }}</span>
                         </div>
                       </el-option>
-                    </el-select>
+                                      </el-select>
+                  
+                  <!-- Loading message when updating assignee -->
+                  <div v-if="updatingAssignee" class="updating-assignee-message">
+                    <el-icon class="loading-spinner"><Loading /></el-icon>
+                    <span>Updating assignee...</span>
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
           <div class="description-wrapper">
@@ -481,6 +499,7 @@
                   type="primary" 
                   @click="saveDescriptionEdit" 
                   size="small"
+                  :loading="savingDescription"
                   :disabled="!editingDescription.trim() || editingDescription === task?.description"
                 >
                   Save
@@ -650,6 +669,12 @@
             </el-dropdown>
           </div>
           <div class="comments-list">
+            <!-- Loading indicator for comments -->
+            <div v-if="commentsLoading" class="loading-message">
+              <el-icon class="loading-spinner"><Loading /></el-icon>
+              <span>Loading comments...</span>
+            </div>
+            
             <div 
               v-for="comment in filteredComments" 
               :key="comment.id"
@@ -727,14 +752,15 @@
                     />
                     <div class="comment-edit-actions">
                       <el-button @click="cancelEditing" size="small">Cancel</el-button>
-                      <el-button 
-                        type="primary" 
-                        @click="saveCommentEdit(comment)" 
-                        size="small"
-                        :disabled="!editingCommentText.trim() || editingCommentText === comment.content"
-                      >
-                        Save
-                      </el-button>
+                                          <el-button 
+                      type="primary" 
+                      @click="saveCommentEdit(comment)" 
+                      size="small"
+                      :loading="savingComment"
+                      :disabled="!editingCommentText.trim() || editingCommentText === comment.content"
+                    >
+                      Save
+                    </el-button>
                     </div>
                   </div>
                   <span v-else v-html="formatCommentContent(comment.content)"></span>
@@ -773,13 +799,21 @@
               :isTaskComment="true"
               :enable-typeahead="false"
             />
-            <el-button
-              type="primary"
-              :disabled="!newComment.trim()"
-              @click="addComment"
-              style="margin-top: 10px">
-              Add Comment
-            </el-button>
+            <div class="comment-input-actions">
+              <el-button
+                type="primary"
+                :disabled="!newComment.trim()"
+                :loading="addingComment"
+                @click="addComment">
+                Add Comment
+              </el-button>
+              
+              <!-- Loading message when adding comment -->
+              <div v-if="addingComment" class="adding-comment-message">
+                <el-icon class="loading-spinner"><Loading /></el-icon>
+                <span>Adding comment...</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1055,7 +1089,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -1096,7 +1130,8 @@ export default {
     View,
     CopyDocument,
     Link,
-    Plus
+    Plus,
+    Loading
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1114,6 +1149,10 @@ export default {
     return {
       task: null,
       loading: false,
+      commentsLoading: false,
+      addingComment: false,
+      updatingAssignee: false,
+      savingComment: false,
       comments: [],
       newComment: '',
       userEmails: {},
@@ -1162,14 +1201,18 @@ export default {
       tempDueDate: null,
       isEditingTitle: false,
       editingTitle: '',
+      savingTitle: false,
       isEditingDescription: false,
       editingDescription: '',
+      savingDescription: false,
       showArchivedComments: false,
       showSystemComments: false,
       isEditingStatus: false,
       statusText: '',
       isEditingPriority: false,
       isEditingAssignee: false,
+      updatingStatus: false,
+      updatingPriority: false,
       dueDatePopoverVisible: false,
       statusOptions: [
         { value: 'not_started', label: 'Not started' },
@@ -1201,6 +1244,7 @@ export default {
         status: {},
         priority: {}
       },
+      updatingChildTasks: new Set(),
       sortColumn: 'priority',
       sortDirection: 'desc', // 'asc' or 'desc'
       showCompletedTasks: true
@@ -1291,6 +1335,7 @@ export default {
     }
 
     try {
+      this.savingDescription = true;
       const { error } = await supabase
         .from('tasks')
         .update({ 
@@ -1319,6 +1364,8 @@ export default {
     } catch (error) {
       console.error('Error updating task description:', error);
       ElMessage.error('Failed to update task description');
+    } finally {
+      this.savingDescription = false;
     }
   },
 
@@ -1341,6 +1388,7 @@ export default {
     }
 
     try {
+      this.savingTitle = true;
       const { error } = await supabase
         .from('tasks')
         .update({ 
@@ -1368,6 +1416,8 @@ export default {
     } catch (error) {
       console.error('Error updating task title:', error);
       ElMessage.error('Failed to update task title');
+    } finally {
+      this.savingTitle = false;
     }
   },
 
@@ -1403,7 +1453,7 @@ export default {
   },
     async handleAssigneeChange(userId) {
     try {
-      this.loading = true;
+      this.updatingAssignee = true;
       const { error } = await supabase
         .from('tasks')
         .update({ assignee: userId || null })
@@ -1428,7 +1478,7 @@ export default {
     } catch (error) {
       ElMessage.error('Error updating assignee: ' + error.message);
     } finally {
-      this.loading = false;
+      this.updatingAssignee = false;
     }
   },
     toggleShowMore() {
@@ -1478,6 +1528,7 @@ export default {
     },
     async handleStatusChange(status) {
       try {
+        this.updatingStatus = true;
         const { data: { user } } = await supabase.auth.getUser();
         
         const oldStatus = this.task.status;
@@ -1527,10 +1578,13 @@ export default {
       } catch (error) {
         console.error('Error updating task status:', error);
         ElMessage.error('Failed to update task status');
+      } finally {
+        this.updatingStatus = false;
       }
     },
     async handlePriorityChange(priority) {
       try {
+        this.updatingPriority = true;
         const { error } = await supabase
           .from('tasks')
           .update({ priority })
@@ -1553,6 +1607,8 @@ export default {
 
       } catch (error) {
         ElMessage.error('Error updating task priority: ' + error.message);
+      } finally {
+        this.updatingPriority = false;
       }
     },
     async toggleTaskStar() {
@@ -1592,9 +1648,11 @@ export default {
       ElMessage.error('Error toggling star: ' + error.message);
     }
   },
-    async loadTask(taskId) {
+    async loadTask(taskId, showMainLoading = true) {
       try {
-        this.loading = true;
+        if (showMainLoading) {
+          this.loading = true;
+        }
         const { data: task, error } = await supabase
           .from('tasks')
           .select('*, task_stars(*)')
@@ -1615,12 +1673,14 @@ export default {
       } catch (error) {
         ElMessage.error('Error loading task: ' + error.message);
       } finally {
-        this.loading = false;
+        if (showMainLoading) {
+          this.loading = false;
+        }
       }
     },
     async loadComments() {
       try {
-        this.loading = true;
+        this.commentsLoading = true;
         const { data: comments, error } = await supabase
           .from('task_comments')
           .select('*')
@@ -1649,14 +1709,14 @@ export default {
       } catch (error) {
         ElMessage.error('Error loading comments: ' + error.message);
       } finally {
-        this.loading = false;
+        this.commentsLoading = false;
       }
     },
     async addComment() {
       if (!this.newComment.trim()) return;
 
       try {
-        this.loading = true;
+        this.addingComment = true;
         const { data: { user } } = await supabase.auth.getUser();
 
         // First post the user's comment
@@ -1730,7 +1790,7 @@ export default {
       } catch (error) {
         ElMessage.error('Error adding comment: ' + error.message);
       } finally {
-        this.loading = false;
+        this.addingComment = false;
       }
     },
     async getAIResponse(prompt, customSystemPrompt = null) {
@@ -1903,7 +1963,7 @@ export default {
               
               // If the current task was updated, refresh it
               if (isCurrentTask) {
-                await this.loadTask(this.task.id);
+                await this.loadTask(this.task.id, false);
               }
             } catch (error) {
               console.error('Error handling realtime task update:', error);
@@ -2078,7 +2138,7 @@ export default {
         ElMessage.success('Task updated successfully');
         
         // Reload task to get fresh data
-        await this.loadTask(this.task.id);
+        await this.loadTask(this.task.id, false);
       } catch (error) {
         ElMessage.error('Error updating task: ' + error.message);
       } finally {
@@ -2294,6 +2354,7 @@ export default {
 
     async saveCommentEdit(comment) {
       try {
+        this.savingComment = true;
         const { error } = await supabase
           .from('task_comments')
           .update({ 
@@ -2330,6 +2391,8 @@ export default {
       } catch (error) {
         console.error('Error updating comment:', error);
         ElMessage.error('Failed to update comment');
+      } finally {
+        this.savingComment = false;
       }
     },
 
@@ -2989,6 +3052,7 @@ ${comment.content}
 
     async handleChildTaskStatusChange(childTask, newStatus) {
       try {
+        this.updatingChildTasks.add(childTask.id);
         const { data: { user } } = await supabase.auth.getUser();
         
         const oldStatus = childTask.status;
@@ -3055,11 +3119,14 @@ ${comment.content}
       } catch (error) {
         console.error('Error updating child task status:', error);
         ElMessage.error('Failed to update child task status');
+      } finally {
+        this.updatingChildTasks.delete(childTask.id);
       }
     },
 
     async handleChildTaskPriorityChange(childTask, newPriority) {
       try {
+        this.updatingChildTasks.add(childTask.id);
         const { data: { user } } = await supabase.auth.getUser();
         
         const oldPriority = childTask.priority;
@@ -3126,6 +3193,8 @@ ${comment.content}
       } catch (error) {
         console.error('Error updating child task priority:', error);
         ElMessage.error('Failed to update child task priority');
+      } finally {
+        this.updatingChildTasks.delete(childTask.id);
       }
     },
 
@@ -5124,6 +5193,82 @@ table.editor-table {
 
 .child-task-row:hover {
   background-color: var(--el-fill-color-lighter);
+}
+
+.child-task-row.updating {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.child-task-row.updating::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--el-color-primary);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.status-display.updating {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.loading-icon {
+  font-size: 14px;
+  color: var(--el-color-primary);
+  animation: spin 1s linear infinite;
+}
+
+/* Inline loading messages */
+.loading-message,
+.adding-comment-message,
+.creating-child-task-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: var(--el-fill-color-lighter);
+  border-radius: 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.loading-spinner {
+  font-size: 16px;
+  color: var(--el-color-primary);
+  animation: spin 1s linear infinite;
+}
+
+.comment-input-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.adding-comment-message {
+  align-self: flex-start;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.updating-assignee-message {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .child-task-row > div {

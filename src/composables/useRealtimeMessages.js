@@ -190,21 +190,29 @@ export function useRealtimeMessages(matterId) {
   // Load messages for a specific conversation
   const loadMessagesForConversation = async (conversationId) => {
     try {
+      console.log('🔍 Loading messages for conversation:', conversationId)
       const response = await fetch(`/api/messages/${conversationId}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
-        const messages = result.messages.map(transformMessage)
+        console.log('✅ Messages loaded:', result.messages.length)
+        // The API already transforms messages, so we don't need to transform them again
+        const messages = result.messages
         
         // Update conversation with loaded messages
         const conversation = conversations.value.find(c => c.id === conversationId)
         if (conversation) {
           conversation.messages = messages
+          console.log('💾 Messages attached to conversation:', conversation.messages.length)
+        } else {
+          console.warn('⚠️ Conversation not found for ID:', conversationId)
         }
         
         return messages
+      } else {
+        console.error('❌ API error:', result.error)
+        return []
       }
-      return []
     } catch (error) {
       console.error('Error loading messages:', error)
       return []

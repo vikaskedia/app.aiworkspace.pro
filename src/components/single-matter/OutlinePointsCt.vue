@@ -32,6 +32,42 @@
           <span v-else>&#9660;</span>
         </span>
       </span>
+      <!-- Three-dot menu -->
+      <el-dropdown 
+        v-if="!readonly" 
+        trigger="click" 
+        @command="handleMenuCommand"
+        class="three-dot-menu"
+        @click.stop
+      >
+        <span class="three-dots">
+          <el-icon><MoreFilled /></el-icon>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="add-comment">
+              <el-icon><ChatDotRound /></el-icon>
+              Add Comment
+            </el-dropdown-item>
+            <el-dropdown-item command="create-link">
+              <el-icon><Link /></el-icon>
+              Create Link
+            </el-dropdown-item>
+            <el-dropdown-item command="indent">
+              <el-icon><Right /></el-icon>
+              Indent
+            </el-dropdown-item>
+            <el-dropdown-item command="outdent">
+              <el-icon><Back /></el-icon>
+              Outdent
+            </el-dropdown-item>
+            <el-dropdown-item command="delete" divided>
+              <el-icon><Delete /></el-icon>
+              Delete
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <div 
         class="outline-bullet"
         draggable="true"
@@ -82,7 +118,7 @@
           />
         </div>
         <div class="help-text">
-          <small>💡 Tip: You can select text and press <kbd>Ctrl+K</kbd> (or <kbd>⌘+K</kbd> on Mac) to quickly create links</small>
+          <small>💡 Tip: Use the three-dot menu to quickly create links for any text</small>
         </div>
       </div>
       <template #footer>
@@ -172,7 +208,7 @@
 
 <script>
 import { ref, computed } from 'vue';
-import { Plus, ArrowRight, Delete } from '@element-plus/icons-vue';
+import { Plus, ArrowRight, Delete, MoreFilled, ChatDotRound, Link, Right, Back } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase';
 import { useRoute } from 'vue-router';
@@ -192,7 +228,7 @@ const eventBus = {
 
 export default {
   name: 'OutlinePointsCt',
-  components: { Plus, ArrowRight, Delete },
+  components: { Plus, ArrowRight, Delete, MoreFilled, ChatDotRound, Link, Right, Back },
   props: {
     item: { type: Object, required: true },
     readonly: {
@@ -727,23 +763,37 @@ export default {
     },
     handleLinkShortcut() {
       const textarea = this.$refs.textarea;
-      if (!textarea) return;
       
-      const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-      
-      if (selectedText.trim().length > 0) {
-        this.selectedText = selectedText.trim();
-        this.selectionStart = textarea.selectionStart;
-        this.selectionEnd = textarea.selectionEnd;
-        this.linkDialogVisible = true;
+      if (textarea) {
+        // If in editing mode, use selected text
+        const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
         
-        // Focus on URL input after dialog opens
-        this.$nextTick(() => {
-          if (this.$refs.linkUrlInput) {
-            this.$refs.linkUrlInput.focus();
-          }
-        });
+        if (selectedText.trim().length > 0) {
+          this.selectedText = selectedText.trim();
+          this.selectionStart = textarea.selectionStart;
+          this.selectionEnd = textarea.selectionEnd;
+        } else {
+          // If no text selected, use the entire text
+          this.selectedText = this.item.text || 'Link text';
+          this.selectionStart = 0;
+          this.selectionEnd = (this.item.text || '').length;
+        }
+      } else {
+        // If not in editing mode, start editing first and use entire text
+        this.selectedText = this.item.text || 'Link text';
+        this.selectionStart = 0;
+        this.selectionEnd = (this.item.text || '').length;
+        this.startEdit();
       }
+      
+      this.linkDialogVisible = true;
+      
+      // Focus on URL input after dialog opens
+      this.$nextTick(() => {
+        if (this.$refs.linkUrlInput) {
+          this.$refs.linkUrlInput.focus();
+        }
+      });
     },
     openCommentDialog() {
       this.commentDialogVisible = true;
@@ -877,6 +927,19 @@ export default {
       this.linkUrl = '';
       this.selectionStart = 0;
       this.selectionEnd = 0;
+    },
+    handleMenuCommand(command) {
+      if (command === 'add-comment') {
+        this.openCommentDialog();
+      } else if (command === 'create-link') {
+        this.handleLinkShortcut();
+      } else if (command === 'indent') {
+        this.$emit('indent', { id: this.item.id });
+      } else if (command === 'outdent') {
+        this.$emit('outdent', { id: this.item.id });
+      } else if (command === 'delete') {
+        this.$emit('delete', this.item.id);
+      }
     }
   }
 };
@@ -1192,5 +1255,33 @@ export default {
   font-size: 11px;
   padding: 2px 4px;
   margin: 0 1px;
+}
+
+/* Three-dot menu */
+.three-dot-menu {
+  margin-right: 20px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.three-dot-menu:hover {
+  opacity: 1;
+}
+
+.three-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  color: #666;
+  font-size: 14px;
+}
+
+.three-dots:hover {
+  background-color: #f5f5f5;
+  color: #333;
 }
 </style> 

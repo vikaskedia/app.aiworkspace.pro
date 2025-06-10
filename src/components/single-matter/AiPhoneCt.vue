@@ -134,6 +134,9 @@
                     :key="media.id"
                     class="media-item">
                     
+                    <!-- Debug: Log media object -->
+                    {{ console.log('🖼️ Media object:', media) }}
+                    
                     <!-- Image -->
                     <img 
                       v-if="media.mimetype && media.mimetype.startsWith('image/')"
@@ -737,13 +740,16 @@ export default {
               body: formData
             });
 
-            const uploadResult = await uploadResponse.json();
-            
-            if (!uploadResponse.ok) {
-              throw new Error(uploadResult.error || 'Failed to upload files');
-            }
+                      const uploadResult = await uploadResponse.json();
+          
+          console.log('📤 New message upload response:', uploadResult);
 
-            uploadedFiles = uploadResult.files;
+          if (!uploadResponse.ok) {
+            throw new Error(uploadResult.error || 'Failed to upload files');
+          }
+
+          uploadedFiles = uploadResult.files;
+          console.log('📁 New message uploaded files:', uploadedFiles);
           }
           
           // Add message to UI immediately (optimistic update)
@@ -929,11 +935,14 @@ export default {
 
           const uploadResult = await uploadResponse.json();
           
+          console.log('📤 Upload response:', uploadResult);
+          
           if (!uploadResponse.ok) {
             throw new Error(uploadResult.error || 'Failed to upload files');
           }
 
           uploadedFiles = uploadResult.files;
+          console.log('📁 Uploaded files:', uploadedFiles);
         }
 
         // Convert form phone number to +1XXXXXXXXXX format

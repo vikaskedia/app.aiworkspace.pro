@@ -94,6 +94,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('🔍 Upload API Debug:')
+    console.log('GITEA_HOST:', GITEA_HOST)
+    console.log('GITEA_TOKEN exists:', !!GITEA_TOKEN)
+    
     // Validate Gitea configuration
     validateGiteaConfig();
 
@@ -204,7 +208,7 @@ export default async function handler(req, res) {
         // Create public download URL
         const publicUrl = getAuthenticatedDownloadUrl(giteaData.content.download_url)
 
-        uploadedFiles.push({
+        const fileData = {
           id: uuidv4(),
           filename: file.originalFilename,
           size: file.size,
@@ -213,7 +217,16 @@ export default async function handler(req, res) {
           public_url: publicUrl,
           git_sha: giteaData.content.sha,
           uploaded_at: new Date().toISOString()
+        }
+        
+        console.log('📁 File uploaded:', {
+          filename: fileData.filename,
+          mimetype: fileData.mimetype,
+          size: fileData.size,
+          public_url: fileData.public_url
         })
+        
+        uploadedFiles.push(fileData)
 
         // Clean up temp file
         fs.unlinkSync(file.path)

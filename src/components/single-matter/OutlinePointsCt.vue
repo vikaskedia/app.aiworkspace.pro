@@ -40,7 +40,7 @@
         @dragstart="handleDragStart"
         @dragend="handleDragEnd"
       ></div>
-      <span v-if="!editing && item.text.length > 0" class="outline-text" @click="startEdit">{{ item.text || 'Click to edit...' }}</span>
+      <span v-if="!editing && item.text.length > 0" class="outline-text" @click="handleTextClick" v-html="renderTextWithLinks(item.text)"></span>
       <textarea
         v-else
         ref="textarea"
@@ -52,6 +52,7 @@
         @keydown.down.prevent="handleArrowDown"
         @keydown="handleKeydown"
         @input="autoResize"
+        @mouseup="handleTextSelection"
         class="outline-textarea"
         rows="1"
       ></textarea>
@@ -63,6 +64,32 @@
       class="dropzone"
       :class="{ 'dropzone-active': isDragOver }"
     ></div>
+
+    <!-- Link Creation Dialog -->
+    <el-dialog v-model="linkDialogVisible" title="Create Link" width="400px" @close="resetLinkDialog">
+      <div class="link-creation-form">
+        <div class="form-group">
+          <label>Selected Text:</label>
+          <p class="selected-text">{{ selectedText }}</p>
+        </div>
+        <div class="form-group">
+          <label>Link URL:</label>
+          <el-input 
+            v-model="linkUrl" 
+            placeholder="https://example.com or domain.com" 
+            @keydown.enter="createLink"
+            ref="linkUrlInput"
+          />
+        </div>
+        <div class="help-text">
+          <small>💡 Tip: You can select text and press <kbd>Ctrl+K</kbd> (or <kbd>⌘+K</kbd> on Mac) to quickly create links</small>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="linkDialogVisible = false">Cancel</el-button>
+        <el-button type="primary" @click="createLink" :disabled="!linkUrl.trim()">Create Link</el-button>
+      </template>
+    </el-dialog>
 
     <!-- Comment Dialog -->
     <el-dialog v-model="commentDialogVisible" title="Comments" width="350px" @close="resetCommentDialog">
@@ -189,7 +216,12 @@ export default {
       imagePreviewVisible: false,
       commentDialogVisible: false,
       comments: this.item.comments ? JSON.parse(JSON.stringify(this.item.comments)) : [],
-      newComment: ''
+      newComment: '',
+      linkDialogVisible: false,
+      selectedText: '',
+      linkUrl: '',
+      selectionStart: 0,
+      selectionEnd: 0
     };
   },
   setup() {
@@ -686,6 +718,31 @@ export default {
         e.preventDefault();
         e.stopPropagation();
         this.$emit('indent', { id: this.item.id });
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        // Ctrl+K (or Cmd+K on Mac) to create link
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleLinkShortcut();
+      }
+    },
+    handleLinkShortcut() {
+      const textarea = this.$refs.textarea;
+      if (!textarea) return;
+      
+      const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+      
+      if (selectedText.trim().length > 0) {
+        this.selectedText = selectedText.trim();
+        this.selectionStart = textarea.selectionStart;
+        this.selectionEnd = textarea.selectionEnd;
+        this.linkDialogVisible = true;
+        
+        // Focus on URL input after dialog opens
+        this.$nextTick(() => {
+          if (this.$refs.linkUrlInput) {
+            this.$refs.linkUrlInput.focus();
+          }
+        });
       }
     },
     openCommentDialog() {
@@ -741,6 +798,85 @@ export default {
       this.item.comments = JSON.parse(JSON.stringify(this.comments));
       // Save to localStorage (bubble up to parent)
       this.$emit('update', { id: this.item.id, text: this.item.text, comments: this.item.comments });
+    },
+    renderTextWithLinks(text) {
+      if (!text) return '';
+      
+      // Parse text for links in the format [text](url)
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      
+      return text.replace(linkRegex, (match, linkText, url) => {
+        // Ensure URL has protocol
+        const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="outline-link">${linkText}</a>`;
+      });
+    },
+    handleTextClick(event) {
+      // If the click was on a link, don't start editing
+      if (event.target.tagName === 'A' && event.target.classList.contains('outline-link')) {
+        event.stopPropagation();
+        return;
+      }
+      // Otherwise, start editing
+      this.startEdit();
+    },
+    handleTextSelection() {
+      const textarea = this.$refs.textarea;
+      if (!textarea) return;
+      
+      const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+      
+      if (selectedText.trim().length > 0) {
+        this.selectedText = selectedText.trim();
+        this.selectionStart = textarea.selectionStart;
+        this.selectionEnd = textarea.selectionEnd;
+        
+        // Show context menu or allow Ctrl+K for link creation
+        // For now, we'll show a small floating button or wait for keyboard shortcut
+      }
+    },
+    createLink() {
+      if (!this.linkUrl.trim() || !this.selectedText.trim()) {
+        return;
+      }
+      
+      // Ensure URL has protocol
+      let url = this.linkUrl.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      
+      // Create markdown-style link
+      const linkMarkdown = `[${this.selectedText}](${url})`;
+      
+      // Replace selected text with link markdown
+      const beforeSelection = this.editText.substring(0, this.selectionStart);
+      const afterSelection = this.editText.substring(this.selectionEnd);
+      
+      this.editText = beforeSelection + linkMarkdown + afterSelection;
+      
+      // Update the item text
+      this.$emit('update', { id: this.item.id, text: this.editText });
+      
+      // Close dialog and reset
+      this.linkDialogVisible = false;
+      this.resetLinkDialog();
+      
+      // Focus back on textarea
+      this.$nextTick(() => {
+        if (this.$refs.textarea) {
+          this.$refs.textarea.focus();
+          // Set cursor position after the inserted link
+          const newCursorPos = beforeSelection.length + linkMarkdown.length;
+          this.$refs.textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      });
+    },
+    resetLinkDialog() {
+      this.selectedText = '';
+      this.linkUrl = '';
+      this.selectionStart = 0;
+      this.selectionEnd = 0;
     }
   }
 };
@@ -1000,5 +1136,61 @@ export default {
   border: 1px solid #e0e0e0;
   resize: vertical;
   margin-bottom: 4px;
+}
+
+/* Link Styles */
+.outline-text :deep(.outline-link) {
+  color: #1976d2;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.outline-text :deep(.outline-link:hover) {
+  color: #1565c0;
+  text-decoration: underline;
+}
+
+/* Link Creation Form */
+.link-creation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.link-creation-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link-creation-form label {
+  font-weight: 500;
+  color: #606266;
+  font-size: 14px;
+}
+
+.link-creation-form .selected-text {
+  background: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  font-style: italic;
+  color: #909399;
+  margin: 0;
+}
+
+.help-text {
+  color: #909399;
+  font-size: 12px;
+}
+
+.help-text kbd {
+  background: #f5f5f5;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 2px 4px;
+  margin: 0 1px;
 }
 </style> 

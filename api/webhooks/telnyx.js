@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         await handleMessageSent(eventData)
         break
         
-      case 'message.delivered':
+      case 'message.finalized':
         await handleMessageDelivered(eventData)
         break
         

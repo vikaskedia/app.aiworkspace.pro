@@ -1126,7 +1126,7 @@ import { useMatterStore } from '../../store/matter';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
-import { ElMessage } from 'element-plus';
+import { ElNotification } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
@@ -1322,10 +1322,16 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
       
-      ElMessage.success('Due date updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Due date updated successfully'
+      });
     } catch (error) {
       console.error('Error updating due date:', error);
-      ElMessage.error('Failed to update due date');
+      ElNotification.error({
+        title: 'Error',
+        message: 'Failed to update due date'
+      });
       this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
     }
   },
@@ -1347,10 +1353,16 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
       
-      ElMessage.success('Due date cleared successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Due date cleared successfully'
+      });
     } catch (error) {
       console.error('Error clearing due date:', error);
-      ElMessage.error('Failed to clear due date');
+      ElNotification.error({
+        title: 'Error',
+        message: 'Failed to clear due date'
+      });
     }
   },
     startDescriptionEdit() {
@@ -1389,11 +1401,17 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
       
-      ElMessage.success('Task description updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Task description updated successfully'
+      });
       this.isEditingDescription = false;
     } catch (error) {
       console.error('Error updating task description:', error);
-      ElMessage.error('Failed to update task description');
+      ElNotification.error({
+        title: 'Error',
+        message: 'Failed to update task description'
+      });
     } finally {
       this.savingDescription = false;
     }
@@ -1441,11 +1459,17 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
       
-      ElMessage.success('Task title updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Task title updated successfully'
+      });
       this.isEditingTitle = false;
     } catch (error) {
       console.error('Error updating task title:', error);
-      ElMessage.error('Failed to update task title');
+      ElNotification.error({
+        title: 'Error',
+        message: 'Failed to update task title'
+      });
     } finally {
       this.savingTitle = false;
     }
@@ -1464,11 +1488,17 @@ export default {
 
       if (error) throw error;
 
-      ElMessage.success('Due date updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Due date updated successfully'
+      });
       this.closeDueDatePopover();
     } catch (error) {
       console.error('Error updating due date:', error);
-      ElMessage.error('Failed to update due date');
+      ElNotification.error({
+        title: 'Error',
+        message: 'Failed to update due date'
+      });
     }
   },
 
@@ -1497,7 +1527,10 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
       
-      ElMessage.success('Assignee updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Assignee updated successfully'
+      });
       
       // Call emailNotification with the required parameters
       emailNotification(
@@ -1506,7 +1539,10 @@ export default {
         // this.assigneeEmail
       );
     } catch (error) {
-      ElMessage.error('Error updating assignee: ' + error.message);
+      ElNotification.error({
+        title: 'Error',
+        message: 'Error updating assignee: ' + error.message
+      });
     } finally {
       this.updatingAssignee = false;
     }
@@ -1599,7 +1635,10 @@ export default {
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
 
-        ElMessage.success('Task status updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task status updated successfully'
+        });
         
         // Close the popover using the ref
         if (this.$refs.statusPopover) {
@@ -1607,7 +1646,10 @@ export default {
         }
       } catch (error) {
         console.error('Error updating task status:', error);
-        ElMessage.error('Failed to update task status');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update task status'
+        });
       } finally {
         this.updatingStatus = false;
       }
@@ -1628,7 +1670,10 @@ export default {
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
         
-        ElMessage.success('Task priority updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task priority updated successfully'
+        });
         
         // Close the popover using the ref
         if (this.$refs.priorityPopover) {
@@ -1636,7 +1681,10 @@ export default {
         }
 
       } catch (error) {
-        ElMessage.error('Error updating task priority: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error updating task priority: ' + error.message
+        });
       } finally {
         this.updatingPriority = false;
       }
@@ -1673,9 +1721,15 @@ export default {
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
 
-      ElMessage.success(`Task ${isStarred ? 'unstarred' : 'starred'} successfully`);
+      ElNotification.success({
+        title: 'Success',
+        message: `Task ${isStarred ? 'unstarred' : 'starred'} successfully`
+      });
     } catch (error) {
-      ElMessage.error('Error toggling star: ' + error.message);
+      ElNotification.error({
+        title: 'Error',
+        message: 'Error toggling star: ' + error.message
+      });
     }
   },
     async loadTask(taskId, showMainLoading = true) {
@@ -1701,7 +1755,10 @@ export default {
 
         await this.loadComments();
       } catch (error) {
-        ElMessage.error('Error loading task: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error loading task: ' + error.message
+        });
       } finally {
         if (showMainLoading) {
           this.loading = false;
@@ -1737,7 +1794,10 @@ export default {
           this.showArchivedComments ? true : !comment.archived
         );
       } catch (error) {
-        ElMessage.error('Error loading comments: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error loading comments: ' + error.message
+        });
       } finally {
         this.commentsLoading = false;
       }
@@ -1816,9 +1876,15 @@ export default {
 
         this.newComment = '';
         await this.loadComments();
-        ElMessage.success('Comment added successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Comment added successfully'
+        });
       } catch (error) {
-        ElMessage.error('Error adding comment: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error adding comment: ' + error.message
+        });
       } finally {
         this.addingComment = false;
       }
@@ -1904,7 +1970,10 @@ export default {
         if (error) throw error;
       } catch (error) {
         console.error('Error posting AI response:', error);
-        ElMessage.error('Error posting AI response');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error posting AI response'
+        });
       }
     },
     async createNotification(userId, type, data) {
@@ -2023,7 +2092,10 @@ export default {
 
         this.sharedUsers = sharesWithUserInfo;
       } catch (error) {
-        ElMessage.error('Error loading users: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error loading users: ' + error.message
+        });
       }
     },
     async updateTask() {
@@ -2165,12 +2237,18 @@ export default {
         }
 
         this.editDialogVisible = false;
-        ElMessage.success('Task updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task updated successfully'
+        });
         
         // Reload task to get fresh data
         await this.loadTask(this.task.id, false);
       } catch (error) {
-        ElMessage.error('Error updating task: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error updating task: ' + error.message
+        });
       } finally {
         this.loading = false;
       }
@@ -2200,9 +2278,15 @@ export default {
     async copyLink() {
       try {
         await navigator.clipboard.writeText(this.shareLink);
-        ElMessage.success('Link copied to clipboard');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Link copied to clipboard'
+        });
       } catch (error) {
-        ElMessage.error('Failed to copy link');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to copy link'
+        });
       }
     },
     async shareViaEmail() {
@@ -2230,12 +2314,18 @@ export default {
 
         if (!response.ok) throw new Error('Failed to send email');
 
-        ElMessage.success('Task shared successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task shared successfully'
+        });
         this.shareDialogVisible = false;
         this.emailShare.recipients = [];
         this.emailShare.message = '';
       } catch (error) {
-        ElMessage.error('Error sharing task: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error sharing task: ' + error.message
+        });
       } finally {
         this.sending = false;
       }
@@ -2330,7 +2420,10 @@ export default {
           }));
 
       } catch (error) {
-        ElMessage.error('Error loading files: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error loading files: ' + error.message
+        });
         this.files = [];
         this.folders = [];
       }
@@ -2417,10 +2510,16 @@ export default {
         await updateMatterActivity(this.currentMatter.id);
 
         this.cancelEditing();
-        ElMessage.success('Comment updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Comment updated successfully'
+        });
       } catch (error) {
         console.error('Error updating comment:', error);
-        ElMessage.error('Failed to update comment');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update comment'
+        });
       } finally {
         this.savingComment = false;
       }
@@ -2460,7 +2559,10 @@ export default {
 
         await this.loadFiles();
       } catch (error) {
-        ElMessage.error('Error navigating to folder: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error navigating to folder: ' + error.message
+        });
         this.currentSelectorFolder = null;
         this.selectorBreadcrumbs = [];
       }
@@ -2589,7 +2691,10 @@ export default {
           }
         }
       } catch (error) {
-        ElMessage.error('Error loading hours logs: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error loading hours logs: ' + error.message
+        });
       }
     },
 
@@ -2711,9 +2816,15 @@ export default {
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
         await this.loadHoursLogs();
-        ElMessage.success('Hours logged successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Hours logged successfully'
+        });
       } catch (error) {
-        ElMessage.error('Error logging hours: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error logging hours: ' + error.message
+        });
       }
     },
     
@@ -2800,10 +2911,16 @@ export default {
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
 
-        ElMessage.success(activityMessage);
+        ElNotification.success({
+          title: 'Success',
+          message: activityMessage
+        });
       } catch (error) {
         console.error('Error updating parent task:', error);
-        ElMessage.error('Failed to update parent task');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update parent task'
+        });
       }
     },
     organizeTasksHierarchy(tasks) {
@@ -2841,12 +2958,18 @@ export default {
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
         
-        ElMessage.success(`Comment ${newArchivedState ? 'archived' : 'unarchived'} successfully`);
+        ElNotification.success({
+          title: 'Success',
+          message: `Comment ${newArchivedState ? 'archived' : 'unarchived'} successfully`
+        });
         
         await this.loadComments();
       } catch (error) {
         console.error('Error toggling comment archive:', error);
-        ElMessage.error('Failed to update comment archive status');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update comment archive status'
+        });
       }
     },
     toggleCommentHistory(comment) {
@@ -2889,7 +3012,10 @@ export default {
     saveDueDate() {
       this.task.due_date = this.tempDueDate;
       this.closeDueDatePopover();
-      ElMessage.success('Due date updated successfully');
+      ElNotification.success({
+        title: 'Success',
+        message: 'Due date updated successfully'
+      });
     },
     initializeTempDueDate() {
       this.tempDueDate = this.task?.due_date ? new Date(this.task.due_date) : null;
@@ -2925,10 +3051,16 @@ ${comment.content}
           doc.save(`task-${this.task.id}-response-${comment.id}.pdf`);
         }
 
-        ElMessage.success(`Downloaded response as ${format.toUpperCase()}`);
+        ElNotification.success({
+          title: 'Success',
+          message: `Downloaded response as ${format.toUpperCase()}`
+        });
       } catch (error) {
         console.error('Error downloading response:', error);
-        ElMessage.error('Failed to download response');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to download response'
+        });
       }
     },
     navigateToTask(taskId) {
@@ -3060,10 +3192,16 @@ ${comment.content}
         this.resetChildTaskForm();
         this.createChildTaskDialogVisible = false;
         
-        ElMessage.success('Child task created successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Child task created successfully'
+        });
       } catch (error) {
         console.error('Error creating child task:', error);
-        ElMessage.error('Failed to create child task: ' + error.message);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to create child task: ' + error.message
+        });
       } finally {
         this.creatingChildTask = false;
       }
@@ -3142,13 +3280,19 @@ ${comment.content}
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
 
-        ElMessage.success('Child task status updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Child task status updated successfully'
+        });
         
         // Close the popover
         this.childTaskPopoverVisibility.status[childTask.id] = false;
       } catch (error) {
         console.error('Error updating child task status:', error);
-        ElMessage.error('Failed to update child task status');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update child task status'
+        });
       } finally {
         this.updatingChildTasks.delete(childTask.id);
       }
@@ -3216,13 +3360,19 @@ ${comment.content}
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
 
-        ElMessage.success('Child task priority updated successfully');
+        ElNotification.success({
+          title: 'Success',
+          message: 'Child task priority updated successfully'
+        });
         
         // Close the popover
         this.childTaskPopoverVisibility.priority[childTask.id] = false;
       } catch (error) {
         console.error('Error updating child task priority:', error);
-        ElMessage.error('Failed to update child task priority');
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to update child task priority'
+        });
       } finally {
         this.updatingChildTasks.delete(childTask.id);
       }
@@ -3271,7 +3421,10 @@ ${comment.content}
 
     onShowCompletedChange() {
       this.saveUserSettings();
-      ElMessage.success(`Completed tasks ${this.showCompletedTasks ? 'shown' : 'hidden'}`);
+      ElNotification.success({
+        title: 'Success',
+        message: `Completed tasks ${this.showCompletedTasks ? 'shown' : 'hidden'}`
+      });
     },
 
     async refreshTaskCache() {

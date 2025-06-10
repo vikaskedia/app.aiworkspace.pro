@@ -84,10 +84,14 @@ export default async function handler(req, res) {
       }
 
       try {
-        // Use original filename (like FilesCt.vue does)
-        const filePath = `messages/${name}`;
+        // Add timestamp to prevent conflicts (MMS files often have same names)
+        const timestamp = Date.now();
+        const fileExtension = name.includes('.') ? '.' + name.split('.').pop() : '';
+        const baseName = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
+        const uniqueName = `${baseName}_${timestamp}${fileExtension}`;
+        const filePath = `messages/${uniqueName}`;
 
-        console.log(`⬆️ Uploading ${name}`);
+        console.log(`⬆️ Uploading ${name} as ${uniqueName}`);
 
         // Upload to Gitea (same approach as FilesCt.vue)
         const response = await fetch(

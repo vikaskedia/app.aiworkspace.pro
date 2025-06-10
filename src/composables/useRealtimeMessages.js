@@ -161,7 +161,10 @@ export function useRealtimeMessages(matterId) {
     direction: msg.direction,
     timestamp: msg.created_at || new Date().toISOString(),
     status: msg.status,
-    telnyxId: msg.telnyx_message_id
+    telnyxId: msg.telnyx_message_id,
+    messageType: msg.message_type,
+    mediaFiles: msg.media_files || [],
+    mediaUrls: msg.media_urls || []
   })
 
 

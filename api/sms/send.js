@@ -20,13 +20,21 @@ export default async function handler(req, res) {
   //console.log('Telnyx API Key starts with KEY:', process.env.TELNYX_API_KEY?.startsWith('KEY'))
 
   try {
-    const { from, to, message, matter_id } = req.body
+    const { from, to, message, matter_id, media_files, subject } = req.body
     //console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })
 
     // Validate required fields
-    if (!from || !to || !message || !matter_id) {
+    if (!from || !to || !matter_id) {
       return res.status(400).json({ 
-        error: 'Missing required fields: from, to, message, matter_id' 
+        error: 'Missing required fields: from, to, matter_id' 
+      })
+    }
+
+    // For MMS, either message or media_files is required
+    const isMMSMessage = media_files && media_files.length > 0
+    if (!message && !isMMSMessage) {
+      return res.status(400).json({ 
+        error: 'Either message text or media files are required' 
       })
     }
 
@@ -84,8 +92,12 @@ export default async function handler(req, res) {
         direction: 'outbound',
         from_phone_number: from,
         to_phone_number: to,
-        message_body: message,
-        status: 'pending'
+        message_body: message || '',
+        status: 'pending',
+        message_type: isMMSMessage ? 'MMS' : 'SMS',
+        media_files: media_files || null,
+        media_urls: isMMSMessage ? media_files.map(f => f.public_url) : null,
+        subject: subject || null
       })
       .select()
       .single()
@@ -93,46 +105,63 @@ export default async function handler(req, res) {
     if (msgError) throw msgError
 
     //console.log('Message record created:', messageRecord.id)
-    console.log('Sending SMS via Telnyx...')
+    console.log(`Sending ${isMMSMessage ? 'MMS' : 'SMS'} via Telnyx...`)
     
-    // Send SMS via Telnyx
-    const smsResponse = await telnyxClient.messages.create({
+    // Prepare Telnyx message payload
+    const telnyxPayload = {
       from: from,
       to: to,
-      text: message
-    })
+      text: message || ''
+    }
 
-    console.log('Telnyx response:', smsResponse.data)
+    // Add MMS-specific fields if this is an MMS message
+    if (isMMSMessage) {
+      telnyxPayload.media_urls = media_files.map(f => f.public_url)
+      if (subject) {
+        telnyxPayload.subject = subject
+      }
+    }
+    
+    // Send message via Telnyx
+    const messageResponse = await telnyxClient.messages.create(telnyxPayload)
+
+    console.log('Telnyx response:', messageResponse.data)
 
     // Update message record with Telnyx message ID and sent status
     const { error: updateError } = await supabase
       .from('messages')
       .update({
-        telnyx_message_id: smsResponse.data.id,
+        telnyx_message_id: messageResponse.data.id,
         status: 'sent',
-        webhook_data: smsResponse.data
+        webhook_data: messageResponse.data
       })
       .eq('id', messageRecord.id)
 
     if (updateError) throw updateError
 
     // Update conversation with latest message info
+    const previewText = isMMSMessage && !message ? 
+      `📎 ${media_files.length} attachment(s)` : 
+      (message || '').substring(0, 100)
+      
     await supabase
       .from('conversations')
       .update({
         last_message_at: new Date().toISOString(),
-        last_message_preview: message.substring(0, 100)
+        last_message_preview: previewText
       })
       .eq('id', conversation.id)
 
-    console.log('SMS sent successfully!')
+    console.log(`${isMMSMessage ? 'MMS' : 'SMS'} sent successfully!`)
     console.log('Conversation updated, sending success response')
     
     return res.status(200).json({
       success: true,
       message_id: messageRecord.id,
-      telnyx_message_id: smsResponse.data.id,
+      telnyx_message_id: messageResponse.data.id,
       conversation_id: conversation.id,
+      message_type: isMMSMessage ? 'MMS' : 'SMS',
+      media_count: media_files ? media_files.length : 0,
       debug: {
         conversation_id: conversation.id,
         message_count: 1,

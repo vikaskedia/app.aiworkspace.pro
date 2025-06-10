@@ -34,7 +34,10 @@ export default async function handler(req, res) {
       direction: msg.direction,
       timestamp: new Date(msg.created_at),
       status: msg.status,
-      telnyxId: msg.telnyx_message_id
+      telnyxId: msg.telnyx_message_id,
+      messageType: msg.message_type,
+      mediaFiles: msg.media_files || [],
+      mediaUrls: msg.media_urls || []
     }))
 
     return res.status(200).json({

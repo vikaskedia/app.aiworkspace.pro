@@ -109,10 +109,13 @@ async function handleMessageReceived(eventData) {
   try {
     const fromPhone = eventData.from.phone_number
     const toPhone = eventData.to[0].phone_number
-    const messageText = eventData.text
+    const messageText = eventData.text || ''
+    
+    // Check if this is an MMS message with media
+    const hasMedia = eventData.media && eventData.media.length > 0
+    const messageType = hasMedia ? 'MMS' : 'SMS'
 
     // Find the matter based on the receiving phone number
-    // You might need to adjust this logic based on how you store phone numbers
     const { data: matters, error: matterError } = await supabase
       .from('matters')
       .select('id, phone_numbers')
@@ -132,6 +135,32 @@ async function handleMessageReceived(eventData) {
     if (!matterId) {
       console.error('No matter found for phone number:', toPhone)
       return
+    }
+
+    // Prepare media files array if this is MMS
+    let mediaFiles = null
+    let mediaUrls = null
+    
+    if (hasMedia) {
+      mediaFiles = eventData.media.map(media => ({
+        id: `telnyx-${Date.now()}-${Math.random()}`,
+        filename: media.content_type.split('/')[1] || 'media',
+        size: media.size || 0,
+        mimetype: media.content_type,
+        public_url: media.url,
+        source: 'telnyx',
+        received_at: new Date().toISOString()
+      }))
+      
+      mediaUrls = eventData.media.map(media => media.url)
+    }
+
+    // Create preview text for conversation
+    let previewText = messageText
+    if (hasMedia && !messageText.trim()) {
+      previewText = `📎 ${eventData.media.length} attachment(s)`
+    } else if (hasMedia && messageText.trim()) {
+      previewText = `📎 ${messageText.substring(0, 80)}...`
     }
 
     // Find or create conversation
@@ -157,7 +186,7 @@ async function handleMessageReceived(eventData) {
           to_phone_number: fromPhone,
           contact_name: null,
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageText.substring(0, 100),
+          last_message_preview: previewText.substring(0, 100),
           unread_count: 1
         })
         .select()
@@ -171,7 +200,7 @@ async function handleMessageReceived(eventData) {
         .from('conversations')
         .update({
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageText.substring(0, 100),
+          last_message_preview: previewText.substring(0, 100),
           unread_count: conversation.unread_count + 1
         })
         .eq('id', conversation.id)
@@ -187,13 +216,19 @@ async function handleMessageReceived(eventData) {
         from_phone_number: fromPhone,
         to_phone_number: toPhone,
         message_body: messageText,
+        message_type: messageType,
+        media_files: mediaFiles,
+        media_urls: mediaUrls,
         status: 'received',
         webhook_data: eventData
       })
 
     if (msgError) throw msgError
 
-    console.log('Received message processed successfully')
+    console.log(`Received ${messageType} message processed successfully`, {
+      hasMedia,
+      mediaCount: mediaFiles ? mediaFiles.length : 0
+    })
 
   } catch (error) {
     console.error('Error handling received message:', error)

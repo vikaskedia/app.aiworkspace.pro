@@ -127,7 +127,53 @@
               :key="message.id"
               :class="['message', message.direction]">
               <div class="message-content">
-                <p>{{ message.text }}</p>
+                <!-- Media attachments -->
+                <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
+                  <div 
+                    v-for="media in message.mediaFiles" 
+                    :key="media.id"
+                    class="media-item">
+                    
+                    <!-- Image -->
+                    <img 
+                      v-if="media.mimetype.startsWith('image/')"
+                      :src="media.public_url"
+                      :alt="media.filename"
+                      class="media-image"
+                      @click="openMediaViewer(media)"
+                      loading="lazy" />
+                    
+                    <!-- Video -->
+                    <video 
+                      v-else-if="media.mimetype.startsWith('video/')"
+                      :src="media.public_url"
+                      controls
+                      class="media-video"
+                      preload="metadata">
+                      Your browser does not support video playback.
+                    </video>
+                    
+                    <!-- Other file types -->
+                    <div v-else class="media-file">
+                      <el-icon class="file-icon"><Document /></el-icon>
+                      <div class="file-info">
+                        <span class="file-name">{{ media.filename }}</span>
+                        <span class="file-size">{{ formatFileSize(media.size) }}</span>
+                      </div>
+                      <el-button 
+                        size="small" 
+                        type="primary" 
+                        @click="downloadFile(media)">
+                        Download
+                      </el-button>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Message text -->
+                <p v-if="message.text" class="message-text">{{ message.text }}</p>
+                
+                <!-- Message timestamp -->
                 <span class="message-time">{{ formatTime(message.timestamp) }}</span>
               </div>
             </div>
@@ -140,23 +186,90 @@
 
           <!-- Message Input -->
           <div class="message-input-area">
-            <div class="input-container">
-              <el-input
-                v-model="newMessage"
-                type="textarea"
-                :rows="2"
-                placeholder="Type a message..."
-                @keydown.enter.prevent="sendMessage"
-                resize="none">
-              </el-input>
-              <div class="input-actions">
-                <el-button 
-                  type="primary" 
-                  @click="sendMessage"
-                  :disabled="!newMessage.trim()">
-                  <el-icon><Promotion /></el-icon>
-                  Send
+            <!-- File Preview Area -->
+            <div v-if="selectedFiles.length > 0" class="file-preview-area">
+              <div class="file-preview-header">
+                <span>{{ selectedFiles.length }} file(s) selected</span>
+                <el-button size="small" @click="clearSelectedFiles" type="danger" plain>
+                  Clear All
                 </el-button>
+              </div>
+              <div class="file-preview-list">
+                <div 
+                  v-for="(file, index) in selectedFiles" 
+                  :key="index"
+                  class="file-preview-item">
+                  
+                  <!-- Image preview -->
+                  <img 
+                    v-if="file.type.startsWith('image/')"
+                    :src="file.preview"
+                    class="file-preview-image"
+                    :alt="file.name" />
+                  
+                  <!-- Video preview -->
+                  <video 
+                    v-else-if="file.type.startsWith('video/')"
+                    :src="file.preview"
+                    class="file-preview-video"
+                    muted>
+                  </video>
+                  
+                  <!-- Generic file preview -->
+                  <div v-else class="file-preview-generic">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  
+                  <div class="file-preview-info">
+                    <span class="file-name">{{ file.name }}</span>
+                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                  </div>
+                  
+                  <el-button 
+                    size="small" 
+                    @click="removeFile(index)"
+                    type="danger" 
+                    circle>
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-container">
+              <div class="input-row">
+                <el-input
+                  v-model="newMessage"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Type a message..."
+                  @keydown.enter.prevent="sendMessage"
+                  resize="none">
+                </el-input>
+                <div class="input-actions">
+                  <!-- File Upload Button -->
+                  <el-upload
+                    ref="fileUpload"
+                    :show-file-list="false"
+                    :before-upload="handleFileSelect"
+                    :multiple="true"
+                    :accept="acceptedFileTypes"
+                    action="#">
+                    <el-button circle>
+                      <el-icon><Paperclip /></el-icon>
+                    </el-button>
+                  </el-upload>
+                  
+                  <!-- Send Button -->
+                  <el-button 
+                    type="primary" 
+                    @click="sendMessage"
+                    :disabled="!canSendMessage"
+                    :loading="sendingMessage">
+                    <el-icon><Promotion /></el-icon>
+                    Send
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -207,7 +320,7 @@
           <small class="help-text">Enter 10-digit US phone number</small>
         </el-form-item>
         
-        <el-form-item label="Message" required>
+        <el-form-item label="Message">
           <el-input
             v-model="newMessageForm.message"
             type="textarea"
@@ -216,6 +329,39 @@
             maxlength="1600"
             show-word-limit>
           </el-input>
+        </el-form-item>
+
+        <el-form-item label="Attachments">
+          <el-upload
+            ref="newMessageFileUpload"
+            :show-file-list="false"
+            :before-upload="handleNewMessageFileSelect"
+            :multiple="true"
+            :accept="acceptedFileTypes"
+            action="#">
+            <el-button type="primary" plain>
+              <el-icon><Paperclip /></el-icon>
+              Choose Files
+            </el-button>
+          </el-upload>
+          
+          <!-- File Preview for New Message Dialog -->
+          <div v-if="newMessageForm.files.length > 0" class="dialog-file-preview">
+            <div 
+              v-for="(file, index) in newMessageForm.files" 
+              :key="index"
+              class="dialog-file-item">
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ formatFileSize(file.size) }})</span>
+              <el-button 
+                size="small" 
+                @click="removeNewMessageFile(index)"
+                type="danger" 
+                link>
+                Remove
+              </el-button>
+            </div>
+          </div>
         </el-form-item>
       </el-form>
       
@@ -226,7 +372,7 @@
             type="primary" 
             @click="sendNewMessage" 
             :loading="sendingMessage"
-            :disabled="!isValidPhoneNumber() || !newMessageForm.message.trim()">
+            :disabled="!isValidPhoneNumber() || (!newMessageForm.message.trim() && newMessageForm.files.length === 0)">
             Send Message
           </el-button>
         </div>
@@ -247,7 +393,10 @@ import {
   UserFilled,
   Bell,
   Check,
-  User
+  User,
+  Document,
+  Paperclip,
+  Close
 } from '@element-plus/icons-vue';
 import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -267,7 +416,10 @@ export default {
     UserFilled,
     Bell,
     Check,
-    User
+    User,
+    Document,
+    Paperclip,
+    Close
   },
   setup() {
     const matterStore = useMatterStore();
@@ -294,11 +446,16 @@ export default {
       searchQuery: '',
       newMessage: '',
       
+      // File handling
+      selectedFiles: [],
+      uploadingFiles: false,
+      
       // New Message Dialog
       showNewMessageDialog: false,
       newMessageForm: {
         to: '',
-        message: ''
+        message: '',
+        files: []
       },
       sendingMessage: false,
       
@@ -461,6 +618,14 @@ export default {
         return selectedPhone ? `Conversations for ${selectedPhone.number}` : 'Conversations';
       }
       return 'Conversations';   
+    },
+
+    canSendMessage() {
+      return (this.newMessage.trim() || this.selectedFiles.length > 0) && !this.sendingMessage;
+    },
+
+    acceptedFileTypes() {
+      return 'image/jpeg,image/png,image/gif,video/mp4,video/3gpp,text/plain,text/vcard';
     }
   },
   async mounted() {
@@ -536,32 +701,65 @@ export default {
     },
     
     async sendMessage() {
-      if (!this.newMessage.trim() || !this.currentChat) return;
+      if ((!this.newMessage.trim() && this.selectedFiles.length === 0) || !this.currentChat) return;
       
       const messageText = this.newMessage;
-      this.newMessage = ''; // Clear input immediately for better UX
+      const filesToSend = [...this.selectedFiles];
       
-      try {
-        // Get the selected phone number for this conversation
-        const fromPhone = this.currentChat.fromPhoneNumber;
-        const toPhone = this.currentChat.phoneNumber;
-        
-        if (!fromPhone || !toPhone) {
-          throw new Error('Missing phone number information');
-        }
-        
-        // Add message to UI immediately (optimistic update)
-        const tempMsg = {
-          id: `temp-${Date.now()}`,
-          text: messageText,
-          direction: 'outbound',
-          timestamp: new Date(),
-          status: 'sending'
-        };
-        
-        this.currentChat.messages.push(tempMsg);
-        this.currentChat.lastMessage = messageText;
-        this.currentChat.lastMessageTime = new Date();
+      // Clear input immediately for better UX
+      this.newMessage = '';
+      this.clearSelectedFiles();
+      this.sendingMessage = true;
+      
+              try {
+          // Get the selected phone number for this conversation
+          const fromPhone = this.currentChat.fromPhoneNumber;
+          const toPhone = this.currentChat.phoneNumber;
+          
+          if (!fromPhone || !toPhone) {
+            throw new Error('Missing phone number information');
+          }
+
+          let uploadedFiles = null;
+
+          // Upload files if any are selected
+          if (filesToSend.length > 0) {
+            const formData = new FormData();
+            formData.append('matter_id', this.currentMatter.id);
+            formData.append('git_repo', this.currentMatter.git_repo);
+            
+            filesToSend.forEach(file => {
+              formData.append('files', file);
+            });
+
+            const uploadResponse = await fetch('/api/upload-media-gitea', {
+              method: 'POST',
+              body: formData
+            });
+
+            const uploadResult = await uploadResponse.json();
+            
+            if (!uploadResponse.ok) {
+              throw new Error(uploadResult.error || 'Failed to upload files');
+            }
+
+            uploadedFiles = uploadResult.files;
+          }
+          
+          // Add message to UI immediately (optimistic update)
+          const tempMsg = {
+            id: `temp-${Date.now()}`,
+            text: messageText,
+            direction: 'outbound',
+            timestamp: new Date(),
+            status: 'sending',
+            mediaFiles: uploadedFiles || []
+          };
+          
+          this.currentChat.messages.push(tempMsg);
+          this.currentChat.lastMessage = uploadedFiles && !messageText ? 
+            `📎 ${uploadedFiles.length} attachment(s)` : messageText;
+          this.currentChat.lastMessageTime = new Date();
         
         // Scroll to bottom
         this.$nextTick(() => {
@@ -571,19 +769,21 @@ export default {
           }
         });
         
-        // Send via API
-        const response = await fetch('/api/sms/send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: fromPhone,
-            to: toPhone,
-            message: messageText,
-            matter_id: this.currentMatter.id
-          })
-        });
+                  // Send via API
+          const response = await fetch('/api/sms/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: fromPhone,
+              to: toPhone,
+              message: messageText,
+              matter_id: this.currentMatter.id,
+              media_files: uploadedFiles,
+              subject: null // Can be added later if needed
+            })
+          });
 
         const result = await response.json();
         
@@ -591,37 +791,41 @@ export default {
           throw new Error(result.error || 'Failed to send message');
         }
         
-        // Update the temporary message with real data
-        const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
-        if (msgIndex !== -1) {
-          this.currentChat.messages[msgIndex] = {
-            id: result.message_id,
-            text: messageText,
-            direction: 'outbound',
-            timestamp: new Date(),
-            status: 'sent',
-            telnyxId: result.telnyx_message_id
-          };
-        }
+                  // Update the temporary message with real data
+          const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
+          if (msgIndex !== -1) {
+            this.currentChat.messages[msgIndex] = {
+              id: result.message_id,
+              text: messageText,
+              direction: 'outbound',
+              timestamp: new Date(),
+              status: 'sent',
+              telnyxId: result.telnyx_message_id,
+              mediaFiles: uploadedFiles || []
+            };
+          }
         
         //console.log('Message sent successfully from conversation:', result);
         
         // Mark conversation as read when sending a message
         await this.realtimeMarkAsRead(this.currentChat.id);
         
-      } catch (error) {
-        console.error('Error sending message:', error);
-        this.$message.error(error.message || 'Failed to send message');
-        
-        // Remove the failed message from UI
-        const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
-        if (msgIndex !== -1) {
-          this.currentChat.messages.splice(msgIndex, 1);
+              } catch (error) {
+          console.error('Error sending message:', error);
+          this.$message.error(error.message || 'Failed to send message');
+          
+          // Remove the failed message from UI
+          const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
+          if (msgIndex !== -1) {
+            this.currentChat.messages.splice(msgIndex, 1);
+          }
+          
+          // Restore the message text and files
+          this.newMessage = messageText;
+          this.selectedFiles = filesToSend;
+        } finally {
+          this.sendingMessage = false;
         }
-        
-        // Restore the message text
-        this.newMessage = messageText;
-      }
     },
     
     composeMessage() {
@@ -633,7 +837,8 @@ export default {
     resetNewMessageForm() {
       this.newMessageForm = {
         to: '',
-        message: ''
+        message: '',
+        files: []
       };
       this.sendingMessage = false;
     },
@@ -693,7 +898,7 @@ export default {
     },
     
     async sendNewMessage() {
-      if (!this.isValidPhoneNumber() || !this.newMessageForm.message.trim()) {
+      if (!this.isValidPhoneNumber() || (!this.newMessageForm.message.trim() && this.newMessageForm.files.length === 0)) {
         return;
       }
       
@@ -703,6 +908,32 @@ export default {
         const selectedPhone = this.getSelectedPhoneNumber();
         if (!selectedPhone) {
           throw new Error('No phone number selected');
+        }
+
+        let uploadedFiles = null;
+
+        // Upload files if any are selected
+        if (this.newMessageForm.files.length > 0) {
+          const formData = new FormData();
+          formData.append('matter_id', this.currentMatter.id);
+          formData.append('git_repo', this.currentMatter.git_repo);
+          
+          this.newMessageForm.files.forEach(file => {
+            formData.append('files', file);
+          });
+
+          const uploadResponse = await fetch('/api/upload-media-gitea', {
+            method: 'POST',
+            body: formData
+          });
+
+          const uploadResult = await uploadResponse.json();
+          
+          if (!uploadResponse.ok) {
+            throw new Error(uploadResult.error || 'Failed to upload files');
+          }
+
+          uploadedFiles = uploadResult.files;
         }
 
         // Convert form phone number to +1XXXXXXXXXX format
@@ -718,7 +949,9 @@ export default {
             from: selectedPhone.number,
             to: fullToNumber,
             message: this.newMessageForm.message,
-            matter_id: this.currentMatter.id
+            matter_id: this.currentMatter.id,
+            media_files: uploadedFiles,
+            subject: null
           })
         });
 
@@ -755,6 +988,116 @@ export default {
     goToSettings() {
       // Navigate to matter settings page
       this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
+    },
+
+    // File handling methods
+    handleFileSelect(file) {
+      // Validate file type
+      const supportedTypes = [
+        'image/jpeg', 'image/png', 'image/gif',
+        'video/mp4', 'video/3gpp',
+        'text/plain', 'text/vcard'
+      ];
+      
+      if (!supportedTypes.includes(file.type)) {
+        this.$message.error(`Unsupported file type: ${file.type}`);
+        return false;
+      }
+
+      // Validate file size (1MB max)
+      const maxSize = 1024 * 1024; // 1MB
+      if (file.size > maxSize) {
+        this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
+        return false;
+      }
+
+      // Check total files limit
+      if (this.selectedFiles.length >= 10) {
+        this.$message.error('Maximum 10 files allowed per message');
+        return false;
+      }
+
+      // Create preview URL
+      const fileWithPreview = {
+        ...file,
+        preview: URL.createObjectURL(file)
+      };
+
+      this.selectedFiles.push(fileWithPreview);
+      return false; // Prevent automatic upload
+    },
+
+    removeFile(index) {
+      const file = this.selectedFiles[index];
+      if (file.preview) {
+        URL.revokeObjectURL(file.preview);
+      }
+      this.selectedFiles.splice(index, 1);
+    },
+
+    clearSelectedFiles() {
+      this.selectedFiles.forEach(file => {
+        if (file.preview) {
+          URL.revokeObjectURL(file.preview);
+        }
+      });
+      this.selectedFiles = [];
+    },
+
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    openMediaViewer(media) {
+      // Open media in a new tab or modal
+      window.open(media.public_url, '_blank');
+    },
+
+    downloadFile(media) {
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = media.public_url;
+      link.download = media.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+
+    // New message dialog file handling
+    handleNewMessageFileSelect(file) {
+      // Same validation as regular file select
+      const supportedTypes = [
+        'image/jpeg', 'image/png', 'image/gif',
+        'video/mp4', 'video/3gpp',
+        'text/plain', 'text/vcard'
+      ];
+      
+      if (!supportedTypes.includes(file.type)) {
+        this.$message.error(`Unsupported file type: ${file.type}`);
+        return false;
+      }
+
+      const maxSize = 1024 * 1024; // 1MB
+      if (file.size > maxSize) {
+        this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
+        return false;
+      }
+
+      if (this.newMessageForm.files.length >= 10) {
+        this.$message.error('Maximum 10 files allowed per message');
+        return false;
+      }
+
+      this.newMessageForm.files.push(file);
+      return false; // Prevent automatic upload
+    },
+
+    removeNewMessageFile(index) {
+      this.newMessageForm.files.splice(index, 1);
     }
   }
 };
@@ -1156,9 +1499,71 @@ export default {
   border-bottom-left-radius: 0.25rem;
 }
 
-.message-content p {
+.message-content .message-text {
   margin: 0 0 0.25rem 0;
   line-height: 1.4;
+}
+
+.message-media {
+  margin-bottom: 0.5rem;
+}
+
+.media-item {
+  margin-bottom: 0.5rem;
+}
+
+.media-item:last-child {
+  margin-bottom: 0;
+}
+
+.media-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.media-image:hover {
+  transform: scale(1.05);
+}
+
+.media-video {
+  max-width: 250px;
+  max-height: 200px;
+  border-radius: 8px;
+}
+
+.media-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  max-width: 250px;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+  color: #666;
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.file-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
 .message-time {
@@ -1174,17 +1579,108 @@ export default {
 
 .input-container {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-row {
+  display: flex;
   gap: 0.75rem;
   align-items: flex-end;
 }
 
-.input-container .el-textarea {
+.input-row .el-textarea {
   flex: 1;
 }
 
 .input-actions {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+/* File Preview Styles */
+.file-preview-area {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #f9f9f9;
+  margin-bottom: 0.5rem;
+}
+
+.file-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.file-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.file-preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  position: relative;
+  max-width: 120px;
+}
+
+.file-preview-image,
+.file-preview-video {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.file-preview-generic {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 2rem;
+  color: #666;
+}
+
+.file-preview-info {
+  text-align: center;
+  width: 100%;
+}
+
+.file-preview-info .file-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.file-preview-info .file-size {
+  font-size: 0.7rem;
+  color: #666;
+  display: block;
+}
+
+.file-preview-item .el-button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
 }
 
 /* Responsive adjustments */
@@ -1284,5 +1780,36 @@ export default {
 
 .country-code-prefix {
   margin-right: 8px;
+}
+
+/* Dialog File Preview Styles */
+.dialog-file-preview {
+  margin-top: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: #f9f9f9;
+}
+
+.dialog-file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.dialog-file-item:last-child {
+  border-bottom: none;
+}
+
+.dialog-file-item .file-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.dialog-file-item .file-size {
+  color: #666;
+  font-size: 0.8rem;
 }
 </style>

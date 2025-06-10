@@ -22,16 +22,6 @@
           'indicator-child': isDragOverChild
         }"
       ></div>
-      <span
-        class="collapse-toggle"
-        :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
-        @click.stop="hasChildren ? toggleCollapse() : undefined"
-      >
-        <span v-if="hasChildren">
-          <span v-if="collapsed">&#9654;</span>
-          <span v-else>&#9660;</span>
-        </span>
-      </span>
       <!-- Three-dot menu -->
       <el-dropdown 
         v-if="!readonly" 
@@ -68,6 +58,17 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <span
+        class="collapse-toggle"
+        :style="hasChildren ? 'cursor:pointer; visibility:visible;' : 'visibility:hidden;'"
+        @click.stop="hasChildren ? toggleCollapse() : undefined"
+      >
+        <span v-if="hasChildren">
+          <span v-if="collapsed">&#9654;</span>
+          <span v-else>&#9660;</span>
+        </span>
+      </span>
+      
       <div 
         class="outline-bullet"
         draggable="true"
@@ -979,7 +980,7 @@ export default {
 <style scoped>
 .outline-item {
   display: block;
-  margin: 0.5rem 2.5rem;
+  margin: 0 2rem;
   position: relative;
   max-width: 100%;
   transition: all 0.2s ease;
@@ -990,7 +991,7 @@ export default {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 28px;
+  min-height: 25px;
 }
 
 .outline-text,
@@ -1061,11 +1062,11 @@ export default {
   width: 20px;
   cursor: pointer;
   user-select: none;
-  margin-left: -11px;
+  margin-left: -19px;
   font-size: 10px;
   vertical-align: top;
-  margin-right: 10px;
-  margin-top: 5px;
+  margin-right: 16px;
+  margin-top: 7px;
 }
 .collapse-toggle:span {
   color: #4B5155;
@@ -1076,13 +1077,12 @@ export default {
 .outline-text {
   display: inline-block;
   width: calc(90% - 50px);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: normal;
   color: #23272f;
-  margin-bottom: 0.25rem;
-  line-height: 1.2;
   cursor: pointer;
   vertical-align: middle;
+  line-height: 1.4;
 }
 .outline-item > .outline-text {
   font-size: 1rem;
@@ -1091,7 +1091,6 @@ export default {
 }
 .outline-item ul {
   margin-left: 5px;
-    margin-top: 0.5rem;
     padding-left: 0px;
     border-left: 1px solid #ECEEF0;
 }
@@ -1117,10 +1116,8 @@ export default {
 }
 
 .dropzone {
-  height: 2px;
   background: transparent;
   transition: all 0.2s ease;
-  margin: 4px 0;
   position: relative;
   z-index: 1;
 }
@@ -1297,10 +1294,12 @@ export default {
 
 /* Three-dot menu */
 .three-dot-menu {
-  margin-right: 20px;
+  margin-right: 25px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s ease;
+  margin-top: 5px;
+  margin-left: -6px;
 }
 
 .three-dot-menu:hover {

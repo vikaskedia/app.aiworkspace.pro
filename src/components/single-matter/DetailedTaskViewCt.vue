@@ -27,7 +27,7 @@
       </div>
     </div>
 
-    <div class="task-content-wrapper" v-loading="loading">
+    <div class="task-content-wrapper">
       <!-- Main Content -->
       <div class="task-main-content">
         <div class="task-main-info">
@@ -46,8 +46,14 @@
                   </el-icon>
                 </div>
                 
+                <!-- Loading indicator for task title -->
+                <div v-if="loading" class="loading-message">
+                  <el-icon class="loading-spinner"><Loading /></el-icon>
+                  <span>Loading task details...</span>
+                </div>
+                
                 <h2 
-                  v-if="!isEditingTitle" 
+                  v-else-if="!isEditingTitle" 
                   @click="startTitleEdit"
                   class="editable-title"
                 >
@@ -91,7 +97,7 @@
           </div>
 
           <!-- Add this after the task title section -->
-          <div class="task-parent">
+          <div class="task-parent" v-if="!loading">
             <h4>Parent Task</h4>
             <div class="parent-task-selector">
               <el-select
@@ -121,7 +127,7 @@
           </div>
 
           <!-- Child Tasks Section -->
-          <div class="task-children">
+          <div class="task-children" v-if="!loading">
             <div class="child-tasks-header-section">
               <h4>Child Tasks</h4>
               <el-button 
@@ -281,7 +287,7 @@
 
 
 
-          <div v-if="showTaskHistory" class="edit-history">
+          <div v-if="showTaskHistory && !loading" class="edit-history">
             <div 
               v-for="(historyEntry, index) in task?.edit_history?.slice().reverse()" 
               :key="index" 
@@ -304,7 +310,7 @@
             </div>
           </div>
 
-          <div class="task-metadata">
+          <div class="task-metadata" v-if="!loading">
             <div class="metadata-grid">
               <!-- Status Column -->
               <div class="metadata-item status-item">
@@ -469,7 +475,7 @@
             </div>
             </div>
           </div>
-          <div class="description-wrapper">
+          <div class="description-wrapper" v-if="!loading">
             <div class="description-header">
               <h3>Description</h3>
               <el-button 
@@ -516,7 +522,31 @@
           </div>
         </div>
 
-        <div class="hours-logs" v-if="hoursLogs.length">
+        <!-- Loading indicator for metadata section -->
+        <div v-if="loading" class="section-loading">
+          <div class="section-loading-header">
+            <el-icon class="loading-spinner"><Loading /></el-icon>
+            <span>Loading task metadata...</span>
+          </div>
+        </div>
+
+        <!-- Loading indicator for description section -->
+        <div v-if="loading" class="section-loading">
+          <div class="section-loading-header">
+            <el-icon class="loading-spinner"><Loading /></el-icon>
+            <span>Loading description...</span>
+          </div>
+        </div>
+
+        <!-- Loading indicator for hours logs section -->
+        <div v-if="loading" class="section-loading">
+          <div class="section-loading-header">
+            <el-icon class="loading-spinner"><Loading /></el-icon>
+            <span>Loading hours logs...</span>
+          </div>
+        </div>
+
+        <div class="hours-logs" v-if="hoursLogs.length && !loading">
           <div class="hours-header">
             <h3>Hours Logged</h3>
             <div class="total-hours">
@@ -5243,6 +5273,22 @@ table.editor-table {
   color: var(--el-text-color-secondary);
   font-size: 14px;
   margin: 8px 0;
+}
+
+.section-loading {
+  margin: 16px 0;
+  padding: 16px;
+  background-color: var(--el-bg-color);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.section-loading-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
 }
 
 .loading-spinner {

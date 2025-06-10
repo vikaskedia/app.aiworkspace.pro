@@ -803,6 +803,12 @@ export default {
         // Auto-resize all comment edit textareas
         this.comments.forEach((c, idx) => this.autoResizeComment(idx));
         this.autoResizeAddComment();
+        // Focus the add comment textarea with a slight delay to ensure dialog is fully rendered
+        setTimeout(() => {
+          if (this.$refs.addCommentTextarea) {
+            this.$refs.addCommentTextarea.focus();
+          }
+        }, 100);
       });
     },
     autoResizeComment(idx) {

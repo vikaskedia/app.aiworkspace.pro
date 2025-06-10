@@ -567,7 +567,7 @@ export default {
           };
         }
         
-        console.log('Message sent successfully from conversation:', result);
+        //console.log('Message sent successfully from conversation:', result);
         
         // Mark conversation as read when sending a message
         await this.markConversationAsRead(this.currentChat.id);
@@ -691,7 +691,7 @@ export default {
           throw new Error(result.error || 'Failed to send message');
         }
 
-        console.log('Message sent successfully:', result);
+        //console.log('Message sent successfully:', result);
         this.closeNewMessageDialog();
         this.$message.success('Message sent successfully!');
         
@@ -725,18 +725,18 @@ export default {
         
         if (response.ok && result.success) {
           this.conversations = result.conversations || [];
-          console.log('Loaded conversations:', this.conversations.length);
-          console.log('Conversation data:', this.conversations);
-          console.log('Filtered conversations:', this.filteredConversations);
+          //console.log('Loaded conversations:', this.conversations.length);
+          //console.log('Conversation data:', this.conversations);
+          //console.log('Filtered conversations:', this.filteredConversations);
         } else {
           console.error('Failed to load conversations:', result.error);
           // Keep the sample data if API fails
-          console.log('Using sample data due to API error');
+          //console.log('Using sample data due to API error');
         }
       } catch (error) {
         console.error('Error loading conversations:', error);
         // Keep the sample data if API fails
-        console.log('Using sample data due to network error');
+        //console.log('Using sample data due to network error');
       }
     },
 
@@ -774,7 +774,7 @@ export default {
         if (!response.ok) {
           console.error('Failed to mark conversation as read:', result.error);
         } else {
-          console.log('Conversation marked as read in database');
+          //console.log('Conversation marked as read in database');
         }
       } catch (error) {
         console.error('Error marking conversation as read:', error);

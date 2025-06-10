@@ -16,12 +16,12 @@ export default async function handler(req, res) {
   }
 
   // Debug: Check if API key is loaded
-  console.log('Telnyx API Key exists:', !!process.env.TELNYX_API_KEY)
-  console.log('Telnyx API Key starts with KEY:', process.env.TELNYX_API_KEY?.startsWith('KEY'))
+  //console.log('Telnyx API Key exists:', !!process.env.TELNYX_API_KEY)
+  //console.log('Telnyx API Key starts with KEY:', process.env.TELNYX_API_KEY?.startsWith('KEY'))
 
   try {
     const { from, to, message, matter_id } = req.body
-    console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })
+    //console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })
 
     // Validate required fields
     if (!from || !to || !message || !matter_id) {
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       })
     }
 
-    console.log('Finding/creating conversation...')
+    //console.log('Finding/creating conversation...')
     // Find or create conversation
     let { data: conversation, error: convError } = await supabase
       .from('conversations')
@@ -52,11 +52,11 @@ export default async function handler(req, res) {
       throw convError
     }
 
-    console.log('Conversation found/created:', conversation?.id)
+    //console.log('Conversation found/created:', conversation?.id)
 
     // Create conversation if it doesn't exist
     if (!conversation) {
-      console.log('Creating new conversation...')
+      //console.log('Creating new conversation...')
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
         .insert({
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       conversation = newConv
     }
 
-    console.log('Creating message record...')
+    //console.log('Creating message record...')
     // Create message record with pending status
     const { data: messageRecord, error: msgError } = await supabase
       .from('messages')
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
 
     if (msgError) throw msgError
 
-    console.log('Message record created:', messageRecord.id)
+    //console.log('Message record created:', messageRecord.id)
     console.log('Sending SMS via Telnyx...')
     
     // Send SMS via Telnyx
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
       text: message
     })
 
-    console.log('Telnyx response:', smsResponse.data.id)
+    console.log('Telnyx response:', smsResponse.data)
 
     // Update message record with Telnyx message ID and sent status
     const { error: updateError } = await supabase

@@ -133,11 +133,12 @@
         <div v-for="(comment, idx) in comments" :key="idx" class="comment-item">
           <textarea v-model="comment.text" class="comment-edit-textarea" rows="2"
             :ref="'commentEditTextarea' + idx"
-            @input="autoResizeComment(idx)"></textarea>
-          <!-- <div class="comment-actions">
+            @input="autoResizeComment(idx)"
+            @blur="saveComment(idx)"></textarea>
+          <div class="comment-actions">
             <el-button size="small" @click="saveComment(idx)">Save</el-button>
             <el-button size="small" type="danger" @click="deleteComment(idx)">Delete</el-button>
-          </div> -->
+          </div>
         </div>
       </div>
       <div class="add-comment-section">
@@ -209,7 +210,7 @@
 <script>
 import { ref, computed } from 'vue';
 import { Plus, ArrowRight, Delete, MoreFilled, ChatDotRound, Link, Right, Back } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { supabase } from '../../supabase';
 import { useRoute } from 'vue-router';
 import { dragState } from './dragState.js';
@@ -257,7 +258,8 @@ export default {
       selectedText: '',
       linkUrl: '',
       selectionStart: 0,
-      selectionEnd: 0
+      selectionEnd: 0,
+      savingComment: false
     };
   },
   setup() {
@@ -841,13 +843,36 @@ export default {
       this.newComment = '';
     },
     saveComment(idx) {
-      if (!this.comments[idx].text.trim()) return;
+      // Prevent double execution
+      if (this.savingComment) return;
+      this.savingComment = true;
+      
+      setTimeout(() => {
+        this.savingComment = false;
+      }, 100);
+      
+      if (!this.comments[idx].text.trim()) {
+        // If comment is empty, remove it
+        this.deleteComment(idx);
+        return;
+      }
       this.comments[idx].text = this.comments[idx].text.trim();
+      this.comments[idx].lastModified = Date.now();
       this.saveCommentsToNode();
+      ElMessage.success('Comment saved');
     },
     deleteComment(idx) {
-      this.comments.splice(idx, 1);
-      this.saveCommentsToNode();
+      this.$confirm('Are you sure you want to delete this comment?', 'Delete Comment', {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        type: 'warning',
+      }).then(() => {
+        this.comments.splice(idx, 1);
+        this.saveCommentsToNode();
+        ElMessage.success('Comment deleted');
+      }).catch(() => {
+        // User cancelled deletion
+      });
     },
     saveCommentsToNode() {
       // Save to node
@@ -1185,10 +1210,17 @@ export default {
 .comment-edit-textarea {
   width: 100%;
   font-size: 0.95em;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   border-radius: 3px;
   border: 1px solid #e0e0e0;
   resize: vertical;
+  padding: 8px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .add-comment-section {

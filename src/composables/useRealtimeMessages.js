@@ -64,6 +64,14 @@ export function useRealtimeMessages(matterId) {
   }
 
   const handleConversationUpdate = (updatedConversation) => {
+    console.log('🔄 Conversation UPDATE event:', {
+      id: updatedConversation.id,
+      contact: updatedConversation.contact_name || updatedConversation.to_phone_number,
+      lastMessagePreview: updatedConversation.last_message_preview,
+      unreadCount: updatedConversation.unread_count,
+      lastMessageAt: updatedConversation.last_message_at
+    })
+    
     const index = conversations.value.findIndex(c => c.id === updatedConversation.id)
     
     if (index !== -1) {

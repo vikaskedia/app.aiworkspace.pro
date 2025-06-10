@@ -39,25 +39,15 @@
         <div class="panel-header">
           <div class="panel-header-title">
             <h3>{{ conversationHeaderTitle }}</h3>
-            <div class="header-actions">
-              <!-- Connection Status Indicator -->
-              <div class="connection-status">
-                <div 
-                  :class="['status-dot', connectionStatus]" 
-                  :title="connectionStatusText">
-                </div>
-              </div>
-              
-              <el-button 
-                v-if="selectedInboxItem && selectedInboxItem.startsWith('phone_')"
-                size="small" 
-                circle 
-                type="primary" 
-                @click="composeMessage"
-                class="new-message-btn">
-                <el-icon><Plus /></el-icon>
-              </el-button>
-            </div>
+            <el-button 
+              v-if="selectedInboxItem && selectedInboxItem.startsWith('phone_')"
+              size="small" 
+              circle 
+              type="primary" 
+              @click="composeMessage"
+              class="new-message-btn">
+              <el-icon><Plus /></el-icon>
+            </el-button>
           </div>
           <el-input
             v-model="searchQuery"
@@ -133,13 +123,18 @@
           <!-- Messages Area -->
           <div class="messages-area" ref="messagesContainer">
             <div 
-              v-for="message in currentChat.messages"
+              v-for="message in (currentChat?.messages || [])"
               :key="message.id"
               :class="['message', message.direction]">
               <div class="message-content">
                 <p>{{ message.text }}</p>
                 <span class="message-time">{{ formatTime(message.timestamp) }}</span>
               </div>
+            </div>
+            
+            <!-- Show loading state when no messages -->
+            <div v-if="!currentChat?.messages?.length" class="no-messages">
+              <p>No messages yet</p>
             </div>
           </div>
 
@@ -281,23 +276,15 @@ export default {
     // Real-time messaging setup
     const {
       conversations: realtimeConversations,
-      isConnected,
-      connectionStatus,
-      totalUnreadCount,
       loadMessagesForConversation,
-      markConversationAsRead: realtimeMarkAsRead,
-      requestNotificationPermission
+      markConversationAsRead: realtimeMarkAsRead
     } = useRealtimeMessages(computed(() => currentMatter.value?.id));
     
     return { 
       currentMatter,
       realtimeConversations,
-      isConnected,
-      connectionStatus,
-      totalUnreadCount,
       loadMessagesForConversation,
-      realtimeMarkAsRead,
-      requestNotificationPermission
+      realtimeMarkAsRead
     };
   },
   data() {
@@ -474,19 +461,6 @@ export default {
         return selectedPhone ? `Conversations for ${selectedPhone.number}` : 'Conversations';
       }
       return 'Conversations';   
-    },
-    
-    connectionStatusText() {
-      switch (this.connectionStatus) {
-        case 'connected':
-          return 'Real-time connected';
-        case 'connecting':
-          return 'Connecting...';
-        case 'disconnected':
-          return 'Disconnected - messages may be delayed';
-        default:
-          return 'Unknown status';
-      }
     }
   },
   async mounted() {
@@ -494,17 +468,6 @@ export default {
     if (this.currentMatter?.phone_numbers?.length > 0) {
       this.selectedInboxItem = `phone_${this.currentMatter.phone_numbers[0].id}`;
     }
-    
-    // Request notification permission for real-time alerts
-    await this.requestNotificationPermission();
-    
-    // Listen for custom notification events from the composable
-    window.addEventListener('sms-notification', this.handleSmsNotification);
-  },
-  
-  beforeUnmount() {
-    // Clean up event listeners
-    window.removeEventListener('sms-notification', this.handleSmsNotification);
   },
   methods: {
     selectInboxItem(itemId) {
@@ -787,30 +750,7 @@ export default {
       }
     },
     
-    handleSmsNotification(event) {
-      // Handle custom notification events from the real-time composable
-      const { message, type } = event.detail;
-      
-      this.$message({
-        message: message,
-        type: type,
-        duration: 4000,
-        showClose: true
-      });
-      
-      // Update page title with unread count
-      this.updatePageTitle();
-    },
-    
-    updatePageTitle() {
-      const baseTitle = 'AI Phone - Associate Attorney';
-      
-      if (this.totalUnreadCount > 0) {
-        document.title = `(${this.totalUnreadCount}) ${baseTitle}`;
-      } else {
-        document.title = baseTitle;
-      }
-    },
+
 
     goToSettings() {
       // Navigate to matter settings page
@@ -892,52 +832,9 @@ export default {
   margin-bottom: 0.5rem;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  cursor: help;
-}
-
-.status-dot.connected {
-  background-color: #67C23A;
-  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.3);
-}
-
-.status-dot.connecting {
-  background-color: #E6A23C;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-.status-dot.disconnected {
-  background-color: #F56C6C;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(230, 162, 60, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(230, 162, 60, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(230, 162, 60, 0);
-  }
-}
-
 .new-message-btn {
   flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 .inbox-menu {
@@ -1215,6 +1112,15 @@ export default {
 
 .messages-area::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+.no-messages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-style: italic;
 }
 
 .message {

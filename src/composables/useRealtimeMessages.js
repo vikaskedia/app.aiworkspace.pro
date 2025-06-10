@@ -3,9 +3,6 @@ import { supabase } from '../supabase'
 
 export function useRealtimeMessages(matterId) {
   const conversations = ref([])
-  const isConnected = ref(false)
-  const connectionStatus = ref('disconnected') // 'disconnected', 'connecting', 'connected'
-  const lastUpdate = ref(null)
   
   // Channels for subscriptions
   let conversationsChannel = null
@@ -20,9 +17,7 @@ export function useRealtimeMessages(matterId) {
     })
   })
 
-  const totalUnreadCount = computed(() => {
-    return conversations.value.reduce((sum, conv) => sum + (conv.unread_count || 0), 0)
-  })
+
 
   // Event handlers
   const handleConversationChange = (payload) => {
@@ -39,8 +34,6 @@ export function useRealtimeMessages(matterId) {
         handleConversationDelete(payload.old)
         break
     }
-    
-    lastUpdate.value = new Date()
   }
 
   const handleMessageChange = (payload) => {
@@ -57,8 +50,6 @@ export function useRealtimeMessages(matterId) {
         handleMessageDelete(payload.old)
         break
     }
-    
-    lastUpdate.value = new Date()
   }
 
   const handleNewConversation = (newConversation) => {
@@ -69,9 +60,6 @@ export function useRealtimeMessages(matterId) {
       // Add new conversation
       const transformedConversation = transformConversation(newConversation)
       conversations.value.unshift(transformedConversation)
-      
-      // Show notification for new conversation
-      showNotification(`New conversation from ${transformedConversation.contact}`, 'info')
     }
   }
 
@@ -114,12 +102,6 @@ export function useRealtimeMessages(matterId) {
       // If it's an inbound message, increment unread count
       if (newMessage.direction === 'inbound') {
         conversation.unread = (conversation.unread || 0) + 1
-        
-        // Show notification for new inbound message
-        showNotification(
-          `New message from ${conversation.contact}: ${newMessage.message_body.substring(0, 50)}...`,
-          'info'
-        )
       }
       
       // Move conversation to top
@@ -184,22 +166,7 @@ export function useRealtimeMessages(matterId) {
     telnyxId: msg.telnyx_message_id
   })
 
-  // Notification helper
-  const showNotification = (message, type = 'info') => {
-    // Check if notifications are enabled and page is not visible
-    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification('New SMS Message', {
-        body: message,
-        icon: '/favicon.ico',
-        tag: 'sms-notification'
-      })
-    }
-    
-    // Also emit event for component to handle
-    window.dispatchEvent(new CustomEvent('sms-notification', {
-      detail: { message, type }
-    }))
-  }
+
 
   // Load conversations from database
   const loadConversations = async () => {
@@ -275,8 +242,6 @@ export function useRealtimeMessages(matterId) {
   const subscribeToConversations = () => {
     if (!matterId.value) return
     
-    connectionStatus.value = 'connecting'
-    
     conversationsChannel = supabase
       .channel(`conversations-${matterId.value}`)
       .on('postgres_changes', {
@@ -287,8 +252,6 @@ export function useRealtimeMessages(matterId) {
       }, handleConversationChange)
       .subscribe((status) => {
         console.log('📡 Conversations subscription status:', status)
-        connectionStatus.value = status === 'SUBSCRIBED' ? 'connected' : 'disconnected'
-        isConnected.value = status === 'SUBSCRIBED'
       })
   }
 
@@ -319,9 +282,6 @@ export function useRealtimeMessages(matterId) {
       supabase.removeChannel(messagesChannel)
       messagesChannel = null
     }
-    
-    connectionStatus.value = 'disconnected'
-    isConnected.value = false
   }
 
   // Initialize subscriptions when matterId changes
@@ -341,15 +301,7 @@ export function useRealtimeMessages(matterId) {
     subscribeToMessages()
   }
 
-  // Request notification permission
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      const permission = await Notification.requestPermission()
-      console.log('Notification permission:', permission)
-      return permission === 'granted'
-    }
-    return Notification.permission === 'granted'
-  }
+
 
   // Watch for matterId changes
   watch(() => matterId.value, (newMatterId) => {
@@ -369,16 +321,11 @@ export function useRealtimeMessages(matterId) {
   return {
     // State
     conversations: sortedConversations,
-    isConnected,
-    connectionStatus,
-    totalUnreadCount,
-    lastUpdate,
     
     // Methods
     loadConversations,
     loadMessagesForConversation,
     markConversationAsRead,
-    requestNotificationPermission,
     initializeSubscriptions,
     unsubscribe
   }

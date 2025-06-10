@@ -201,29 +201,11 @@
                 <div 
                   v-for="(file, index) in selectedFiles" 
                   :key="index"
-                  class="file-preview-item">
+                  class="simple-file-item">
                   
-                  <!-- Image preview -->
-                  <img 
-                    v-if="file.type && file.type.startsWith('image/')"
-                    :src="file.preview"
-                    class="file-preview-image"
-                    :alt="file.name" />
+                  <el-icon class="file-icon"><Document /></el-icon>
                   
-                  <!-- Video preview -->
-                  <video 
-                    v-else-if="file.type && file.type.startsWith('video/')"
-                    :src="file.preview"
-                    class="file-preview-video"
-                    muted>
-                  </video>
-                  
-                  <!-- Generic file preview -->
-                  <div v-else class="file-preview-generic">
-                    <el-icon><Document /></el-icon>
-                  </div>
-                  
-                  <div class="file-preview-info">
+                  <div class="file-info">
                     <span class="file-name">{{ file.name }}</span>
                     <span class="file-size">{{ formatFileSize(file.size) }}</span>
                   </div>
@@ -1032,36 +1014,16 @@ export default {
         return false;
       }
 
-      // Create preview URL
-      const fileWithPreview = {
-        ...file,
-        preview: URL.createObjectURL(file)
-      };
-
-      console.log('📁 File with preview:', {
-        name: fileWithPreview.name,
-        type: fileWithPreview.type,
-        preview: fileWithPreview.preview
-      });
-
-      this.selectedFiles.push(fileWithPreview);
+      // Store file without preview (simpler approach)
+      this.selectedFiles.push(file);
       return false; // Prevent automatic upload
     },
 
     removeFile(index) {
-      const file = this.selectedFiles[index];
-      if (file.preview) {
-        URL.revokeObjectURL(file.preview);
-      }
       this.selectedFiles.splice(index, 1);
     },
 
     clearSelectedFiles() {
-      this.selectedFiles.forEach(file => {
-        if (file.preview) {
-          URL.revokeObjectURL(file.preview);
-        }
-      });
       this.selectedFiles = [];
     },
 
@@ -1640,68 +1602,42 @@ export default {
 
 .file-preview-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.file-preview-item {
+.simple-file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+}
+
+.file-icon {
+  font-size: 1.5rem;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.file-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  position: relative;
-  max-width: 120px;
+  gap: 0.25rem;
 }
 
-.file-preview-image,
-.file-preview-video {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.file-preview-generic {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f0f0f0;
-  border-radius: 4px;
-  font-size: 2rem;
-  color: #666;
-}
-
-.file-preview-info {
-  text-align: center;
-  width: 100%;
-}
-
-.file-preview-info .file-name {
-  font-size: 0.8rem;
+.file-info .file-name {
   font-weight: 500;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100px;
+  font-size: 0.9rem;
+  color: #333;
 }
 
-.file-preview-info .file-size {
-  font-size: 0.7rem;
+.file-info .file-size {
+  font-size: 0.8rem;
   color: #666;
-  display: block;
-}
-
-.file-preview-item .el-button {
-  position: absolute;
-  top: -8px;
-  right: -8px;
 }
 
 /* Responsive adjustments */

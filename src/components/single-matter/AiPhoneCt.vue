@@ -709,29 +709,46 @@ export default {
 
           // Upload files if any are selected
           if (filesToSend.length > 0) {
-            const formData = new FormData();
-            formData.append('matter_id', this.currentMatter.id);
-            formData.append('git_repo', this.currentMatter.git_repo);
-            
-            filesToSend.forEach(file => {
-              formData.append('files', file);
+            // Convert files to base64 (like FilesCt.vue does)
+            const filePromises = filesToSend.map(file => {
+              return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const base64 = reader.result.split(',')[1];
+                  resolve({
+                    name: file.name,
+                    content: base64,
+                    size: file.size
+                  });
+                };
+                reader.readAsDataURL(file);
+              });
             });
 
-            const uploadResponse = await fetch('/api/upload-media-gitea', {
+            const base64Files = await Promise.all(filePromises);
+
+            const uploadResponse = await fetch('/api/upload-media-gitea-direct', {
               method: 'POST',
-              body: formData
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                files: base64Files,
+                matter_id: this.currentMatter.id,
+                git_repo: this.currentMatter.git_repo
+              })
             });
 
-                      const uploadResult = await uploadResponse.json();
-          
-          console.log('📤 New message upload response:', uploadResult);
+            const uploadResult = await uploadResponse.json();
+            
+            console.log('📤 Upload response:', uploadResult);
 
-          if (!uploadResponse.ok) {
-            throw new Error(uploadResult.error || 'Failed to upload files');
-          }
+            if (!uploadResponse.ok) {
+              throw new Error(uploadResult.error || 'Failed to upload files');
+            }
 
-          uploadedFiles = uploadResult.files;
-          console.log('📁 New message uploaded files:', uploadedFiles);
+            uploadedFiles = uploadResult.files;
+            console.log('📁 Uploaded files:', uploadedFiles);
           }
           
           // Add message to UI immediately (optimistic update)
@@ -902,29 +919,46 @@ export default {
 
         // Upload files if any are selected
         if (this.newMessageForm.files.length > 0) {
-          const formData = new FormData();
-          formData.append('matter_id', this.currentMatter.id);
-          formData.append('git_repo', this.currentMatter.git_repo);
-          
-          this.newMessageForm.files.forEach(file => {
-            formData.append('files', file);
+          // Convert files to base64 (like FilesCt.vue does)
+          const filePromises = this.newMessageForm.files.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result.split(',')[1];
+                resolve({
+                  name: file.name,
+                  content: base64,
+                  size: file.size
+                });
+              };
+              reader.readAsDataURL(file);
+            });
           });
 
-          const uploadResponse = await fetch('/api/upload-media-gitea', {
+          const base64Files = await Promise.all(filePromises);
+
+          const uploadResponse = await fetch('/api/upload-media-gitea-direct', {
             method: 'POST',
-            body: formData
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              files: base64Files,
+              matter_id: this.currentMatter.id,
+              git_repo: this.currentMatter.git_repo
+            })
           });
 
           const uploadResult = await uploadResponse.json();
           
-          console.log('📤 Upload response:', uploadResult);
+          console.log('📤 New message upload response:', uploadResult);
           
           if (!uploadResponse.ok) {
             throw new Error(uploadResult.error || 'Failed to upload files');
           }
 
           uploadedFiles = uploadResult.files;
-          console.log('📁 Uploaded files:', uploadedFiles);
+          console.log('📁 New message uploaded files:', uploadedFiles);
         }
 
         // Convert form phone number to +1XXXXXXXXXX format

@@ -39,10 +39,10 @@
               <el-icon><ChatDotRound /></el-icon>
               Add Comment
             </el-dropdown-item>
-            <el-dropdown-item command="create-link">
+            <!--el-dropdown-item command="create-link">
               <el-icon><Link /></el-icon>
               Create Link
-            </el-dropdown-item>
+            </el-dropdown-item-->
             <el-dropdown-item command="indent">
               <el-icon><Right /></el-icon>
               Indent

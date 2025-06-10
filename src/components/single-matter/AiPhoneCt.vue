@@ -331,7 +331,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item label="Attachments">
+        <!-- <el-form-item label="Attachments">
           <el-upload
             ref="newMessageFileUpload"
             :show-file-list="false"
@@ -345,7 +345,7 @@
             </el-button>
           </el-upload>
           
-          <!-- File Preview for New Message Dialog -->
+         
           <div v-if="newMessageForm.files.length > 0" class="dialog-file-preview">
             <div 
               v-for="(file, index) in newMessageForm.files" 
@@ -362,7 +362,7 @@
               </el-button>
             </div>
           </div>
-        </el-form-item>
+        </el-form-item> -->
       </el-form>
       
       <template #footer>

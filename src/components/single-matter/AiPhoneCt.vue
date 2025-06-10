@@ -205,14 +205,14 @@
                   
                   <!-- Image preview -->
                   <img 
-                    v-if="file.type.startsWith('image/')"
+                    v-if="file.type && file.type.startsWith('image/')"
                     :src="file.preview"
                     class="file-preview-image"
                     :alt="file.name" />
                   
                   <!-- Video preview -->
                   <video 
-                    v-else-if="file.type.startsWith('video/')"
+                    v-else-if="file.type && file.type.startsWith('video/')"
                     :src="file.preview"
                     class="file-preview-video"
                     muted>
@@ -1001,6 +1001,12 @@ export default {
 
     // File handling methods
     handleFileSelect(file) {
+      console.log('🔍 File selected:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+      
       // Validate file type
       const supportedTypes = [
         'image/jpeg', 'image/png', 'image/gif',
@@ -1031,6 +1037,12 @@ export default {
         ...file,
         preview: URL.createObjectURL(file)
       };
+
+      console.log('📁 File with preview:', {
+        name: fileWithPreview.name,
+        type: fileWithPreview.type,
+        preview: fileWithPreview.preview
+      });
 
       this.selectedFiles.push(fileWithPreview);
       return false; // Prevent automatic upload

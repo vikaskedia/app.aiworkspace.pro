@@ -727,11 +727,35 @@ export default {
             )
           `)
           .eq('archived', false)
-          .eq('matter_access.shared_with_user_id', userId)
-          .order('last_activity_at', { ascending: false, nullsFirst: false });
+          .eq('matter_access.shared_with_user_id', userId);
 
         if (error) throw error;
-        return sharedMatters || [];
+
+        // Get the latest activity for each matter and sort
+        const mattersWithActivity = await Promise.all(
+          (sharedMatters || []).map(async (matter) => {
+            const { data: activities } = await supabase
+              .from('matter_activities')
+              .select('updated_at')
+              .eq('matter_id', matter.id)
+              .order('updated_at', { ascending: false })
+              .limit(1);
+
+            return {
+              ...matter,
+              latest_activity: activities?.[0]?.updated_at || matter.created_at
+            };
+          })
+        );
+
+        // Sort by latest activity
+        mattersWithActivity.sort((a, b) => {
+          const dateA = new Date(a.latest_activity);
+          const dateB = new Date(b.latest_activity);
+          return dateB - dateA; // Most recent first
+        });
+
+        return mattersWithActivity;
       } catch (error) {
         console.error('Error fetching shared matters:', error);
         return [];
@@ -759,11 +783,35 @@ export default {
             )
           `)
           .eq('archived', false)
-          .eq('matter_access.shared_with_user_id', user.id)
-          .order('last_activity_at', { ascending: false, nullsFirst: false });
+          .eq('matter_access.shared_with_user_id', user.id);
 
         if (error) throw error;
-        userMatters.value = sharedMatters || [];
+
+        // Get the latest activity for each matter and sort
+        const mattersWithActivity = await Promise.all(
+          (sharedMatters || []).map(async (matter) => {
+            const { data: activities } = await supabase
+              .from('matter_activities')
+              .select('updated_at')
+              .eq('matter_id', matter.id)
+              .order('updated_at', { ascending: false })
+              .limit(1);
+
+            return {
+              ...matter,
+              latest_activity: activities?.[0]?.updated_at || matter.created_at
+            };
+          })
+        );
+
+        // Sort by latest activity
+        mattersWithActivity.sort((a, b) => {
+          const dateA = new Date(a.latest_activity);
+          const dateB = new Date(b.latest_activity);
+          return dateB - dateA; // Most recent first
+        });
+
+        userMatters.value = mattersWithActivity;
       } catch (error) {
         console.error('Error fetching shared matters:', error);
         userMatters.value = [];

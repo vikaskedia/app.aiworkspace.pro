@@ -356,17 +356,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   
     methods: {
       async updateMatterActivity(matterId) {
-        try {
-          await supabase
-            .from('matters')
-            .update({ 
-              last_activity_at: new Date().toISOString()
-            })
-            .eq('id', matterId);
-        } catch (error) {
-          console.error('Error updating matter activity:', error);
-          // Don't throw error to avoid breaking the main functionality
-        }
+        // Import and use the activity tracking function
+        const { updateMatterActivity } = await import('../../utils/matterActivity.js');
+        await updateMatterActivity(matterId);
       },
 
       initializeColumns() {

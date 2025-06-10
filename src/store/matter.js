@@ -14,14 +14,10 @@ export const useMatterStore = defineStore('matter', {
 
     async loadMatters(includeArchived = false) {
       try {
-
-        // The RLS policies in the database will automatically handle the access control, 
-        // so there's no need to explicitly check for ownership or shared access in the application code. 
-        //This will also prevent any potential duplicate matters from appearing in the lists.
+        // First get all matters
         const query = supabase
           .from('matters')
-          .select('*')
-          .order('last_activity_at', { ascending: false, nullsFirst: false });
+          .select('*');
 
         if (!includeArchived) {
           query.eq('archived', false);
@@ -30,7 +26,33 @@ export const useMatterStore = defineStore('matter', {
         const { data: matters, error } = await query;
         if (error) throw error;
 
-        this.matters = matters;
+        // Get the latest activity for each matter
+        const mattersWithActivity = await Promise.all(
+          matters.map(async (matter) => {
+            const { data: activities, error: activityError } = await supabase
+              .from('matter_activities')
+              .select('updated_at')
+              .eq('matter_id', matter.id)
+              .order('updated_at', { ascending: false })
+              .limit(1);
+
+            const latestActivity = activities?.[0]?.updated_at || matter.created_at;
+            
+            return {
+              ...matter,
+              latest_activity: latestActivity
+            };
+          })
+        );
+
+        // Sort by latest activity
+        mattersWithActivity.sort((a, b) => {
+          const dateA = new Date(a.latest_activity);
+          const dateB = new Date(b.latest_activity);
+          return dateB - dateA; // Most recent first
+        });
+
+        this.matters = mattersWithActivity;
         return this.matters;
       } catch (error) {
         console.error('Error loading matters:', error);

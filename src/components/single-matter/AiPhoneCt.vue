@@ -544,8 +544,19 @@ export default {
     },
     
     formatTime(date) {
+      // Handle null, undefined, or invalid dates
+      if (!date) {
+        return 'Just now';
+      }
+      
       // Convert to Date object if it's a string
       const dateObj = typeof date === 'string' ? new Date(date) : date;
+      
+      // Check if the date is valid
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+        return 'Just now';
+      }
+      
       const now = new Date();
       const diffTime = Math.abs(now - dateObj);
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));

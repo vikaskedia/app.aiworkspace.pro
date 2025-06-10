@@ -14,8 +14,8 @@ export function useRealtimeMessages(matterId) {
   // Computed properties
   const sortedConversations = computed(() => {
     return [...conversations.value].sort((a, b) => {
-      const timeA = new Date(a.last_message_at || a.created_at)
-      const timeB = new Date(b.last_message_at || b.created_at)
+      const timeA = new Date(a.lastMessageTime || new Date())
+      const timeB = new Date(b.lastMessageTime || new Date())
       return timeB - timeA
     })
   })
@@ -109,7 +109,7 @@ export function useRealtimeMessages(matterId) {
       
       // Update conversation with latest message info
       conversation.lastMessage = newMessage.message_body
-      conversation.lastMessageTime = newMessage.created_at
+      conversation.lastMessageTime = newMessage.created_at || new Date().toISOString()
       
       // If it's an inbound message, increment unread count
       if (newMessage.direction === 'inbound') {
@@ -170,7 +170,7 @@ export function useRealtimeMessages(matterId) {
     phoneNumber: conv.to_phone_number,
     fromPhoneNumber: conv.from_phone_number,
     lastMessage: conv.last_message_preview || '',
-    lastMessageTime: conv.last_message_at || conv.created_at,
+    lastMessageTime: conv.last_message_at || conv.created_at || new Date().toISOString(),
     unread: conv.unread_count || 0,
     matterId: conv.matter_id
   })
@@ -179,7 +179,7 @@ export function useRealtimeMessages(matterId) {
     id: msg.id,
     text: msg.message_body,
     direction: msg.direction,
-    timestamp: msg.created_at,
+    timestamp: msg.created_at || new Date().toISOString(),
     status: msg.status,
     telnyxId: msg.telnyx_message_id
   })

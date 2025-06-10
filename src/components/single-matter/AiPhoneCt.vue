@@ -39,15 +39,25 @@
         <div class="panel-header">
           <div class="panel-header-title">
             <h3>{{ conversationHeaderTitle }}</h3>
-            <el-button 
-              v-if="selectedInboxItem && selectedInboxItem.startsWith('phone_')"
-              size="small" 
-              circle 
-              type="primary" 
-              @click="composeMessage"
-              class="new-message-btn">
-              <el-icon><Plus /></el-icon>
-            </el-button>
+            <div class="header-actions">
+              <!-- Connection Status Indicator -->
+              <div class="connection-status">
+                <div 
+                  :class="['status-dot', connectionStatus]" 
+                  :title="connectionStatusText">
+                </div>
+              </div>
+              
+              <el-button 
+                v-if="selectedInboxItem && selectedInboxItem.startsWith('phone_')"
+                size="small" 
+                circle 
+                type="primary" 
+                @click="composeMessage"
+                class="new-message-btn">
+                <el-icon><Plus /></el-icon>
+              </el-button>
+            </div>
           </div>
           <el-input
             v-model="searchQuery"
@@ -244,8 +254,10 @@ import {
   Check,
   User
 } from '@element-plus/icons-vue';
+import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 
 export default {
   name: 'AiPhoneCt',
@@ -265,7 +277,28 @@ export default {
   setup() {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    
+    // Real-time messaging setup
+    const {
+      conversations: realtimeConversations,
+      isConnected,
+      connectionStatus,
+      totalUnreadCount,
+      loadMessagesForConversation,
+      markConversationAsRead: realtimeMarkAsRead,
+      requestNotificationPermission
+    } = useRealtimeMessages(computed(() => currentMatter.value?.id));
+    
+    return { 
+      currentMatter,
+      realtimeConversations,
+      isConnected,
+      connectionStatus,
+      totalUnreadCount,
+      loadMessagesForConversation,
+      realtimeMarkAsRead,
+      requestNotificationPermission
+    };
   },
   data() {
     return {
@@ -387,19 +420,28 @@ export default {
   computed: {
     inboxItems() {
       const phoneNumbers = this.currentMatter?.phone_numbers || [];
-      const phoneItems = phoneNumbers.map(phone => ({
-        id: `phone_${phone.id}`,
-        label: phone.label,
-        number: phone.number,
-        icon: 'Phone',
-        type: 'phone'
-      }));
+      const phoneItems = phoneNumbers.map(phone => {
+        // Calculate unread count for this phone number
+        const unreadCount = this.realtimeConversations.filter(conv => 
+          conv.fromPhoneNumber === phone.number && conv.unread > 0
+        ).reduce((sum, conv) => sum + conv.unread, 0);
+        
+        return {
+          id: `phone_${phone.id}`,
+          label: phone.label,
+          number: phone.number,
+          icon: 'Phone',
+          type: 'phone',
+          count: unreadCount > 0 ? unreadCount : null
+        };
+      });
 
       return phoneItems;
     },
 
     filteredConversations() {
-      let filtered = this.conversations;
+      // Use real-time conversations instead of static data
+      let filtered = this.realtimeConversations || [];
       
       if (this.selectedInboxItem && this.selectedInboxItem.startsWith('phone_')) {
         // Filter conversations by selected phone number
@@ -423,7 +465,7 @@ export default {
     },
     
     currentChat() {
-      return this.conversations.find(conv => conv.id === this.selectedConversation);
+      return this.realtimeConversations.find(conv => conv.id === this.selectedConversation);
     },
     
     conversationHeaderTitle() {
@@ -432,6 +474,19 @@ export default {
         return selectedPhone ? `Conversations for ${selectedPhone.number}` : 'Conversations';
       }
       return 'Conversations';   
+    },
+    
+    connectionStatusText() {
+      switch (this.connectionStatus) {
+        case 'connected':
+          return 'Real-time connected';
+        case 'connecting':
+          return 'Connecting...';
+        case 'disconnected':
+          return 'Disconnected - messages may be delayed';
+        default:
+          return 'Unknown status';
+      }
     }
   },
   async mounted() {
@@ -440,8 +495,16 @@ export default {
       this.selectedInboxItem = `phone_${this.currentMatter.phone_numbers[0].id}`;
     }
     
-    // Load conversations from database
-    await this.loadConversations();
+    // Request notification permission for real-time alerts
+    await this.requestNotificationPermission();
+    
+    // Listen for custom notification events from the composable
+    window.addEventListener('sms-notification', this.handleSmsNotification);
+  },
+  
+  beforeUnmount() {
+    // Clean up event listeners
+    window.removeEventListener('sms-notification', this.handleSmsNotification);
   },
   methods: {
     selectInboxItem(itemId) {
@@ -461,19 +524,19 @@ export default {
     async selectConversation(conversation) {
       this.selectedConversation = conversation.id;
       
-      // Load messages for this conversation
-      const messages = await this.loadMessages(conversation.id);
+      // Load messages for this conversation using real-time composable
+      const messages = await this.loadMessagesForConversation(conversation.id);
       
-      // Update the conversation object with loaded messages
-      const convIndex = this.conversations.findIndex(c => c.id === conversation.id);
-      if (convIndex !== -1) {
-        this.conversations[convIndex].messages = messages;
-        // Mark as read in frontend
-        this.conversations[convIndex].unread = 0;
-      }
+      // Mark conversation as read using real-time composable
+      await this.realtimeMarkAsRead(conversation.id);
       
-      // Mark conversation as read in database
-      await this.markConversationAsRead(conversation.id);
+      // Auto-scroll to bottom after loading messages
+      this.$nextTick(() => {
+        const container = this.$refs.messagesContainer;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
     },
     
     getInitials(name) {
@@ -570,7 +633,7 @@ export default {
         //console.log('Message sent successfully from conversation:', result);
         
         // Mark conversation as read when sending a message
-        await this.markConversationAsRead(this.currentChat.id);
+        await this.realtimeMarkAsRead(this.currentChat.id);
         
       } catch (error) {
         console.error('Error sending message:', error);
@@ -691,21 +754,18 @@ export default {
           throw new Error(result.error || 'Failed to send message');
         }
 
-        //console.log('Message sent successfully:', result);
         this.closeNewMessageDialog();
         this.$message.success('Message sent successfully!');
         
-        // Reload conversations to show the new message
-        await this.loadConversations();
-        
-        // If we have a conversation ID, auto-select it
+        // The real-time system will automatically update conversations
+        // If we have a conversation ID, auto-select it after a brief delay
         if (result.conversation_id) {
           setTimeout(() => {
-            const conversation = this.conversations.find(c => c.id === result.conversation_id);
+            const conversation = this.realtimeConversations.find(c => c.id === result.conversation_id);
             if (conversation) {
               this.selectConversation(conversation);
             }
-          }, 500);
+          }, 1000);
         }
         
       } catch (error) {
@@ -716,68 +776,28 @@ export default {
       }
     },
     
-    async loadConversations() {
-      if (!this.currentMatter?.id) return;
+    handleSmsNotification(event) {
+      // Handle custom notification events from the real-time composable
+      const { message, type } = event.detail;
       
-      try {
-        const response = await fetch(`/api/conversations?matterId=${this.currentMatter.id}`);
-        const result = await response.json();
-        
-        if (response.ok && result.success) {
-          this.conversations = result.conversations || [];
-          //console.log('Loaded conversations:', this.conversations.length);
-          //console.log('Conversation data:', this.conversations);
-          //console.log('Filtered conversations:', this.filteredConversations);
-        } else {
-          console.error('Failed to load conversations:', result.error);
-          // Keep the sample data if API fails
-          //console.log('Using sample data due to API error');
-        }
-      } catch (error) {
-        console.error('Error loading conversations:', error);
-        // Keep the sample data if API fails
-        //console.log('Using sample data due to network error');
-      }
-    },
-
-    async loadMessages(conversationId) {
-      try {
-        const response = await fetch(`/api/messages/${conversationId}`);
-        const result = await response.json();
-        
-        if (response.ok && result.success) {
-          return result.messages || [];
-        } else {
-          console.error('Failed to load messages:', result.error);
-          return [];
-        }
-      } catch (error) {
-        console.error('Error loading messages:', error);
-        return [];
-      }
+      this.$message({
+        message: message,
+        type: type,
+        duration: 4000,
+        showClose: true
+      });
+      
+      // Update page title with unread count
+      this.updatePageTitle();
     },
     
-    async markConversationAsRead(conversationId) {
-      try {
-        const response = await fetch('/api/conversations/mark-read', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            conversationId: conversationId
-          })
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          console.error('Failed to mark conversation as read:', result.error);
-        } else {
-          //console.log('Conversation marked as read in database');
-        }
-      } catch (error) {
-        console.error('Error marking conversation as read:', error);
+    updatePageTitle() {
+      const baseTitle = 'AI Phone - Associate Attorney';
+      
+      if (this.totalUnreadCount > 0) {
+        document.title = `(${this.totalUnreadCount}) ${baseTitle}`;
+      } else {
+        document.title = baseTitle;
       }
     },
 
@@ -861,9 +881,52 @@ export default {
   margin-bottom: 0.5rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  cursor: help;
+}
+
+.status-dot.connected {
+  background-color: #67C23A;
+  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.3);
+}
+
+.status-dot.connecting {
+  background-color: #E6A23C;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-dot.disconnected {
+  background-color: #F56C6C;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(230, 162, 60, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(230, 162, 60, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(230, 162, 60, 0);
+  }
+}
+
 .new-message-btn {
   flex-shrink: 0;
-  margin-left: 0.5rem;
 }
 
 .inbox-menu {

@@ -856,11 +856,13 @@ export default {
       
       this.linkDialogVisible = true;
       
-      // Focus on URL input after dialog opens
+      // Focus on URL input after dialog opens with a delay to ensure dialog is fully rendered
       this.$nextTick(() => {
-        if (this.$refs.linkUrlInput) {
-          this.$refs.linkUrlInput.focus();
-        }
+        setTimeout(() => {
+          if (this.$refs.linkUrlInput) {
+            this.$refs.linkUrlInput.focus();
+          }
+        }, 150);
       });
     },
     openCommentDialog() {

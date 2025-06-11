@@ -39,6 +39,10 @@
               <el-icon><ChatDotRound /></el-icon>
               Add Comment
             </el-dropdown-item>
+            <el-dropdown-item command="copy-internal-link">
+              <el-icon><Link /></el-icon>
+              Copy Internal Link
+            </el-dropdown-item>
             <!--el-dropdown-item command="create-link">
               <el-icon><Link /></el-icon>
               Create Link
@@ -1026,6 +1030,8 @@ export default {
     handleMenuCommand(command) {
       if (command === 'add-comment') {
         this.openCommentDialog();
+      } else if (command === 'copy-internal-link') {
+        this.copyInternalLink();
       } else if (command === 'create-link') {
         this.handleLinkShortcut();
       } else if (command === 'indent') {
@@ -1067,6 +1073,37 @@ export default {
     handleLinkFromTooltip() {
       this.selectionTooltipVisible = false;
       this.handleLinkShortcut();
+    },
+    async copyInternalLink() {
+      try {
+        const matterId = this.route.params.matterId;
+        const currentUrl = window.location.origin + window.location.pathname;
+        const internalLink = `${currentUrl}?focus=${this.item.id}`;
+        
+        await navigator.clipboard.writeText(internalLink);
+        ElMessage.success('Internal link copied to clipboard');
+      } catch (error) {
+        console.error('Failed to copy link:', error);
+        
+        // Fallback for browsers that don't support clipboard API
+        try {
+          const textArea = document.createElement('textarea');
+          const matterId = this.route.params.matterId;
+          const currentUrl = window.location.origin + window.location.pathname;
+          const internalLink = `${currentUrl}?focus=${this.item.id}`;
+          
+          textArea.value = internalLink;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          
+          ElMessage.success('Internal link copied to clipboard');
+        } catch (fallbackError) {
+          console.error('Fallback copy failed:', fallbackError);
+          ElMessage.error('Failed to copy link to clipboard');
+        }
+      }
     }
   }
 };

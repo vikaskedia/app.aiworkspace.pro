@@ -1285,12 +1285,17 @@ export default {
     const { data: { user } } = await supabase.auth.getUser();
     this.currentUser = user;
     this.loadUserSettings();
+    
+    // Load task first (this will handle caching)
     await this.loadTask(taskId);
-    await this.loadSharedUsers();
+    
+    // Load other data in parallel
+    await Promise.all([
+      this.loadSharedUsers(),
+      this.refreshTaskCache()
+    ]);
+    
     this.setupRealtimeSubscription();
-    await this.loadHoursLogs();
-    // Ensure task cache is fresh on component creation
-    await this.refreshTaskCache();
   },
 
   async activated() {
@@ -1318,6 +1323,9 @@ export default {
       if (error) throw error;
       this.tempDueDate = date;
       this.task.due_date = date;
+      
+      // Update cache
+      this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
@@ -1349,6 +1357,9 @@ export default {
       if (error) throw error;
       this.task.due_date = null;
       this.tempDueDate = null;
+      
+      // Update cache
+      this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
@@ -1397,6 +1408,9 @@ export default {
       });
 
       this.task.description = this.editingDescription;
+      
+      // Update cache
+      this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
@@ -1455,6 +1469,9 @@ export default {
       });
 
       this.task.title = this.editingTitle;
+      
+      // Update cache
+      this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
@@ -1523,6 +1540,9 @@ export default {
 
       this.task.assignee = userId;
       this.assigneeEmail = this.sharedUsers.find(u => u.id === userId)?.email;
+      
+      // Update cache
+      this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update matter activity
       await updateMatterActivity(this.currentMatter.id);
@@ -1612,6 +1632,9 @@ export default {
         // Update local state immediately
         this.task.status = status;
         
+        // Update cache
+        this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
+        
         // Create activity log
         await supabase
           .from('task_comments')
@@ -1666,6 +1689,9 @@ export default {
 
         // Update local task priority
         this.task.priority = priority;
+        
+        // Update cache
+        this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
         
         // Update matter activity
         await updateMatterActivity(this.currentMatter.id);
@@ -1734,37 +1760,100 @@ export default {
   },
     async loadTask(taskId, showMainLoading = true) {
       try {
-        if (showMainLoading) {
-          this.loading = true;
+        // First try to load from cache
+        const cachedTaskDetail = this.taskStore.getCachedTaskDetail(taskId);
+        if (cachedTaskDetail) {
+          console.log('Loading task detail from cache');
+          this.task = cachedTaskDetail.task;
+          this.editingTask = { ...cachedTaskDetail.task };
+          this.comments = cachedTaskDetail.comments || [];
+          this.hoursLogs = cachedTaskDetail.hoursLogs || [];
+          
+          // Load user emails for comments and hours logs
+          await this.loadUserEmailsFromCache();
+          
+          if (this.task.assignee) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', { user_id: this.task.assignee });
+            this.assigneeEmail = userData?.[0]?.email;
+          }
+          
+          // Don't show loading state since we have cached data
+          this.loading = false;
+        } else {
+          // Only show loading if no cached data is available
+          if (showMainLoading) {
+            this.loading = true;
+          }
         }
-        const { data: task, error } = await supabase
-          .from('tasks')
-          .select('*, task_stars(*)')
-          .eq('id', taskId)
-          .single();
 
-        if (error) throw error;
-        this.task = task;
-        this.editingTask = { ...task };
+        // Fetch fresh data in background
+        console.log('Fetching fresh task detail from API');
+        const freshTaskDetail = await this.taskStore.fetchAndCacheTaskDetail(taskId);
         
-        if (task.assignee) {
+        // Update with fresh data
+        this.task = freshTaskDetail.task;
+        this.editingTask = { ...freshTaskDetail.task };
+        this.comments = freshTaskDetail.comments || [];
+        this.hoursLogs = freshTaskDetail.hoursLogs || [];
+        
+        // Load user emails for any new data
+        await this.loadUserEmailsFromCache();
+        
+        if (this.task.assignee) {
           const { data: userData } = await supabase
-            .rpc('get_user_info_by_id', { user_id: task.assignee });
+            .rpc('get_user_info_by_id', { user_id: this.task.assignee });
           this.assigneeEmail = userData?.[0]?.email;
         }
 
-        await this.loadComments();
       } catch (error) {
         ElNotification.error({
           title: 'Error',
           message: 'Error loading task: ' + error.message
         });
       } finally {
-        if (showMainLoading) {
-          this.loading = false;
-        }
+        // Always set loading to false when done
+        this.loading = false;
       }
     },
+    async loadUserEmailsFromCache() {
+      try {
+        // Collect all unique user IDs that need email lookup
+        const userIds = new Set();
+        
+        // Add user IDs from comments
+        this.comments.forEach(comment => {
+          if (comment.user_id && !this.userEmails[comment.user_id]) {
+            userIds.add(comment.user_id);
+          }
+        });
+
+        // Add user IDs from hours logs
+        this.hoursLogs.forEach(log => {
+          if (log.user_id && !this.userEmails[log.user_id]) {
+            userIds.add(log.user_id);
+          }
+        });
+
+        // Load all user emails in parallel
+        const emailPromises = Array.from(userIds).map(async (userId) => {
+          try {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', { user_id: userId });
+            if (userData?.[0]) {
+              this.userEmails[userId] = userData[0].email;
+            }
+          } catch (error) {
+            console.error(`Error loading email for user ${userId}:`, error);
+          }
+        });
+
+        await Promise.all(emailPromises);
+      } catch (error) {
+        console.error('Error loading user emails:', error);
+      }
+    },
+
     async loadComments() {
       try {
         this.commentsLoading = true;
@@ -1789,10 +1878,9 @@ export default {
           }
         }
 
-        // Filter comments based on archived status
-        this.comments = comments.filter(comment => 
-          this.showArchivedComments ? true : !comment.archived
-        );
+        // Update comments and cache
+        this.comments = comments;
+        this.taskStore.updateCachedTaskDetail(this.task.id, { comments });
       } catch (error) {
         ElNotification.error({
           title: 'Error',
@@ -2024,12 +2112,16 @@ export default {
                 }
                 // Add new comment to the beginning of the list
                 this.comments.unshift(payload.new);
+                // Update cache
+                this.taskStore.updateCachedTaskDetail(this.task.id, { comments: this.comments });
                 break;
               
               case 'UPDATE':
                 const updateIndex = this.comments.findIndex(comment => comment.id === payload.new.id);
                 if (updateIndex !== -1) {
                   this.comments[updateIndex] = payload.new;
+                  // Update cache
+                  this.taskStore.updateCachedTaskDetail(this.task.id, { comments: this.comments });
                 }
                 break;
               
@@ -2037,6 +2129,8 @@ export default {
                 const deleteIndex = this.comments.findIndex(comment => comment.id === payload.old.id);
                 if (deleteIndex !== -1) {
                   this.comments.splice(deleteIndex, 1);
+                  // Update cache
+                  this.taskStore.updateCachedTaskDetail(this.task.id, { comments: this.comments });
                 }
                 break;
             }
@@ -2062,7 +2156,8 @@ export default {
               
               // If the current task was updated, refresh it
               if (isCurrentTask) {
-                await this.loadTask(this.task.id, false);
+                this.task = { ...this.task, ...payload.new };
+                this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
               }
             } catch (error) {
               console.error('Error handling realtime task update:', error);
@@ -2675,10 +2770,15 @@ export default {
         if (error) throw error;
 
          // Trim time_taken to HH:MM format
-         this.hoursLogs = logs.map(log => ({
+         const formattedLogs = logs.map(log => ({
           ...log,
           time_taken: log.time_taken ? log.time_taken.substring(0, 5) : null
         }));
+
+        this.hoursLogs = formattedLogs;
+        
+        // Update cache
+        this.taskStore.updateCachedTaskDetail(this.task.id, { hoursLogs: formattedLogs });
 
         // Load user emails for each log
         for (const log of logs) {
@@ -2815,6 +2915,7 @@ export default {
 
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
+        this.resetTimeInputs();
         await this.loadHoursLogs();
         ElNotification.success({
           title: 'Success',
@@ -2882,6 +2983,9 @@ export default {
 
         // Update local task data
         this.task.parent_task_id = newParentTaskId;
+        
+        // Update cache
+        this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
         
         // Create activity log
         const newParentTask = this.flattenedTasks.find(t => t.id === parentTaskId);
@@ -3431,6 +3535,15 @@ ${comment.content}
       // Refresh the task store cache to ensure we have the latest task data
       if (this.currentMatter?.id) {
         await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+      }
+    },
+
+    async refreshCurrentTaskDetail() {
+      // Force refresh the current task detail cache
+      const taskId = this.$route.params.taskId;
+      if (taskId) {
+        this.taskStore.clearTaskDetailCache(taskId);
+        await this.loadTask(taskId, false);
       }
     },
   },

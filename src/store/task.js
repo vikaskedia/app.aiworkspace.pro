@@ -4,12 +4,13 @@ import { supabase } from '../supabase';
 export const useTaskStore = defineStore('task', {
   state: () => ({
     tasks: {},
+    taskDetails: {},
     cacheVersion: '1.0'
   }),
 
   persist: {
     storage: localStorage,
-    paths: ['tasks', 'cacheVersion']
+    paths: ['tasks', 'taskDetails', 'cacheVersion']
   },
 
   actions: {
@@ -33,6 +34,88 @@ export const useTaskStore = defineStore('task', {
       return cached.data;
     },
 
+    setCachedTaskDetail(taskId, taskDetail) {
+      this.taskDetails[taskId] = {
+        data: taskDetail,
+        timestamp: Date.now()
+      };
+    },
+
+    getCachedTaskDetail(taskId) {
+      const cached = this.taskDetails[taskId];
+      if (!cached) return null;
+
+      const isStale = Date.now() - cached.timestamp > 60 * 60 * 1000;
+      if (isStale) {
+        delete this.taskDetails[taskId];
+        return null;
+      }
+
+      return cached.data;
+    },
+
+    updateCachedTaskDetail(taskId, updates) {
+      const cached = this.taskDetails[taskId];
+      if (!cached) return;
+
+      this.taskDetails[taskId] = {
+        data: { ...cached.data, ...updates },
+        timestamp: Date.now()
+      };
+    },
+
+    clearTaskDetailCache(taskId) {
+      if (taskId) {
+        delete this.taskDetails[taskId];
+      } else {
+        this.taskDetails = {};
+      }
+    },
+
+    async fetchAndCacheTaskDetail(taskId) {
+      try {
+        const { data: task, error: taskError } = await supabase
+          .from('tasks')
+          .select('*, task_stars(*)')
+          .eq('id', taskId)
+          .single();
+
+        if (taskError) throw taskError;
+
+        const { data: comments, error: commentsError } = await supabase
+          .from('task_comments')
+          .select('*')
+          .eq('task_id', taskId)
+          .order('created_at', { ascending: false });
+
+        if (commentsError) throw commentsError;
+
+        const { data: hoursLogs, error: hoursError } = await supabase
+          .from('task_hours_logs')
+          .select('*')
+          .eq('task_id', taskId)
+          .order('created_at', { ascending: false });
+
+        if (hoursError) throw hoursError;
+
+        const taskDetail = {
+          task,
+          comments: comments || [],
+          hoursLogs: hoursLogs?.map(log => ({
+            ...log,
+            time_taken: log.time_taken ? log.time_taken.substring(0, 5) : null
+          })) || []
+        };
+
+        this.setCachedTaskDetail(taskId, taskDetail);
+
+        return taskDetail;
+      } catch (error) {
+        console.error('Error fetching task detail:', error);
+        throw error;
+      }
+    },
+
     updateCachedTask(matterId, taskId, updates) {
       const cached = this.tasks[matterId];
       if (!cached) return;
@@ -41,6 +124,8 @@ export const useTaskStore = defineStore('task', {
         task.id === taskId ? { ...task, ...updates } : task
       );
       this.setCachedTasks(matterId, updatedTasks);
+
+      this.updateCachedTaskDetail(taskId, updates);
     },
 
     removeCachedTask(matterId, taskId) {
@@ -49,6 +134,8 @@ export const useTaskStore = defineStore('task', {
 
       const filteredTasks = cached.data.filter(task => task.id !== taskId);
       this.setCachedTasks(matterId, filteredTasks);
+
+      this.clearTaskDetailCache(taskId);
     },
 
     clearTaskCache(matterId) {
@@ -120,6 +207,7 @@ export const useTaskStore = defineStore('task', {
     clearAllTasksCache() {
       console.log('clearing all tasks cache');
       this.tasks = {};
+      this.taskDetails = {};
     },
 
     async getTaskById(taskId) {
@@ -160,7 +248,6 @@ export const useTaskStore = defineStore('task', {
 
         if (error) throw error;
         
-        // Clear all task caches since this could affect multiple views
         this.clearAllTasksCache();
         
         return data[0];

@@ -90,6 +90,7 @@
         @keydown="handleKeydown"
         @input="autoResize"
         @mouseup="handleTextSelection"
+        @keyup="handleTextSelection"
         class="outline-textarea"
         rows="1"
       ></textarea>
@@ -97,6 +98,23 @@
         💬
       </span>
     </div>
+
+    <!-- Selection Tooltip -->
+    <div
+      v-if="selectionTooltipVisible"
+      class="selection-tooltip"
+      :style="tooltipStyle"
+      @mousedown.prevent
+    >
+      <button
+        class="tooltip-button"
+        @click="handleLinkFromTooltip"
+        title="Create Link"
+      >
+        🔗 Link
+      </button>
+    </div>
+
     <div
       class="dropzone"
       :class="{ 'dropzone-active': isDragOver }"
@@ -260,7 +278,10 @@ export default {
       linkUrl: '',
       selectionStart: 0,
       selectionEnd: 0,
-      savingComment: false
+      savingComment: false,
+      selectionTooltipVisible: false,
+      tooltipStyle: {},
+      tooltipTimer: null
     };
   },
   setup() {
@@ -346,14 +367,38 @@ export default {
         }
       }
     };
+    
+    // Add global click listener to hide tooltip when clicking outside
+    this._onGlobalClick = (e) => {
+      if (this.selectionTooltipVisible) {
+        // Check if click is outside the tooltip and textarea
+        const tooltipEl = this.$el.querySelector('.selection-tooltip');
+        const textareaEl = this.$refs.textarea;
+        
+        if (tooltipEl && !tooltipEl.contains(e.target) && 
+            textareaEl && !textareaEl.contains(e.target)) {
+          this.selectionTooltipVisible = false;
+        }
+      }
+    };
+    
     window.addEventListener('keydown', this._onKeydown);
+    document.addEventListener('click', this._onGlobalClick);
   },
   beforeUnmount() {
     // Clean up subscription
     if (this.unsubscribe) {
       this.unsubscribe();
     }
+    
+    // Clear tooltip timer
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
+    }
+    
     window.removeEventListener('keydown', this._onKeydown);
+    document.removeEventListener('click', this._onGlobalClick);
   },
   updated() {
     if (this.editing && this.$refs.textarea) {
@@ -372,6 +417,7 @@ export default {
     },
     finishEdit() {
       this.editing = false;
+      this.selectionTooltipVisible = false; // Hide tooltip when finishing edit
       if (this.editText !== this.item.text) {
         this.$emit('update', { id: this.item.id, text: this.editText });
       }
@@ -757,11 +803,14 @@ export default {
         e.preventDefault();
         e.stopPropagation();
         this.$emit('indent', { id: this.item.id });
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        // Ctrl+K (or Cmd+K on Mac) to create link
-        e.preventDefault();
-        e.stopPropagation();
-        this.handleLinkShortcut();
+      } else if (e.key === 'Escape') {
+        // Hide tooltip on Escape
+        this.selectionTooltipVisible = false;
+      }
+      
+      // Hide tooltip on any keypress that might change selection
+      if (this.selectionTooltipVisible && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        this.selectionTooltipVisible = false;
       }
     },
     handleLinkShortcut() {
@@ -906,6 +955,12 @@ export default {
       const textarea = this.$refs.textarea;
       if (!textarea) return;
       
+      // Clear any existing timer
+      if (this.tooltipTimer) {
+        clearTimeout(this.tooltipTimer);
+        this.tooltipTimer = null;
+      }
+      
       const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
       
       if (selectedText.trim().length > 0) {
@@ -913,8 +968,16 @@ export default {
         this.selectionStart = textarea.selectionStart;
         this.selectionEnd = textarea.selectionEnd;
         
-        // Show context menu or allow Ctrl+K for link creation
-        // For now, we'll show a small floating button or wait for keyboard shortcut
+        // Calculate tooltip position
+        this.calculateTooltipPosition(textarea);
+        
+        // Show tooltip after a short delay
+        this.tooltipTimer = setTimeout(() => {
+          this.selectionTooltipVisible = true;
+        }, 300);
+      } else {
+        // Hide tooltip if no text is selected
+        this.selectionTooltipVisible = false;
       }
     },
     createLink() {
@@ -972,6 +1035,38 @@ export default {
       } else if (command === 'delete') {
         this.$emit('delete', this.item.id);
       }
+    },
+    calculateTooltipPosition(textarea) {
+      // Get textarea position relative to viewport
+      const textareaRect = textarea.getBoundingClientRect();
+      const containerRect = this.$el.getBoundingClientRect();
+      
+      // Calculate approximate position of selected text
+      const textBeforeSelection = textarea.value.substring(0, this.selectionStart);
+      const lines = textBeforeSelection.split('\n');
+      const currentLine = lines.length - 1;
+      const charInLine = lines[currentLine].length;
+      
+      // More accurate character width estimation based on textarea font
+      const computedStyle = window.getComputedStyle(textarea);
+      const fontSize = parseFloat(computedStyle.fontSize);
+      const charWidth = fontSize * 0.6; // Rough estimation for monospace-like characters
+      const lineHeight = parseFloat(computedStyle.lineHeight) || fontSize * 1.2;
+      
+      const x = Math.min(charInLine * charWidth, textarea.offsetWidth - 80); // Prevent overflow
+      const y = currentLine * lineHeight;
+      
+      // Position tooltip above the selection, relative to the textarea
+      this.tooltipStyle = {
+        position: 'absolute',
+        left: `${Math.max(10, x)}px`, // Minimum 10px from left
+        top: `${Math.max(-40, y - 40)}px`, // 40px above the text, minimum -40px
+        zIndex: 1000
+      };
+    },
+    handleLinkFromTooltip() {
+      this.selectionTooltipVisible = false;
+      this.handleLinkShortcut();
     }
   }
 };
@@ -1320,5 +1415,59 @@ export default {
 .three-dots:hover {
   background-color: #f5f5f5;
   color: #333;
+}
+
+/* Selection Tooltip */
+.selection-tooltip {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.selection-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #fff;
+}
+
+.selection-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #e1e4e8;
+  z-index: -1;
+}
+
+.tooltip-button {
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #586069;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 70px;
+  font-weight: 500;
+}
+
+.tooltip-button:hover {
+  background-color: #f6f8fa;
+  color: #0366d6;
 }
 </style> 

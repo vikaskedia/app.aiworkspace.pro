@@ -85,7 +85,7 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElNotification } from 'element-plus';
 import { Clock } from '@element-plus/icons-vue';
@@ -257,6 +257,29 @@ export default {
         // In case of error, assume we have changes if we have local content
         hasChanges.value = outline.value !== defaultOutline;
         lastSavedContent.value = outline.value;
+      }
+
+      // Add keyboard shortcut listener for Ctrl+S / Cmd+S
+      const handleKeyDown = (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+          event.preventDefault();
+          if (hasChanges.value && !saving.value) {
+            saveOutline();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      
+      // Store the handler for cleanup
+      window.outlineKeyDownHandler = handleKeyDown;
+    });
+
+    // Cleanup keyboard event listener on unmount
+    onUnmounted(() => {
+      if (window.outlineKeyDownHandler) {
+        document.removeEventListener('keydown', window.outlineKeyDownHandler);
+        delete window.outlineKeyDownHandler;
       }
     });
 

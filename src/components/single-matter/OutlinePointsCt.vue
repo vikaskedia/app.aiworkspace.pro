@@ -360,7 +360,7 @@ export default {
       // Optionally clear autoFocus after focusing
       this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
     }
-    // Add global keydown listener for Ctrl+M
+    // Add global keydown listener for Ctrl+M and Ctrl+K
     this._onKeydown = (e) => {
       if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
         // Only open if this node is focused or being edited
@@ -368,6 +368,13 @@ export default {
         if (isNodeFocused || this.editing) {
           e.preventDefault();
           this.openCommentDialog();
+        }
+      } else if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
+        // Only create link if this node is focused or being edited
+        const isNodeFocused = document.activeElement === this.$el || (this.$refs.textarea && document.activeElement === this.$refs.textarea);
+        if (isNodeFocused || this.editing) {
+          e.preventDefault();
+          this.handleLinkShortcut();
         }
       }
     };
@@ -810,6 +817,11 @@ export default {
       } else if (e.key === 'Escape') {
         // Hide tooltip on Escape
         this.selectionTooltipVisible = false;
+      } else if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
+        // Handle Ctrl+K for link creation
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleLinkShortcut();
       }
       
       // Hide tooltip on any keypress that might change selection

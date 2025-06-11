@@ -103,9 +103,29 @@ export function useRealtimeMessages(matterId) {
     if (conversationIndex !== -1) {
       const conversation = conversations.value[conversationIndex]
       
-      // If conversation has messages loaded, add the new message
+      // If conversation has messages loaded, check for duplicates before adding
       if (conversation.messages && Array.isArray(conversation.messages)) {
-        conversation.messages.push(transformMessage(newMessage))
+        // Check if message already exists (prevent duplicates from optimistic updates)
+        const existingMessage = conversation.messages.find(m => 
+          m.id === newMessage.id || 
+          (m.id && m.id.toString().startsWith('temp-') && 
+           m.text === newMessage.message_body && 
+           m.direction === newMessage.direction)
+        )
+        
+        if (existingMessage) {
+          // Replace temporary message with real one
+          if (existingMessage.id && existingMessage.id.toString().startsWith('temp-')) {
+            const messageIndex = conversation.messages.findIndex(m => m.id === existingMessage.id)
+            if (messageIndex !== -1) {
+              conversation.messages[messageIndex] = transformMessage(newMessage)
+            }
+          }
+          // If it's a real message that already exists, ignore it
+        } else {
+          // Add new message only if it doesn't exist
+          conversation.messages.push(transformMessage(newMessage))
+        }
       }
       
       // Note: We don't update unread count or move conversation here

@@ -42,7 +42,7 @@
       <el-collapse-transition>
         <div v-show="showFilters" class="filters-container">
           <el-form :inline="true" class="filter-form">
-            <el-form-item label="Matter">
+            <el-form-item label="Workspace">
               <el-select
                 v-model="filters.matter"
                 placeholder="All matters"
@@ -228,7 +228,7 @@ export default {
           if (Array.isArray(mattersData)) {
             this.matters = mattersData.map(matter => ({
               id: matter.id || matter,
-              title: matter.title || `Matter ${matter.id || matter}`
+              title: matter.title || `Workspace ${matter.id || matter}`
             }));
           }
         }
@@ -263,7 +263,7 @@ export default {
 
     getMatterTitle(matterId) {
       const matter = this.matters.find(matter => matter.id === matterId);
-      return matter ? matter.title : 'Unknown Matter';
+      return matter ? matter.title : 'Unknown Workspace';
     }
   },
   async mounted() {

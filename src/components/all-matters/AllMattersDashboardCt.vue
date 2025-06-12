@@ -9,7 +9,7 @@
         />
         <el-button id="idOfButtonToCreateNewMatter" type="primary" @click="createMatterDialog = true">
           <el-icon><Plus /></el-icon>
-          New Matter
+          New Workspace
         </el-button>
       </div>
     </div>
@@ -27,11 +27,11 @@
                 <el-dropdown-menu>
                   <template v-if="!showArchived">
                     <!--el-dropdown-item command="view">View Dashboard</el-dropdown-item-->
-                    <el-dropdown-item command="edit">Edit Matter</el-dropdown-item>
+                    <el-dropdown-item command="edit">Edit Workspace</el-dropdown-item>
                     <el-dropdown-item command="archive" divided>Archive</el-dropdown-item>
                   </template>
                   <template v-else>
-                    <el-dropdown-item command="restore">Restore Matter</el-dropdown-item>
+                    <el-dropdown-item command="restore">Restore Workspace</el-dropdown-item>
                   </template>
                 </el-dropdown-menu>
               </template>
@@ -66,10 +66,10 @@
       </el-card>
     </div>
 
-    <!-- Create Matter Dialog -->
+    <!-- Create Workspace Dialog -->
     <el-dialog
       v-model="createMatterDialog"
-      title="Create New Matter"
+      title="Create New Workspace"
       id="idOfDialogToCreateNewMatter"
       width="500px">
       <el-form :model="newMatter" label-position="top">
@@ -95,16 +95,16 @@
             :disabled="!newMatter.title"
             :loading="loading"
             @click="createMatter">
-            Create Matter
+            Create Workspace
           </el-button>
         </span>
       </template>
     </el-dialog>
 
-    <!-- Edit Matter Dialog -->
+    <!-- Edit Workspace Dialog -->
     <el-dialog
       v-model="editMatterDialog"
-      title="Edit Matter"
+      title="Edit Workspace"
       width="500px">
       <el-form :model="editingMatter" label-position="top">
         <el-form-item label="Title" required>
@@ -376,7 +376,7 @@ export default {
         
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };
-        ElMessage.success('Matter created successfully');
+        ElMessage.success('Workspace created successfully');
       } catch (error) {
         if (error.message.includes('JWT')) {
           ElMessage.error('Your session has expired. Please log in again.');
@@ -412,7 +412,7 @@ export default {
         this.clearMattersCache();
 
         this.editMatterDialog = false;
-        ElMessage.success('Matter updated successfully');
+        ElMessage.success('Workspace updated successfully');
       } catch (error) {
         ElMessage.error('Error updating matter: ' + error.message);
       } finally {
@@ -440,7 +440,7 @@ export default {
         // Clear cache when archiving matter
         this.clearMattersCache();
         
-        ElMessage.success('Matter archived successfully');
+        ElMessage.success('Workspace archived successfully');
       } catch (error) {
         ElMessage.error('Error archiving matter: ' + error.message);
       }
@@ -464,7 +464,7 @@ export default {
         // Clear cache when restoring matter
         this.clearMattersCache();
         
-        ElMessage.success('Matter restored successfully');
+        ElMessage.success('Workspace restored successfully');
       } catch (error) {
         ElMessage.error('Error restoring matter: ' + error.message);
       }

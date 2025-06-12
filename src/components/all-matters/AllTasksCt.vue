@@ -85,7 +85,7 @@
                 style="width: 160px"
               />
             </el-form-item>
-            <el-form-item label="Matter">
+            <el-form-item label="Workspace">
               <el-select
                 v-model="filters.matter"
                 placeholder="All matters"
@@ -434,7 +434,7 @@ export default {
 
           return {
             ...task,
-            matter_title: task.matter?.title || 'Unknown Matter',
+            matter_title: task.matter?.title || 'Unknown Workspace',
             assignee_email: assigneeEmail,
             starred: task.task_stars?.some(star => star.user_id === user.id) || false,
             total_hours: task.task_hours_logs?.reduce((sum, log) => {

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     console.log('Conversations API called with matterId:', matterId)
 
     if (!matterId) {
-      return res.status(400).json({ error: 'Matter ID is required' })
+      return res.status(400).json({ error: 'Workspace ID is required' })
     }
 
     // Fetch conversations for the matter with latest message info

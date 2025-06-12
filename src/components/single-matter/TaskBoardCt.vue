@@ -58,7 +58,7 @@
                         <template v-if="isAllTasksContext">
                           <el-dropdown trigger="click" @command="(matter) => { selectedMatter = matter; updateTaskMatter(task); }">
                             <span class="matter-selector">
-                              {{ selectedMatter?.title || 'Select Matter' }}
+                              {{ selectedMatter?.title || 'Select Workspace' }}
                               <el-icon class="el-icon--right"><CaretBottom /></el-icon>
                             </span>
                             <template #dropdown>
@@ -73,7 +73,7 @@
                             </template>
                           </el-dropdown>
                         </template>
-                        <span v-else>{{ currentMatter?.title || 'Single Matter' }}</span>
+                        <span v-else>{{ currentMatter?.title || 'Single Workspace' }}</span>
                       </div>
                       <div class="new-task-content">
                         <div class="input-row">
@@ -207,7 +207,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                             :content="'This is the matter name.'"
                             placement="top">
                             <el-tag class="matter-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-matter', task.matter_id)">
-                              {{ task.matter?.title || 'No Matter' }}
+                              {{ task.matter?.title || 'No Workspace' }}
                             </el-tag>
                           </el-tooltip>
                         </div>

@@ -11,7 +11,7 @@
                 <span class="header-label">Task Name</span>
               </div>
               <div class="matter-section">
-                <span class="header-label">Matter</span>
+                <span class="header-label">Workspace</span>
               </div>
               <div class="time-section">
                 <span class="header-label">Total Time</span>
@@ -30,7 +30,7 @@
               </div>
               <div class="matter-section">
                 <el-tag size="small" type="info" effect="plain" class="matter-name">
-                  {{ group.children[0]?.task?.matter?.title || 'No Matter' }}
+                  {{ group.children[0]?.task?.matter?.title || 'No Workspace' }}
                 </el-tag>
               </div>
               <div class="time-section">

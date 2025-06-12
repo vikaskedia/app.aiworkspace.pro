@@ -191,7 +191,7 @@
             type="primary"
             :loading="loading"
             @click="handleConsultationComplete">
-            Create Matter
+            Create Workspace
           </el-button>
         </span>
       </template>
@@ -551,7 +551,7 @@ export default {
         const { data: matter, error: matterError } = await supabase
           .from('matters')
           .insert([{
-            title: 'Legal Consultation Matter',
+            title: 'Legal Consultation Workspace',
             description: `Initial consultation conducted on ${new Date().toLocaleDateString()}`,
             created_by: user.id,
             archived: false,
@@ -695,7 +695,7 @@ export default {
             })
           }])
 
-        ElMessage.success('Matter created successfully')
+        ElMessage.success('Workspace created successfully')
         // Redirect to the new matter
         window.location.href = `/single-matter/${matter.id}/dashboard`
 
@@ -898,12 +898,12 @@ export default {
 
       // Format shared matters information
       const sharedMattersInfo = userMatters.value.length > 0 
-        ? `\n\nShared Legal Matters:\n${userMatters.value.map(matter => `
-- Matter: ${matter.title}
+        ? `\n\nShared Legal Workspaces:\n${userMatters.value.map(matter => `
+- Workspace: ${matter.title}
   Description: ${matter.description || 'No description'}
   Tasks:${matter.tasks?.length ? matter.tasks.map(task => `
     • ${task.title} (${task.priority} priority) - ${task.status}`).join('') : '\n    • No tasks yet'}`).join('\n')}`
-        : '\n\nShared Legal Matters: None';
+        : '\n\nShared Legal Workspaces: None';
 
       // Add user information section with shared matters
       const userInfoSection = `Information known about the user:

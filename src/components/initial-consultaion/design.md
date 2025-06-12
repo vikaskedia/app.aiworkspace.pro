@@ -4,7 +4,7 @@ Our Associate attorney AI system has matters and below each matter there are:
 3. Goals - output from the AI
 4. Tasks - output from the AI
 
-# Legal Matter Initial consultation Design
+# Legal Workspace Initial consultation Design
 
 ## Overview
 The initial consultation system uses AI to conduct an interactive interview with users to gather information (i.e. Events and files) about their legal matter and create a structured plan of action (i.e. Goals and Tasks).

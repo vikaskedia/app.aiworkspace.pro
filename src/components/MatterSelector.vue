@@ -147,7 +147,7 @@ export default {
         // Close dialog and reset form
         dialogVisible.value = false;
         newMatter.value = { title: '', description: '' };
-        ElMessage.success('Matter created successfully');
+        ElMessage.success('Workspace created successfully');
 
         // Select the newly created matter
         selectedMatter.value = data;
@@ -248,14 +248,14 @@ export default {
   <div class="matter-selector">
     <el-dropdown trigger="click">
       <span class="matter-dropdown-link">
-        {{ selectedMatter?.title || 'All Matters' }}
+        {{ selectedMatter?.title || 'All Workspaces' }}
         <el-icon><caret-bottom /></el-icon>
       </span>
       
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item @click="handleMatterSelect(null)">
-            All Matters
+            All Workspaces
           </el-dropdown-item>
           <el-dropdown-item divided />
           <el-dropdown-item
@@ -265,7 +265,7 @@ export default {
             {{ matter.title }}
           </el-dropdown-item>
           <el-dropdown-item divided @click="dialogVisible = true">
-            New Matter
+            New Workspace
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>
@@ -273,7 +273,7 @@ export default {
   </div>
   <el-dialog
     v-model="dialogVisible"
-    title="Create New Matter"
+    title="Create New Workspace"
     width="500px">
     <el-form :model="newMatter" label-position="top">
       <el-form-item label="Title" required>
@@ -296,7 +296,7 @@ export default {
           type="primary"
           :disabled="!newMatter.title"
           @click="createMatter">
-          Create Matter
+          Create Workspace
         </el-button>
       </span>
     </template>

@@ -22,7 +22,7 @@
         <el-table-column 
           v-if="!currentMatter"
           prop="matter_title" 
-          label="Matter"
+          label="Workspace"
           min-width="150" />
         <el-table-column 
           prop="status" 
@@ -99,7 +99,7 @@
         <el-table-column 
           v-if="!currentMatter"
           prop="matter_title" 
-          label="Matter"
+          label="Workspace"
           min-width="150" />
         <el-table-column 
           prop="event_type" 

@@ -266,7 +266,7 @@ export default {
     
     <div v-else class="billing-content">
       <el-table :data="filteredWorkHours" style="width: 100%">
-        <el-table-column prop="matters.title" label="Matter" min-width="200" />
+        <el-table-column prop="matters.title" label="Workspace" min-width="200" />
         <el-table-column label="Time" width="150">
           <template #default="scope">
             {{ Math.floor(scope.row.minutes / 60) }}h {{ scope.row.minutes % 60 }}m
@@ -299,7 +299,7 @@ export default {
       width="500px"
     >
       <el-form :model="form" label-width="120px">
-        <el-form-item label="Matter">
+        <el-form-item label="Workspace">
           <el-select v-model="form.matter_id" placeholder="Select matter" style="width: 100%">
             <el-option
               v-for="matter in matters"

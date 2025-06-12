@@ -86,8 +86,8 @@ export default defineComponent({
       switch (this.groupBy) {
         case 'status':
           columns = [
-            { id: 'active', title: 'Active Matters', matters: [] },
-            { id: 'archived', title: 'Archived Matters', matters: [] }
+            { id: 'active', title: 'Active Workspaces', matters: [] },
+            { id: 'archived', title: 'Archived Workspaces', matters: [] }
           ];
           break;
         case 'progress':

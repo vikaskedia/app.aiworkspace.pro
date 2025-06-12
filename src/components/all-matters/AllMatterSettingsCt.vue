@@ -1,6 +1,6 @@
 <template>
   <div class="settings-container">
-    <h2>All Matter Settings</h2>
+    <h2>All Workspace Settings</h2>
     
     <el-form :model="settings" label-position="top" class="settings-form">
       <!-- Notification Preferences Section -->
@@ -59,7 +59,7 @@
             <el-checkbox label="task_assignments">Task assignments</el-checkbox>
             <el-checkbox label="task_updates">Task updates</el-checkbox>
             <el-checkbox label="goal_updates">Goal updates</el-checkbox>
-            <el-checkbox label="matter_updates">Matter updates</el-checkbox>
+            <el-checkbox label="matter_updates">Workspace updates</el-checkbox>
             <el-checkbox label="comments">New comments</el-checkbox>
           </el-checkbox-group>
         </div>

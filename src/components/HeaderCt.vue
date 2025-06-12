@@ -53,8 +53,8 @@ export default {
         if (path.endsWith('/goals')) return 'All Goals';
         if (path.endsWith('/events')) return 'All Events';
         if (path.endsWith('/files')) return 'All Files';
-        if (path.includes('/settings')) return 'All Matter Settings';
-        return 'All Matters';
+        if (path.includes('/settings')) return 'All Workspace Settings';
+        return 'All Workspaces';
       }
       return 'Dashboard';
     },
@@ -368,7 +368,7 @@ export default {
                 <el-dropdown-item command="ai_phone">AI Phone</el-dropdown-item>
                 <el-dropdown-item command="settings">Settings</el-dropdown-item>
               </template>
-              <!-- Show these options when "All Matters" is selected -->
+              <!-- Show these options when "All Workspaces" is selected -->
               <template v-else>
                 <el-dropdown-item command="all_dashboard">Dashboard</el-dropdown-item>
                 <el-dropdown-item command="all_tasks">Tasks</el-dropdown-item>
@@ -411,7 +411,7 @@ export default {
             <el-dropdown-item command="billing">
               Billing
             </el-dropdown-item>
-            <el-dropdown-item command="all_matters" divided>All Matters</el-dropdown-item>
+            <el-dropdown-item command="all_matters" divided>All Workspaces</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
             <el-dropdown-item divided command="referral_system">Referral System</el-dropdown-item>

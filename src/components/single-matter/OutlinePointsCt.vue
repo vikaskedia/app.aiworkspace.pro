@@ -655,7 +655,7 @@ export default {
               },
               body: JSON.stringify({
                 name: repoName,
-                description: `Outline files for Matter ${matterId}`,
+                description: `Outline files for Workspace ${matterId}`,
                 private: true,
                 auto_init: true,
                 trust_model: 'collaborator'

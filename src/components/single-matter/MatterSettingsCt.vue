@@ -58,7 +58,7 @@ export default {
       notificationTypeOptions: [
         { label: 'Task Updates', value: 'task_updates' },
         { label: 'Goal Updates', value: 'goal_updates' },
-        { label: 'Matter Updates', value: 'matter_updates' },
+        { label: 'Workspace Updates', value: 'matter_updates' },
         { label: 'Comments', value: 'comments' },
         { label: 'Document Updates', value: 'document_updates' }
       ],
@@ -140,7 +140,7 @@ export default {
 
         // Update the Pinia store instead of using Vuex
         this.currentMatter = data;
-        ElMessage.success('Matter updated successfully');
+        ElMessage.success('Workspace updated successfully');
       } catch (error) {
         ElMessage.error('Error updating matter: ' + error.message);
       }
@@ -205,7 +205,7 @@ export default {
         
         await this.loadSharedUsers();
         this.dialogVisible = false;
-        ElMessage.success('Matter shared successfully');
+        ElMessage.success('Workspace shared successfully');
       } catch (error) {
         ElMessage.error('Error sharing matter: ' + error.message);
       }
@@ -495,9 +495,9 @@ export default {
   <div class="manage-matter">
     <div class="content">
 
-      <!-- Matter Details Section -->
+      <!-- Workspace Details Section -->
       <div class="section">
-        <h3>Matter Details</h3>
+        <h3>Workspace Details</h3>
         <el-form :model="editingMatter" label-position="top">
           <el-form-item label="Title" required>
             <el-input v-model="editingMatter.title" />
@@ -521,9 +521,9 @@ export default {
         </el-form>
       </div>
 
-      <!-- Share Matter Section -->
+      <!-- Share Workspace Section -->
       <div class="section">
-        <h3>Share Matter</h3>
+        <h3>Share Workspace</h3>
         <el-form :model="newShare" label-position="top">
           <div class="share-inputs">
             <el-form-item label="Email" required>

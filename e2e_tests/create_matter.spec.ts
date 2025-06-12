@@ -22,7 +22,7 @@ test('Create matter after login and edit it', async ({ page }) => {
     await expect(page).toHaveURL('https://app.associateattorney.ai/all-matters/dashboard');
     //await expect(page).toHaveURL('http://localhost/all-matters/dashboard');
 
-    // Click the "New Matter" button
+    // Click the "New Workspace" button
     const button = page.locator('#idOfButtonToCreateNewMatter');
     await button.waitFor({ state: 'visible', timeout: 50000 }); // Wait until button appears
 
@@ -35,7 +35,7 @@ test('Create matter after login and edit it', async ({ page }) => {
 
     // Generate a unique timestamped title
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); // Format timestamp
-    const matterTitle = `Sample Matter ${timestamp}`;
+    const matterTitle = `Sample Workspace ${timestamp}`;
 
     // Fill in the Title field
     await page.fill('#idOfInputMatterTitle', matterTitle);
@@ -43,13 +43,13 @@ test('Create matter after login and edit it', async ({ page }) => {
     // Fill in the Description field
     await page.fill('#idOfInputMatterDescription', 'This is a sample description for the new matter.');
 
-    // Locate the "Create Matter" button inside the dialog
-    const createButton = dialog.locator('.el-button--primary:has-text("Create Matter")');
+    // Locate the "Create Workspace" button inside the dialog
+    const createButton = dialog.locator('.el-button--primary:has-text("Create Workspace")');
 
     // Wait for the button to be enabled
     await createButton.waitFor({ state: 'visible', timeout: 5000 });
 
-    // Click the "Create Matter" button
+    // Click the "Create Workspace" button
     await createButton.click();
 
     // Wait for the matter to appear in the grid
@@ -60,14 +60,14 @@ test('Create matter after login and edit it', async ({ page }) => {
     const newMatter = matterGrid.locator(`.matter-card h3:has-text("${matterTitle}")`);
     await expect(newMatter).toBeVisible();
 
-    console.log(`✅ Matter "${matterTitle}" successfully created and found in the list.`);
+    console.log(`✅ Workspace "${matterTitle}" successfully created and found in the list.`);
 
     // Locate and click the button next to the correct matter title
     const buttonToClick = newMatter.locator('..').locator('.el-dropdown button'); // Move to parent and find button
     await buttonToClick.waitFor({ state: 'visible', timeout: 5000 });
     await buttonToClick.click();
 
-    console.log(`✅ Matter "${matterTitle}" created and button clicked.`);
+    console.log(`✅ Workspace "${matterTitle}" created and button clicked.`);
 
     const ariaControlsValue = await buttonToClick.getAttribute('aria-controls');
     console.log('Dropdown aria-controls value:', ariaControlsValue);
@@ -79,14 +79,14 @@ test('Create matter after login and edit it', async ({ page }) => {
 
     await expect(page).toHaveURL(new RegExp('/single-matter/\\d+/dashboard$'));
     
-    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard`);
+    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard`);
 
     // Verify in this page the matter title is visible which is in <header> tag under matter-selector class
     const matterTitleInHeader = page.locator('header .matter-selector');
     await matterTitleInHeader.waitFor({ state: 'visible', timeout: 5000 });
     await expect(matterTitleInHeader).toHaveText(matterTitle);
 
-    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible`);
+    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible`);
     
     // Click on the Dashboard section in the header
     const currentSection = page.locator('header .current-section');
@@ -126,6 +126,6 @@ test('Create matter after login and edit it', async ({ page }) => {
     // Verify the matter title is updated
     await expect(matterTitleInHeader).toHaveText(currentTitle + ' edited');
 
-    console.log(`✅ Matter "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible and edited`);  
+    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard and verified the matter title is visible and edited`);  
     
 });

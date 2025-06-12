@@ -208,6 +208,7 @@ export default {
         this.loading = false;
         const { data: { user } } = await supabase.auth.getUser();
 
+        // Get all matters with their activity in a single query
         const query = supabase
           .from('matters')
           .select(`
@@ -215,36 +216,29 @@ export default {
             matter_access!inner (
               access_type,
               shared_with_user_id
+            ),
+            matter_activities!left (
+              updated_at
             )
           `)
           .eq('archived', this.showArchived)
-          .eq('matter_access.shared_with_user_id', user.id);
+          .eq('matter_access.shared_with_user_id', user.id)
+          .eq('matter_activities.user_id', user.id);
 
         const { data: matters, error } = await query;
         if (error) throw error;
 
-        // Get the latest activity for each matter
-        const mattersWithActivity = await Promise.all(
-          (matters || []).map(async (matter) => {
-            const { data: activities } = await supabase
-              .from('matter_activities')
-              .select('updated_at')
-              .eq('matter_id', matter.id)
-              .order('updated_at', { ascending: false })
-              .limit(1);
+        // Process matters and add latest activity
+        const mattersWithActivity = (matters || []).map(matter => ({
+          ...matter,
+          latest_activity: matter.matter_activities?.[0]?.updated_at || matter.created_at
+        }));
 
-            return {
-              ...matter,
-              latest_activity: activities?.[0]?.updated_at || matter.created_at
-            };
-          })
-        );
-
-        // Sort by latest activity
+        // Sort by latest activity (most recent first)
         mattersWithActivity.sort((a, b) => {
           const dateA = new Date(a.latest_activity);
           const dateB = new Date(b.latest_activity);
-          return dateB - dateA; // Most recent first
+          return dateB - dateA;
         });
 
         // Load statistics for each matter

@@ -237,7 +237,7 @@
                     ref="fileUpload"
                     :show-file-list="false"
                     :before-upload="handleFileSelect"
-                    :multiple="true"
+                    :multiple="false"
                     :accept="acceptedFileTypes"
                     action="#">
                     <el-button circle>
@@ -654,53 +654,91 @@ export default {
     
     async sendMessage() {
       if ((!this.newMessage.trim() && this.selectedFiles.length === 0) || !this.currentChat) return;
-      
+
       const messageText = this.newMessage;
-      const filesToSend = [...this.selectedFiles];
-      
+      const fileToSend = this.selectedFiles[0];
+
       // Clear input immediately for better UX
       this.newMessage = '';
       this.clearSelectedFiles();
       this.sendingMessage = true;
-      
+
       try {
         // Get the selected phone number for this conversation
         const fromPhone = this.currentChat.fromPhoneNumber;
         const toPhone = this.currentChat.phoneNumber;
-        
+
         if (!fromPhone || !toPhone) {
           throw new Error('Missing phone number information');
         }
 
-        let uploadedFiles = null;
+        let uploadedFile = null;
 
-        // Upload files if any are selected
-        if (filesToSend.length > 0) {
-          // Create FormData for each file
-          const formData = new FormData();
-          filesToSend.forEach((file, index) => {
-            formData.append(`files`, file);
+        // Upload file if selected
+        if (fileToSend) {
+          const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+          const giteaHost = import.meta.env.VITE_GITEA_HOST;
+
+          // Reintroduce the unique naming logic
+          const timestamp = Date.now();
+          const fileExtension = fileToSend.name.split('.').pop();
+          const baseName = fileToSend.name.replace(`.${fileExtension}`, '');
+          const uniqueName = `${baseName}_${timestamp}.${fileExtension}`;
+
+          // Use uniqueName for the upload path
+          const uploadPath = uniqueName;
+
+          // Use fileToSend.raw if it exists, otherwise use fileToSend directly
+          const fileData = fileToSend.raw || fileToSend;
+
+          // Convert file to base64
+          const base64Content = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result.split(',')[1];
+              resolve(base64);
+            };
+            reader.readAsDataURL(fileData);
           });
-          formData.append('matter_id', this.currentMatter.id);
-          formData.append('git_repo', this.currentMatter.git_repo);
 
-          const uploadResponse = await fetch('/api/upload-media-gitea-direct', {
-            method: 'POST',
-            body: formData
-          });
+          // Upload to Gitea with the correct path
+          const response = await fetch(
+            `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              },
+              body: JSON.stringify({
+                message: `Upload ${fileToSend.name}`,
+                content: base64Content,
+                branch: 'main'
+              })
+            }
+          );
 
-          const uploadResult = await uploadResponse.json();
-          
-          console.log('📤 Upload response:', uploadResult);
-
-          if (!uploadResponse.ok) {
-            throw new Error(uploadResult.error || 'Failed to upload files');
+          if (!response.ok) {
+            throw new Error('Failed to upload file to Gitea');
           }
+          const giteaData = await response.json();
 
-          uploadedFiles = uploadResult.files;
-          console.log('📁 Uploaded files:', uploadedFiles);
+          uploadedFile = {
+            id: giteaData.content.sha,
+            name: fileToSend.name,
+            type: getFileType(fileToSend.name),
+            size: fileToSend.size,
+            storage_path: giteaData.content.path,
+            matter_id: this.currentMatter.id,
+            git_repo: this.currentMatter.git_repo,
+            created_at: new Date().toISOString(),
+            tags: [],
+            public_url: this.getAuthenticatedDownloadUrl(giteaData.content.download_url)
+          };
         }
-        
+
         // Add message to UI immediately (optimistic update)
         const tempMsg = {
           id: `temp-${Date.now()}`,
@@ -708,24 +746,24 @@ export default {
           direction: 'outbound',
           timestamp: new Date(),
           status: 'sending',
-          mediaFiles: uploadedFiles || []
+          mediaFiles: uploadedFile ? [uploadedFile] : []
         };
-        
+
         this.currentChat.messages.push(tempMsg);
-        this.currentChat.lastMessage = uploadedFiles && !messageText ? 
-          `📎 ${uploadedFiles.length} attachment(s)` : messageText;
+        this.currentChat.lastMessage = uploadedFile && !messageText ? 
+          `📎 1 attachment` : messageText;
         this.currentChat.lastMessageTime = new Date();
-      
-      // Scroll to bottom
-      this.$nextTick(() => {
-        const container = this.$refs.messagesContainer;
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-        }
-      });
-      
-                // Send via API
-        const response = await fetch('/api/sms/send', {
+
+        // Scroll to bottom
+        this.$nextTick(() => {
+          const container = this.$refs.messagesContainer;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+
+        // Send via API
+        const smsResponse = await fetch('/api/sms/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -735,54 +773,64 @@ export default {
             to: toPhone,
             message: messageText,
             matter_id: this.currentMatter.id,
-            media_files: uploadedFiles,
+            media_files: uploadedFile ? [uploadedFile] : [],
             subject: null // Can be added later if needed
           })
         });
 
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to send message');
-      }
-      
-                // Update the temporary message with real data
+        const smsResult = await smsResponse.json();
+
+        if (!smsResponse.ok) {
+          throw new Error(smsResult.error || 'Failed to send message');
+        }
+
+        // Update the temporary message with real data
         const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
         if (msgIndex !== -1) {
           this.currentChat.messages[msgIndex] = {
-            id: result.message_id,
+            id: smsResult.message_id,
             text: messageText,
             direction: 'outbound',
             timestamp: new Date(),
             status: 'sent',
-            telnyxId: result.telnyx_message_id,
-            mediaFiles: uploadedFiles || []
+            telnyxId: smsResult.telnyx_message_id,
+            mediaFiles: uploadedFile ? [uploadedFile] : []
           };
         }
-      
-      //console.log('Message sent successfully from conversation:', result);
-      
-      // Mark conversation as read when sending a message
-      await this.realtimeMarkAsRead(this.currentChat.id);
-      
-            } catch (error) {
+
+        // Mark conversation as read when sending a message
+        await this.realtimeMarkAsRead(this.currentChat.id);
+
+      } catch (error) {
         console.error('Error sending message:', error);
         this.$message.error(error.message || 'Failed to send message');
-        
+
         // Remove the failed message from UI
         const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
         if (msgIndex !== -1) {
           this.currentChat.messages.splice(msgIndex, 1);
         }
-        
-        // Restore the message text and files
+
+        // Restore the message text and file
         this.newMessage = messageText;
-        this.selectedFiles = filesToSend;
+        this.selectedFiles = fileToSend ? [fileToSend] : [];
       } finally {
         this.sendingMessage = false;
       }
     },
     
+    // Helper function to get authenticated download URL
+    getAuthenticatedDownloadUrl(downloadUrl) {
+      if (!downloadUrl) return '';
+      try {
+        const url = new URL(downloadUrl);
+        url.searchParams.set('token', import.meta.env.VITE_GITEA_TOKEN);
+        return url.toString();
+      } catch (error) {
+        console.error('Error creating authenticated URL:', error);
+        return downloadUrl;
+      }
+    },
     composeMessage() {
       // Open new message dialog
       this.showNewMessageDialog = true;
@@ -972,34 +1020,21 @@ export default {
         type: file.type,
         size: file.size
       });
-      
+
       // Validate file type
       const supportedTypes = [
         'image/jpeg', 'image/png', 'image/gif',
         'video/mp4', 'video/3gpp',
         'text/plain', 'text/vcard'
       ];
-      
+
       if (!supportedTypes.includes(file.type)) {
         this.$message.error(`Unsupported file type: ${file.type}`);
         return false;
       }
 
-      // Validate file size (temporarily disabled for testing)
-      // const maxSize = 1024 * 1024; // 1MB
-      // if (file.size > maxSize) {
-      //   this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
-      //   return false;
-      // }
-
-      // Check total files limit
-      if (this.selectedFiles.length >= 10) {
-        this.$message.error('Maximum 10 files allowed per message');
-        return false;
-      }
-
-      // Store file without preview (simpler approach)
-      this.selectedFiles.push(file);
+      // Allow only one file at a time
+      this.selectedFiles = [file];
       return false; // Prevent automatic upload
     },
 

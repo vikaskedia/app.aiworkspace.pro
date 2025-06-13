@@ -1,7 +1,7 @@
 <template>
-  <div class="all-matters-layout">
+  <div class="all-workspaces-layout">
     <HeaderCt />
-    <div class="all-matters-content">
+    <div class="all-workspaces-content">
       <router-view></router-view>
     </div>
   </div>
@@ -26,18 +26,18 @@ export default {
 </script>
 
 <style scoped>
-.all-matters-layout {
+.all-workspaces-layout {
   min-height: 100vh;
   background-color: #f5f7fa;
 }
 
-.all-matters-content {
+.all-workspaces-content {
   margin: 0 auto;
   padding: 1rem;
 }
 
 @media (max-width: 640px) {
-  .all-matters-content {
+  .all-workspaces-content {
     padding: 0.5rem;
   }
 }

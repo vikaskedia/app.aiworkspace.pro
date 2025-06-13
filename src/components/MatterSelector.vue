@@ -166,7 +166,7 @@ export default {
         // Get the current route path segments
         const currentPath = route.path;
         
-        // If we're in all-matters/tasks or any tasks view, always go to tasks
+        // If we're in all-workspaces/tasks or any tasks view, always go to tasks
         if (currentPath.includes('/tasks')) {
           router.push(`/single-workspace/${matter.id}/tasks`);
           return;

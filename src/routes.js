@@ -350,7 +350,7 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  // Clear matter context when navigating to all-matters routes
+  // Clear matter context when navigating to all-workspaces routes
   if (to.path.startsWith('/all-workspace')) {
     const matterStore = useMatterStore();
     matterStore.setCurrentMatter(null);

@@ -77,6 +77,8 @@ export default {
       tempDueDate: null,
       isEditingDescription: false,
       editingDescription: '',
+      userEmails: {},
+      currentMatter: null,
     };
   },
   computed: {
@@ -223,6 +225,19 @@ export default {
 
         if (error) throw error;
 
+        // Load user emails for each comment
+        for (const comment of comments) {
+          if (comment.user_id && !this.userEmails[comment.user_id]) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', {
+                user_id: comment.user_id
+              });
+            if (userData?.[0]) {
+              this.userEmails[comment.user_id] = userData[0].email;
+            }
+          }
+        }
+
         this.comments = comments;
       } catch (error) {
         ElMessage.error('Error loading comments: ' + error.message);
@@ -296,7 +311,7 @@ export default {
         }
 
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
 
         this.newComment = '';
         await this.loadComments();
@@ -387,13 +402,13 @@ export default {
             switch (payload.eventType) {
               case 'INSERT':
                 // Load user email for new comment if not already cached
-                if (!this.assigneeEmail && payload.new.user_id) {
+                if (payload.new.user_id && !this.userEmails[payload.new.user_id]) {
                   const { data: userData } = await supabase
                     .rpc('get_user_info_by_id', {
                       user_id: payload.new.user_id
                     });
                   if (userData?.[0]) {
-                    this.assigneeEmail = userData[0].email;
+                    this.userEmails[payload.new.user_id] = userData[0].email;
                   }
                 }
                 // Add new comment to the beginning of the list
@@ -1145,7 +1160,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.task.title = this.editingTitle;
         
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
         
         this.isEditingTitle = false;
         ElMessage.success('Task title updated successfully');
@@ -1190,7 +1205,7 @@ Please provide assistance based on this context, the comment history, the availa
         }
 
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
 
         // Emit update event
         this.$emit('update:task', this.task);
@@ -1219,7 +1234,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('status-updated', { taskId: this.task.id, status })
         
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Status updated successfully')
       } catch (error) {
@@ -1260,7 +1275,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('priority-updated', { taskId: this.task.id, priority })
         
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Priority updated successfully')
       } catch (error) {
@@ -1308,7 +1323,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
         
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {
@@ -1339,7 +1354,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('update:task', { ...this.task, ...data });
         
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
         
         this.isEditingDescription = false;
         ElMessage.success('Description updated successfully');
@@ -1404,7 +1419,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
 
         // Update matter activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.task.matter_id);
 
         ElMessage.success('Assignee updated successfully');
       } catch (error) {
@@ -1701,11 +1716,11 @@ Please provide assistance based on this context, the comment history, the availa
               <div class="comment-header">
                 <div class="comment-author-info">
                   <div class="author-avatar">
-                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name?.charAt(0).toUpperCase() || 'AI' : assigneeEmail?.charAt(0).toUpperCase() }}
+                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name?.charAt(0).toUpperCase() || 'AI' : userEmails[comment.user_id]?.charAt(0).toUpperCase() }}
                   </div>
                   <div class="author-details">
                     <span class="comment-author">
-                      {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : assigneeEmail }}
+                      {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
                     </span>
                     <span class="comment-date">
                       {{ comment.updated_at 
@@ -1766,7 +1781,7 @@ Please provide assistance based on this context, the comment history, the availa
                   <div class="edit-history-header">Version {{ index + 1 }}:</div>
                   <div class="previous-content" v-html="formatMarkdownLinks(historyEntry.previous_content)"></div>
                   <div class="edit-metadata">
-                    Edited by {{ assigneeEmail }}
+                    Edited by {{ userEmails[historyEntry.edited_by] }}
                     on {{ new Date(historyEntry.edited_at).toLocaleString() }}
                   </div>
                 </div>

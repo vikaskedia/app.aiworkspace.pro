@@ -21,7 +21,7 @@ import DetailedEventViewCt from './components/single-workspace/DetailedEventView
 const routes = [
   {
     path: '/all-workspace',
-    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllWorkspaceLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -33,7 +33,7 @@ const routes = [
       {
         path: 'dashboard',
         name: 'AllMattersDashboard',
-        component: () => import('./components/all-workspaces/AllMattersDashboardCt.vue')
+        component: () => import('./components/all-workspaces/AllWorkspacesDashboardCt.vue')
       },
       {
         path: 'tasks',
@@ -64,7 +64,7 @@ const routes = [
       {
         path: 'settings',
         name: 'AllMatterSettingsPage',
-        component: () => import('./components/all-workspaces/AllMatterSettingsCt.vue')
+        component: () => import('./components/all-workspaces/AllWorkspaceSettingsCt.vue')
       },
        {
         path: 'activity-log',
@@ -218,7 +218,7 @@ const routes = [
     },
   {
     path: '/settings/email-notifications',
-    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllWorkspaceLayout.vue'),
     children: [
       {
         path: '',
@@ -232,7 +232,7 @@ const routes = [
   },
   {
     path: '/billing',
-    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllWorkspaceLayout.vue'),
     children: [
       {
         path: '',

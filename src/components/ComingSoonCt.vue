@@ -27,7 +27,7 @@ export default {
 </script>
 
 <style scoped>
-/* Remove these styles as they're now in AllMatterLayout */
+/* Remove these styles as they're now in AllWorkspaceLayout */
 .coming-soon,
 .content {
   /* Remove these */

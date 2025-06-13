@@ -84,7 +84,7 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 
 export default {
-  name: 'AllMatterSettingsCt',
+  name: 'AllWorkspaceSettingsCt',
   setup() {
     const settings = ref({
       emailNotifications: true,

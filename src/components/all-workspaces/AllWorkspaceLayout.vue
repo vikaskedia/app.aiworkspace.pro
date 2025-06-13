@@ -12,7 +12,7 @@ import HeaderCt from '../HeaderCt.vue';
 import { supabase } from '../../supabase';
 
 export default {
-  name: 'AllMatterLayout',
+  name: 'AllWorkspaceLayout',
   components: {
     HeaderCt
   },

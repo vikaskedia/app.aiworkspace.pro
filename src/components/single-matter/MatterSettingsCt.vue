@@ -279,7 +279,7 @@ export default {
     async loadCustomFields() {
       try {
         const { data, error } = await supabase
-          .from('matter_custom_fields')
+          .from('workspace_custom_fields')
           .select('*')
           .eq('matter_id', this.currentMatter.id)
           .order('created_at');
@@ -303,7 +303,7 @@ export default {
         };
 
         const { data, error } = await supabase
-          .from('matter_custom_fields')
+          .from('workspace_custom_fields')
           .insert([fieldData])
           .select()
           .single();
@@ -321,7 +321,7 @@ export default {
     async removeCustomField(fieldId) {
       try {
         const { error } = await supabase
-          .from('matter_custom_fields')
+          .from('workspace_custom_fields')
           .delete()
           .eq('id', fieldId);
 
@@ -347,7 +347,7 @@ export default {
     async updateFieldValue(fieldId, value) {
       try {
         const { error } = await supabase
-          .from('matter_custom_fields')
+          .from('workspace_custom_fields')
           .update({ field_value: value })
           .eq('id', fieldId);
 

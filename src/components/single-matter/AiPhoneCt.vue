@@ -686,7 +686,7 @@ export default {
           const uniqueName = `${baseName}_${timestamp}.${fileExtension}`;
 
           // Use uniqueName for the upload path
-          const uploadPath = uniqueName;
+          const uploadPath = `messages/${uniqueName}`;
 
           // Use fileToSend.raw if it exists, otherwise use fileToSend directly
           const fileData = fileToSend.raw || fileToSend;
@@ -728,7 +728,7 @@ export default {
           uploadedFile = {
             id: giteaData.content.sha,
             name: fileToSend.name,
-            type: getFileType(fileToSend.name),
+            type: this.getFileType(fileToSend.name),
             size: fileToSend.size,
             storage_path: giteaData.content.path,
             matter_id: this.currentMatter.id,
@@ -1006,8 +1006,6 @@ export default {
       }
     },
     
-
-
     goToSettings() {
       // Navigate to matter settings page
       this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
@@ -1071,6 +1069,23 @@ export default {
 
     removeNewMessageFile(index) {
       this.newMessageForm.files.splice(index, 1);
+    },
+
+    // Add the getFileType function to determine the file type based on the file extension
+    getFileType(filename) {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const mimeTypes = {
+        pdf: 'application/pdf',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        txt: 'text/plain',
+        png: 'image/png',  
+        jpg: 'image/jpeg', 
+        jpeg: 'image/jpeg',
+        gif: 'image/gif',  
+        md: 'text/markdown'
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
     }
   }
 };

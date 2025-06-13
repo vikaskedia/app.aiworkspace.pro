@@ -4,6 +4,10 @@
     "api/process-emails.js": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/sms/send.js": {
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "crons": [{

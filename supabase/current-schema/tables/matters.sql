@@ -38,7 +38,7 @@ COMMENT ON COLUMN matters.git_repo IS 'Repository name in Gitea where all files 
 
 COMMENT ON COLUMN matters.email_storage IS 'Email address where communications for this matter are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this matter''s address as described in EmailsCt.vue';
 
--- Automatically add creator to matter_access on matter creation
+-- Automatically add creator toworkspace_access on matter creation
 CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
 DECLARE
     creator_id uuid;
@@ -46,7 +46,7 @@ BEGIN
     -- Get the creator_id from the NEW record instead of auth.uid()
     creator_id := NEW.created_by;
     
-    INSERT INTO matter_access (
+    INSERT INTOworkspace_access (
         matter_id, 
         shared_with_user_id, 
         access_type, 
@@ -91,7 +91,7 @@ CREATE POLICY "Users can view matters"
     USING (
         (id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid()
         ))
         OR
@@ -105,7 +105,7 @@ CREATE POLICY "Users can update matters"
     TO authenticated 
     USING (id IN (
         SELECT matter_id 
-        FROM matter_access 
+        FROMworkspace_access 
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
     ));
@@ -118,7 +118,7 @@ CREATE POLICY "Users can soft delete matters"
     USING (
         id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
         )

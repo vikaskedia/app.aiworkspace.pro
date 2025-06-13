@@ -94,7 +94,7 @@ CREATE POLICY "Users can view tasks" ON tasks
 FOR SELECT USING (
   matter_id IN (
     SELECT matter_id 
-    FROM matter_access 
+    FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid()
   )
 );
@@ -103,7 +103,7 @@ CREATE POLICY "Users can update tasks" ON tasks
 FOR UPDATE USING (
   matter_id IN (
     SELECT matter_id 
-    FROM matter_access 
+    FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'
   )
@@ -113,7 +113,7 @@ CREATE POLICY "Users can create tasks" ON tasks
 FOR INSERT WITH CHECK (
   matter_id IN (
     SELECT matter_id 
-    FROM matter_access 
+    FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'
   )

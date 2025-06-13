@@ -408,7 +408,7 @@ export default {
             *,
             matter:matters!inner(
               title,
-              matter_access!inner(shared_with_user_id)
+             workspace_access!inner(shared_with_user_id)
             ),
             task_stars!left(
               user_id
@@ -419,7 +419,7 @@ export default {
             )
           `)
           .eq('deleted', false)
-          .eq('matter.matter_access.shared_with_user_id', user.id);
+          .eq('matter.workspace_access.shared_with_user_id', user.id);
 
         const { data: tasks, error } = await query;
         if (error) throw error;
@@ -567,13 +567,13 @@ export default {
           .from('matters')
           .select(`
             *,
-            matter_access!inner (
+           workspace_access!inner (
               access_type,
               shared_with_user_id
             )
           `)
           .eq('archived', false)
-          .eq('matter_access.shared_with_user_id', user.id)
+          .eq('workspace_access.shared_with_user_id', user.id)
           .order('title');
         
         if (error) throw error;

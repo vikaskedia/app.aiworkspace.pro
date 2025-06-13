@@ -1,4 +1,4 @@
-CREATE TABLE matter_access (
+CREATE TABLEworkspace_access (
   matter_id bigint REFERENCES matters(id) NOT NULL,
   shared_with_user_id uuid REFERENCES auth.users(id) NOT NULL,
   access_type character varying NOT NULL CHECK (access_type IN ('view', 'edit')),
@@ -11,7 +11,7 @@ CREATE TABLE matter_access (
     )
 );
 
-COMMENT ON TABLE matter_access IS 'Manages access control for matters. 
+COMMENT ON TABLEworkspace_access IS 'Manages access control for matters. 
 1. Each matter has View rights and edit rights.
 
 2. Users with edit rights can:
@@ -27,15 +27,15 @@ COMMENT ON TABLE matter_access IS 'Manages access control for matters.
 3D. Events (see events.sql)
 3E. Files stored in gitea repository';
 
--- Indexes for matter_access
-CREATE INDEX matter_access_shared_with_user_id_idx ON public.matter_access USING btree (shared_with_user_id);
-CREATE INDEX matter_access_granted_by_uuid_idx ON public.matter_access USING btree (granted_by_uuid);
+-- Indexes forworkspace_access
+CREATE INDEX workspace_access_shared_with_user_id_idx ON public.workspace_access USING btree (shared_with_user_id);
+CREATE INDEX workspace_access_granted_by_uuid_idx ON public.workspace_access USING btree (granted_by_uuid);
 
--- RLS for matter_access
-ALTER TABLE matter_access ENABLE ROW LEVEL SECURITY;
+-- RLS forworkspace_access
+ALTER TABLEworkspace_access ENABLE ROW LEVEL SECURITY;
 
 -- Policy for selecting data
-CREATE POLICY "Users can view matter access" ON matter_access
+CREATE POLICY "Users can view matter access" ONworkspace_access
 AS PERMISSIVE
 FOR SELECT 
 TO authenticated 
@@ -44,37 +44,37 @@ USING (
 );
 
 -- Policy for inserting data
-CREATE POLICY "Users with edit access can create shares" ON matter_access
+CREATE POLICY "Users with edit access can create shares" ONworkspace_access
 AS PERMISSIVE
 FOR INSERT 
 TO authenticated 
 WITH CHECK (
     EXISTS (
         SELECT 1
-        FROM matter_access AS ma
-        WHERE ma.matter_id = matter_access.matter_id
+        FROMworkspace_access AS ma
+        WHERE ma.matter_id =workspace_access.matter_id
           AND ma.shared_with_user_id = auth.uid()
           AND ma.access_type = 'edit'
     )
 );
 
 -- Policy for deleting data
-CREATE POLICY "Users with edit access can delete shares" ON matter_access
+CREATE POLICY "Users with edit access can delete shares" ONworkspace_access
 AS PERMISSIVE
 FOR DELETE 
 TO authenticated 
 USING (
     EXISTS (
         SELECT 1
-        FROM matter_access AS ma
-        WHERE ma.matter_id = matter_access.matter_id
+        FROMworkspace_access AS ma
+        WHERE ma.matter_id =workspace_access.matter_id
           AND ma.shared_with_user_id = auth.uid()
           AND ma.access_type = 'edit'
     )
 );
 
 --Allow the Creator to Have Edit Access: When a new matter is created, the user who creates it should automatically be granted edit access.
-CREATE POLICY "Allow creators to insert initial access" ON matter_access
+CREATE POLICY "Allow creators to insert initial access" ONworkspace_access
 AS PERMISSIVE
 FOR INSERT 
 TO authenticated 
@@ -82,8 +82,8 @@ WITH CHECK (
     (auth.uid() = granted_by_uuid AND access_type = 'edit')
     OR
     (matter_id IN (
-        SELECT matter_access_1.matter_id
-        FROM matter_access matter_access_1
-        WHERE matter_access_1.shared_with_user_id = auth.uid() AND matter_access_1.access_type = 'edit'
+        SELECT workspace_access_1.matter_id
+        FROMworkspace_access workspace_access_1
+        WHERE workspace_access_1.shared_with_user_id = auth.uid() AND workspace_access_1.access_type = 'edit'
     ))
 );

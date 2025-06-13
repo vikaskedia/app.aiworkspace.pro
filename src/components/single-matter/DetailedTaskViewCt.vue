@@ -2169,7 +2169,7 @@ export default {
     async loadSharedUsers() {
       try {
         const { data: shares, error } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .select('shared_with_user_id')
           .eq('matter_id', this.currentMatter.id);
 

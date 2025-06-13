@@ -114,9 +114,9 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
-        // First verify matter_access exists and has edit rights
+        // First verifyworkspace_access exists and has edit rights
         const { data: accessCheck, error: accessError } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .select('access_type')
           .eq('matter_id', this.currentMatter.id)
           .eq('shared_with_user_id', user.id)

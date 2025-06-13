@@ -714,7 +714,7 @@ export default {
           .from('matters')
           .select(`
             *,
-            matter_access!inner (
+           workspace_access!inner (
               access_type,
               shared_with_user_id
             ),
@@ -727,7 +727,7 @@ export default {
             )
           `)
           .eq('archived', false)
-          .eq('matter_access.shared_with_user_id', userId);
+          .eq('workspace_access.shared_with_user_id', userId);
 
         if (error) throw error;
 
@@ -770,7 +770,7 @@ export default {
           .from('matters')
           .select(`
             *,
-            matter_access!inner (
+           workspace_access!inner (
               access_type,
               shared_with_user_id
             ),
@@ -783,7 +783,7 @@ export default {
             )
           `)
           .eq('archived', false)
-          .eq('matter_access.shared_with_user_id', user.id);
+          .eq('workspace_access.shared_with_user_id', user.id);
 
         if (error) throw error;
 

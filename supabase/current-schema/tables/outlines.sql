@@ -35,7 +35,7 @@ CREATE POLICY "Users can view outlines" ON outlines
 FOR SELECT USING (
     matter_id IN (
         SELECT matter_id 
-        FROM matter_access 
+        FROMworkspace_access 
         WHERE shared_with_user_id = auth.uid()
     )
 );
@@ -44,7 +44,7 @@ CREATE POLICY "Users can create outlines" ON outlines
 FOR INSERT WITH CHECK (
     matter_id IN (
         SELECT matter_id 
-        FROM matter_access 
+        FROMworkspace_access 
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
     )
@@ -54,7 +54,7 @@ CREATE POLICY "Users can update outlines" ON outlines
 FOR UPDATE USING (
     matter_id IN (
         SELECT matter_id 
-        FROM matter_access 
+        FROMworkspace_access 
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
     )
@@ -68,7 +68,7 @@ FOR SELECT USING (
         FROM outlines 
         WHERE matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid()
         )
     )
@@ -81,7 +81,7 @@ FOR INSERT WITH CHECK (
         FROM outlines 
         WHERE matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
         )

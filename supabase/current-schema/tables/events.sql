@@ -27,7 +27,7 @@
     FOR SELECT USING (
         matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid()
         )
     );
@@ -36,7 +36,7 @@
     FOR UPDATE USING (
         matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
         )
@@ -46,7 +46,7 @@
     FOR DELETE USING (
         matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
         )
@@ -56,7 +56,7 @@
     FOR INSERT WITH CHECK (
         matter_id IN (
             SELECT matter_id 
-            FROM matter_access 
+            FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
         )

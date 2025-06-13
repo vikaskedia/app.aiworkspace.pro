@@ -68,8 +68,8 @@ $function$
       WITH accessible_matters AS (
         SELECT DISTINCT matters.id AS matter_id
         FROM matters
-        INNER JOIN matter_access ON matters.id = matter_access.matter_id
-        WHERE matter_access.shared_with_user_id = user_uuid
+        INNER JOINworkspace_access ON matters.id =workspace_access.matter_id
+        WHEREworkspace_access.shared_with_user_id = user_uuid
           AND matters.deleted = false
       ),
       assignees AS (

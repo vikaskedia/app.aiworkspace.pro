@@ -93,7 +93,7 @@ export default {
     async loadSharedUsers() {
       try {
         const { data: shares, error } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .select('matter_id, shared_with_user_id, access_type, granted_at')
           .eq('matter_id', this.currentMatter.id);
 
@@ -181,7 +181,7 @@ export default {
         
         // Insert the share record
         const { data, error } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .insert({
             matter_id: this.currentMatter.id,
             shared_with_user_id: userId,
@@ -214,7 +214,7 @@ export default {
     async removeShare(userId) {
       try {
         const { error } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .delete()
           .eq('matter_id', this.currentMatter.id)
           .eq('shared_with_user_id', userId);

@@ -30,7 +30,7 @@ USING (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
-      SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+      SELECT matter_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
     )
   )
 );
@@ -44,7 +44,7 @@ WITH CHECK (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
-      SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+      SELECT matter_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
     )
   )
 );
@@ -59,7 +59,7 @@ USING (
   task_id IN (
     SELECT t.id FROM tasks t
     WHERE t.matter_id IN (
-      SELECT matter_id FROM matter_access WHERE shared_with_user_id = auth.uid()
+      SELECT matter_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
     )
   )
 );

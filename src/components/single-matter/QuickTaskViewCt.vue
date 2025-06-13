@@ -948,7 +948,7 @@ Please provide assistance based on this context, the comment history, the availa
     async loadSharedUsers() {
       try {
         const { data: users, error } = await supabase
-          .from('matter_access')
+          .from('workspace_access')
           .select('shared_with_user_id')
           .eq('matter_id', this.task.matter_id);
 

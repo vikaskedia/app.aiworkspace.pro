@@ -1,21 +1,21 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
 import { useMatterStore } from './store/matter';
-import DashboardCt from './components/single-matter/DashboardCt.vue';
-import ManageFilesCt from './components/single-matter/FilesCt.vue';
-import GoalsCt from './components/single-matter/GoalsCt.vue';
-import TasksCt from './components/single-matter/TasksCt.vue';
-import EventsCt from './components/single-matter/EventsCt.vue';
+import DashboardCt from './components/single-workspace/DashboardCt.vue';
+import ManageFilesCt from './components/single-workspace/FilesCt.vue';
+import GoalsCt from './components/single-workspace/GoalsCt.vue';
+import TasksCt from './components/single-workspace/TasksCt.vue';
+import EventsCt from './components/single-workspace/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
-import MatterLayout from './components/single-matter/MatterLayout.vue';
-import OutlineCt from './components/single-matter/OutlineCt.vue';
-// import DetailedTaskViewCt from './components/single-matter/DetailedTaskViewCt.vue';
+import MatterLayout from './components/single-workspace/MatterLayout.vue';
+import OutlineCt from './components/single-workspace/OutlineCt.vue';
+// import DetailedTaskViewCt from './components/single-workspace/DetailedTaskViewCt.vue';
 // import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
-import DetailedEventViewCt from './components/single-matter/DetailedEventViewCt.vue';
+import DetailedEventViewCt from './components/single-workspace/DetailedEventViewCt.vue';
 
 
 const routes = [
@@ -101,7 +101,7 @@ const routes = [
       {
         path: 'tasks/:taskId',
         name: 'SingleTaskPage',
-        component: () => import('./components/single-matter/DetailedTaskViewCt.vue')
+        component: () => import('./components/single-workspace/DetailedTaskViewCt.vue')
       },
       {
         path: 'events',
@@ -126,17 +126,17 @@ const routes = [
       {
         path: 'settings',
         name: 'SingleMatterSettingsPage',
-        component: () => import('./components/single-matter/MatterSettingsCt.vue')
+        component: () => import('./components/single-workspace/MatterSettingsCt.vue')
       },
       {
         path: 'communications',
         name: 'CommunicationsPage',
-        component: () => import('./components/single-matter/CommunicationsCt.vue')
+        component: () => import('./components/single-workspace/CommunicationsCt.vue')
       },
       {
         path: 'ai_phone',
         name: 'AiPhonePage',
-        component: () => import('./components/single-matter/AiPhoneCt.vue')
+        component: () => import('./components/single-workspace/AiPhoneCt.vue')
       }
     ]
   },
@@ -327,7 +327,7 @@ router.beforeEach(async (to, from, next) => {
         next('/initial-consultation');
         return;
       } else if (matters.length === 1 && to.path === '/') {
-        next(`/single-matter/${matters[0].id}/dashboard`);
+        next(`/single-workspace/${matters[0].id}/dashboard`);
         return;
       } else if (matters.length > 1 && to.path === '/') {
         next('/all-matters/dashboard');

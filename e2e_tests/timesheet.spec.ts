@@ -12,7 +12,7 @@ test('Time log addition working', async ({ page }) => {
     await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
 
     // Navigate to specific task page
-    await page.goto(`${SITE_URL}/single-matter/3/tasks/58`);
+    await page.goto(`${SITE_URL}/single-workspace/3/tasks/58`);
     await page.waitForLoadState('networkidle');
 
     // Click the log hours button and wait for dialog

@@ -17,9 +17,9 @@ test('Event Creation test', async ({ page }) => {
     const eventDescription = `This is a test event description ${randomNumber}`;
 
     // Navigate to the tasks page
-    await page.goto(`${SITE_URL}/single-matter/3/events`); 
+    await page.goto(`${SITE_URL}/single-workspace/3/events`); 
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(`${SITE_URL}/single-matter/3/events`);
+    await expect(page).toHaveURL(`${SITE_URL}/single-workspace/3/events`);
     
     // Click the New Event button to open the create event dialog
     await page.click('button:has-text("New Event")');

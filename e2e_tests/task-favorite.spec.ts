@@ -14,9 +14,9 @@ test('Task add to favorite test', async ({ page }) => {
 
 
     // Navigate to the tasks page
-    await page.goto(`${SITE_URL}/single-matter/3/tasks`); 
+    await page.goto(`${SITE_URL}/single-workspace/3/tasks`); 
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(`${SITE_URL}/single-matter/3/tasks`);
+    await expect(page).toHaveURL(`${SITE_URL}/single-workspace/3/tasks`);
     
      // Wait for the tasks hierarchy to be visible
      await expect(page.locator('.tasks-hierarchy')).toBeVisible();

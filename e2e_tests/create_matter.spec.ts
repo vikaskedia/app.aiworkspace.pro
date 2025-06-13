@@ -77,7 +77,7 @@ test('Create matter after login and edit it', async ({ page }) => {
     await viewDashboardOption.waitFor({ state: 'visible', timeout: 5000 });
     await viewDashboardOption.click();
 
-    await expect(page).toHaveURL(new RegExp('/single-matter/\\d+/dashboard$'));
+    await expect(page).toHaveURL(new RegExp('/single-workspace/\\d+/dashboard$'));
     
     console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard`);
 
@@ -104,7 +104,7 @@ test('Create matter after login and edit it', async ({ page }) => {
     await settingsOption.click();
 
     // Verify navigation to settings page
-    await expect(page).toHaveURL(new RegExp('/single-matter/\\d+/settings$'));
+    await expect(page).toHaveURL(new RegExp('/single-workspace/\\d+/settings$'));
 
     // Verify the matter title is visible in the settings page in the first input field to edit
     const matterTitleInSettings = page.locator('.section .el-form input.el-input__inner').first();

@@ -17,9 +17,9 @@ test('Task Creation test', async ({ page }) => {
     const taskDescription = `This is a test task description ${randomNumber}`;
 
     // Navigate to the tasks page
-    await page.goto(`${SITE_URL}/single-matter/3/tasks`); 
+    await page.goto(`${SITE_URL}/single-workspace/3/tasks`); 
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(`${SITE_URL}/single-matter/3/tasks`);
+    await expect(page).toHaveURL(`${SITE_URL}/single-workspace/3/tasks`);
     
     // Click the New Task button to open the create task dialog
     await page.click('button:has-text("New Task")');

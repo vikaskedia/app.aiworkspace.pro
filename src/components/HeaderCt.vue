@@ -180,7 +180,7 @@ export default {
       // If we're in a sub-route (goals, tasks, etc.), preserve it
       if (segments.length > 3) {
         const subRoute = segments[3]; // 'goals', 'tasks', etc.
-        //this.$router.push(`/single-matter/${matter.id}/${subRoute}`);
+        //this.$router.push(`/single-workspace/${matter.id}/${subRoute}`);
       } else {
         this.$router.push(`/single-workspace/${matter.id}`);
       }

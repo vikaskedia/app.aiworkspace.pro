@@ -27,7 +27,7 @@ test.describe('Goals Component', () => {
     await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
 
     // Navigate to goals page of a matter
-    await page.goto(`${SITE_URL}/single-matter/19/goals`);
+    await page.goto(`${SITE_URL}/single-workspace/19/goals`);
     // Wait for goals component to load
     await page.waitForSelector('.el-table');
   });
@@ -97,7 +97,7 @@ test.describe('Goals Component', () => {
 
     await test.step('Edit Goal Title', async () => {
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
           // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -127,7 +127,7 @@ test.describe('Goals Component', () => {
 
     await test.step('Edit Goal Description', async () => {
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
           // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -158,7 +158,7 @@ test.describe('Goals Component', () => {
 
     await test.step('Edit Goal Status', async () => {
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
           // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -181,7 +181,7 @@ test.describe('Goals Component', () => {
 
     await test.step('Edit Goal Priority', async () => {
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
           // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -207,7 +207,7 @@ test.describe('Goals Component', () => {
     await test.step('Edit Goal Due Date', async () => {
   
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
           // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -236,7 +236,7 @@ test.describe('Goals Component', () => {
 
     await test.step('Edit Goal Progress', async () => {
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
       // Wait for goals table to be visible
       await page.waitForSelector('.el-table');
@@ -263,7 +263,7 @@ test.describe('Goals Component', () => {
     await test.step('Add Goal Comment', async () => {
     
       // Navigate to goals page
-      //await page.goto(`${SITE_URL}/single-matter/19/goals`);
+      //await page.goto(`${SITE_URL}/single-workspace/19/goals`);
         
       // Wait for goals table to be visible
       await page.waitForSelector('.el-table');

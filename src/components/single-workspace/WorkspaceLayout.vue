@@ -19,7 +19,7 @@ import HeaderCt from '../HeaderCt.vue'
 import QuickActionDrawer from '../common/QuickActionDrawer.vue'
 
 export default {
-  name: 'MatterLayout',
+  name: 'WorkspaceLayout',
   components: {
     HeaderCt,
     QuickActionDrawer

@@ -9,7 +9,7 @@ import EventsCt from './components/single-workspace/EventsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
-import MatterLayout from './components/single-workspace/MatterLayout.vue';
+import WorkspaceLayout from './components/single-workspace/WorkspaceLayout.vue';
 import OutlineCt from './components/single-workspace/OutlineCt.vue';
 // import DetailedTaskViewCt from './components/single-workspace/DetailedTaskViewCt.vue';
 // import AllActivityLogCt from './components/all-workspaces/AllActivityLogCt.vue';
@@ -76,7 +76,7 @@ const routes = [
   },
   { 
     path: '/single-workspace/:matterId?',
-    component: MatterLayout,
+    component: WorkspaceLayout,
     meta: { requiresAuth: true },
     children: [
       {
@@ -126,7 +126,7 @@ const routes = [
       {
         path: 'settings',
         name: 'SingleMatterSettingsPage',
-        component: () => import('./components/single-workspace/MatterSettingsCt.vue')
+        component: () => import('./components/single-workspace/WorkspaceSettingsCt.vue')
       },
       {
         path: 'communications',

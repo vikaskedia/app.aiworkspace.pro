@@ -1058,13 +1058,8 @@ export default {
     },
 
     downloadFile(media) {
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement('a');
-      link.href = media.public_url;
-      link.download = media.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Open the file in a new tab for downloading
+      window.open(media.public_url, '_blank');
     },
 
     removeNewMessageFile(index) {

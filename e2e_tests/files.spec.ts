@@ -66,7 +66,7 @@ test.describe('Files Component', () => {
     );
 
     // Wait for navigation to dashboard
-    await page.waitForURL('https://app.associateattorney.ai/all-matters/dashboard');
+    await page.waitForURL('https://app.associateattorney.ai/all-workspaces/dashboard');
 
     // Navigate to the files page of a matter
     await page.goto('https://app.associateattorney.ai/single-workspace/19/files');

@@ -9,8 +9,8 @@ test('Talk-to-Dev new topic creation and verification', async ({ page }) => {
     await page.click('.submit-button');
 
     // Wait for navigation to the dashboard
-    await page.waitForURL('https://app.associateattorney.ai/all-matters/dashboard');
-    await expect(page).toHaveURL('https://app.associateattorney.ai/all-matters/dashboard');
+    await page.waitForURL('https://app.associateattorney.ai/all-workspaces/dashboard');
+    await expect(page).toHaveURL('https://app.associateattorney.ai/all-workspaces/dashboard');
 
     // Hover over the dropdown container in the header.
     await page.hover('header .header-right .el-dropdown');

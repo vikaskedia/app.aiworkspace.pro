@@ -9,7 +9,7 @@ test('Task Creation test', async ({ page }) => {
     await page.fill('input[type="email"]','soumen+040225@grmtech.com'); 
     await page.fill('input[type="password"]', 'jaikalima99'); 
     await page.click('.submit-button'); 
-    await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
+    await page.waitForURL(`${SITE_URL}/all-workspaces/dashboard`);
 
     // Generate random 6-digit numbers for title and description
     const randomNumber = parseInt(new Date().getTime().toString().slice(-6));

@@ -12,7 +12,7 @@ import CallbackPage from './components/CallbackPage.vue';
 import MatterLayout from './components/single-workspace/MatterLayout.vue';
 import OutlineCt from './components/single-workspace/OutlineCt.vue';
 // import DetailedTaskViewCt from './components/single-workspace/DetailedTaskViewCt.vue';
-// import AllActivityLogCt from './components/all-matters/AllActivityLogCt.vue';
+// import AllActivityLogCt from './components/all-workspaces/AllActivityLogCt.vue';
 import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
 import DetailedEventViewCt from './components/single-workspace/DetailedEventViewCt.vue';
@@ -21,7 +21,7 @@ import DetailedEventViewCt from './components/single-workspace/DetailedEventView
 const routes = [
   {
     path: '/all-workspace',
-    component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -33,43 +33,43 @@ const routes = [
       {
         path: 'dashboard',
         name: 'AllMattersDashboard',
-        component: () => import('./components/all-matters/AllMattersDashboardCt.vue')
+        component: () => import('./components/all-workspaces/AllMattersDashboardCt.vue')
       },
       {
         path: 'tasks',
         name: 'AllTasksPage',
-        component: () => import('./components/all-matters/AllTasksCt.vue'),
+        component: () => import('./components/all-workspaces/AllTasksCt.vue'),
         children: [
           {
             path: 'saved-filters/:filterId',
-            component: () => import('./components/all-matters/AllTasksCt.vue')
+            component: () => import('./components/all-workspaces/AllTasksCt.vue')
           }
         ]
       },
       {
         path: 'goals',
         name: 'AllGoalsPage',
-        component: () => import('./components/all-matters/AllGoalsCt.vue')
+        component: () => import('./components/all-workspaces/AllGoalsCt.vue')
       },
       {
         path: 'events',
         name: 'AllEventsPage',
-        component: () => import('./components/all-matters/AllEventsCt.vue')
+        component: () => import('./components/all-workspaces/AllEventsCt.vue')
       },
       {
         path: 'files',
         name: 'AllFilesPage',
-        component: () => import('./components/all-matters/AllFilesCt.vue')
+        component: () => import('./components/all-workspaces/AllFilesCt.vue')
       },
       {
         path: 'settings',
         name: 'AllMatterSettingsPage',
-        component: () => import('./components/all-matters/AllMatterSettingsCt.vue')
+        component: () => import('./components/all-workspaces/AllMatterSettingsCt.vue')
       },
        {
         path: 'activity-log',
         name: 'AllActivityLogPage',
-        component: () => import('./components/all-matters/AllActivityLogCt.vue')
+        component: () => import('./components/all-workspaces/AllActivityLogCt.vue')
         }
         
     ]
@@ -218,7 +218,7 @@ const routes = [
     },
   {
     path: '/settings/email-notifications',
-    component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
     children: [
       {
         path: '',
@@ -232,7 +232,7 @@ const routes = [
   },
   {
     path: '/billing',
-    component: () => import('./components/all-matters/AllMatterLayout.vue'),
+    component: () => import('./components/all-workspaces/AllMatterLayout.vue'),
     children: [
       {
         path: '',
@@ -330,7 +330,7 @@ router.beforeEach(async (to, from, next) => {
         next(`/single-workspace/${matters[0].id}/dashboard`);
         return;
       } else if (matters.length > 1 && to.path === '/') {
-        next('/all-matters/dashboard');
+        next('/all-workspaces/dashboard');
         return;
       }*/
     } catch (error) {

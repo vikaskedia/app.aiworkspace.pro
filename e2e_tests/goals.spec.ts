@@ -24,7 +24,7 @@ test.describe('Goals Component', () => {
       response.url().includes('/auth/v1/token') && 
       response.status() === 200
     );
-    await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
+    await page.waitForURL(`${SITE_URL}/all-workspaces/dashboard`);
 
     // Navigate to goals page of a matter
     await page.goto(`${SITE_URL}/single-workspace/19/goals`);

@@ -16,7 +16,7 @@ The initial consultation system uses AI to conduct an interactive interview with
 - once user is logged in there are 3 possibilites:
   -- 0 matter ->            system detects if there is no matter then it automatically sends the user to /initial-consultation
   -- 1 matter ->            if there is a single matter then the user is sent to https://app.associateattorney.ai/matter/40/dashboard
-  -- more than 1 matter ->  if there is more than one matter the user is sent to https://app.associateattorney.ai/all-matters/dashboard
+  -- more than 1 matter ->  if there is more than one matter the user is sent to https://app.associateattorney.ai/all-workspaces/dashboard
 - initial-consultation can also be accessed by clicking on profile icon and then clicking on Initial consultation.
 
 

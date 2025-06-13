@@ -10,7 +10,7 @@ test('Task comment download test', async ({ page }) => {
     await page.fill('input[type="email"]','soumen+040225@grmtech.com'); 
     await page.fill('input[type="password"]', 'jaikalima99'); 
     await page.click('.submit-button'); 
-    await page.waitForURL(`${SITE_URL}/all-matters/dashboard`);
+    await page.waitForURL(`${SITE_URL}/all-workspaces/dashboard`);
 
     // Navigate to the tasks page
     await page.goto(`${SITE_URL}/single-workspace/3/tasks`); 

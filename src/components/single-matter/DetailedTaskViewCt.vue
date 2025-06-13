@@ -3,7 +3,7 @@
     <div class="task-header">
       <div class="back-button">
         <router-link 
-          :to="`/single-matter/${currentMatter?.id}/tasks`"
+          :to="`/single-workspace/${currentMatter?.id}/tasks`"
           class="back-link">
           <el-icon><ArrowLeft /></el-icon>
           Back to Tasks
@@ -210,7 +210,7 @@
                 <div class="column-description">
                   <a 
                     class="child-task-title" 
-                    :href="`/single-matter/${currentMatter.id}/tasks/${childTask.id}`"
+                    :href="`/single-workspace/${currentMatter.id}/tasks/${childTask.id}`"
                     :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }"
                   >
                     {{ childTask.title }}
@@ -2368,7 +2368,7 @@ export default {
     },
     generateShareLink() {
       const baseUrl = window.location.origin;
-      this.shareLink = `${baseUrl}/single-matter/${this.currentMatter.id}/tasks/${this.task.id}`;
+      this.shareLink = `${baseUrl}/single-workspace/${this.currentMatter.id}/tasks/${this.task.id}`;
     },
     async copyLink() {
       try {
@@ -3168,7 +3168,7 @@ ${comment.content}
       }
     },
     navigateToTask(taskId) {
-      this.$router.push(`/single-matter/${this.currentMatter.id}/tasks/${taskId}`);
+      this.$router.push(`/single-workspace/${this.currentMatter.id}/tasks/${taskId}`);
     },
     getDueDateTagType(dueDate) {
       const today = new Date();

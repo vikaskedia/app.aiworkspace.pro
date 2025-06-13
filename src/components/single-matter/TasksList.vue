@@ -229,7 +229,7 @@ export default {
     },
     navigateToMatter(matterId) {
       if (!matterId) return;
-      this.$router.push(`/single-matter/${matterId}`);
+      this.$router.push(`/single-workspace/${matterId}`);
     },
     async loadUserEmail(userId) {
       if (!userId) return 'Unknown User';
@@ -696,7 +696,7 @@ export default {
     }
 
     const navigateToDetailedView = (task) => {
-      router.push(`/single-matter/${task.matter_id}/tasks/${task.id}`);
+      router.push(`/single-workspace/${task.matter_id}/tasks/${task.id}`);
     };
 
     return {

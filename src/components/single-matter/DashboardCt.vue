@@ -7,7 +7,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-matter/${currentMatter?.id}/goals`)">
+          @click="$router.push(`/single-workspace/${currentMatter?.id}/goals`)">
           View All Goals
         </el-button>
       </div>
@@ -57,7 +57,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-matter/${currentMatter?.id}/tasks`)">
+          @click="$router.push(`/single-workspace/${currentMatter?.id}/tasks`)">
           View All Tasks
         </el-button>
       </div>
@@ -84,7 +84,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-matter/${currentMatter?.id}/events`)">
+          @click="$router.push(`/single-workspace/${currentMatter?.id}/events`)">
           View All Events
         </el-button>
       </div>

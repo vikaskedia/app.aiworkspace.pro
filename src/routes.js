@@ -20,7 +20,7 @@ import DetailedEventViewCt from './components/single-matter/DetailedEventViewCt.
 
 const routes = [
   {
-    path: '/all-matters',
+    path: '/all-workspace',
     component: () => import('./components/all-matters/AllMatterLayout.vue'),
     meta: { requiresAuth: true },
     children: [
@@ -28,7 +28,7 @@ const routes = [
         path: '',
         name: 'AllMattersRoot',
         meta: { requiresAuth: true },
-        redirect: '/all-matters/dashboard'
+        redirect: '/all-workspace/dashboard'
       },
       {
         path: 'dashboard',
@@ -75,13 +75,13 @@ const routes = [
     ]
   },
   { 
-    path: '/single-matter/:matterId?', 
+    path: '/single-workspace/:matterId?',
     component: MatterLayout,
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: to => `/single-matter/${to.params.matterId}/dashboard`
+        redirect: to => `/single-workspace/${to.params.matterId}/dashboard`
       },
       {
         path: 'dashboard',
@@ -340,18 +340,18 @@ router.beforeEach(async (to, from, next) => {
 
   // Handle root path
   if (to.path === '/') {
-    next(session ? '/all-matters' : '/login');
+    next(session ? '/all-workspace' : '/login');
     return;
   }
 
   // Rest of your existing navigation guard code
-  if (to.path.startsWith('/single-matter/') && (!to.params.matterId || to.params.matterId === '')) {
-    next('/all-matters');
+  if (to.path.startsWith('/single-workspace/') && (!to.params.matterId || to.params.matterId === '')) {
+    next('/all-workspace');
     return;
   }
 
   // Clear matter context when navigating to all-matters routes
-  if (to.path.startsWith('/all-matters')) {
+  if (to.path.startsWith('/all-workspace')) {
     const matterStore = useMatterStore();
     matterStore.setCurrentMatter(null);
   }

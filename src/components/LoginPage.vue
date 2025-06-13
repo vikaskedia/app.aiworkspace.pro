@@ -225,7 +225,7 @@ export default {
         this.$router.push('/initial-consultation');
         return;
       } else {
-        this.$router.push('/all-matters');
+        this.$router.push('/all-workspace');
         return;
       } 
         

@@ -1008,7 +1008,7 @@ export default {
     
     goToSettings() {
       // Navigate to matter settings page
-      this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
+      this.$router.push(`/single-workspace/${this.currentMatter.id}/settings`);
     },
 
     // File handling methods

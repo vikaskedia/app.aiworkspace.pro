@@ -557,7 +557,7 @@ export default {
     },
 
     navigateToMatter(matterId) {
-      this.router.push(`/single-matter/${matterId}`);
+      this.router.push(`/single-workspace/${matterId}`);
     },
 
     async loadMatters() {
@@ -628,7 +628,7 @@ export default {
         // If we're on the main tasks page and not viewing a specific saved filter,
         // load the default filter if one exists
         if (
-          this.$route.path === '/all-matters/tasks' && 
+          this.$route.path === '/all-workspace/tasks' && 
           !this.$route.path.includes('/saved-filters/')
         ) {
           const defaultFilter = this.savedFilters.find(f => f.is_default);
@@ -756,7 +756,7 @@ export default {
           // Update page title with filter name
           document.title = `${filter.filter_name} | TaskManager`;
           this.loadTasksWithCache();
-          this.router.push(`/all-matters/tasks/saved-filters/${filterId}`);
+          this.router.push(`/all-workspace/tasks/saved-filters/${filterId}`);
           ElMessage.success('Filters loaded successfully');
         }
       }
@@ -776,7 +776,7 @@ export default {
       // Update page title with filter name
       document.title = `${filter.filter_name} | TaskManager`;
       this.savedFiltersDialogVisible = false;
-      this.router.push(`/all-matters/tasks/saved-filters/${filter.id}`);
+      this.router.push(`/all-workspace/tasks/saved-filters/${filter.id}`);
       ElMessage.success('Filters loaded successfully');
     },
 
@@ -1017,7 +1017,7 @@ export default {
 
     navigateToDetailedView(row) {
       if (!row || !row.matter_id) return;
-      this.router.push(`/single-matter/${row.matter_id}/tasks/${row.id}`);
+      this.router.push(`/single-workspace/${row.matter_id}/tasks/${row.id}`);
     },
 
     async updateTask(task) {
@@ -1188,7 +1188,7 @@ export default {
           this.filters = filterData;
           this.loadTasksWithCache();
         }
-      } else if (to.path === '/all-matters/tasks' && from.path.includes('/saved-filters/')) {
+      } else if (to.path === '/all-workspace/tasks' && from.path.includes('/saved-filters/')) {
         // Going back to main tasks view
         this.clearFilters();
         this.loadTasksWithCache();

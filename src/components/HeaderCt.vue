@@ -48,7 +48,7 @@ export default {
       if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/settings')) return 'Settings';
       if (path.includes('/dashboard')) return 'Dashboard';
-      if (path.includes('/all-matters')) {
+      if (path.includes('/all-workspace')) {
         if (path.endsWith('/tasks')) return 'All Tasks';
         if (path.endsWith('/goals')) return 'All Goals';
         if (path.endsWith('/events')) return 'All Events';
@@ -76,7 +76,7 @@ export default {
       return this.$route.path.includes('/initial-consultation')
     },
     isActivityLogRoute() {
-      return this.$route.path.includes('/all-matters/activity-log')
+      return this.$route.path.includes('/all-workspace/activity-log')
     },
     isAIAttorneyRoute() {
       return this.$route.path.includes('/ai-attorney')
@@ -132,7 +132,7 @@ export default {
           // TODO: Implement feedback route
           break;
         case 'activity_log':
-          this.$router.push('/all-matters/activity-log');
+          this.$router.push('/all-workspace/activity-log');
           break;
         case 'logout':
           await this.handleLogout();
@@ -158,8 +158,8 @@ export default {
         case 'initial_consultation':
           this.$router.push('/initial-consultation')
           break
-        case 'all_matters':
-          this.$router.push('/all-matters');
+        case 'all_workspace':
+          this.$router.push('/all-workspace');
           break;
         case 'cases':
           this.$router.push('/cases');
@@ -182,7 +182,7 @@ export default {
         const subRoute = segments[3]; // 'goals', 'tasks', etc.
         //this.$router.push(`/single-matter/${matter.id}/${subRoute}`);
       } else {
-        this.$router.push(`/single-matter/${matter.id}`);
+        this.$router.push(`/single-workspace/${matter.id}`);
       }
     },
     handleMatterCommand(command) {
@@ -191,31 +191,31 @@ export default {
       if (this.currentMatter?.id) {
         switch(command) {
           case 'dashboard':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/dashboard`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/dashboard`);
             break;
           case 'goals':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/goals`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/goals`);
             break;
           case 'tasks':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/tasks`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/tasks`);
             break;
           case 'events':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/events`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/events`);
             break;
           case 'files':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/files`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/files`);
             break;
           case 'outlines':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/outlines`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/outlines`);
             break;
           case 'communications':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/communications`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/communications`);
             break;
           case 'ai_phone':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/ai_phone`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/ai_phone`);
             break;
           case 'settings':
-            this.$router.push(`/single-matter/${this.currentMatter.id}/settings`);
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/settings`);
             break;
         }
       } else {
@@ -224,22 +224,22 @@ export default {
         
         switch(command) {
           case 'all_dashboard':
-            this.$router.push('/all-matters/dashboard');
+            this.$router.push('/all-workspace/dashboard');
             break;
           case 'all_tasks':
-            this.$router.push('/all-matters/tasks');
+            this.$router.push('/all-workspace/tasks');
             break;
           case 'all_goals':
-            this.$router.push('/all-matters/goals');
+            this.$router.push('/all-workspace/goals');
             break;
           case 'all_events':
-            this.$router.push('/all-matters/events');
+            this.$router.push('/all-workspace/events');
             break;
           case 'all_files':
-            this.$router.push('/all-matters/files');
+            this.$router.push('/all-workspace/files');
             break;
           case 'all_settings':
-            this.$router.push('/all-matters/settings');
+            this.$router.push('/all-workspace/settings');
             break;
 
         }
@@ -411,7 +411,7 @@ export default {
             <el-dropdown-item command="billing">
               Billing
             </el-dropdown-item>
-            <el-dropdown-item command="all_matters" divided>All Workspaces</el-dropdown-item>
+            <el-dropdown-item command="all_workspace" divided>All Workspaces</el-dropdown-item>
             <el-dropdown-item command="talktodev">Talk to Dev</el-dropdown-item>
             <el-dropdown-item command="activity_log">Activity Log</el-dropdown-item>
             <el-dropdown-item divided command="referral_system">Referral System</el-dropdown-item>

@@ -158,7 +158,7 @@ export default {
       if (matter === null) {
         selectedMatter.value = null;
         matterStore.setCurrentMatter(null);
-        router.push('/all-matters/tasks');
+        router.push('/all-workspace/tasks');
       } else {
         selectedMatter.value = matter;
         matterStore.setCurrentMatter(matter);
@@ -168,7 +168,7 @@ export default {
         
         // If we're in all-matters/tasks or any tasks view, always go to tasks
         if (currentPath.includes('/tasks')) {
-          router.push(`/single-matter/${matter.id}/tasks`);
+          router.push(`/single-workspace/${matter.id}/tasks`);
           return;
         }
         
@@ -178,16 +178,16 @@ export default {
         
         switch(lastSegment) {
           case 'goals':
-            router.push(`/single-matter/${matter.id}/goals`);
+            router.push(`/single-workspace/${matter.id}/goals`);
             break;
           case 'events':
-            router.push(`/single-matter/${matter.id}/events`);
+            router.push(`/single-workspace/${matter.id}/events`);
             break;
           case 'files':
-            router.push(`/single-matter/${matter.id}/files`);
+            router.push(`/single-workspace/${matter.id}/files`);
             break;
           default:
-            router.push(`/single-matter/${matter.id}/tasks`); // Default to tasks instead of dashboard
+            router.push(`/single-workspace/${matter.id}/tasks`); // Default to tasks instead of dashboard
         }
         
         emit('matter-selected', matter);
@@ -199,22 +199,22 @@ export default {
       
       switch(command) {
         case 'dashboard':
-          router.push(`/single-matter/${selectedMatter.value.id}`);
+          router.push(`/single-workspace/${selectedMatter.value.id}`);
           break;
         case 'goals':
-          router.push(`/single-matter/${selectedMatter.value.id}/goals`);
+          router.push(`/single-workspace/${selectedMatter.value.id}/goals`);
           break;
         case 'tasks':
-          router.push(`/single-matter/${selectedMatter.value.id}/tasks`);
+          router.push(`/single-workspace/${selectedMatter.value.id}/tasks`);
           break;
         case 'events':
-          router.push(`/single-matter/${selectedMatter.value.id}/events`);
+          router.push(`/single-workspace/${selectedMatter.value.id}/events`);
           break;
         case 'files':
-          router.push(`/single-matter/${selectedMatter.value.id}/files`);
+          router.push(`/single-workspace/${selectedMatter.value.id}/files`);
           break;
         case 'settings':
-          router.push(`/single-matter/${selectedMatter.value.id}/settings`);
+          router.push(`/single-workspace/${selectedMatter.value.id}/settings`);
           break;
       }
     };

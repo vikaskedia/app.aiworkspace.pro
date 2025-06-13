@@ -45,7 +45,7 @@ export default {
         //await supabase.auth.setSession(data.session);
         
         // Construct the full redirect URL
-        const redirectUrl = `${redirectOrigin}/all-matters`;
+        const redirectUrl = `${redirectOrigin}/all-workspace`;
         window.location.href = redirectUrl;
       } else {
         // No session found, redirect to login

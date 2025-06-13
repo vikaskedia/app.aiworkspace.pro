@@ -468,7 +468,7 @@ export default {
       switch(command) {
         case 'view':
           this.matterStore.setCurrentMatter(matter);
-          this.router.push(`/single-matter/${matter.id}`);
+          this.router.push(`/single-workspace/${matter.id}`);
           break;
         case 'edit':
           this.editingMatter = {
@@ -514,17 +514,17 @@ export default {
 
     navigateToGoals(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-matter/${matter.id}/goals`);
+      this.router.push(`/single-workspace/${matter.id}/goals`);
     },
 
     navigateToTasks(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-matter/${matter.id}/tasks`);
+      this.router.push(`/single-workspace/${matter.id}/tasks`);
     },
 
     navigateToEvents(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-matter/${matter.id}/events`);
+      this.router.push(`/single-workspace/${matter.id}/events`);
     },
   }
 };

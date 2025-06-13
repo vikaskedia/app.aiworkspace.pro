@@ -5,7 +5,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-matter/${matterId}/events`)">
+          @click="$router.push(`/single-workspace/${matterId}/events`)">
           <el-icon><ArrowLeft /></el-icon>
           Back to Events
         </el-button>

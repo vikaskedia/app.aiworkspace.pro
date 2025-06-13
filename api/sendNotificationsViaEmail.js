@@ -111,7 +111,7 @@ export default async function handler(req, res) {
                 .single();
 
               if (!taskError && taskData) {
-                taskUrl = `https://app.associateattorney.ai/single-matter/${taskData.matter_id}/tasks/${notification.data.task_id}`;
+                taskUrl = `https://app.associateattorney.ai/single-workspace/${taskData.matter_id}/tasks/${notification.data.task_id}`;
               }
             }
 

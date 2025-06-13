@@ -697,7 +697,7 @@ export default {
 
         ElMessage.success('Workspace created successfully')
         // Redirect to the new matter
-        window.location.href = `/single-matter/${matter.id}/dashboard`
+        window.location.href = `/single-workspace/${matter.id}/dashboard`
 
       } catch (error) {
         ElMessage.error('Error creating matter: ' + error.message)

@@ -4,7 +4,7 @@
       <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
         <span v-if="idx > 0"> &gt; </span>
         <a
-          :href="matterId ? '/single-matter/' + matterId + '/outlines?focus=' + node.id : '#'"
+          :href="matterId ? '/single-workspace/' + matterId + '/outlines?focus=' + node.id : '#'"
           class="breadcrumb-link"
           @click.prevent="handleBreadcrumb(node, idx)"
           :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"

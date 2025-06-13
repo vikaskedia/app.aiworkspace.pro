@@ -109,7 +109,7 @@
                     <div v-else>
                       <div class="info-icon-wrapper">
                         <router-link 
-                          :to="`/single-matter/${task.matter_id}/tasks/${task.id}`"
+                          :to="`/single-workspace/${task.matter_id}/tasks/${task.id}`"
                           class="info-icon-link">
                           <el-icon class="info-icon">
                             <InfoFilled />
@@ -729,7 +729,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       },
   
       navigateToDetailedView(task) {
-        this.$router.push(`/single-matter/${task.matter_id}/tasks/${task.id}`);
+        this.$router.push(`/single-workspace/${task.matter_id}/tasks/${task.id}`);
       },
   
       handleAddTask(column) {
@@ -797,7 +797,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
           // If openAfterSave is true, navigate to the detailed view
           if (openAfterSave) {
-            this.$router.push(`/single-matter/${data[0].matter_id}/tasks/${data[0].id}`);
+            this.$router.push(`/single-workspace/${data[0].matter_id}/tasks/${data[0].id}`);
           }
         } catch (error) {
           ElMessage.error('Error creating task: ' + error.message);

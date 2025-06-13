@@ -367,7 +367,7 @@ export default {
     async loadTelegramGroups() {
       try {
         const { data, error } = await supabase
-          .from('matter_telegram_groups')
+          .from('workspace_telegram_groups')
           .select('*')
           .eq('matter_id', this.currentMatter.id);
 
@@ -381,7 +381,7 @@ export default {
     async addTelegramGroup() {
       try {
         const { data, error } = await supabase
-          .from('matter_telegram_groups')
+          .from('workspace_telegram_groups')
           .insert({
             matter_id: this.currentMatter.id,
             chat_id: this.newTelegramGroup.chat_id,
@@ -404,7 +404,7 @@ export default {
     async removeTelegramGroup(groupId) {
       try {
         const { error } = await supabase
-          .from('matter_telegram_groups')
+          .from('workspace_telegram_groups')
           .delete()
           .eq('id', groupId);
 

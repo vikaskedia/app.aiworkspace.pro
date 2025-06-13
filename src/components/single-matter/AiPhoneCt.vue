@@ -315,39 +315,6 @@
             show-word-limit>
           </el-input>
         </el-form-item>
-
-        <!-- <el-form-item label="Attachments">
-          <el-upload
-            ref="newMessageFileUpload"
-            :show-file-list="false"
-            :before-upload="handleNewMessageFileSelect"
-            :multiple="true"
-            :accept="acceptedFileTypes"
-            action="#">
-            <el-button type="primary" plain>
-              <el-icon><Paperclip /></el-icon>
-              Choose Files
-            </el-button>
-          </el-upload>
-          
-         
-          <div v-if="newMessageForm.files.length > 0" class="dialog-file-preview">
-            <div 
-              v-for="(file, index) in newMessageForm.files" 
-              :key="index"
-              class="dialog-file-item">
-              <span class="file-name">{{ file.name }}</span>
-              <span class="file-size">({{ formatFileSize(file.size) }})</span>
-              <el-button 
-                size="small" 
-                @click="removeNewMessageFile(index)"
-                type="danger" 
-                link>
-                Remove
-              </el-button>
-            </div>
-          </div>
-        </el-form-item> -->
       </el-form>
       
       <template #footer>
@@ -1035,12 +1002,12 @@ export default {
         return false;
       }
 
-      // Validate file size (1MB max)
-      const maxSize = 1024 * 1024; // 1MB
-      if (file.size > maxSize) {
-        this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
-        return false;
-      }
+      // Validate file size (temporarily disabled for testing)
+      // const maxSize = 1024 * 1024; // 1MB
+      // if (file.size > maxSize) {
+      //   this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
+      //   return false;
+      // }
 
       // Check total files limit
       if (this.selectedFiles.length >= 10) {
@@ -1082,35 +1049,6 @@ export default {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    },
-
-    // New message dialog file handling
-    handleNewMessageFileSelect(file) {
-      // Same validation as regular file select
-      const supportedTypes = [
-        'image/jpeg', 'image/png', 'image/gif',
-        'video/mp4', 'video/3gpp',
-        'text/plain', 'text/vcard'
-      ];
-      
-      if (!supportedTypes.includes(file.type)) {
-        this.$message.error(`Unsupported file type: ${file.type}`);
-        return false;
-      }
-
-      const maxSize = 1024 * 1024; // 1MB
-      if (file.size > maxSize) {
-        this.$message.error(`File ${file.name} exceeds maximum size of 1MB`);
-        return false;
-      }
-
-      if (this.newMessageForm.files.length >= 10) {
-        this.$message.error('Maximum 10 files allowed per message');
-        return false;
-      }
-
-      this.newMessageForm.files.push(file);
-      return false; // Prevent automatic upload
     },
 
     removeNewMessageFile(index) {

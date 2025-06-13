@@ -145,6 +145,7 @@
         </div>
       </div>
       <template #footer>
+        <p style="font-size: 14px; color: #666; float: left;margin: 6px 0;">Shortcut: cmd+k</p>
         <el-button @click="linkDialogVisible = false">Cancel</el-button>
         <el-button type="primary" @click="createLink" :disabled="!linkUrl.trim()">Create Link</el-button>
       </template>

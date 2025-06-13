@@ -19,7 +19,7 @@
         :disabled="!hasChanges"
         style="margin-right: 8px;"
       >
-        Save Outline
+        Save Outline (cmd+s)
       </el-button>
       <el-button icon @click="openHistoryDialog" style="margin-right: 8px;">
         <el-icon><Clock /></el-icon>

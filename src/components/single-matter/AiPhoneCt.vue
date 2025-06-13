@@ -1108,7 +1108,7 @@ export default {
   align-items: center;
 }
 
-.header h2 {
+.header h2 { 
   margin: 0;
   color: #333;
 }

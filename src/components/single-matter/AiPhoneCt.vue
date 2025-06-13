@@ -135,7 +135,7 @@
                     class="media-item">
                     
                     <!-- Debug: Log media object -->
-                    {{ console.log('🖼️ Media object:', media) }}
+                    <!-- {{ console.log('🖼️ Media object:', media) }} -->
                     
                     <!-- Image -->
                     <img 
@@ -663,141 +663,124 @@ export default {
       this.clearSelectedFiles();
       this.sendingMessage = true;
       
-              try {
-          // Get the selected phone number for this conversation
-          const fromPhone = this.currentChat.fromPhoneNumber;
-          const toPhone = this.currentChat.phoneNumber;
+      try {
+        // Get the selected phone number for this conversation
+        const fromPhone = this.currentChat.fromPhoneNumber;
+        const toPhone = this.currentChat.phoneNumber;
+        
+        if (!fromPhone || !toPhone) {
+          throw new Error('Missing phone number information');
+        }
+
+        let uploadedFiles = null;
+
+        // Upload files if any are selected
+        if (filesToSend.length > 0) {
+          // Create FormData for each file
+          const formData = new FormData();
+          filesToSend.forEach((file, index) => {
+            formData.append(`files`, file);
+          });
+          formData.append('matter_id', this.currentMatter.id);
+          formData.append('git_repo', this.currentMatter.git_repo);
+
+          const uploadResponse = await fetch('/api/upload-media-gitea-direct', {
+            method: 'POST',
+            body: formData
+          });
+
+          const uploadResult = await uploadResponse.json();
           
-          if (!fromPhone || !toPhone) {
-            throw new Error('Missing phone number information');
+          console.log('📤 Upload response:', uploadResult);
+
+          if (!uploadResponse.ok) {
+            throw new Error(uploadResult.error || 'Failed to upload files');
           }
 
-          let uploadedFiles = null;
+          uploadedFiles = uploadResult.files;
+          console.log('📁 Uploaded files:', uploadedFiles);
+        }
+        
+        // Add message to UI immediately (optimistic update)
+        const tempMsg = {
+          id: `temp-${Date.now()}`,
+          text: messageText,
+          direction: 'outbound',
+          timestamp: new Date(),
+          status: 'sending',
+          mediaFiles: uploadedFiles || []
+        };
+        
+        this.currentChat.messages.push(tempMsg);
+        this.currentChat.lastMessage = uploadedFiles && !messageText ? 
+          `📎 ${uploadedFiles.length} attachment(s)` : messageText;
+        this.currentChat.lastMessageTime = new Date();
+      
+      // Scroll to bottom
+      this.$nextTick(() => {
+        const container = this.$refs.messagesContainer;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+      
+                // Send via API
+        const response = await fetch('/api/sms/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromPhone,
+            to: toPhone,
+            message: messageText,
+            matter_id: this.currentMatter.id,
+            media_files: uploadedFiles,
+            subject: null // Can be added later if needed
+          })
+        });
 
-          // Upload files if any are selected
-          if (filesToSend.length > 0) {
-            // Convert files to base64 (like FilesCt.vue does)
-            const filePromises = filesToSend.map(file => {
-              return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const base64 = reader.result.split(',')[1];
-                  resolve({
-                    name: file.name,
-                    content: base64,
-                    size: file.size
-                  });
-                };
-                reader.readAsDataURL(file);
-              });
-            });
-
-            const base64Files = await Promise.all(filePromises);
-
-            const uploadResponse = await fetch('/api/upload-media-gitea-direct', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                files: base64Files,
-                matter_id: this.currentMatter.id,
-                git_repo: this.currentMatter.git_repo
-              })
-            });
-
-            const uploadResult = await uploadResponse.json();
-            
-            console.log('📤 Upload response:', uploadResult);
-
-            if (!uploadResponse.ok) {
-              throw new Error(uploadResult.error || 'Failed to upload files');
-            }
-
-            uploadedFiles = uploadResult.files;
-            console.log('📁 Uploaded files:', uploadedFiles);
-          }
-          
-          // Add message to UI immediately (optimistic update)
-          const tempMsg = {
-            id: `temp-${Date.now()}`,
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send message');
+      }
+      
+                // Update the temporary message with real data
+        const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
+        if (msgIndex !== -1) {
+          this.currentChat.messages[msgIndex] = {
+            id: result.message_id,
             text: messageText,
             direction: 'outbound',
             timestamp: new Date(),
-            status: 'sending',
+            status: 'sent',
+            telnyxId: result.telnyx_message_id,
             mediaFiles: uploadedFiles || []
           };
-          
-          this.currentChat.messages.push(tempMsg);
-          this.currentChat.lastMessage = uploadedFiles && !messageText ? 
-            `📎 ${uploadedFiles.length} attachment(s)` : messageText;
-          this.currentChat.lastMessageTime = new Date();
+        }
+      
+      //console.log('Message sent successfully from conversation:', result);
+      
+      // Mark conversation as read when sending a message
+      await this.realtimeMarkAsRead(this.currentChat.id);
+      
+            } catch (error) {
+        console.error('Error sending message:', error);
+        this.$message.error(error.message || 'Failed to send message');
         
-        // Scroll to bottom
-        this.$nextTick(() => {
-          const container = this.$refs.messagesContainer;
-          if (container) {
-            container.scrollTop = container.scrollHeight;
-          }
-        });
-        
-                  // Send via API
-          const response = await fetch('/api/sms/send', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              from: fromPhone,
-              to: toPhone,
-              message: messageText,
-              matter_id: this.currentMatter.id,
-              media_files: uploadedFiles,
-              subject: null // Can be added later if needed
-            })
-          });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to send message');
+        // Remove the failed message from UI
+        const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
+        if (msgIndex !== -1) {
+          this.currentChat.messages.splice(msgIndex, 1);
         }
         
-                  // Update the temporary message with real data
-          const msgIndex = this.currentChat.messages.findIndex(m => m.id === tempMsg.id);
-          if (msgIndex !== -1) {
-            this.currentChat.messages[msgIndex] = {
-              id: result.message_id,
-              text: messageText,
-              direction: 'outbound',
-              timestamp: new Date(),
-              status: 'sent',
-              telnyxId: result.telnyx_message_id,
-              mediaFiles: uploadedFiles || []
-            };
-          }
-        
-        //console.log('Message sent successfully from conversation:', result);
-        
-        // Mark conversation as read when sending a message
-        await this.realtimeMarkAsRead(this.currentChat.id);
-        
-              } catch (error) {
-          console.error('Error sending message:', error);
-          this.$message.error(error.message || 'Failed to send message');
-          
-          // Remove the failed message from UI
-          const msgIndex = this.currentChat.messages.findIndex(m => m.id?.startsWith('temp-'));
-          if (msgIndex !== -1) {
-            this.currentChat.messages.splice(msgIndex, 1);
-          }
-          
-          // Restore the message text and files
-          this.newMessage = messageText;
-          this.selectedFiles = filesToSend;
-        } finally {
-          this.sendingMessage = false;
-        }
+        // Restore the message text and files
+        this.newMessage = messageText;
+        this.selectedFiles = filesToSend;
+      } finally {
+        this.sendingMessage = false;
+      }
     },
     
     composeMessage() {

@@ -30,7 +30,7 @@ export const useMatterStore = defineStore('matter', {
         const mattersWithActivity = await Promise.all(
           matters.map(async (matter) => {
             const { data: activities, error: activityError } = await supabase
-              .from('matter_activities')
+              .from('workspace_activities')
               .select('updated_at')
               .eq('matter_id', matter.id)
               .order('updated_at', { ascending: false })

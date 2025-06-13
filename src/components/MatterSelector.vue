@@ -45,20 +45,20 @@ export default {
               access_type,
               shared_with_user_id
             ),
-            matter_activities!left (
+            workspace_activities!left (
               updated_at
             )
           `)
           .eq('archived', false)
           .eq('workspace_access.shared_with_user_id', user.id)
-          .eq('matter_activities.user_id', user.id);
+          .eq('workspace_activities.user_id', user.id);
 
         if (error) throw error;
 
         // Process matters and add latest activity
         const mattersWithActivity = mattersData.map(matter => ({
           ...matter,
-          latest_activity: matter.matter_activities?.[0]?.updated_at || matter.created_at
+          latest_activity: matter.workspace_activities?.[0]?.updated_at || matter.created_at
         }));
 
         // Sort by latest activity (most recent first)

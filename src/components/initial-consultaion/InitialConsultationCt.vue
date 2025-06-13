@@ -735,7 +735,7 @@ export default {
         const mattersWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
-              .from('matter_activities')
+              .from('workspace_activities')
               .select('updated_at')
               .eq('matter_id', matter.id)
               .order('updated_at', { ascending: false })
@@ -791,7 +791,7 @@ export default {
         const mattersWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
-              .from('matter_activities')
+              .from('workspace_activities')
               .select('updated_at')
               .eq('matter_id', matter.id)
               .order('updated_at', { ascending: false })

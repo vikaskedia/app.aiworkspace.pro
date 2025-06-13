@@ -16,7 +16,7 @@ export async function updateMatterActivity(matterId) {
 
     // First check if records already exist for this matter-user combination
     const { data: existingActivities } = await supabase
-      .from('matter_activities')
+      .from('workspace_activities')
       .select('id, updated_at')
       .eq('matter_id', matterId)
       .eq('user_id', user.id);
@@ -27,14 +27,14 @@ export async function updateMatterActivity(matterId) {
       // If multiple records exist, delete all duplicates
       if (existingActivities.length > 1) {
         await supabase
-          .from('matter_activities')
+          .from('workspace_activities')
           .delete()
           .eq('matter_id', matterId)
           .eq('user_id', user.id);
         
         // Insert a fresh record
         await supabase
-          .from('matter_activities')
+          .from('workspace_activities')
           .insert({
             matter_id: matterId,
             user_id: user.id,
@@ -43,7 +43,7 @@ export async function updateMatterActivity(matterId) {
       } else {
         // Update the single existing record
         await supabase
-          .from('matter_activities')
+          .from('workspace_activities')
           .update({ updated_at: timestamp })
           .eq('matter_id', matterId)
           .eq('user_id', user.id);
@@ -51,7 +51,7 @@ export async function updateMatterActivity(matterId) {
     } else {
       // Insert new record
       await supabase
-        .from('matter_activities')
+        .from('workspace_activities')
         .insert({
           matter_id: matterId,
           user_id: user.id,
@@ -72,7 +72,7 @@ export async function updateMatterActivity(matterId) {
 export async function getMatterActivities(matterId, limit = 10) {
   try {
     const { data, error } = await supabase
-      .from('matter_activities')
+      .from('workspace_activities')
       .select('*')
       .eq('matter_id', matterId)
       .order('updated_at', { ascending: false })
@@ -129,7 +129,7 @@ export async function getUserActivities(userId = null, limit = 20) {
     }
 
     const { data, error } = await supabase
-      .from('matter_activities')
+      .from('workspace_activities')
       .select(`
         *,
         matters!inner (

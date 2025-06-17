@@ -43,10 +43,6 @@
               <el-icon><Link /></el-icon>
               Copy Internal Link
             </el-dropdown-item>
-            <!--el-dropdown-item command="create-link">
-              <el-icon><Link /></el-icon>
-              Create Link
-            </el-dropdown-item-->
             <el-dropdown-item command="indent">
               <el-icon><Right /></el-icon>
               Indent
@@ -58,6 +54,12 @@
             <el-dropdown-item command="delete" divided>
               <el-icon><Delete /></el-icon>
               Delete
+            </el-dropdown-item>
+            <el-dropdown-item divided class="timestamp-item">
+              <strong>Created:&nbsp;</strong> {{ formatTimestamp(item.created_at || item.id) }}
+            </el-dropdown-item>
+            <el-dropdown-item class="timestamp-item">
+              <strong>Changed:&nbsp;</strong> {{ formatTimestamp(item.updated_at || item.created_at || item.id) }}
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -429,20 +431,30 @@ export default {
     },
     finishEdit() {
       this.editing = false;
-      this.selectionTooltipVisible = false; // Hide tooltip when finishing edit
+      this.selectionTooltipVisible = false;
       if (this.editText !== this.item.text) {
-        this.$emit('update', { id: this.item.id, text: this.editText });
+        // Update the timestamp when text changes
+        const now = Date.now();
+        this.item.updated_at = now;
+        this.$emit('update', { 
+          id: this.item.id, 
+          text: this.editText,
+          updated_at: now
+        });
       }
     },
     handleEnter() {
       this.finishEdit();
       
-      // Create a new sub-point
+      // Create a new sub-point with timestamps
+      const now = Date.now();
       const newSubPoint = {
-        id: Date.now().toString(),
+        id: now.toString(),
         text: '',
         children: [],
-        autoFocus: true
+        autoFocus: true,
+        created_at: now,
+        updated_at: now
       };
       
       // Initialize children array if it doesn't exist
@@ -1119,6 +1131,18 @@ export default {
           ElMessage.error('Failed to copy link to clipboard');
         }
       }
+    },
+    formatTimestamp(timestamp) {
+      const date = new Date(parseInt(timestamp));
+      const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      };
+      return date.toLocaleDateString('en-US', options).replace(',', ' at');
     }
   }
 };
@@ -1521,5 +1545,42 @@ export default {
 .tooltip-button:hover {
   background-color: #f6f8fa;
   color: #0366d6;
+}
+
+/* Timestamp Tooltip */
+.timestamp-tooltip {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: auto;
+  padding: 8px;
+  margin-top: 10px;
+}
+
+.timestamp-line {
+  margin-bottom: 4px;
+  font-size: 0.9em;
+  color: #606266;
+}
+
+.timestamp-line strong {
+  font-weight: 500;
+}
+
+/* Timestamp items in dropdown menu */
+.timestamp-item {
+  font-size: 0.85em !important;
+  color: #666 !important;
+  cursor: default !important;
+  padding: 4px 12px !important;
+}
+
+.timestamp-item strong {
+  font-weight: 500;
+  color: #666 !important;
 }
 </style> 

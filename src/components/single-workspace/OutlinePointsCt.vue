@@ -1161,7 +1161,7 @@ export default {
 .outline-row {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   min-height: 25px;
 }
 
@@ -1233,11 +1233,11 @@ export default {
   width: 20px;
   cursor: pointer;
   user-select: none;
-  margin-left: -19px;
+  margin-left: 0;
   font-size: 10px;
-  vertical-align: top;
+  vertical-align: baseline;
   margin-right: 16px;
-  margin-top: 7px;
+  margin-top: 0;
 }
 .collapse-toggle:span {
   color: #4B5155;
@@ -1252,8 +1252,9 @@ export default {
   font-weight: normal;
   color: #2a3135;
   cursor: pointer;
-  vertical-align: middle;
+  vertical-align: baseline;
   line-height: 1.4;
+  margin: 0;
 }
 .outline-item > .outline-text {
   font-size: 1rem;
@@ -1273,11 +1274,11 @@ export default {
   font-weight: normal;
   color: #2a3135;
   border: 0px;
-  margin: -2px 0px 0px -2px;
+  margin: 0;
   outline: none;
   min-width: 100px;
   margin-bottom: 0.1rem;
-  vertical-align: middle;
+  vertical-align: baseline;
   resize: none;
   overflow: hidden;
   line-height: 1.2;
@@ -1465,12 +1466,12 @@ export default {
 
 /* Three-dot menu */
 .three-dot-menu {
-  margin-right: 25px;
+  margin-right: 5px;
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s ease;
   margin-top: 5px;
-  margin-left: -6px;
+  margin-left: -24px;
 }
 
 .outline-row:hover .three-dot-menu {

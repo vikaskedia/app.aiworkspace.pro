@@ -1159,34 +1159,16 @@ export default {
       const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       // Get the offset in minutes
       const offsetMin = -dateObj.getTimezoneOffset();
-      // Convert offset to "+HH:MM" format
-      const pad = n => String(Math.abs(n)).padStart(2, '0');
-      const sign = offsetMin >= 0 ? '+' : '-';
-      const hours = pad(Math.floor(Math.abs(offsetMin) / 60));
-      const mins = pad(Math.abs(offsetMin) % 60);
-      const offsetStr = `${sign}${hours}:${mins}`;
-      // Mapping of offsets to abbreviations
-      const tzMap = {
-        '+05:30': 'IST',
-        '-08:00': 'PST',
-        '-07:00': 'MST',
-        '-06:00': 'CST',
-        '-05:00': 'EST',
-        '+00:00': 'GMT',
-        '+01:00': 'CET',
-        '+02:00': 'EET',
-        '+03:00': 'MSK',
-        '+09:00': 'JST',
-        '+08:00': 'CST', // China Standard Time
-        '+10:00': 'AEST',
-        '+04:00': 'GST',
-        '-03:00': 'ART',
-        '-04:00': 'AST',
-        '-09:00': 'AKST',
-        '-10:00': 'HST',
-      };
-      const tzAbbr = tzMap[offsetStr] || dateObj.toLocaleTimeString(undefined, { timeZoneName: 'short' }).split(' ').pop();
-      return `${timeStr} ${tzAbbr}`;
+      // IST: +5:30 (330 minutes)
+      if (offsetMin === 330) return `${timeStr} IST`;
+      // PDT: -7:00 (-420 minutes), PST: -8:00 (-480 minutes)
+      if (offsetMin === -420) return `${timeStr} PDT`;
+      if (offsetMin === -480) return `${timeStr} PST`;
+      // Fallback: show PST for US, IST for India
+      // If offset is close to US Pacific, show PST/PDT
+      if (offsetMin <= -420 && offsetMin >= -480) return `${timeStr} PST`;
+      // Otherwise, default to IST
+      return `${timeStr} IST`;
     },
   }
 };

@@ -77,7 +77,7 @@
             <div class="conversation-info">
               <div class="conversation-header">
                 <span class="contact-name">
-                  {{ getContactName(conversation.fromPhoneNumber) || conversation.contact || 'Unknown Contact' }}
+                  {{ getContactName(conversation.fromPhoneNumber) || conversation.contact || formatPhoneNumber(conversation.fromPhoneNumber) || 'Unknown Contact' }}
                 </span>
                 <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
               </div>
@@ -678,11 +678,20 @@ export default {
       }
       
       if (this.searchQuery) {
-        filtered = filtered.filter(conv => 
-          conv.contact.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          conv.phoneNumber.includes(this.searchQuery) ||
-          conv.lastMessage.toLowerCase().includes(this.searchQuery.toLowerCase())
-        );
+        const query = this.searchQuery.toLowerCase();
+        filtered = filtered.filter(conv => {
+          // Search in contact name (from contacts or conversation)
+          const contactName = this.getContactName(conv.fromPhoneNumber) || conv.contact || '';
+          if (contactName.toLowerCase().includes(query)) return true;
+          
+          // Search in phone number
+          if (conv.fromPhoneNumber && conv.fromPhoneNumber.includes(query)) return true;
+          
+          // Search in last message
+          if (conv.lastMessage && conv.lastMessage.toLowerCase().includes(query)) return true;
+          
+          return false;
+        });
       }
       
       return filtered;
@@ -729,6 +738,23 @@ export default {
       // Return as array of { date, messages }
       return Object.entries(groups).map(([date, messages]) => ({ date, messages }));
     },
+
+    // Debug: Check what data is available
+    debugConversations() {
+      console.log('🔍 Debug - Realtime Conversations:', this.realtimeConversations);
+      console.log('🔍 Debug - Workspace Contacts:', this.workspaceContacts);
+      return this.realtimeConversations;
+    },
+  },
+  watch: {
+    currentMatter: {
+      handler(newMatter) {
+        if (newMatter) {
+          this.loadWorkspaceContacts();
+        }
+      },
+      immediate: true
+    }
   },
   async mounted() {
     // Auto-select first phone number if available
@@ -1028,15 +1054,16 @@ export default {
       }
     },
     
-    formatPhoneNumber(value) {
-      // Extract only digits
-      const digits = value.replace(/\D/g, '');
-      const limited = digits.substring(0, 10);
+    formatPhoneNumber(phoneNumber) {
+      if (!phoneNumber) return null;
       
-      if (limited.length === 0) return '';
-      if (limited.length <= 3) return `(${limited}`;
-      if (limited.length <= 6) return `(${limited.slice(0, 3)}) ${limited.slice(3)}`;
-      return `(${limited.slice(0, 3)}) ${limited.slice(3, 6)}-${limited.slice(6)}`;
+      // Remove +1 prefix and format as (XXX) XXX-XXXX
+      const cleanNumber = phoneNumber.replace(/^\+1/, '').replace(/\D/g, '');
+      if (cleanNumber.length === 10) {
+        return `(${cleanNumber.slice(0, 3)}) ${cleanNumber.slice(3, 6)}-${cleanNumber.slice(6)}`;
+      }
+      
+      return phoneNumber; // Return original if can't format
     },
     
     onPhoneNumberInput(value) {
@@ -1324,8 +1351,23 @@ export default {
 
     // Contact helper methods
     getContactName(phoneNumber) {
+      if (!phoneNumber) return null;
+      
       const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber);
-      return contact ? contact.name : null;
+      if (contact && contact.name) {
+        return contact.name;
+      }
+      
+      // If no contact found, try to format the phone number nicely
+      if (phoneNumber) {
+        // Remove +1 prefix and format as (XXX) XXX-XXXX
+        const cleanNumber = phoneNumber.replace(/^\+1/, '').replace(/\D/g, '');
+        if (cleanNumber.length === 10) {
+          return `(${cleanNumber.slice(0, 3)}) ${cleanNumber.slice(3, 6)}-${cleanNumber.slice(6)}`;
+        }
+      }
+      
+      return null;
     },
 
     getContactTags(phoneNumber) {

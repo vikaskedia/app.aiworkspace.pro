@@ -368,7 +368,7 @@
               </el-option-group>
               
               <!-- Recent Conversations -->
-              <el-option-group label="💬 Recent Conversations">
+              <!-- <el-option-group label="💬 Recent Conversations">
                 <el-option
                   v-for="conv in recentConversations"
                   :key="conv.id"
@@ -380,7 +380,7 @@
                     <span class="contact-phone">{{ conv.fromPhoneNumber }}</span>
                   </div>
                 </el-option>
-              </el-option-group>
+              </el-option-group> -->
             </el-select>
           </div>
           <small class="help-text">Select a contact or enter a phone number manually</small>

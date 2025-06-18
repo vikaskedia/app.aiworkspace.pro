@@ -1219,6 +1219,7 @@ export default {
         }
         const data = await response.json();
         this.messageDetails = data;
+        console.log('Message ID:', messageId);
         console.log('Message Details:', JSON.stringify(data, null, 2));
       } catch (error) {
         console.error('Error fetching message details:', error);

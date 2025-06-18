@@ -76,14 +76,29 @@
             
             <div class="conversation-info">
               <div class="conversation-header">
-                <span class="contact-name">{{ conversation.contact }}</span>
+                <span class="contact-name">
+                  {{ getContactName(conversation.fromPhoneNumber) || conversation.contact || 'Unknown Contact' }}
+                </span>
                 <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
               </div>
+              
+              <!-- Contact Tags -->
+              <div class="contact-tags" v-if="getContactTags(conversation.fromPhoneNumber).length">
+                <el-tag 
+                  v-for="tag in getContactTags(conversation.fromPhoneNumber)" 
+                  :key="tag" 
+                  size="small" 
+                  type="info"
+                  class="tag"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
+              
               <div class="conversation-preview">
                 <span class="last-message">{{ conversation.lastMessage }}</span>
                 <span v-if="conversation.unread" class="unread-count">{{ conversation.unread }}</span>
               </div>
-              <!-- <div class="phone-number">{{ conversation.phoneNumber }}</div> -->
             </div>
           </div>
         </div>
@@ -105,17 +120,32 @@
                 <el-icon><User /></el-icon>
               </div>
               <div>
-                <h4>{{ currentChat.contact }}</h4>
-                <!-- <p>{{ currentChat.phoneNumber }}</p> -->
+                <h4>{{ getContactName(currentChat.fromPhoneNumber) || currentChat.contact || 'Unknown Contact' }}</h4>
+                
+                <!-- Contact Details -->
+                <div class="contact-details" v-if="getCurrentContact()">
+                  <span class="contact-phone">{{ getCurrentContact().phone_number }}</span>
+                  <div class="contact-tags">
+                    <el-tag 
+                      v-for="tag in getCurrentContact().tags" 
+                      :key="tag" 
+                      size="small"
+                      type="info"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <!-- <div class="chat-actions">
-              <el-button size="small" circle>
-                <el-icon><Phone /></el-icon>
+            <!-- Quick Actions -->
+            <!-- <div class="chat-actions" v-if="getCurrentContact()">
+              <el-button size="small" @click="editContact(getCurrentContact())">
+                Edit Contact
               </el-button>
-              <el-button size="small" circle>
-                <el-icon><More /></el-icon>
+              <el-button size="small" @click="viewContactHistory(getCurrentContact())">
+                View History
               </el-button>
             </div> -->
           </div>
@@ -301,23 +331,59 @@
         </el-form-item>
         
         <el-form-item label="To" required>
-          <div class="phone-input-container">
-            <span class="country-code">+1</span>
-            <el-input
-              v-model="newMessageForm.to"
-              placeholder="(555) 123-4567"
-              @input="onPhoneNumberInput"
-              @keydown="onPhoneKeyDown"
-              maxlength="14"
-              class="phone-input">
-              <template #suffix>
-                <el-icon v-if="isValidPhoneNumber()" style="color: #67C23A">
-                  <Check />
-                </el-icon>
-              </template>
-            </el-input>
+          <div class="recipient-selection">
+            <el-select
+              v-model="selectedRecipient"
+              placeholder="Select contact or enter phone number"
+              filterable
+              allow-create
+              @change="onRecipientSelect"
+              style="width: 100%"
+            >
+              <!-- Contact Options -->
+              <el-option-group label="📋 Contacts">
+                <el-option
+                  v-for="contact in workspaceContacts"
+                  :key="contact.id"
+                  :label="`${contact.name} (${contact.phone_number})`"
+                  :value="contact.phone_number"
+                >
+                  <div class="contact-option">
+                    <div class="contact-info">
+                      <span class="contact-name">{{ contact.name }}</span>
+                      <span class="contact-phone">{{ contact.phone_number }}</span>
+                    </div>
+                    <div class="contact-tags" v-if="contact.tags && contact.tags.length">
+                      <el-tag 
+                        v-for="tag in contact.tags" 
+                        :key="tag" 
+                        size="small" 
+                        type="info"
+                      >
+                        {{ tag }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </el-option>
+              </el-option-group>
+              
+              <!-- Recent Conversations -->
+              <el-option-group label="💬 Recent Conversations">
+                <el-option
+                  v-for="conv in recentConversations"
+                  :key="conv.id"
+                  :label="`${conv.contact} (${conv.fromPhoneNumber})`"
+                  :value="conv.fromPhoneNumber"
+                >
+                  <div class="conversation-option">
+                    <span class="contact-name">{{ conv.contact }}</span>
+                    <span class="contact-phone">{{ conv.fromPhoneNumber }}</span>
+                  </div>
+                </el-option>
+              </el-option-group>
+            </el-select>
           </div>
-          <small class="help-text">Enter 10-digit US phone number</small>
+          <small class="help-text">Select a contact or enter a phone number manually</small>
         </el-form-item>
         
         <el-form-item label="Message">
@@ -394,6 +460,7 @@ import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
+import { supabase } from '../../supabase';
 
 export default {
   name: 'AiPhoneCt',
@@ -451,6 +518,10 @@ export default {
         files: []
       },
       sendingMessage: false,
+      
+      // Contact integration
+      workspaceContacts: [],
+      selectedRecipient: null,
       
       chatSearchQuery: '',
       
@@ -581,6 +652,17 @@ export default {
       return phoneItems;
     },
 
+    recentConversations() {
+      // Get recent conversations for the contact picker
+      return this.realtimeConversations
+        .slice(0, 10) // Limit to 10 most recent
+        .map(conv => ({
+          id: conv.id,
+          contact: this.getContactName(conv.fromPhoneNumber) || conv.contact || 'Unknown',
+          fromPhoneNumber: conv.fromPhoneNumber
+        }));
+    },
+
     filteredConversations() {
       // Use real-time conversations instead of static data
       let filtered = this.realtimeConversations || [];
@@ -653,6 +735,9 @@ export default {
     if (this.currentMatter?.phone_numbers?.length > 0) {
       this.selectedInboxItem = `phone_${this.currentMatter.phone_numbers[0].id}`;
     }
+
+    // Load workspace contacts when component mounts
+    await this.loadWorkspaceContacts();
   },
   methods: {
     selectInboxItem(itemId) {
@@ -981,6 +1066,9 @@ export default {
           throw new Error('No phone number selected');
         }
 
+        // Auto-create contact if sending to a new number
+        await this.autoCreateContact(this.newMessageForm.to);
+
         let uploadedFiles = null;
 
         // Upload files if any are selected
@@ -1215,6 +1303,85 @@ export default {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '-';
       return dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    },
+    async loadWorkspaceContacts() {
+      if (!this.currentMatter) return;
+      
+      try {
+        const { data: contacts, error } = await supabase
+          .from('contacts')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id)
+          .eq('archived', false)
+          .order('name');
+
+        if (error) throw error;
+        this.workspaceContacts = contacts;
+      } catch (error) {
+        console.error('Error loading workspace contacts:', error);
+      }
+    },
+
+    // Contact helper methods
+    getContactName(phoneNumber) {
+      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber);
+      return contact ? contact.name : null;
+    },
+
+    getContactTags(phoneNumber) {
+      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber);
+      return contact ? contact.tags : [];
+    },
+
+    getCurrentContact() {
+      if (!this.currentChat) return null;
+      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.fromPhoneNumber);
+    },
+
+    async autoCreateContact(phoneNumber) {
+      // Check if contact already exists
+      const existingContact = this.workspaceContacts.find(
+        c => c.phone_number === phoneNumber
+      );
+      
+      if (!existingContact) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          const contactData = {
+            name: `Contact (${phoneNumber})`, // Temporary name
+            phone_number: phoneNumber,
+            tags: ['auto-created'],
+            matter_id: this.currentMatter.id,
+            created_by: user.id
+          };
+          
+          const { error } = await supabase.from('contacts').insert([contactData]);
+          if (!error) {
+            await this.loadWorkspaceContacts(); // Refresh contacts
+          }
+        } catch (error) {
+          console.error('Error auto-creating contact:', error);
+        }
+      }
+    },
+
+    onRecipientSelect(value) {
+      this.newMessageForm.to = value;
+    },
+
+    editContact(contact) {
+      // TODO: Implement contact editing - could open a dialog or navigate to contacts page
+      console.log('Editing contact:', contact);
+      // For now, just show a message
+      this.$message.info('Contact editing will be implemented in Phase 2');
+    },
+
+    viewContactHistory(contact) {
+      // TODO: Implement contact history view - could show all communications
+      console.log('Viewing history for contact:', contact);
+      // For now, just show a message
+      this.$message.info('Contact history will be implemented in Phase 2');
     },
   }
 };
@@ -1935,5 +2102,92 @@ export default {
 }
 .message-settings-icon:hover {
   color: #1976d2;
+}
+
+/* Contact Integration Styles */
+.contact-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.contact-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contact-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.contact-phone {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.contact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.contact-tags .tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.conversation-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.recipient-selection {
+  width: 100%;
+}
+
+/* Enhanced Chat Header Styles */
+.chat-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.contact-details {
+  margin-top: 0.25rem;
+}
+
+.contact-details .contact-phone {
+  font-size: 0.85rem;
+  color: #666;
+  margin-right: 0.5rem;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Responsive adjustments for contact features */
+@media (max-width: 768px) {
+  .contact-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .chat-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .contact-tags {
+    margin-top: 0.25rem;
+  }
 }
 </style>

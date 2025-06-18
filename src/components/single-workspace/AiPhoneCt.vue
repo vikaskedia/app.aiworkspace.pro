@@ -364,6 +364,10 @@
             <pre style="white-space: pre-wrap; word-break: break-all;">{{ selectedMessageDetails.webhook_data ? JSON.stringify(selectedMessageDetails.webhook_data, null, 2) : '-' }}</pre>
           </el-descriptions-item>
         </el-descriptions>
+        <div v-if="messageDetails">
+          <h4>Full Message Details from DB:</h4>
+          <pre style="white-space: pre-wrap; word-break: break-all;">{{ JSON.stringify(messageDetails, null, 2) }}</pre>
+        </div>
       </div>
       <template #footer>
         <el-button @click="closeMessageDetailsDialog">Close</el-button>
@@ -556,6 +560,7 @@ export default {
       ],
       showMessageDetailsDialog: false,
       selectedMessageDetails: null,
+      messageDetails: null,
     };
   },
   computed: {
@@ -1204,6 +1209,20 @@ export default {
     openMessageDetailsDialog(message) {
       this.selectedMessageDetails = message;
       this.showMessageDetailsDialog = true;
+      this.fetchMessageDetails(message.id);
+    },
+    async fetchMessageDetails(messageId) {
+      try {
+        const response = await fetch(`/api/messages/${messageId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch message details');
+        }
+        const data = await response.json();
+        this.messageDetails = data;
+        console.log('Message Details:', JSON.stringify(data, null, 2));
+      } catch (error) {
+        console.error('Error fetching message details:', error);
+      }
     },
     closeMessageDetailsDialog() {
       this.showMessageDetailsDialog = false;

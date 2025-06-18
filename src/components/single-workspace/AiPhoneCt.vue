@@ -1924,7 +1924,7 @@ export default {
 
 .message-settings-icon {
   position: absolute;
-  top: 8px;
+  bottom: 8px;
   right: 8px;
   cursor: pointer;
   color: #888;

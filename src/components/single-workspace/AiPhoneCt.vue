@@ -1155,8 +1155,38 @@ export default {
       if (!date) return '';
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
-      // Show hour, minute, and time zone abbreviation (e.g., 02:34 PM IST)
-      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+      // Get the time string (hour:minute AM/PM)
+      const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      // Get the offset in minutes
+      const offsetMin = -dateObj.getTimezoneOffset();
+      // Convert offset to "+HH:MM" format
+      const pad = n => String(Math.abs(n)).padStart(2, '0');
+      const sign = offsetMin >= 0 ? '+' : '-';
+      const hours = pad(Math.floor(Math.abs(offsetMin) / 60));
+      const mins = pad(Math.abs(offsetMin) % 60);
+      const offsetStr = `${sign}${hours}:${mins}`;
+      // Mapping of offsets to abbreviations
+      const tzMap = {
+        '+05:30': 'IST',
+        '-08:00': 'PST',
+        '-07:00': 'MST',
+        '-06:00': 'CST',
+        '-05:00': 'EST',
+        '+00:00': 'GMT',
+        '+01:00': 'CET',
+        '+02:00': 'EET',
+        '+03:00': 'MSK',
+        '+09:00': 'JST',
+        '+08:00': 'CST', // China Standard Time
+        '+10:00': 'AEST',
+        '+04:00': 'GST',
+        '-03:00': 'ART',
+        '-04:00': 'AST',
+        '-09:00': 'AKST',
+        '-10:00': 'HST',
+      };
+      const tzAbbr = tzMap[offsetStr] || dateObj.toLocaleTimeString(undefined, { timeZoneName: 'short' }).split(' ').pop();
+      return `${timeStr} ${tzAbbr}`;
     },
   }
 };

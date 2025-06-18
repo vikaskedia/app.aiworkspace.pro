@@ -364,8 +364,6 @@
             <pre style="white-space: pre-wrap; word-break: break-all;">{{ selectedMessageDetails.webhookData ? JSON.stringify(selectedMessageDetails.webhookData, null, 2) : '-' }}</pre>
           </el-descriptions-item>
         </el-descriptions>
-        <h4>Full Message Details from DB:</h4>
-        <pre style="white-space: pre-wrap; word-break: break-all;">{{ JSON.stringify(selectedMessageDetails, null, 2) }}</pre>
       </div>
       <template #footer>
         <el-button @click="closeMessageDetailsDialog">Close</el-button>

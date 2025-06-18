@@ -138,6 +138,8 @@
               <div class="date-header">{{ group.date }}</div>
               <div v-for="message in group.messages" :key="message.id" :class="['message', message.direction]">
                 <div class="message-content">
+                  <!-- Settings Icon -->
+                  <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><More /></el-icon>
                   <!-- Media attachments -->
                   <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
                     <div 
@@ -342,6 +344,30 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- Message Details Dialog -->
+    <el-dialog
+      v-model="showMessageDetailsDialog"
+      title="Message Details"
+      width="500px"
+      :before-close="closeMessageDetailsDialog">
+      <div v-if="selectedMessageDetails">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="From">{{ selectedMessageDetails.from || currentChat?.fromPhoneNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="To">{{ selectedMessageDetails.to || currentChat?.phoneNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Date">{{ formatDate(selectedMessageDetails.timestamp) }}</el-descriptions-item>
+          <el-descriptions-item label="Time">{{ formatFullTimeWithZone(selectedMessageDetails.timestamp) }}</el-descriptions-item>
+          <el-descriptions-item label="Direction">{{ selectedMessageDetails.direction || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Delivery Status">{{ selectedMessageDetails.status || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Webhook Data">
+            <pre style="white-space: pre-wrap; word-break: break-all;">{{ selectedMessageDetails.webhook_data ? JSON.stringify(selectedMessageDetails.webhook_data, null, 2) : '-' }}</pre>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button @click="closeMessageDetailsDialog">Close</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -524,7 +550,9 @@ export default {
             }
           ]
         }
-      ]
+      ],
+      showMessageDetailsDialog: false,
+      selectedMessageDetails: null,
     };
   },
   computed: {
@@ -1169,6 +1197,20 @@ export default {
       if (offsetMin <= -420 && offsetMin >= -480) return `${timeStr} PST`;
       // Otherwise, default to IST
       return `${timeStr} IST`;
+    },
+    openMessageDetailsDialog(message) {
+      this.selectedMessageDetails = message;
+      this.showMessageDetailsDialog = true;
+    },
+    closeMessageDetailsDialog() {
+      this.showMessageDetailsDialog = false;
+      this.selectedMessageDetails = null;
+    },
+    formatDate(date) {
+      if (!date) return '-';
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '-';
+      return dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     },
   }
 };
@@ -1875,5 +1917,19 @@ export default {
   padding: 0.25rem 0.75rem;
   font-size: 1rem;
   letter-spacing: 0.02em;
+}
+
+.message-settings-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  cursor: pointer;
+  color: #888;
+  font-size: 1.1rem;
+  z-index: 2;
+  transition: color 0.2s;
+}
+.message-settings-icon:hover {
+  color: #1976d2;
 }
 </style>

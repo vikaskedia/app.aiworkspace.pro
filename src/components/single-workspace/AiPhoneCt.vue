@@ -139,7 +139,8 @@
               <div v-for="message in group.messages" :key="message.id" :class="['message', message.direction]">
                 <div class="message-content">
                   <!-- Settings Icon -->
-                  <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><More /></el-icon>
+                  <!-- <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><More /></el-icon> -->
+                  <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><Setting /></el-icon>
                   <!-- Media attachments -->
                   <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
                     <div 
@@ -378,6 +379,7 @@ import {
   ChatDotRound, 
   Phone, 
   More, 
+  Setting,
   Promotion,
   Message,
   UserFilled,
@@ -401,6 +403,7 @@ export default {
     ChatDotRound,
     Phone,
     More,
+    Setting,
     Promotion,
     Message,
     UserFilled,

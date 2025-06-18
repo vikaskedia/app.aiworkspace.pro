@@ -1219,6 +1219,7 @@ export default {
         }
         const data = await response.json();
         console.log('Message ID:', messageId);
+        console.log('Data:', data);
         if (data.messages && data.messages.length > 0) {
           this.messageDetails = data.messages[0];
           console.log('Message Details:', JSON.stringify(this.messageDetails, null, 2));

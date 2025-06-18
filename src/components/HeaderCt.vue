@@ -44,6 +44,7 @@ export default {
       if (path.includes('/events')) return 'Events';
       if (path.includes('/files')) return 'Files';
       if (path.includes('/outlines')) return 'Outlines';
+      if (path.includes('/contacts')) return 'Contacts';
       if (path.includes('/communications')) return 'Communications';
       if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/settings')) return 'Settings';
@@ -53,6 +54,7 @@ export default {
         if (path.endsWith('/goals')) return 'All Goals';
         if (path.endsWith('/events')) return 'All Events';
         if (path.endsWith('/files')) return 'All Files';
+        if (path.endsWith('/contacts')) return 'All Contacts';
         if (path.includes('/settings')) return 'All Workspace Settings';
         return 'All Workspaces';
       }
@@ -208,6 +210,9 @@ export default {
           case 'outlines':
             this.$router.push(`/single-workspace/${this.currentMatter.id}/outlines`);
             break;
+          case 'contacts':
+            this.$router.push(`/single-workspace/${this.currentMatter.id}/contacts`);
+            break;
           case 'communications':
             this.$router.push(`/single-workspace/${this.currentMatter.id}/communications`);
             break;
@@ -238,10 +243,12 @@ export default {
           case 'all_files':
             this.$router.push('/all-workspace/files');
             break;
+          case 'all_contacts':
+            this.$router.push('/all-workspace/contacts');
+            break;
           case 'all_settings':
             this.$router.push('/all-workspace/settings');
             break;
-
         }
       }
     },
@@ -366,6 +373,7 @@ export default {
                 >Outlines</el-dropdown-item>
                 <el-dropdown-item command="communications">Communications</el-dropdown-item>
                 <el-dropdown-item command="ai_phone">AI Phone</el-dropdown-item>
+                <el-dropdown-item command="contacts">Contacts</el-dropdown-item>
                 <el-dropdown-item command="settings">Settings</el-dropdown-item>
               </template>
               <!-- Show these options when "All Workspaces" is selected -->
@@ -375,6 +383,7 @@ export default {
                 <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
                 <el-dropdown-item command="all_events">Events</el-dropdown-item>
                 <el-dropdown-item command="all_files">Files</el-dropdown-item>
+                <el-dropdown-item command="all_contacts">Contacts</el-dropdown-item>
                 <el-dropdown-item command="all_settings">Settings</el-dropdown-item>
               </template>
             </el-dropdown-menu>

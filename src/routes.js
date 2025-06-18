@@ -6,6 +6,7 @@ import ManageFilesCt from './components/single-workspace/FilesCt.vue';
 import GoalsCt from './components/single-workspace/GoalsCt.vue';
 import TasksCt from './components/single-workspace/TasksCt.vue';
 import EventsCt from './components/single-workspace/EventsCt.vue';
+import ContactsCt from './components/single-workspace/ContactsCt.vue';
 import LoginPage from './components/LoginPage.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
@@ -60,6 +61,11 @@ const routes = [
         path: 'files',
         name: 'AllFilesPage',
         component: () => import('./components/all-workspaces/AllFilesCt.vue')
+      },
+      {
+        path: 'contacts',
+        name: 'AllContactsPage',
+        component: () => import('./components/all-workspaces/AllContactsCt.vue')
       },
       {
         path: 'settings',
@@ -137,7 +143,12 @@ const routes = [
         path: 'ai_phone',
         name: 'AiPhonePage',
         component: () => import('./components/single-workspace/AiPhoneCt.vue')
-      }
+      },
+      {
+        path: 'contacts',
+        name: 'ContactsPage',
+        component: ContactsCt
+      },
     ]
   },
   {

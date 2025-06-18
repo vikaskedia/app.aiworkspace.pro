@@ -577,7 +577,7 @@ export default {
     },
 
     acceptedFileTypes() {
-      return 'image/jpeg,image/png,image/gif,video/mp4,video/3gpp,text/plain,text/vcard';
+      return 'image/jpeg,image/png,image/gif,video/mp4,video/3gpp,text/plain,text/vcard,application/pdf';
     }
   },
   async mounted() {
@@ -1023,7 +1023,8 @@ export default {
       const supportedTypes = [
         'image/jpeg', 'image/png', 'image/gif',
         'video/mp4', 'video/3gpp',
-        'text/plain', 'text/vcard'
+        'text/plain', 'text/vcard',
+        'application/pdf'
       ];
 
       if (!supportedTypes.includes(file.type)) {

@@ -1032,6 +1032,24 @@ export default {
         return false;
       }
 
+      // File size restrictions
+      if (file.type.startsWith('image/')) {
+        if (file.size > 4 * 1024 * 1024) { // 4MB
+          this.$message.error('Image file is too large. Maximum allowed size is 4MB.');
+          return false;
+        }
+      } else if (file.type.startsWith('video/')) {
+        if (file.size > 900 * 1024) { // 900KB
+          this.$message.error('Video file is too large. Maximum allowed size is 900KB.');
+          return false;
+        }
+      } else if (file.type === 'application/pdf') {
+        if (file.size > 400 * 1024) { // 400KB
+          this.$message.error('PDF file is too large. Maximum allowed size is 400KB.');
+          return false;
+        }
+      }
+
       // Allow only one file at a time
       this.selectedFiles = [file];
       return false; // Prevent automatic upload

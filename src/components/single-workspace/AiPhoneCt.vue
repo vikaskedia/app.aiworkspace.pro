@@ -120,10 +120,22 @@
             </div> -->
           </div>
 
+          <!-- Search Bar for Chat Messages -->
+          <div class="chat-search-bar" style="padding: 0.5rem 1rem; border-bottom: 1px solid #e0e0e0; background: #fafafa;">
+            <el-input
+              v-model="chatSearchQuery"
+              placeholder="Search messages..."
+              size="small"
+              clearable
+              prefix-icon="Search"
+              style="width: 100%;"
+            />
+          </div>
+
           <!-- Messages Area -->
           <div class="messages-area" ref="messagesContainer">
             <div 
-              v-for="message in (currentChat?.messages || [])"
+              v-for="message in filteredChatMessages"
               :key="message.id"
               :class="['message', message.direction]">
               <div class="message-content">
@@ -174,7 +186,7 @@
                 </div>
                 
                 <!-- Message text -->
-                <p v-if="message.text" class="message-text">{{ message.text }}</p>
+                <p v-if="message.text" class="message-text" v-html="highlightSearch(message.text)"></p>
                 
                 <!-- Message timestamp -->
                 <span class="message-time">{{ formatTime(message.timestamp) }}</span>
@@ -182,8 +194,8 @@
             </div>
             
             <!-- Show loading state when no messages -->
-            <div v-if="!currentChat?.messages?.length" class="no-messages">
-              <p>No messages yet</p>
+            <div v-if="!filteredChatMessages.length" class="no-messages">
+              <p>No messages found</p>
             </div>
           </div>
 
@@ -411,6 +423,8 @@ export default {
       },
       sendingMessage: false,
       
+      chatSearchQuery: '',
+      
       conversations: [
         {
           id: 1,
@@ -578,6 +592,15 @@ export default {
 
     acceptedFileTypes() {
       return 'image/jpeg,image/png,image/gif,video/mp4,video/3gpp,text/plain,text/vcard,application/pdf';
+    },
+
+    filteredChatMessages() {
+      if (!this.currentChat || !this.currentChat.messages) return [];
+      if (!this.chatSearchQuery.trim()) return this.currentChat.messages;
+      const query = this.chatSearchQuery.trim().toLowerCase();
+      return this.currentChat.messages.filter(msg =>
+        msg.text && msg.text.toLowerCase().includes(query)
+      );
     }
   },
   async mounted() {
@@ -1100,6 +1123,19 @@ export default {
         md: 'text/markdown'
       };
       return mimeTypes[ext] || 'application/octet-stream';
+    },
+
+    highlightSearch(text) {
+      if (!this.chatSearchQuery) return this.escapeHtml(text);
+      const query = this.chatSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${query})`, 'gi');
+      return this.escapeHtml(text).replace(regex, '<span class="highlight">$1</span>');
+    },
+    escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"]/g, function(c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+      });
     }
   }
 };
@@ -1787,5 +1823,12 @@ export default {
 .dialog-file-item .file-size {
   color: #666;
   font-size: 0.8rem;
+}
+
+.highlight {
+  background: #ffe066;
+  color: #333;
+  padding: 0 2px;
+  border-radius: 2px;
 }
 </style>

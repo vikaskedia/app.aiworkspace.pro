@@ -354,20 +354,18 @@
       :before-close="closeMessageDetailsDialog">
       <div v-if="selectedMessageDetails">
         <el-descriptions :column="1" border>
-          <el-descriptions-item label="From">{{ selectedMessageDetails.from || currentChat?.fromPhoneNumber || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="To">{{ selectedMessageDetails.to || currentChat?.phoneNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="From">{{ selectedMessageDetails.fromPhoneNumber || currentChat?.fromPhoneNumber || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="To">{{ selectedMessageDetails.toPhoneNumber || currentChat?.phoneNumber || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Date">{{ formatDate(selectedMessageDetails.timestamp) }}</el-descriptions-item>
           <el-descriptions-item label="Time">{{ formatFullTimeWithZone(selectedMessageDetails.timestamp) }}</el-descriptions-item>
           <el-descriptions-item label="Direction">{{ selectedMessageDetails.direction || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Delivery Status">{{ selectedMessageDetails.status || '-' }}</el-descriptions-item>
           <el-descriptions-item label="Webhook Data">
-            <pre style="white-space: pre-wrap; word-break: break-all;">{{ selectedMessageDetails.webhook_data ? JSON.stringify(selectedMessageDetails.webhook_data, null, 2) : '-' }}</pre>
+            <pre style="white-space: pre-wrap; word-break: break-all;">{{ selectedMessageDetails.webhookData ? JSON.stringify(selectedMessageDetails.webhookData, null, 2) : '-' }}</pre>
           </el-descriptions-item>
         </el-descriptions>
-        <div v-if="messageDetails">
-          <h4>Full Message Details from DB:</h4>
-          <pre style="white-space: pre-wrap; word-break: break-all;">{{ JSON.stringify(messageDetails, null, 2) }}</pre>
-        </div>
+        <h4>Full Message Details from DB:</h4>
+        <pre style="white-space: pre-wrap; word-break: break-all;">{{ JSON.stringify(selectedMessageDetails, null, 2) }}</pre>
       </div>
       <template #footer>
         <el-button @click="closeMessageDetailsDialog">Close</el-button>
@@ -1209,27 +1207,6 @@ export default {
     openMessageDetailsDialog(message) {
       this.selectedMessageDetails = message;
       this.showMessageDetailsDialog = true;
-      this.fetchMessageDetails(message.id);
-    },
-    async fetchMessageDetails(messageId) {
-      try {
-        const response = await fetch(`/api/messages/${messageId}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch message details');
-        }
-        const data = await response.json();
-        console.log('Message ID:', messageId);
-        console.log('Data:', data);
-        if (data.messages && data.messages.length > 0) {
-          this.messageDetails = data.messages[0];
-          console.log('Message Details:', JSON.stringify(this.messageDetails, null, 2));
-        } else {
-          this.messageDetails = null;
-          console.log('No message details found for ID:', messageId);
-        }
-      } catch (error) {
-        console.error('Error fetching message details:', error);
-      }
     },
     closeMessageDetailsDialog() {
       this.showMessageDetailsDialog = false;

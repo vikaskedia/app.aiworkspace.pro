@@ -37,7 +37,14 @@ export default async function handler(req, res) {
       telnyxId: msg.telnyx_message_id,
       messageType: msg.message_type,
       mediaFiles: msg.media_files || [],
-      mediaUrls: msg.media_urls || []
+      mediaUrls: msg.media_urls || [],
+      fromPhoneNumber: msg.from_phone_number,
+      toPhoneNumber: msg.to_phone_number,
+      deliveredAt: msg.delivered_at,
+      failedReason: msg.failed_reason,
+      webhookData: msg.webhook_data,
+      updatedAt: msg.updated_at,
+      subject: msg.subject
     }))
 
     return res.status(200).json({

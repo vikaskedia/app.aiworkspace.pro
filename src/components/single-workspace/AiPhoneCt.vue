@@ -134,64 +134,64 @@
 
           <!-- Messages Area -->
           <div class="messages-area" ref="messagesContainer">
-            <div 
-              v-for="message in filteredChatMessages"
-              :key="message.id"
-              :class="['message', message.direction]">
-              <div class="message-content">
-                <!-- Media attachments -->
-                <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
-                  <div 
-                    v-for="media in message.mediaFiles" 
-                    :key="media.id"
-                    class="media-item">
-                    
-                    <!-- Debug: Log media object -->
-                    <!-- {{ console.log('🖼️ Media object:', media) }} -->
-                    
-                    <!-- Image -->
-                    <img 
-                      v-if="media.mimetype && media.mimetype.startsWith('image/')"
-                      :src="media.public_url"
-                      :alt="media.filename"
-                      class="media-image"
-                      @click="openMediaViewer(media)"
-                      loading="lazy" />
-                    
-                    <!-- Video -->
-                    <video 
-                      v-else-if="media.mimetype && media.mimetype.startsWith('video/')"
-                      :src="media.public_url"
-                      controls
-                      class="media-video"
-                      preload="metadata">
-                      Your browser does not support video playback.
-                    </video>
-                    
-                    <!-- Other file types -->
-                    <div v-else class="media-file">
-                      <el-icon class="file-icon"><Document /></el-icon>
-                      <div class="file-info">
-                        <span class="file-name">{{ media.filename }}</span>
-                        <span class="file-size">{{ formatFileSize(media.size) }}</span>
+            <template v-for="group in groupedChatMessages" :key="group.date">
+              <div class="date-header">{{ group.date }}</div>
+              <div v-for="message in group.messages" :key="message.id" :class="['message', message.direction]">
+                <div class="message-content">
+                  <!-- Media attachments -->
+                  <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
+                    <div 
+                      v-for="media in message.mediaFiles" 
+                      :key="media.id"
+                      class="media-item">
+                      
+                      <!-- Debug: Log media object -->
+                      <!-- {{ console.log('🖼️ Media object:', media) }} -->
+                      
+                      <!-- Image -->
+                      <img 
+                        v-if="media.mimetype && media.mimetype.startsWith('image/')"
+                        :src="media.public_url"
+                        :alt="media.filename"
+                        class="media-image"
+                        @click="openMediaViewer(media)"
+                        loading="lazy" />
+                      
+                      <!-- Video -->
+                      <video 
+                        v-else-if="media.mimetype && media.mimetype.startsWith('video/')"
+                        :src="media.public_url"
+                        controls
+                        class="media-video"
+                        preload="metadata">
+                        Your browser does not support video playback.
+                      </video>
+                      
+                      <!-- Other file types -->
+                      <div v-else class="media-file">
+                        <el-icon class="file-icon"><Document /></el-icon>
+                        <div class="file-info">
+                          <span class="file-name">{{ media.filename }}</span>
+                          <span class="file-size">{{ formatFileSize(media.size) }}</span>
+                        </div>
+                        <el-button 
+                          size="small" 
+                          type="primary" 
+                          @click="downloadFile(media)">
+                          Download
+                        </el-button>
                       </div>
-                      <el-button 
-                        size="small" 
-                        type="primary" 
-                        @click="downloadFile(media)">
-                        Download
-                      </el-button>
                     </div>
                   </div>
+                  
+                  <!-- Message text -->
+                  <p v-if="message.text" class="message-text" v-html="highlightSearch(message.text)"></p>
+                  
+                  <!-- Message timestamp -->
+                  <span class="message-time">{{ formatFullTimeWithZone(message.timestamp) }}</span>
                 </div>
-                
-                <!-- Message text -->
-                <p v-if="message.text" class="message-text" v-html="highlightSearch(message.text)"></p>
-                
-                <!-- Message timestamp -->
-                <span class="message-time">{{ formatTime(message.timestamp) }}</span>
               </div>
-            </div>
+            </template>
             
             <!-- Show loading state when no messages -->
             <div v-if="!filteredChatMessages.length" class="no-messages">
@@ -601,6 +601,27 @@ export default {
       return this.currentChat.messages.filter(msg =>
         msg.text && msg.text.toLowerCase().includes(query)
       );
+    },
+
+    // Group filtered messages by date
+    groupedChatMessages() {
+      const groups = {};
+      this.filteredChatMessages.forEach(msg => {
+        const dateObj = new Date(msg.timestamp);
+        const dateStr = dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        if (!groups[dateStr]) groups[dateStr] = [];
+        groups[dateStr].push(msg);
+      });
+      // Return as array of { date, messages }
+      return Object.entries(groups).map(([date, messages]) => ({ date, messages }));
+    },
+
+    formatFullTimeWithZone(date) {
+      if (!date) return '';
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
+      // Example: 2:34:56 PM GMT+5
+      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
     }
   },
   async mounted() {
@@ -1830,5 +1851,17 @@ export default {
   color: #333;
   padding: 0 2px;
   border-radius: 2px;
+}
+
+.date-header {
+  text-align: center;
+  margin: 1.5rem 0 0.5rem 0;
+  font-weight: 600;
+  color: #1976d2;
+  background: #f0f4fa;
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
 }
 </style>

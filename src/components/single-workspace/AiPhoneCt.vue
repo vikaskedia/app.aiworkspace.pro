@@ -1218,9 +1218,14 @@ export default {
           throw new Error('Failed to fetch message details');
         }
         const data = await response.json();
-        this.messageDetails = data;
         console.log('Message ID:', messageId);
-        console.log('Message Details:', JSON.stringify(data, null, 2));
+        if (data.messages && data.messages.length > 0) {
+          this.messageDetails = data.messages[0];
+          console.log('Message Details:', JSON.stringify(this.messageDetails, null, 2));
+        } else {
+          this.messageDetails = null;
+          console.log('No message details found for ID:', messageId);
+        }
       } catch (error) {
         console.error('Error fetching message details:', error);
       }

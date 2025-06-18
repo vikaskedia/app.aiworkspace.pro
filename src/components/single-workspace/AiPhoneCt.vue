@@ -1155,7 +1155,8 @@ export default {
       if (!date) return '';
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
-      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+      // Show hour, minute, and time zone abbreviation (e.g., 02:34 PM IST)
+      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
     },
   }
 };

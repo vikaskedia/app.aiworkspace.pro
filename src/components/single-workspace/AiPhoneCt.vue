@@ -615,14 +615,6 @@ export default {
       // Return as array of { date, messages }
       return Object.entries(groups).map(([date, messages]) => ({ date, messages }));
     },
-
-    formatFullTimeWithZone(date) {
-      if (!date) return '';
-      const dateObj = typeof date === 'string' ? new Date(date) : date;
-      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
-      // Example: 2:34:56 PM GMT+5
-      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
-    }
   },
   async mounted() {
     // Auto-select first phone number if available
@@ -1157,7 +1149,14 @@ export default {
       return text.replace(/[&<>"]/g, function(c) {
         return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
       });
-    }
+    },
+    // Format full time with zone
+    formatFullTimeWithZone(date) {
+      if (!date) return '';
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
+      return dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+    },
   }
 };
 </script>

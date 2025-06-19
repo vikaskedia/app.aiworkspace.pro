@@ -77,7 +77,7 @@
             <div class="conversation-info">
               <div class="conversation-header">
                 <span class="contact-name">
-                  {{ getContactName(conversation.contact) || conversation.contact || 'Unknown Contact' }}
+                  {{ getContactName(conversation.fromPhoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact' }}
                 </span>
                 <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
               </div>
@@ -1323,10 +1323,10 @@ export default {
     },
 
     // Contact helper methods
-    getContactName(phoneNumber) {
+    getContactName(phoneNumber, searchContactNumber) {
       console.log('🔍 getContactName:', phoneNumber);
       console.log('🔍 workspaceContacts:', this.workspaceContacts);
-      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber);
+      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber || c.phone_number === '+1' + searchContactNumber);
       return contact ? contact.name : null;
     },
 

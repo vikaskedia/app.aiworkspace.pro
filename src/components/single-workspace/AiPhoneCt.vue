@@ -821,12 +821,12 @@ export default {
     filteredConversations() {
       let filtered = this.realtimeConversations || [];
       
-      // Get the phone ID from the selected folder ID
-      const phoneId = this.selectedInboxItem?.split('_')[1];
-      const folderType = this.selectedInboxItem?.split('_')[0];
-      
-      if (phoneId) {
+      if (this.selectedInboxItem) {
+        const [folderType, phoneId] = this.selectedInboxItem.split('_');
+        
+        // Get the phone number for the selected phone ID
         const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+        
         if (phone) {
           // Filter by phone number
           filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);

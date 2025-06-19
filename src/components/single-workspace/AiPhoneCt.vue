@@ -1435,7 +1435,8 @@ export default {
 
     getCurrentContact() {
       if (!this.currentChat) return null;
-      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.contact);
+      console.log('🔍 getCurrentContact:', this.currentChat);
+      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.contact.slice(-10));
     },
 
     onRecipientSelect(value) {

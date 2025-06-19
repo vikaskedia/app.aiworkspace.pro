@@ -12,16 +12,40 @@
           <div 
             v-for="item in inboxItems"
             :key="item.id"
-            :class="['inbox-item', { active: selectedInboxItem === item.id }, `inbox-item-${item.type}`]"
-            @click="selectInboxItem(item.id)">
-            <el-icon>
-              <component :is="item.icon" />
-            </el-icon>
-            <div class="item-info">
-              <span class="item-label">{{ item.label }}</span>
-              <span v-if="item.number" class="phone-number">{{ item.number }}</span>
+            class="phone-item">
+            <!-- Phone Number Item -->
+            <div 
+              :class="['inbox-item', { expanded: expandedPhoneNumber === item.id }]"
+              @click="togglePhoneExpand(item.id)">
+              <el-icon>
+                <component :is="item.icon" />
+              </el-icon>
+              <div class="item-info">
+                <span class="item-label">{{ item.label }}</span><br>
+                <span class="phone-number">{{ item.number }}</span>
+              </div>
+              <div class="item-right">
+                <span v-if="item.count" class="count-badge">{{ item.count }}</span>
+                <el-icon class="expand-icon"><ArrowDown /></el-icon>
+              </div>
             </div>
-            <span v-if="item.count !== undefined && item.count !== null" class="count-badge">{{ item.count }}</span>
+            
+            <!-- Folders Collapse -->
+            <div 
+              v-show="expandedPhoneNumber === item.id"
+              class="folders-collapse">
+              <div 
+                v-for="folder in item.folders"
+                :key="folder.id"
+                :class="['folder-item', { active: selectedInboxItem === folder.id }]"
+                @click="selectInboxItem(folder.id)">
+                <el-icon>
+                  <component :is="folder.icon" />
+                </el-icon>
+                <span class="folder-label">{{ folder.label }}</span>
+                <span v-if="folder.count" class="count-badge">{{ folder.count }}</span>
+              </div>
+            </div>
           </div>
           
           <!-- Show message if no phone numbers are configured -->
@@ -79,7 +103,16 @@
                 <span class="contact-name">
                   {{ getContactName(conversation.fromPhoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact' }}
                 </span>
-                <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
+                <div class="conversation-actions">
+                  <el-tooltip :content="conversation.status === 'primary' ? 'Archive' : 'Move to Working on'">
+                    <el-icon 
+                      @click.stop="toggleConversationStatus(conversation)"
+                      class="action-icon">
+                      <component :is="conversation.status === 'primary' ? 'FolderDelete' : 'Folder'" />
+                    </el-icon>
+                  </el-tooltip>
+                  <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
+                </div>
               </div>
               
               <!-- Contact Tags -->
@@ -528,7 +561,8 @@ import {
   User,
   Document,
   Paperclip,
-  Close
+  Close,
+  ArrowDown
 } from '@element-plus/icons-vue';
 import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -554,7 +588,8 @@ export default {
     User,
     Document,
     Paperclip,
-    Close
+    Close,
+    ArrowDown
   },
   setup() {
     const matterStore = useMatterStore();
@@ -720,28 +755,56 @@ export default {
           { required: true, message: 'Phone number is required', trigger: 'blur' }
         ]
       },
+      selectedFolder: 'working', // 'working' or 'archived'
+      expandedPhoneNumber: null, // tracks which phone number's folders are expanded
     };
   },
   computed: {
     inboxItems() {
       const phoneNumbers = this.currentMatter?.phone_numbers || [];
-      const phoneItems = phoneNumbers.map(phone => {
-        // Calculate unread count for this phone number
-        const unreadCount = this.realtimeConversations.filter(conv => 
-          conv.fromPhoneNumber === phone.number && conv.unread > 0
+      return phoneNumbers.map(phone => {
+        // Calculate unread counts for both primary and archived
+        const primaryCount = this.realtimeConversations.filter(conv => 
+          conv.fromPhoneNumber === phone.number && 
+          conv.unread > 0 && 
+          conv.status === 'primary'
         ).reduce((sum, conv) => sum + conv.unread, 0);
-        
+
+        const archivedCount = this.realtimeConversations.filter(conv => 
+          conv.fromPhoneNumber === phone.number && 
+          conv.status === 'archived'
+        ).length;
+
         return {
           id: `phone_${phone.id}`,
           label: phone.label,
           number: phone.number,
           icon: 'Phone',
           type: 'phone',
-          count: unreadCount > 0 ? unreadCount : null
+          count: primaryCount > 0 ? primaryCount : null,
+          folders: [
+            {
+              id: `working_${phone.id}`,
+              label: 'Working on',
+              icon: 'Folder',
+              type: 'folder',
+              status: 'primary',
+              count: this.realtimeConversations.filter(c => 
+                c.fromPhoneNumber === phone.number && 
+                c.status === 'primary'
+              ).length || null
+            },
+            {
+              id: `archived_${phone.id}`,
+              label: 'Archived',
+              icon: 'FolderDelete',
+              type: 'folder',
+              status: 'archived',
+              count: archivedCount || null
+            }
+          ]
         };
       });
-
-      return phoneItems;
     },
 
     recentConversations() {
@@ -756,33 +819,36 @@ export default {
     },
 
     filteredConversations() {
-      // Use real-time conversations instead of static data
       let filtered = this.realtimeConversations || [];
       
-      if (this.selectedInboxItem && this.selectedInboxItem.startsWith('phone_')) {
-        // Filter conversations by selected phone number
-        const selectedPhone = this.getSelectedPhoneNumber();
-        if (selectedPhone) {
-          filtered = filtered.filter(conv => 
-            conv.fromPhoneNumber === selectedPhone.number
-          );
+      // Get the phone ID from the selected folder ID
+      const phoneId = this.selectedInboxItem?.split('_')[1];
+      const folderType = this.selectedInboxItem?.split('_')[0];
+      
+      if (phoneId) {
+        const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+        if (phone) {
+          // Filter by phone number
+          filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
+          
+          // Filter by folder status
+          if (folderType === 'working') {
+            filtered = filtered.filter(conv => conv.status === 'primary');
+          } else if (folderType === 'archived') {
+            filtered = filtered.filter(conv => conv.status === 'archived');
+          }
         }
       }
       
+      // Apply search
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase();
         filtered = filtered.filter(conv => {
-          // Get contact name if it exists
           const contactName = this.getContactName(conv.fromPhoneNumber, conv.contact) || '';
-          
           return (
-            // Search in contact name
             contactName.toLowerCase().includes(query) ||
-            // Search in phone number
             conv.fromPhoneNumber.includes(query) ||
-            // Search in conversation contact field
             (conv.contact && conv.contact.toLowerCase().includes(query)) ||
-            // Search in last message
             conv.lastMessage.toLowerCase().includes(query)
           );
         });
@@ -854,9 +920,14 @@ export default {
     await this.loadWorkspaceContacts();
   },
   methods: {
+    togglePhoneExpand(phoneId) {
+      this.expandedPhoneNumber = this.expandedPhoneNumber === phoneId ? null : phoneId;
+      this.selectedInboxItem = null;
+      this.selectedConversation = null;
+    },
+
     selectInboxItem(itemId) {
       this.selectedInboxItem = itemId;
-      // Clear selected conversation when switching inbox items
       this.selectedConversation = null;
     },
 
@@ -1534,6 +1605,29 @@ export default {
         this.contactModalSaving = false;
       }
     },
+    async toggleConversationStatus(conversation) {
+      try {
+        const newStatus = conversation.status === 'primary' ? 'archived' : 'primary';
+        
+        const { error } = await supabase
+          .from('conversations')
+          .update({ status: newStatus })
+          .eq('id', conversation.id);
+
+        if (error) throw error;
+
+        // Update local state
+        const conv = this.realtimeConversations.find(c => c.id === conversation.id);
+        if (conv) {
+          conv.status = newStatus;
+        }
+
+        ElMessage.success(`Conversation ${newStatus === 'archived' ? 'archived' : 'moved to Working on'} successfully`);
+      } catch (error) {
+        console.error('Error updating conversation status:', error);
+        ElMessage.error('Failed to update conversation status');
+      }
+    },
   }
 };
 </script>
@@ -1619,48 +1713,71 @@ export default {
   padding: 0.5rem 0;
 }
 
+.phone-item {
+  margin-bottom: 2px;
+}
+
 .inbox-item {
-  display: flex;
-  align-items: center;
+  position: relative;
   padding: 0.75rem 1rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
+  transition: all 0.3s;
 }
 
 .inbox-item:hover {
   background: #f5f5f5;
 }
 
-.inbox-item.active {
+.inbox-item.expanded {
   background: #e3f2fd;
-  border-right: 3px solid #1976d2;
 }
 
-.inbox-item-phone {
-  border-left: 3px solid #4caf50;
-}
-
-.item-info {
-  flex: 1;
+.item-right {
+  margin-left: auto;
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 8px;
 }
 
-.item-label {
-  font-weight: 500;
-  color: #333;
+.expand-icon {
+  transition: transform 0.3s;
 }
 
-.phone-number {
-  font-size: 0.8rem;
-  color: #666;
-  font-family: monospace;
+.expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+.folders-collapse {
+  background: #f8f9fa;
+  border-left: 3px solid #1976d2;
+}
+
+.folder-item {
+  padding: 0.6rem 1rem 0.6rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.folder-item:hover {
+  background: #f0f0f0;
+}
+
+.folder-item.active {
+  background: #e3f2fd;
+}
+
+.folder-label {
+  flex: 1;
+  font-size: 0.9rem;
 }
 
 .count-badge {
-  margin-left: auto;
   background: #1976d2;
   color: white;
   border-radius: 12px;
@@ -1668,6 +1785,14 @@ export default {
   font-size: 0.75rem;
   min-width: 20px;
   text-align: center;
+}
+
+.folder-item .count-badge {
+  background: #909399;
+}
+
+.folder-item.active .count-badge {
+  background: #1976d2;
 }
 
 .no-phone-numbers {
@@ -2340,5 +2465,38 @@ export default {
   .contact-tags {
     margin-top: 0.25rem;
   }
+}
+
+/* Add to existing styles */
+.conversation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-icon {
+  cursor: pointer;
+  color: #909399;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.action-icon:hover {
+  color: #409EFF;
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.inbox-item.folder {
+  border-left: 3px solid #409EFF;
+}
+
+.inbox-item.folder .count-badge {
+  background: #909399;
+}
+
+.inbox-item.folder.active .count-badge {
+  background: #409EFF;
 }
 </style>

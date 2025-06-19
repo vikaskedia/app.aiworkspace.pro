@@ -334,7 +334,7 @@
           <div class="recipient-selection">
             <el-select
               v-model="selectedRecipient"
-              placeholder="Select contact or enter phone number"
+              placeholder="Select contact or enter 10 digit phone number"
               filterable
               allow-create
               @change="onRecipientSelect"
@@ -1066,9 +1066,6 @@ export default {
           throw new Error('No phone number selected');
         }
 
-        // Auto-create contact if sending to a new number
-        await this.autoCreateContact(this.newMessageForm.to);
-
         let uploadedFiles = null;
 
         // Upload files if any are selected
@@ -1336,34 +1333,6 @@ export default {
     getCurrentContact() {
       if (!this.currentChat) return null;
       return this.workspaceContacts.find(c => c.phone_number === this.currentChat.fromPhoneNumber);
-    },
-
-    async autoCreateContact(phoneNumber) {
-      // Check if contact already exists
-      const existingContact = this.workspaceContacts.find(
-        c => c.phone_number === phoneNumber
-      );
-      
-      if (!existingContact) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          const contactData = {
-            name: `Contact (${phoneNumber})`, // Temporary name
-            phone_number: phoneNumber,
-            tags: ['auto-created'],
-            matter_id: this.currentMatter.id,
-            created_by: user.id
-          };
-          
-          const { error } = await supabase.from('contacts').insert([contactData]);
-          if (!error) {
-            await this.loadWorkspaceContacts(); // Refresh contacts
-          }
-        } catch (error) {
-          console.error('Error auto-creating contact:', error);
-        }
-      }
     },
 
     onRecipientSelect(value) {

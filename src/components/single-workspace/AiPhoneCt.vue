@@ -64,7 +64,7 @@
           <div class="panel-header-title">
             <h3>{{ conversationHeaderTitle }}</h3>
             <el-button 
-              v-if="selectedInboxItem && selectedInboxItem.startsWith('phone_')"
+              v-if="showNewMessageButton"
               size="small" 
               circle 
               type="primary" 
@@ -819,35 +819,38 @@ export default {
     },
 
     filteredConversations() {
+      // If no folder is selected, return empty array
+      if (!this.selectedInboxItem) {
+        return [];
+      }
+
       let filtered = this.realtimeConversations || [];
       
       console.log('🔍 Debug - filteredConversations called');
       console.log('🔍 Debug - selectedInboxItem:', this.selectedInboxItem);
       console.log('🔍 Debug - realtimeConversations:', this.realtimeConversations);
       
-      if (this.selectedInboxItem) {
-        const [folderType, phoneId] = this.selectedInboxItem.split('_');
-        console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
+      const [folderType, phoneId] = this.selectedInboxItem.split('_');
+      console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
+      
+      // Get the phone number for the selected phone ID
+      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      console.log('🔍 Debug - found phone:', phone);
+      
+      if (phone) {
+        // Filter by phone number
+        filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
+        console.log('🔍 Debug - after phone filter:', filtered);
         
-        // Get the phone number for the selected phone ID
-        const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
-        console.log('🔍 Debug - found phone:', phone);
-        
-        if (phone) {
-          // Filter by phone number
-          filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
-          console.log('🔍 Debug - after phone filter:', filtered);
-          
-          // Filter by folder status
-          if (folderType === 'working') {
-            // Treat conversations without status as primary (working)
-            filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
-            console.log('🔍 Debug - after working filter:', filtered);
-          } else if (folderType === 'archived') {
-            // Only show conversations that explicitly have archived status
-            filtered = filtered.filter(conv => conv.status === 'archived');
-            console.log('🔍 Debug - after archived filter:', filtered);
-          }
+        // Filter by folder status
+        if (folderType === 'working') {
+          // Treat conversations without status as primary (working)
+          filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
+          console.log('🔍 Debug - after working filter:', filtered);
+        } else if (folderType === 'archived') {
+          // Only show conversations that explicitly have archived status
+          filtered = filtered.filter(conv => conv.status === 'archived');
+          console.log('🔍 Debug - after archived filter:', filtered);
         }
       }
       
@@ -874,11 +877,17 @@ export default {
     },
     
     conversationHeaderTitle() {
-      if (this.selectedInboxItem && this.selectedInboxItem.startsWith('phone_')) {
-        const selectedPhone = this.getSelectedPhoneNumber();
-        return selectedPhone ? `Conversations for ${selectedPhone.number}` : 'Conversations';
+      if (!this.selectedInboxItem) {
+        return 'Conversations';
       }
-      return 'Conversations';   
+
+      const [folderType, phoneId] = this.selectedInboxItem.split('_');
+      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      
+      if (phone) {
+        return `Conversations for ${phone.number}`;
+      }
+      return 'Conversations';
     },
 
     canSendMessage() {
@@ -920,6 +929,14 @@ export default {
         }
       });
       return Array.from(allTags).sort();
+    },
+
+    showNewMessageButton() {
+      if (!this.selectedInboxItem) {
+        return false;
+      }
+      const [folderType, phoneId] = this.selectedInboxItem.split('_');
+      return folderType === 'working';
     },
   },
   async mounted() {

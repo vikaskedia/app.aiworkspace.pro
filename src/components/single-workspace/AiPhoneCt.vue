@@ -952,11 +952,21 @@ export default {
     },
 
     getSelectedPhoneNumber() {
-      if (this.selectedInboxItem && this.selectedInboxItem.startsWith('phone_')) {
-        const phoneId = parseInt(this.selectedInboxItem.replace('phone_', ''));
-        return this.currentMatter?.phone_numbers?.find(p => p.id === phoneId);
+      if (!this.selectedInboxItem) {
+        return null;
       }
-      return null;
+      
+      // Handle both phone_ and folder_ formats
+      let phoneId;
+      if (this.selectedInboxItem.startsWith('phone_')) {
+        phoneId = parseInt(this.selectedInboxItem.replace('phone_', ''));
+      } else if (this.selectedInboxItem.startsWith('working_') || this.selectedInboxItem.startsWith('archived_')) {
+        phoneId = parseInt(this.selectedInboxItem.split('_')[1]);
+      } else {
+        return null;
+      }
+      
+      return this.currentMatter?.phone_numbers?.find(p => p.id === phoneId);
     },
     
     async selectConversation(conversation) {

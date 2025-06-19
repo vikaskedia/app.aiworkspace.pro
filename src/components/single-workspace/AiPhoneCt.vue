@@ -1324,9 +1324,9 @@ export default {
 
     // Contact helper methods
     getContactName(phoneNumber, searchContactNumber) {
-      console.log('🔍 getContactName:', phoneNumber);
+      console.log('🔍 getContactName:', phoneNumber, searchContactNumber);
       console.log('🔍 workspaceContacts:', this.workspaceContacts);
-      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber || c.phone_number === '+1' + searchContactNumber);
+      const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber || c.phone_number === searchContactNumber.slice(-10));
       return contact ? contact.name : null;
     },
 

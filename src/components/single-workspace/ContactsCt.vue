@@ -150,7 +150,11 @@
             placeholder="(555) 123-4567"
             @input="onPhoneNumberInput"
             @keydown="onPhoneKeyDown"
-          />
+          >
+            <template #prepend>
+              <el-button disabled style="width: 48px;">+1</el-button>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item label="Tags">
@@ -344,9 +348,13 @@ export default {
           throw new Error('You do not have edit access to this matter');
         }
 
+        // Remove all non-digit characters and save only the last 10 digits
+        const digits = this.contactForm.phone_number.replace(/\D/g, '');
+        const phone_number = digits.slice(-10);
+
         const contactData = {
           name: this.contactForm.name.trim(),
-          phone_number: this.contactForm.phone_number.trim() || null,
+          phone_number: phone_number,
           tags: this.contactForm.tags,
           matter_id: this.currentMatter.id,
           created_by: user.id
@@ -408,11 +416,15 @@ export default {
 
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Remove all non-digit characters and save only the last 10 digits
+        const digits = contact.editPhone.replace(/\D/g, '');
+        const phone_number = digits.slice(-10);
+
         const { error } = await supabase
           .from('contacts')
           .update({
             name: contact.editName.trim(),
-            phone_number: contact.editPhone.trim() || null,
+            phone_number: phone_number,
             tags: contact.editTags,
             updated_at: new Date().toISOString()
           })
@@ -422,7 +434,7 @@ export default {
         
         // Update local state
         contact.name = contact.editName.trim();
-        contact.phone_number = contact.editPhone.trim() || null;
+        contact.phone_number = phone_number;
         contact.tags = contact.editTags;
         contact.editing = false;
         

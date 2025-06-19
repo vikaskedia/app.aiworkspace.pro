@@ -124,10 +124,10 @@
                   {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
                   <template v-if="currentChat">
                     <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
-                      <el-button :icon="Plus" size="small" circle @click="openContactModal('add')" style="margin-left: 8px;" />
+                      <el-icon @click="openContactModal('add')" style="margin-left: 8px;cursor: pointer;"><Plus /></el-icon>
                     </el-tooltip>
                     <el-tooltip v-else content="Edit Contact">
-                      <el-button :icon="EditPen" size="small" circle @click="openContactModal('edit')" style="margin-left: 8px;" />
+                      <el-icon @click="openContactModal('edit')" style="margin-left: 8px;cursor: pointer;"><EditPen /></el-icon>
                     </el-tooltip>
                   </template>
                 </h4>

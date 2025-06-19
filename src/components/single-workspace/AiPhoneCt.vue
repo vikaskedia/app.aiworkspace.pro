@@ -1435,7 +1435,7 @@ export default {
 
     getCurrentContact() {
       if (!this.currentChat) return null;
-      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.fromPhoneNumber);
+      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.fromPhoneNumber || c.phone_number === this.currentChat.contact);
     },
 
     onRecipientSelect(value) {

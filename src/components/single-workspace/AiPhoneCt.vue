@@ -767,7 +767,7 @@ export default {
         const primaryCount = this.realtimeConversations.filter(conv => 
           conv.fromPhoneNumber === phone.number && 
           conv.unread > 0 && 
-          conv.status === 'primary'
+          (!conv.status || conv.status === 'primary')
         ).reduce((sum, conv) => sum + conv.unread, 0);
 
         const archivedCount = this.realtimeConversations.filter(conv => 
@@ -791,7 +791,7 @@ export default {
               status: 'primary',
               count: this.realtimeConversations.filter(c => 
                 c.fromPhoneNumber === phone.number && 
-                c.status === 'primary'
+                (!c.status || c.status === 'primary')
               ).length || null
             },
             {
@@ -840,9 +840,11 @@ export default {
           
           // Filter by folder status
           if (folderType === 'working') {
-            filtered = filtered.filter(conv => conv.status === 'primary');
+            // Treat conversations without status as primary (working)
+            filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
             console.log('🔍 Debug - after working filter:', filtered);
           } else if (folderType === 'archived') {
+            // Only show conversations that explicitly have archived status
             filtered = filtered.filter(conv => conv.status === 'archived');
             console.log('🔍 Debug - after archived filter:', filtered);
           }
@@ -1619,7 +1621,9 @@ export default {
     },
     async toggleConversationStatus(conversation) {
       try {
-        const newStatus = conversation.status === 'primary' ? 'archived' : 'primary';
+        // Treat undefined status as 'primary'
+        const currentStatus = conversation.status || 'primary';
+        const newStatus = currentStatus === 'primary' ? 'archived' : 'primary';
         
         const { error } = await supabase
           .from('conversations')

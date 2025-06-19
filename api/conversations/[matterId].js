@@ -54,7 +54,8 @@ export default async function handler(req, res) {
         lastMessage: conv.last_message_preview || latestMessage?.message_body || '',
         lastMessageTime: conv.last_message_at || conv.created_at,
         unread: conv.unread_count || 0,
-        fromPhoneNumber: conv.from_phone_number
+        fromPhoneNumber: conv.from_phone_number,
+        status: conv.status || 'primary'
       }
     })
 

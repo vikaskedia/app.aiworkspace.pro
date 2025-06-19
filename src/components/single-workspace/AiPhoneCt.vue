@@ -770,11 +770,22 @@ export default {
       }
       
       if (this.searchQuery) {
-        filtered = filtered.filter(conv => 
-          conv.contact.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          conv.phoneNumber.includes(this.searchQuery) ||
-          conv.lastMessage.toLowerCase().includes(this.searchQuery.toLowerCase())
-        );
+        const query = this.searchQuery.toLowerCase();
+        filtered = filtered.filter(conv => {
+          // Get contact name if it exists
+          const contactName = this.getContactName(conv.fromPhoneNumber, conv.contact) || '';
+          
+          return (
+            // Search in contact name
+            contactName.toLowerCase().includes(query) ||
+            // Search in phone number
+            conv.fromPhoneNumber.includes(query) ||
+            // Search in conversation contact field
+            (conv.contact && conv.contact.toLowerCase().includes(query)) ||
+            // Search in last message
+            conv.lastMessage.toLowerCase().includes(query)
+          );
+        });
       }
       
       return filtered;

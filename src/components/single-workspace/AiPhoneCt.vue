@@ -120,8 +120,17 @@
                 <el-icon><User /></el-icon>
               </div>
               <div>
-                <h4>{{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}</h4>
-                
+                <h4>
+                  {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
+                  <template v-if="currentChat">
+                    <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
+                      <el-button type="primary" icon="Plus" circle size="small" @click="openContactModal('add')" style="margin-left: 8px;" />
+                    </el-tooltip>
+                    <el-tooltip v-else content="Edit Contact">
+                      <el-button type="primary" icon="Edit" circle size="small" @click="openContactModal('edit')" style="margin-left: 8px;" />
+                    </el-tooltip>
+                  </template>
+                </h4>
                 <!-- Contact Details -->
                 <div class="contact-details" v-if="getCurrentContact()">
                   <span class="contact-phone">{{ getCurrentContact().phone_number }}</span>
@@ -435,6 +444,70 @@
         <el-button @click="closeMessageDetailsDialog">Close</el-button>
       </template>
     </el-dialog>
+
+    <!-- Contact Modal -->
+    <el-dialog
+      v-model="showContactModal"
+      :title="contactModalMode === 'add' ? 'Add Contact' : 'Edit Contact'"
+      width="500px"
+    >
+      <el-form
+        :model="contactModalForm"
+        :rules="contactModalRules"
+        ref="contactModalFormRef"
+        label-width="116px"
+      >
+        <el-form-item label="Name" prop="name">
+          <el-input
+            v-model="contactModalForm.name"
+            placeholder="Enter contact name"
+            maxlength="100"
+            show-word-limit
+          />
+        </el-form-item>
+        <el-form-item label="Phone Number" prop="phone_number">
+          <el-input
+            v-model="contactModalForm.phone_number"
+            maxlength="14"
+            placeholder="(555) 123-4567"
+          >
+            <template #prepend>
+              <el-button disabled style="width: 48px;">+1</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="Tags">
+          <el-select
+            v-model="contactModalForm.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="Add tags"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="tag in availableTags"
+              :key="tag"
+              :label="tag"
+              :value="tag"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showContactModal = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="saveContactModal"
+            :loading="contactModalSaving"
+          >
+            Save
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -628,6 +701,23 @@ export default {
       showMessageDetailsDialog: false,
       selectedMessageDetails: null,
       messageDetails: null,
+      showContactModal: false,
+      contactModalMode: 'add', // 'add' or 'edit'
+      contactModalForm: {
+        name: '',
+        phone_number: '',
+        tags: []
+      },
+      contactModalSaving: false,
+      contactModalRules: {
+        name: [
+          { required: true, message: 'Name is required', trigger: 'blur' },
+          { min: 1, max: 100, message: 'Name must be between 1 and 100 characters', trigger: 'blur' }
+        ],
+        phone_number: [
+          { required: true, message: 'Phone number is required', trigger: 'blur' }
+        ]
+      },
     };
   },
   computed: {
@@ -728,6 +818,17 @@ export default {
       });
       // Return as array of { date, messages }
       return Object.entries(groups).map(([date, messages]) => ({ date, messages }));
+    },
+
+    availableTags() {
+      // Collect all unique tags from workspaceContacts
+      const allTags = new Set();
+      this.workspaceContacts.forEach(contact => {
+        if (contact.tags) {
+          contact.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      return Array.from(allTags).sort();
     },
   },
   async mounted() {
@@ -1351,6 +1452,74 @@ export default {
       console.log('Viewing history for contact:', contact);
       // For now, just show a message
       this.$message.info('Contact history will be implemented in Phase 2');
+    },
+
+    openContactModal(mode) {
+      this.contactModalMode = mode;
+      if (mode === 'add') {
+        // Pre-fill phone number with current chat's number
+        const phone = this.currentChat?.fromPhoneNumber || '';
+        this.contactModalForm = {
+          name: '',
+          phone_number: phone.replace(/\D/g, '').slice(-10),
+          tags: []
+        };
+      } else if (mode === 'edit') {
+        const contact = this.getCurrentContact();
+        this.contactModalForm = {
+          name: contact.name,
+          phone_number: contact.phone_number,
+          tags: contact.tags ? [...contact.tags] : []
+        };
+      }
+      this.showContactModal = true;
+    },
+    async saveContactModal() {
+      this.contactModalSaving = true;
+      try {
+        // Validate name
+        if (!this.contactModalForm.name.trim()) {
+          this.$message.error('Name is required');
+          return;
+        }
+        // Validate phone number (must be 10 digits)
+        const digits = this.contactModalForm.phone_number.replace(/\D/g, '');
+        if (digits.length !== 10) {
+          this.$message.error('Phone number must be 10 digits');
+          return;
+        }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (this.contactModalMode === 'add') {
+          // Insert new contact
+          const { error } = await supabase.from('contacts').insert([
+            {
+              name: this.contactModalForm.name.trim(),
+              phone_number: digits,
+              tags: this.contactModalForm.tags,
+              matter_id: this.currentMatter.id,
+              created_by: user.id
+            }
+          ]);
+          if (error) throw error;
+          this.$message.success('Contact added successfully');
+        } else {
+          // Edit existing contact
+          const contact = this.getCurrentContact();
+          const { error } = await supabase.from('contacts').update({
+            name: this.contactModalForm.name.trim(),
+            phone_number: digits,
+            tags: this.contactModalForm.tags
+          }).eq('id', contact.id);
+          if (error) throw error;
+          this.$message.success('Contact updated successfully');
+        }
+        await this.loadWorkspaceContacts();
+        this.showContactModal = false;
+      } catch (error) {
+        this.$message.error(error.message || 'Failed to save contact');
+      } finally {
+        this.contactModalSaving = false;
+      }
     },
   }
 };

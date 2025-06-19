@@ -821,21 +821,30 @@ export default {
     filteredConversations() {
       let filtered = this.realtimeConversations || [];
       
+      console.log('🔍 Debug - filteredConversations called');
+      console.log('🔍 Debug - selectedInboxItem:', this.selectedInboxItem);
+      console.log('🔍 Debug - realtimeConversations:', this.realtimeConversations);
+      
       if (this.selectedInboxItem) {
         const [folderType, phoneId] = this.selectedInboxItem.split('_');
+        console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
         
         // Get the phone number for the selected phone ID
         const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+        console.log('🔍 Debug - found phone:', phone);
         
         if (phone) {
           // Filter by phone number
           filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
+          console.log('🔍 Debug - after phone filter:', filtered);
           
           // Filter by folder status
           if (folderType === 'working') {
             filtered = filtered.filter(conv => conv.status === 'primary');
+            console.log('🔍 Debug - after working filter:', filtered);
           } else if (folderType === 'archived') {
             filtered = filtered.filter(conv => conv.status === 'archived');
+            console.log('🔍 Debug - after archived filter:', filtered);
           }
         }
       }
@@ -854,6 +863,7 @@ export default {
         });
       }
       
+      console.log('🔍 Debug - final filtered conversations:', filtered);
       return filtered;
     },
     
@@ -927,8 +937,10 @@ export default {
     },
 
     selectInboxItem(itemId) {
+      console.log('🔍 Debug - selectInboxItem called with:', itemId);
       this.selectedInboxItem = itemId;
       this.selectedConversation = null;
+      console.log('🔍 Debug - selectedInboxItem set to:', this.selectedInboxItem);
     },
 
     getSelectedPhoneNumber() {

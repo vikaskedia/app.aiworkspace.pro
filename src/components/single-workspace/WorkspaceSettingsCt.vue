@@ -66,6 +66,12 @@ export default {
       newPhoneNumber: {
         label: '',
         number: ''
+      },
+      showEditPhoneModal: false,
+      editingPhone: {
+        id: null,
+        label: '',
+        number: ''
       }
     };
   },
@@ -486,6 +492,34 @@ export default {
         label: '',
         number: ''
       };
+    },
+
+    editPhoneNumber(phone) {
+      this.editingPhone = { ...phone };
+      this.showEditPhoneModal = true;
+    },
+
+    async savePhoneEdit() {
+      try {
+        const updatedPhoneNumbers = this.phoneNumbers.map(p => 
+          p.id === this.editingPhone.id ? this.editingPhone : p
+        );
+
+        const { data, error } = await supabase
+          .from('matters')
+          .update({ phone_numbers: updatedPhoneNumbers })
+          .eq('id', this.currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.phoneNumbers = data.phone_numbers;
+        this.showEditPhoneModal = false;
+        ElMessage.success('Phone number updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating phone number: ' + error.message);
+      }
     }
   }
 };
@@ -666,8 +700,15 @@ export default {
           <el-table :data="phoneNumbers">
             <el-table-column prop="label" label="Label" />
             <el-table-column prop="number" label="Phone Number" />
-            <el-table-column label="Actions" width="100" align="right">
+            <el-table-column label="Actions" width="160" align="right">
               <template #default="{ row }">
+                <el-button 
+                  type="primary"
+                  size="small"
+                  @click="editPhoneNumber(row)"
+                  style="margin-right: 8px;">
+                  Edit
+                </el-button>
                 <el-button 
                   type="danger" 
                   size="small"
@@ -678,6 +719,39 @@ export default {
             </el-table-column>
           </el-table>
         </div>
+
+        <!-- Edit Phone Number Modal -->
+        <el-dialog
+          v-model="showEditPhoneModal"
+          title="Edit Phone Number"
+          width="500px">
+          <el-form :model="editingPhone" label-position="top">
+            <el-form-item label="Label" required>
+              <el-input 
+                v-model="editingPhone.label" 
+                placeholder="e.g., Client Mobile, Office Line" />
+            </el-form-item>
+            
+            <el-form-item label="Phone Number" required>
+              <el-input 
+                v-model="editingPhone.number" 
+                placeholder="Enter phone number"
+                type="tel" />
+            </el-form-item>
+          </el-form>
+          
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="showEditPhoneModal = false">Cancel</el-button>
+              <el-button
+                type="primary"
+                @click="savePhoneEdit"
+                :disabled="!editingPhone.label || !editingPhone.number">
+                Save Changes
+              </el-button>
+            </span>
+          </template>
+        </el-dialog>
       </div>
 
       <!-- Email Storage Section -->

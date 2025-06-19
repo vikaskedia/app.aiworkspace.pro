@@ -1460,7 +1460,7 @@ export default {
       this.contactModalMode = mode;
       if (mode === 'add') {
         // Pre-fill phone number with current chat's number
-        const phone = this.currentChat?.fromPhoneNumber || '';
+        const phone = this.currentChat?.contact || '';
         this.contactModalForm = {
           name: '',
           phone_number: phone.replace(/\D/g, '').slice(-10),

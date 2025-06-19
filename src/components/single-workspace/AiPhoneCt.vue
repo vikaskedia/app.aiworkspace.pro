@@ -124,10 +124,10 @@
                   {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
                   <template v-if="currentChat">
                     <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
-                      <el-button type="primary" icon="Plus" circle size="small" @click="openContactModal('add')" style="margin-left: 8px;" />
+                      <el-button :icon="Plus" size="small" circle @click="openContactModal('add')" style="margin-left: 8px;" />
                     </el-tooltip>
                     <el-tooltip v-else content="Edit Contact">
-                      <el-button type="primary" icon="Edit" circle size="small" @click="openContactModal('edit')" style="margin-left: 8px;" />
+                      <el-button :icon="EditPen" size="small" circle @click="openContactModal('edit')" style="margin-left: 8px;" />
                     </el-tooltip>
                   </template>
                 </h4>
@@ -518,6 +518,7 @@ import {
   ChatDotRound, 
   Phone, 
   More, 
+  EditPen,
   Setting,
   Promotion,
   Message,
@@ -543,6 +544,7 @@ export default {
     ChatDotRound,
     Phone,
     More,
+    EditPen,
     Setting,
     Promotion,
     Message,

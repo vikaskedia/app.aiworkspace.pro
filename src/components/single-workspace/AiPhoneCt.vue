@@ -77,7 +77,7 @@
             <div class="conversation-info">
               <div class="conversation-header">
                 <span class="contact-name">
-                  {{ getContactName(conversation.fromPhoneNumber) || conversation.contact || 'Unknown Contact' }}
+                  {{ getContactName(conversation.contact) || conversation.contact || 'Unknown Contact' }}
                 </span>
                 <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
               </div>

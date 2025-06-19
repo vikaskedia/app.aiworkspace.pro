@@ -115,19 +115,6 @@
                 </div>
               </div>
               
-              <!-- Contact Tags -->
-              <div class="contact-tags" v-if="getContactTags(conversation.fromPhoneNumber).length">
-                <el-tag 
-                  v-for="tag in getContactTags(conversation.fromPhoneNumber)" 
-                  :key="tag" 
-                  size="small" 
-                  type="info"
-                  class="tag"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
-              
               <div class="conversation-preview">
                 <span class="last-message">{{ conversation.lastMessage }}</span>
                 <span v-if="conversation.unread" class="unread-count">{{ conversation.unread }}</span>
@@ -2507,20 +2494,40 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  opacity: 0; /* Start hidden */
+  transition: opacity 0.2s ease;
+}
+
+.conversation-item:hover .conversation-actions {
+  opacity: 1; /* Show on hover */
 }
 
 .action-icon {
   cursor: pointer;
-  color: #909399;
+  color: #606266;
   font-size: 16px;
   padding: 4px;
   border-radius: 4px;
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-icon:hover {
   color: #409EFF;
   background: rgba(64, 158, 255, 0.1);
+}
+
+/* Make sure icons are visible in active state */
+.conversation-item.active .conversation-actions {
+  opacity: 1;
+}
+
+/* Ensure the time is always visible */
+.conversation-actions .time {
+  opacity: 1;
+  margin-left: 4px;
 }
 
 .inbox-item.folder {

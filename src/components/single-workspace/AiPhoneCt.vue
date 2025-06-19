@@ -940,9 +940,11 @@ export default {
     },
   },
   async mounted() {
-    // Auto-select first phone number if available
+    // Auto-select first phone number's "Working on" folder if available
     if (this.currentMatter?.phone_numbers?.length > 0) {
-      this.selectedInboxItem = `phone_${this.currentMatter.phone_numbers[0].id}`;
+      const firstPhone = this.currentMatter.phone_numbers[0];
+      this.expandedPhoneNumber = `phone_${firstPhone.id}`;
+      this.selectedInboxItem = `working_${firstPhone.id}`;
     }
 
     // Load workspace contacts when component mounts

@@ -120,7 +120,7 @@
                 <el-icon><User /></el-icon>
               </div>
               <div>
-                <h4>{{ getContactName(currentChat.fromPhoneNumber) || currentChat.contact || 'Unknown Contact' }}</h4>
+                <h4>{{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}</h4>
                 
                 <!-- Contact Details -->
                 <div class="contact-details" v-if="getCurrentContact()">
@@ -658,7 +658,7 @@ export default {
         .slice(0, 10) // Limit to 10 most recent
         .map(conv => ({
           id: conv.id,
-          contact: this.getContactName(conv.fromPhoneNumber) || conv.contact || 'Unknown',
+          contact: this.getContactName(conv.fromPhoneNumber, conv.contact) || conv.contact || 'Unknown',
           fromPhoneNumber: conv.fromPhoneNumber
         }));
     },
@@ -1324,8 +1324,6 @@ export default {
 
     // Contact helper methods
     getContactName(phoneNumber, searchContactNumber) {
-      console.log('🔍 getContactName:', phoneNumber, searchContactNumber);
-      console.log('🔍 workspaceContacts:', this.workspaceContacts);
       const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber || c.phone_number === searchContactNumber.slice(-10));
       return contact ? contact.name : null;
     },

@@ -1,14 +1,12 @@
 # Goals:
-1. Develop a AI associate attorney that can do all a biological attorney can do including the following:
-    1. Drafting motions
-    2. Making legal strategies
-    3. Give legal advice.
+1. AI Workspace
 
 # Features working:
 1. App running from vercel
 2. Notification system.
-3. Users can upload files.
+3. Users can upload files to gitea and there is a interface to gitea
 4. Task system.
+5. AI phone
 
 # Future features:
 1. Individual users can give feedback by clicking on their profile icon.

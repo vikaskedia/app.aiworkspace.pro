@@ -3,6 +3,22 @@ import mixpanel from 'mixpanel-browser';
 // Initialize with your project token
 const MIXPANEL_TOKEN = import.meta.env.VITE_MIXPANEL_TOKEN;
 
+let isMixpanelInitialized = false;
+
+// Defensive check for SSR and token
+if (typeof window !== 'undefined' && MIXPANEL_TOKEN) {
+  mixpanel.init(MIXPANEL_TOKEN, {
+    debug: import.meta.env.DEV,
+    persistence: 'localStorage',
+    api_host: 'https://api-js.mixpanel.com',
+    ignore_dnt: false,
+    autocapture: true
+  });
+  isMixpanelInitialized = true;
+} else if (!MIXPANEL_TOKEN) {
+  console.warn('Mixpanel token is not defined. Analytics will be disabled.');
+}
+
 // Test user patterns to bypass
 const TEST_USER_PATTERNS = [
   'soumen+040225@grmtech.com',
@@ -21,20 +37,12 @@ const shouldBypassTracking = (userIdentifier) => {
   });
 };
 
-// Configure Mixpanel
-mixpanel.init(MIXPANEL_TOKEN, {
-  debug: import.meta.env.DEV,
-  persistence: 'localStorage',
-  api_host: 'https://api-js.mixpanel.com',
-  ignore_dnt: false,
-  autocapture: true
-});
-
 // Helper functions for tracking
 // Note: opt_out_tracking() is used for test users to prevent all tracking.
 // opt_in_tracking() is used for normal users to ensure tracking is enabled.
 export const MP = {
   identify: (id) => {
+    if (!isMixpanelInitialized) return;
     const isTestUser = shouldBypassTracking(id);
     const currentlyOptedOut = mixpanel.has_opted_out_tracking();
     
@@ -51,6 +59,7 @@ export const MP = {
   },
   
   alias: (id) => {
+    if (!isMixpanelInitialized) return;
     if (shouldBypassTracking(id)) {
       mixpanel.opt_out_tracking();
       return;
@@ -60,18 +69,21 @@ export const MP = {
   },
   
   track: (name, props) => {
+    if (!isMixpanelInitialized) return;
     if (mixpanel.has_opted_out_tracking()) return;
     mixpanel.track(name, props);
   },
   
   people: {
     set: (props) => {
+      if (!isMixpanelInitialized) return;
       if (mixpanel.has_opted_out_tracking()) return;
       mixpanel.people.set(props);
     }
   },
   
   setUserProperties: (userProps) => {
+    if (!isMixpanelInitialized) return;
     if (mixpanel.has_opted_out_tracking()) return;
     mixpanel.people.set({
       '$email': userProps.email,

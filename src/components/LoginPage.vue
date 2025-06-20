@@ -103,6 +103,7 @@ import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { ref } from 'vue';
 import { MP } from '../mixpanel';
+import { useRouter } from 'vue-router';
 
 export default {
   setup() {
@@ -113,6 +114,7 @@ export default {
 
     const loading = ref(false);
     const loginFormRef = ref(null);
+    const router = useRouter();
 
     const rules = {
       email: [
@@ -129,7 +131,8 @@ export default {
       loginForm,
       loading,
       loginFormRef,
-      rules
+      rules,
+      router
     };
   },
 
@@ -187,7 +190,7 @@ export default {
         if (error) throw error;
 
         // Track successful login
-        MP.identify(data.user.id);
+       /* MP.identify(data.user.id);
         MP.track('User Login', {
           loginMethod: 'email',
           userId: data.user.id,
@@ -198,7 +201,7 @@ export default {
           name: data.user.user_metadata?.full_name,
           accountType: 'email',
           lastLoginAt: new Date().toISOString()
-        });
+        });*/
 
         ElMessage.success('Login successful');
 
@@ -222,19 +225,19 @@ export default {
 
       // Handle the 3 scenarios
       if (matters.length === 0) {
-        this.$router.push('/initial-consultation');
+        this.router.push('/initial-consultation');
         return;
       } else {
-        this.$router.push('/all-workspace');
+        this.router.push('/all-workspace');
         return;
       } 
         
       } catch (error) {
         // Track failed login
-        MP.track('Login Failed', {
-          loginMethod: 'email',
-          error: error.message
-        });
+        // MP.track('Login Failed', {
+        //   loginMethod: 'email',
+        //   error: error.message
+        // });
         ElMessage.error('Login failed: ' + error.message);
       } finally {
         this.loading = false;

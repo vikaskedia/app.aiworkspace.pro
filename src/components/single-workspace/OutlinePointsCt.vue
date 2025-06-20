@@ -56,10 +56,13 @@
               Delete
             </el-dropdown-item>
             <el-dropdown-item divided class="timestamp-item">
-              <strong>Created:&nbsp;</strong> {{ formatTimestamp(item.created_at || item.id) }}
+              <strong>Changed:</strong> <span class="timestamp-value">{{ formatTimestampWithTimezone(item.updated_at || item.created_at || item.id) }}</span>
             </el-dropdown-item>
             <el-dropdown-item class="timestamp-item">
-              <strong>Changed:&nbsp;</strong> {{ formatTimestamp(item.updated_at || item.created_at || item.id) }}
+              <strong>Created:</strong> <span class="timestamp-value">{{ formatTimestampWithTimezone(item.created_at || item.id) }}</span>
+            </el-dropdown-item>
+            <el-dropdown-item class="timestamp-item timezone-info">
+              <small>Times shown in your local timezone ({{ getUserTimeZone() }})</small>
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -363,6 +366,10 @@ export default {
       // Optionally clear autoFocus after focusing
       this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
     }
+    
+    // Migrate existing timestamps to UTC format if needed
+    this.migrateTimestampsToUTC();
+    
     // Add global keydown listener for Ctrl+M and Ctrl+K
     this._onKeydown = (e) => {
       if (e.ctrlKey && (e.key === 'm' || e.key === 'M')) {
@@ -433,8 +440,8 @@ export default {
       this.editing = false;
       this.selectionTooltipVisible = false;
       if (this.editText !== this.item.text) {
-        // Update the timestamp when text changes
-        const now = Date.now();
+        // Update the timestamp when text changes - store in UTC
+        const now = new Date().toISOString();
         this.item.updated_at = now;
         this.$emit('update', { 
           id: this.item.id, 
@@ -446,10 +453,10 @@ export default {
     handleEnter() {
       this.finishEdit();
       
-      // Create a new sub-point with timestamps
-      const now = Date.now();
+      // Create a new sub-point with timestamps - store in UTC
+      const now = new Date().toISOString();
       const newSubPoint = {
-        id: now.toString(),
+        id: Date.now().toString(),
         text: '',
         children: [],
         autoFocus: true,
@@ -919,7 +926,7 @@ export default {
     },
     addComment() {
       if (!this.newComment.trim()) return;
-      this.comments.push({ text: this.newComment.trim(), created: Date.now() });
+      this.comments.push({ text: this.newComment.trim(), created: new Date().toISOString() });
       this.saveCommentsToNode();
       this.newComment = '';
     },
@@ -938,7 +945,7 @@ export default {
         return;
       }
       this.comments[idx].text = this.comments[idx].text.trim();
-      this.comments[idx].lastModified = Date.now();
+      this.comments[idx].lastModified = new Date().toISOString();
       this.saveCommentsToNode();
       ElMessage.success('Comment saved');
     },
@@ -1132,8 +1139,75 @@ export default {
         }
       }
     },
-    formatTimestamp(timestamp) {
-      const date = new Date(parseInt(timestamp));
+    getTimeZoneAbbr(timeZone) {
+      // Common timezone abbreviations
+      const timeZoneMap = {
+        'America/Los_Angeles': 'PST/PDT',
+        'America/New_York': 'EST/EDT',
+        'America/Chicago': 'CST/CDT',
+        'America/Denver': 'MST/MDT',
+        'Europe/London': 'GMT/BST',
+        'Europe/Paris': 'CET/CEST',
+        'Asia/Tokyo': 'JST',
+        'Asia/Shanghai': 'CST',
+        'Asia/Kolkata': 'IST',
+        'Australia/Sydney': 'AEST/AEDT',
+        'Pacific/Auckland': 'NZST/NZDT'
+      };
+      
+      return timeZoneMap[timeZone] || timeZone;
+    },
+    
+    getUserTimeZone() {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch (error) {
+        console.warn('Could not detect timezone:', error);
+        return 'UTC';
+      }
+    },
+    
+    // Convert any timestamp to UTC ISO string format
+    toUTCString(timestamp) {
+      if (typeof timestamp === 'string' && timestamp.includes('T')) {
+        // Already in ISO format, return as is
+        return timestamp;
+      } else if (typeof timestamp === 'number' || !isNaN(parseInt(timestamp))) {
+        // Convert numeric timestamp to UTC ISO string
+        return new Date(parseInt(timestamp)).toISOString();
+      } else {
+        // Invalid timestamp, return current UTC time
+        return new Date().toISOString();
+      }
+    },
+    
+    formatTimestampWithTimezone(timestamp) {
+      let date;
+      
+      // Handle different timestamp formats
+      if (typeof timestamp === 'string' && timestamp.includes('T')) {
+        // Handle ISO string format (UTC)
+        date = new Date(timestamp);
+      } else if (typeof timestamp === 'number' || !isNaN(parseInt(timestamp))) {
+        // Handle numeric timestamp (backward compatibility)
+        date = new Date(parseInt(timestamp));
+      } else {
+        // Fallback for invalid timestamps
+        console.warn('Invalid timestamp format:', timestamp);
+        return 'Invalid date';
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date from timestamp:', timestamp);
+        return 'Invalid date';
+      }
+      
+      // Check if it's today
+      const today = new Date();
+      const isToday = date.toDateString() === today.toDateString();
+      
+      // Format the date in user's local timezone
       const options = { 
         year: 'numeric', 
         month: 'long', 
@@ -1142,7 +1216,60 @@ export default {
         minute: '2-digit',
         hour12: true
       };
-      return date.toLocaleDateString('en-US', options).replace(',', ' at');
+      
+      const formattedDate = date.toLocaleDateString('en-US', options);
+      
+      // Replace the date part with "Today" if it's today
+      if (isToday) {
+        const timePart = date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        return `Today at ${timePart}`;
+      }
+      
+      return formattedDate;
+    },
+    migrateTimestampsToUTC() {
+      // Migrate created_at timestamp if it's not in UTC format
+      if (this.item.created_at && typeof this.item.created_at === 'number') {
+        this.item.created_at = this.toUTCString(this.item.created_at);
+        this.$emit('update', { 
+          id: this.item.id, 
+          text: this.item.text, 
+          created_at: this.item.created_at 
+        });
+      }
+      
+      // Migrate updated_at timestamp if it's not in UTC format
+      if (this.item.updated_at && typeof this.item.updated_at === 'number') {
+        this.item.updated_at = this.toUTCString(this.item.updated_at);
+        this.$emit('update', { 
+          id: this.item.id, 
+          text: this.item.text, 
+          updated_at: this.item.updated_at 
+        });
+      }
+      
+      // Migrate comment timestamps if they exist
+      if (this.comments && this.comments.length > 0) {
+        let commentsUpdated = false;
+        this.comments.forEach(comment => {
+          if (comment.created && typeof comment.created === 'number') {
+            comment.created = this.toUTCString(comment.created);
+            commentsUpdated = true;
+          }
+          if (comment.lastModified && typeof comment.lastModified === 'number') {
+            comment.lastModified = this.toUTCString(comment.lastModified);
+            commentsUpdated = true;
+          }
+        });
+        
+        if (commentsUpdated) {
+          this.saveCommentsToNode();
+        }
+      }
     }
   }
 };
@@ -1574,14 +1701,89 @@ export default {
 
 /* Timestamp items in dropdown menu */
 .timestamp-item {
-  font-size: 0.85em !important;
-  color: #666 !important;
-  cursor: default !important;
-  padding: 4px 12px !important;
+  font-size: 13px !important;
+  color: #888 !important;
+  font-weight: 400 !important;
+  padding: 2px 12px !important;
+  line-height: 1.2 !important;
+  margin-bottom: 0 !important;
+  display: flex;
+  align-items: baseline;
+  background: none;
 }
 
 .timestamp-item strong {
-  font-weight: 500;
-  color: #666 !important;
+  font-weight: 700;
+  color: #888 !important;
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.timestamp-item .timestamp-value {
+  font-weight: 400;
+  color: #888 !important;
+  font-size: 13px;
+}
+
+.timestamp-item.timezone-info {
+  font-size: 12px !important;
+  color: #aaa !important;
+  font-style: italic !important;
+  border-top: 1px solid #eee !important;
+  margin-top: 4px !important;
+  padding-top: 8px !important;
+}
+
+:deep(.el-dropdown-menu) {
+  font-size: 13px !important;
+  color: #888 !important;
+  font-weight: 400 !important;
+  padding: 0 !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+:deep(.el-dropdown-menu__item) {
+  font-size: 13px !important;
+  color: #888 !important;
+  font-weight: 400 !important;
+  padding: 2px 12px !important;
+  min-height: 24px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none !important;
+  line-height: 1.2 !important;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+:deep(.el-dropdown-menu__item:hover),
+:deep(.el-dropdown-menu__item:focus),
+:deep(.el-dropdown-menu__item.is-active) {
+  background: #eaf4fd !important;
+  color: #2994e5 !important;
+}
+
+:deep(.el-dropdown-menu__item:hover .el-icon),
+:deep(.el-dropdown-menu__item:focus .el-icon),
+:deep(.el-dropdown-menu__item.is-active .el-icon) {
+  color: #2994e5 !important;
+}
+
+:deep(.el-dropdown-menu__item .el-icon) {
+  color: #888 !important;
+  font-size: 16px !important;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+:deep(.el-dropdown-menu__item.is-disabled) {
+  color: #ccc !important;
+}
+
+:deep(.el-dropdown-menu__item--divided) {
+  border-top: 1px solid #f0f0f0 !important;
+  margin-top: 2px !important;
 }
 </style> 

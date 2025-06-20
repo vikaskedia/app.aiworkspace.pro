@@ -72,7 +72,20 @@ export default {
         id: null,
         label: '',
         number: ''
-      }
+      },
+      // Phone text message actions
+      phoneTextActions: [],
+      newPhoneTextAction: {
+        action_name: '',
+        post_url: ''
+      },
+      loadingPhoneTextActions: false,
+      showEditPhoneTextActionModal: false,
+      editingPhoneTextAction: {
+        id: null,
+        action_name: '',
+        post_url: ''
+      },
     };
   },
   watch: {
@@ -90,6 +103,7 @@ export default {
           this.loadCustomFields();
           this.loadTelegramGroups();
           this.loadPhoneNumbers();
+          this.loadPhoneTextActions();
         }
       },
       immediate: true
@@ -520,7 +534,87 @@ export default {
       } catch (error) {
         ElMessage.error('Error updating phone number: ' + error.message);
       }
-    }
+    },
+
+    async loadPhoneTextActions() {
+      this.loadingPhoneTextActions = true;
+      try {
+        const { data, error } = await supabase
+          .from('phone_text_message_actions')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        this.phoneTextActions = data;
+      } catch (error) {
+        ElMessage.error('Error loading phone text actions: ' + error.message);
+      } finally {
+        this.loadingPhoneTextActions = false;
+      }
+    },
+    async addPhoneTextAction() {
+      if (!this.newPhoneTextAction.action_name || !this.newPhoneTextAction.post_url) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+        const { data, error } = await supabase
+          .from('phone_text_message_actions')
+          .insert({
+            matter_id: this.currentMatter.id,
+            action_name: this.newPhoneTextAction.action_name,
+            post_url: this.newPhoneTextAction.post_url,
+            created_by: user.id
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        this.phoneTextActions.push(data);
+        this.newPhoneTextAction = { action_name: '', post_url: '' };
+        ElMessage.success('Action added successfully');
+      } catch (error) {
+        ElMessage.error('Error adding action: ' + error.message);
+      }
+    },
+    async removePhoneTextAction(actionId) {
+      try {
+        const { error } = await supabase
+          .from('phone_text_message_actions')
+          .delete()
+          .eq('id', actionId);
+        if (error) throw error;
+        this.phoneTextActions = this.phoneTextActions.filter(a => a.id !== actionId);
+        ElMessage.success('Action removed successfully');
+      } catch (error) {
+        ElMessage.error('Error removing action: ' + error.message);
+      }
+    },
+    editPhoneTextAction(action) {
+      this.editingPhoneTextAction = { ...action };
+      this.showEditPhoneTextActionModal = true;
+    },
+    async savePhoneTextActionEdit() {
+      if (!this.editingPhoneTextAction.action_name || !this.editingPhoneTextAction.post_url) return;
+      try {
+        const { data, error } = await supabase
+          .from('phone_text_message_actions')
+          .update({
+            action_name: this.editingPhoneTextAction.action_name,
+            post_url: this.editingPhoneTextAction.post_url,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.editingPhoneTextAction.id)
+          .select()
+          .single();
+        if (error) throw error;
+        // Update local state
+        const idx = this.phoneTextActions.findIndex(a => a.id === data.id);
+        if (idx !== -1) this.phoneTextActions[idx] = data;
+        this.showEditPhoneTextActionModal = false;
+        ElMessage.success('Action updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating action: ' + error.message);
+      }
+    },
   }
 };
 </script>
@@ -749,6 +843,61 @@ export default {
                 :disabled="!editingPhone.label || !editingPhone.number">
                 Save Changes
               </el-button>
+            </span>
+          </template>
+        </el-dialog>
+      </div>
+
+      <!-- Phone text Message actions Section -->
+      <div class="section">
+        <h3>Phone text Message actions</h3>
+        <el-form :model="newPhoneTextAction" label-position="top" style="margin-bottom: 1.5rem;">
+          <div class="form-container">
+            <div class="field-group">
+              <el-form-item label="Action name" required>
+                <el-input v-model="newPhoneTextAction.action_name" placeholder="Enter action name" />
+              </el-form-item>
+            </div>
+            <div class="field-group">
+              <el-form-item label="Post URL" required>
+                <el-input v-model="newPhoneTextAction.post_url" placeholder="Enter POST URL" />
+              </el-form-item>
+            </div>
+            <div class="button-container">
+              <el-button type="primary" @click="addPhoneTextAction" :disabled="!newPhoneTextAction.action_name || !newPhoneTextAction.post_url">
+                Add Action
+              </el-button>
+            </div>
+          </div>
+        </el-form>
+        <div class="custom-fields-list">
+          <el-table :data="phoneTextActions" v-loading="loadingPhoneTextActions">
+            <el-table-column prop="action_name" label="Action name" />
+            <el-table-column prop="post_url" label="Post URL" />
+            <el-table-column label="Actions" width="160" align="right">
+              <template #default="{ row }">
+                <el-button type="primary" size="small" @click="editPhoneTextAction(row)" style="margin-right: 8px;">Edit</el-button>
+                <el-button type="danger" size="small" @click="removePhoneTextAction(row.id)">Remove</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <el-dialog
+          v-model="showEditPhoneTextActionModal"
+          title="Edit Phone Text Message Action"
+          width="500px">
+          <el-form :model="editingPhoneTextAction" label-position="top">
+            <el-form-item label="Action name" required>
+              <el-input v-model="editingPhoneTextAction.action_name" placeholder="Enter action name" />
+            </el-form-item>
+            <el-form-item label="Post URL" required>
+              <el-input v-model="editingPhoneTextAction.post_url" placeholder="Enter POST URL" />
+            </el-form-item>
+          </el-form>
+          <template #footer>
+            <span class="dialog-footer">
+              <el-button @click="showEditPhoneTextActionModal = false">Cancel</el-button>
+              <el-button type="primary" @click="savePhoneTextActionEdit" :disabled="!editingPhoneTextAction.action_name || !editingPhoneTextAction.post_url">Save Changes</el-button>
             </span>
           </template>
         </el-dialog>

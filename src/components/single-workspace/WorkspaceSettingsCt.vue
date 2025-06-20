@@ -850,7 +850,7 @@ export default {
 
       <!-- Phone text Message actions Section -->
       <div class="section">
-        <h3>Phone text Message actions</h3>
+        <h3>Phone text message actions</h3>
         <el-form :model="newPhoneTextAction" label-position="top" style="margin-bottom: 1.5rem;">
           <div class="form-container">
             <div class="field-group">

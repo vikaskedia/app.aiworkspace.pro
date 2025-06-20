@@ -157,18 +157,18 @@ export default {
 
     const shareOnLinkedIn = () => {
       const url = encodeURIComponent(referralLink.value)
-      const text = encodeURIComponent('Join me on Legal Studio - AI-powered legal assistance platform')
+      const text = encodeURIComponent('Join me on AI Workspace - AI-powered legal assistance platform')
       window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}&summary=${text}`, '_blank')
     }
 
     const shareOnWhatsApp = () => {
-      const text = encodeURIComponent(`Join me on Legal Studio! ${referralLink.value}`)
+      const text = encodeURIComponent(`Join me on AI Workspace! ${referralLink.value}`)
       window.open(`https://wa.me/?text=${text}`, '_blank')
     }
 
     const shareOnTwitter = () => {
       const url = encodeURIComponent(referralLink.value)
-      const text = encodeURIComponent('Join me on Legal Studio - AI-powered legal assistance platform')
+      const text = encodeURIComponent('Join me on AI Workspace - AI-powered legal assistance platform')
       window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank')
     }
 

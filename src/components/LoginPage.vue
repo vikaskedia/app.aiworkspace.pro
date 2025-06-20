@@ -2,8 +2,8 @@
   <div class="login-container">
     <header class="site-header">
       <div class="header-content">
-        <img src="/associate-ai-attorney-logo.svg" alt="Legal Studio" class="logo-image" />
-        <h1>Legal Studio</h1>
+        <img src="/associate-ai-attorney-logo.svg" alt="AI Workspace" class="logo-image" />
+        <h1>AI Workspace</h1>
       </div>
     </header>
 

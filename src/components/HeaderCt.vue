@@ -325,7 +325,7 @@ export default {
         :class="['logo-image', { clickable: hasQuickActions }]"
         @click="hasQuickActions && $emit('logo-click')" 
       />
-      <h1>Legal Studio</h1>
+      <h1>AI Workspace</h1>
     </div>
     
     <div class="header-center">

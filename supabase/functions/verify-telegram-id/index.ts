@@ -36,7 +36,7 @@ serve(async (req) => {
     }
 
     // Try to send a test message to the user
-    const message = 'This is a verification message from Legal Studio. If you receive this, your Telegram integration is working correctly!'
+    const message = 'This is a verification message from AI Workspace. If you receive this, your Telegram integration is working correctly!'
     
     const response = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,

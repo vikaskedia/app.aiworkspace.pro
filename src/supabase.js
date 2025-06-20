@@ -9,7 +9,7 @@ class CrossDomainLocalStorage {
     this.iframes = [];
     this.domains = [
       'https://www.associateattorney.ai/forms/storage.html',
-      'https://app.associateattorney.ai/storage.html'
+      'https://app.aiworkspace.pro/storage.html'
     ];
     this.initPromise = this.init();
   }

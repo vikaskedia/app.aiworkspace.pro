@@ -231,6 +231,7 @@
         @navigate="$emit('navigate', $event)"
         @indent="$emit('indent', $event)"
         @outdent="$emit('outdent', $event)"
+        @add-sibling="handleAddSibling"
       />
     </ul>
   </li>
@@ -270,7 +271,7 @@ export default {
       default: false
     }
   },
-  emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent'],
+  emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent', 'add-sibling'],
   data() {
     return {
       editing: false,
@@ -452,28 +453,8 @@ export default {
     },
     handleEnter() {
       this.finishEdit();
-      
-      // Create a new sub-point with timestamps - store in UTC
-      const now = new Date().toISOString();
-      const newSubPoint = {
-        id: Date.now().toString(),
-        text: '',
-        children: [],
-        autoFocus: true,
-        created_at: now,
-        updated_at: now
-      };
-      
-      // Initialize children array if it doesn't exist
-      if (!this.item.children) {
-        this.item.children = [];
-      }
-      
-      // Add the new sub-point
-      this.item.children.push(newSubPoint);
-      
-      // Force Vue to update the DOM
-      this.$forceUpdate();
+      // Emit an event to parent to add a sibling after this item
+      this.$emit('add-sibling', { id: this.item.id });
     },
     handleDragStart(e) {
       // Only allow dragging from the bullet point
@@ -1269,6 +1250,26 @@ export default {
         if (commentsUpdated) {
           this.saveCommentsToNode();
         }
+      }
+    },
+    handleAddSibling({ id }) {
+      // Find the child index
+      const idx = this.item.children.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        const now = new Date().toISOString();
+        const newSibling = {
+          id: Date.now().toString(),
+          text: '',
+          children: [],
+          autoFocus: true,
+          created_at: now,
+          updated_at: now
+        };
+        this.item.children.splice(idx + 1, 0, newSibling);
+        this.$emit('update', { id: this.item.id, text: this.item.text });
+      } else {
+        // Not found in this level, propagate up
+        this.$emit('add-sibling', { id });
       }
     }
   }

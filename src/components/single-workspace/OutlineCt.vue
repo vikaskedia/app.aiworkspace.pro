@@ -79,6 +79,7 @@
         @navigate="handleNavigate"
         @indent="handleIndent"
         @outdent="handleOutdent"
+        @add-sibling="handleAddSiblingRoot"
       />
     </ul>
   </div>
@@ -753,6 +754,23 @@ export default {
       outline.value = [...latestOutline];
     }
 
+    function handleAddSiblingRoot({ id }) {
+      // Find the index in the root outline array
+      const idx = outline.value.findIndex(item => item.id === id);
+      if (idx !== -1) {
+        const now = new Date().toISOString();
+        const newSibling = {
+          id: Date.now().toString(),
+          text: '',
+          children: [],
+          autoFocus: true,
+          created_at: now,
+          updated_at: now
+        };
+        outline.value.splice(idx + 1, 0, newSibling);
+      }
+    }
+
     return { 
       matterId,
       outline, 
@@ -782,6 +800,7 @@ export default {
       handleNavigate,
       handleIndent,
       handleOutdent,
+      handleAddSiblingRoot,
     };
   }
 };

@@ -120,8 +120,13 @@ export default {
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
       if (!lastSavedContent.value) return false;
-      return JSON.stringify(newContent) !== JSON.stringify(lastSavedContent.value);
+      const newContentStr = JSON.stringify(newContent);
+      const lastSavedStr = JSON.stringify(lastSavedContent.value);
+      return newContentStr !== lastSavedStr;
     };
+
+    // Helper to deep clone an object
+    const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
 
     // Default outline data
     const defaultOutline = [
@@ -236,17 +241,18 @@ export default {
           if (outlineData.version === currentVersion.value) {
             const localContent = JSON.stringify(outline.value);
             const supabaseContent = JSON.stringify(outlineData.content);
-            hasChanges.value = localContent !== supabaseContent;
-            lastSavedContent.value = outlineData.content;
+            outline.value = deepClone(outlineData.content);
+            lastSavedContent.value = deepClone(outlineData.content);
+            hasChanges.value = false;
           } else if (outlineData.version > currentVersion.value) {
             // If Supabase version is newer, update local content
-            outline.value = outlineData.content;
+            outline.value = deepClone(outlineData.content);
             ensureAutoFocusProp(outline.value);
             currentVersion.value = outlineData.version;
             localStorage.setItem(localStorageKey, JSON.stringify(outlineData.content));
             localStorage.setItem(versionKey, outlineData.version.toString());
+            lastSavedContent.value = deepClone(outlineData.content);
             hasChanges.value = false;
-            lastSavedContent.value = outlineData.content;
           }
         } else {
           // If no outline in Supabase, mark as changed if we have local content
@@ -274,10 +280,64 @@ export default {
       
       // Store the handler for cleanup
       window.outlineKeyDownHandler = handleKeyDown;
+
+      // Add storage event listener for cross-tab communication
+      function handleStorageChange(event) {
+        if (!matterId.value) return;
+        
+        const localStorageKey = getLocalStorageKey();
+        const versionKey = getVersionKey();
+        const lastSavedKey = `${localStorageKey}_last_saved`;
+        
+        // Check if the change is for our outline
+        if (event.key === localStorageKey) {
+          try {
+            const newContent = JSON.parse(event.newValue);
+            if (newContent) {
+              outline.value = deepClone(newContent);
+              hasChanges.value = checkForChanges(newContent);
+            }
+          } catch (error) {
+            console.error('Error parsing outline from storage:', error);
+          }
+        }
+        
+        // Check if the last saved content was updated
+        if (event.key === lastSavedKey) {
+          try {
+            const newLastSaved = JSON.parse(event.newValue);
+            if (newLastSaved) {
+              lastSavedContent.value = deepClone(newLastSaved);
+              hasChanges.value = checkForChanges(outline.value);
+            }
+          } catch (error) {
+            console.error('Error parsing last saved content from storage:', error);
+          }
+        }
+        
+        // Check if the version was updated
+        if (event.key === versionKey) {
+          try {
+            const newVersion = parseInt(event.newValue);
+            if (!isNaN(newVersion)) {
+              currentVersion.value = newVersion;
+            }
+          } catch (error) {
+            console.error('Error parsing version from storage:', error);
+          }
+        }
+      }
+
+      // Add and remove storage event listener
+      window.addEventListener('storage', handleStorageChange);
     });
 
     // Cleanup keyboard event listener on unmount
     onUnmounted(() => {
+      // Remove storage event listener
+      window.removeEventListener('storage', handleStorageChange);
+      
+      // Remove keyboard event listener
       if (window.outlineKeyDownHandler) {
         document.removeEventListener('keydown', window.outlineKeyDownHandler);
         delete window.outlineKeyDownHandler;
@@ -303,6 +363,8 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('No authenticated user');
 
+        const outlineToSave = deepClone(outline.value);
+
         if (outlineId.value) {
           // First get the new version number
           const { data: newVersion, error: versionError } = await supabase
@@ -314,7 +376,7 @@ export default {
           const { data: updatedOutline, error: updateError } = await supabase
             .from('outlines')
             .update({
-              content: outline.value,
+              content: outlineToSave,
               version: newVersion
             })
             .eq('id', outlineId.value)
@@ -323,6 +385,14 @@ export default {
 
           if (updateError) throw updateError;
           currentVersion.value = updatedOutline.version;
+          
+          // Update last saved content with a deep clone
+          lastSavedContent.value = deepClone(outlineToSave);
+          outline.value = deepClone(outlineToSave);
+          hasChanges.value = false;
+
+          // Store last saved content in localStorage for cross-tab sync
+          localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
         } else {
           // Create new outline
           const { data: newOutline, error: insertError } = await supabase
@@ -330,7 +400,7 @@ export default {
             .insert([{
               matter_id: matterId.value,
               title: 'Outline',
-              content: outline.value,
+              content: outlineToSave,
               created_by: user.id
             }])
             .select()
@@ -339,6 +409,14 @@ export default {
           if (insertError) throw insertError;
           outlineId.value = newOutline.id;
           currentVersion.value = newOutline.version;
+          
+          // Update last saved content with a deep clone
+          lastSavedContent.value = deepClone(outlineToSave);
+          outline.value = deepClone(outlineToSave);
+          hasChanges.value = false;
+
+          // Store last saved content in localStorage for cross-tab sync
+          localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
         }
 
         // Create version record
@@ -346,7 +424,7 @@ export default {
           .from('outline_versions')
           .insert([{
             outline_id: outlineId.value,
-            content: outline.value,
+            content: outlineToSave,
             version: currentVersion.value,
             created_by: user.id
           }]);
@@ -355,10 +433,7 @@ export default {
 
         // Update version in localStorage
         localStorage.setItem(getVersionKey(), currentVersion.value.toString());
-
-        // Update last saved content and reset changes flag
-        lastSavedContent.value = JSON.parse(JSON.stringify(outline.value));
-        hasChanges.value = false;
+        localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
 
         // Update matter activity
         await updateMatterActivity(matterId.value);

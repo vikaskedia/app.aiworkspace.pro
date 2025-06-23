@@ -257,6 +257,19 @@ const eventBus = {
   }
 };
 
+// Add debounce utility
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 export default {
   name: 'OutlinePointsCt',
   components: { Plus, ArrowRight, Delete, MoreFilled, ChatDotRound, Link, Right, Back },
@@ -292,7 +305,8 @@ export default {
       savingComment: false,
       selectionTooltipVisible: false,
       tooltipStyle: {},
-      tooltipTimer: null
+      tooltipTimer: null,
+      debouncedUpdate: null
     };
   },
   setup() {
@@ -302,6 +316,17 @@ export default {
     };
   },
   created() {
+    // Create debounced update function
+    this.debouncedUpdate = debounce((text) => {
+      const now = new Date().toISOString();
+      this.item.updated_at = now;
+      this.$emit('update', { 
+        id: this.item.id, 
+        text: text,
+        updated_at: now
+      });
+    }, 2000);
+
     // Subscribe to drag events
     this.unsubscribe = eventBus.on((event, data) => {
       if (event === 'dragStart') {
@@ -320,6 +345,17 @@ export default {
     // Clean up subscription
     if (this.unsubscribe) {
       this.unsubscribe();
+    }
+
+    // Clean up event listeners
+    if (this.$refs.textarea) {
+      this.$refs.textarea.removeEventListener('input', this.handleTextChange);
+    }
+    
+    // Clear tooltip timer
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
     }
   },
   computed: {
@@ -407,41 +443,39 @@ export default {
     window.addEventListener('keydown', this._onKeydown);
     document.addEventListener('click', this._onGlobalClick);
   },
-  beforeUnmount() {
-    // Clean up subscription
-    if (this.unsubscribe) {
-      this.unsubscribe();
-    }
-    
-    // Clear tooltip timer
-    if (this.tooltipTimer) {
-      clearTimeout(this.tooltipTimer);
-      this.tooltipTimer = null;
-    }
-    
-    window.removeEventListener('keydown', this._onKeydown);
-    document.removeEventListener('click', this._onGlobalClick);
-  },
   updated() {
     if (this.editing && this.$refs.textarea) {
       this.autoResize();
     }
   },
   methods: {
+    handleTextChange() {
+      // Call debounced update when text changes
+      this.debouncedUpdate(this.editText);
+    },
+
     startEdit() {
       this.editing = true;
       this.$nextTick(() => {
         if (this.$refs.textarea) {
           this.$refs.textarea.focus();
           this.autoResize();
+          // Add input event listener for real-time updates
+          this.$refs.textarea.addEventListener('input', this.handleTextChange);
         }
       });
     },
+
     finishEdit() {
+      // Remove input event listener
+      if (this.$refs.textarea) {
+        this.$refs.textarea.removeEventListener('input', this.handleTextChange);
+      }
+
       this.editing = false;
       this.selectionTooltipVisible = false;
       if (this.editText !== this.item.text) {
-        // Update the timestamp when text changes - store in UTC
+        // Final update when editing finishes
         const now = new Date().toISOString();
         this.item.updated_at = now;
         this.$emit('update', { 
@@ -451,6 +485,7 @@ export default {
         });
       }
     },
+
     handleEnter() {
       this.finishEdit();
       // Emit an event to parent to add a sibling after this item

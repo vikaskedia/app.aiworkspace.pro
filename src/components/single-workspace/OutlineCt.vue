@@ -86,13 +86,26 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElNotification } from 'element-plus';
 import { Clock } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
+
+// Add debounce utility
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 export default {
   name: 'OutlineCt',
@@ -112,6 +125,15 @@ export default {
     const versionHistory = ref([]);
     const loadingHistory = ref(false);
     const selectedVersion = ref(null);
+    const realtimeSubscription = ref(null);
+    let refreshInterval = null;
+
+    // Create debounced save function
+    const debouncedSave = debounce(async () => {
+      if (hasChanges.value && !saving.value) {
+        await saveOutline();
+      }
+    }, 2000);
 
     // Get localStorage keys for current matter
     const getLocalStorageKey = () => `outline_${matterId.value}`;
@@ -330,6 +352,14 @@ export default {
 
       // Add and remove storage event listener
       window.addEventListener('storage', handleStorageChange);
+
+      // Add subscription setup after outline is loaded
+      if (outlineId.value) {
+        await subscribeToChanges();
+      }
+
+      // Set up periodic refresh every 30 seconds as a fallback
+      refreshInterval = setInterval(refreshOutlineData, 30000);
     });
 
     // Cleanup keyboard event listener on unmount
@@ -342,6 +372,17 @@ export default {
         document.removeEventListener('keydown', window.outlineKeyDownHandler);
         delete window.outlineKeyDownHandler;
       }
+
+      // Clean up real-time subscription
+      if (realtimeSubscription.value) {
+        realtimeSubscription.value.unsubscribe();
+      }
+
+      // Clear refresh interval
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
     });
 
     // Watch for changes in outline
@@ -349,6 +390,11 @@ export default {
       if (matterId.value) {
         localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
         hasChanges.value = checkForChanges(val);
+        
+        // Trigger autosave if there are changes
+        if (hasChanges.value) {
+          debouncedSave();
+        }
       }
     }, { deep: true });
 
@@ -364,6 +410,7 @@ export default {
         if (!user) throw new Error('No authenticated user');
 
         const outlineToSave = deepClone(outline.value);
+        console.log('Saving outline:', outlineToSave);
 
         if (outlineId.value) {
           // First get the new version number
@@ -372,18 +419,24 @@ export default {
 
           if (versionError) throw versionError;
 
+          console.log('Got new version:', newVersion);
+
           // Then update the outline with the new version
           const { data: updatedOutline, error: updateError } = await supabase
             .from('outlines')
             .update({
               content: outlineToSave,
-              version: newVersion
+              version: newVersion,
+              updated_at: new Date().toISOString() // Add explicit updated_at
             })
             .eq('id', outlineId.value)
             .select()
             .single();
 
           if (updateError) throw updateError;
+
+          console.log('Updated outline:', updatedOutline);
+          
           currentVersion.value = updatedOutline.version;
           
           // Update last saved content with a deep clone
@@ -393,6 +446,8 @@ export default {
 
           // Store last saved content in localStorage for cross-tab sync
           localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
+          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
+          localStorage.setItem(getVersionKey(), currentVersion.value.toString());
         } else {
           // Create new outline
           const { data: newOutline, error: insertError } = await supabase
@@ -417,6 +472,8 @@ export default {
 
           // Store last saved content in localStorage for cross-tab sync
           localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
+          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
+          localStorage.setItem(getVersionKey(), currentVersion.value.toString());
         }
 
         // Create version record
@@ -430,10 +487,6 @@ export default {
           }]);
 
         if (versionError) throw versionError;
-
-        // Update version in localStorage
-        localStorage.setItem(getVersionKey(), currentVersion.value.toString());
-        localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
 
         // Update matter activity
         await updateMatterActivity(matterId.value);
@@ -843,6 +896,140 @@ export default {
           updated_at: now
         };
         outline.value.splice(idx + 1, 0, newSibling);
+      }
+    }
+
+    // Function to subscribe to real-time changes
+    async function subscribeToChanges() {
+      if (!matterId.value || !outlineId.value) return;
+
+      // Unsubscribe from any existing subscription
+      if (realtimeSubscription.value) {
+        realtimeSubscription.value.unsubscribe();
+      }
+
+      // Subscribe to changes on the outlines table
+      realtimeSubscription.value = supabase
+        .channel(`outline_changes_${outlineId.value}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'outlines',
+            filter: `id=eq.${outlineId.value}`
+          },
+          async (payload) => {
+            console.log('Received real-time update:', payload);
+            
+            // Skip if we're currently saving (to avoid echo)
+            if (saving.value) {
+              console.log('Skipping update - we are currently saving');
+              return;
+            }
+
+            try {
+              // For UPDATE events
+              if (payload.eventType === 'UPDATE') {
+                const newContent = payload.new.content;
+                const newVersion = payload.new.version;
+
+                console.log('Current version:', currentVersion.value);
+                console.log('Received version:', newVersion);
+
+                // Check if the new version is higher than our current version
+                if (newVersion > currentVersion.value) {
+                  console.log('Updating to new version');
+                  
+                  // Force a fresh clone of the content to trigger reactivity
+                  const freshContent = JSON.parse(JSON.stringify(newContent));
+                  
+                  // Update local state using nextTick to ensure DOM updates
+                  await nextTick(() => {
+                    outline.value = freshContent;
+                    currentVersion.value = newVersion;
+                    lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+                    hasChanges.value = false;
+                  });
+
+                  // Update localStorage
+                  const localStorageKey = getLocalStorageKey();
+                  const versionKey = getVersionKey();
+                  localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+                  localStorage.setItem(versionKey, newVersion.toString());
+                  localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+
+                  // Immediately fetch fresh data to ensure consistency
+                  await refreshOutlineData();
+
+                  // Show notification
+                  ElNotification({
+                    title: 'Outline Updated',
+                    message: 'The outline has been updated by another user',
+                    type: 'info',
+                    duration: 3000
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error handling real-time update:', error);
+              
+              // On error, force a fresh data fetch
+              await refreshOutlineData();
+              
+              ElNotification({
+                title: 'Sync Error',
+                message: 'Attempting to recover latest changes...',
+                type: 'warning',
+                duration: 5000
+              });
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to outline changes');
+            // Fetch latest data when subscription is established
+            refreshOutlineData();
+          } else {
+            console.log('Subscription status changed:', status);
+          }
+        });
+    }
+
+    // Modify refreshOutlineData to be more aggressive in updates
+    async function refreshOutlineData() {
+      if (!matterId.value || !outlineId.value) return;
+
+      try {
+        const { data: outlineData, error: outlineError } = await supabase
+          .from('outlines')
+          .select('*')
+          .eq('id', outlineId.value)
+          .single();
+
+        if (outlineError) throw outlineError;
+
+        if (outlineData) {
+          // Always update if we have data, not just on version change
+          const freshContent = JSON.parse(JSON.stringify(outlineData.content));
+          
+          await nextTick(() => {
+            outline.value = freshContent;
+            currentVersion.value = outlineData.version;
+            lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+            hasChanges.value = false;
+          });
+
+          // Update localStorage
+          localStorage.setItem(getLocalStorageKey(), JSON.stringify(freshContent));
+          localStorage.setItem(getVersionKey(), outlineData.version.toString());
+          localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(freshContent));
+        }
+      } catch (error) {
+        console.error('Error refreshing outline:', error);
       }
     }
 

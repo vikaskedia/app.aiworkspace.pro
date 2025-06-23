@@ -549,7 +549,9 @@ import {
   Document,
   Paperclip,
   Close,
-  ArrowDown
+  ArrowDown,
+  FolderDelete,
+  Folder
 } from '@element-plus/icons-vue';
 import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';

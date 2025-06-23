@@ -195,15 +195,25 @@
           <div class="messages-area" ref="messagesContainer">
             <template v-for="group in groupedChatMessages" :key="group.date">
               <div class="date-header">{{ group.date }}</div>
-              <div v-for="message in group.messages" :key="message.id" :class="['message', message.direction]">
-                <div class="message-content">
-                  <!-- Settings Icon -->
-                  <!-- <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><More /></el-icon> -->
-                  <el-icon class="message-settings-icon" @click="openMessageDetailsDialog(message)"><Setting /></el-icon>
+              <div v-for="item in group.items" :key="item.type === 'message' ? item.item.id : item.item.id" :class="['message', item.type === 'message' ? item.item.direction : (item.associatedMessageDirection || 'inbound')]">
+                
+                <!-- Message Display -->
+                <div v-if="item.type === 'message'" class="message-content">
+                  <!-- Settings Dropdown Menu -->
+                  <el-dropdown @command="handleMessageMenuCommand($event, item.item)" style="float: right;bottom: 10px;left: 10px;">
+                    <el-icon class="message-settings-icon" style="vertical-align: middle;"><More /></el-icon>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="upload-before">Upload phone call recording</el-dropdown-item>
+                        <!-- <el-dropdown-item command="upload-after">Upload phone call recording after this message</el-dropdown-item> -->
+                        <el-dropdown-item command="details">See message details</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                   <!-- Media attachments -->
-                  <div v-if="message.mediaFiles && message.mediaFiles.length > 0" class="message-media">
+                  <div v-if="item.item.mediaFiles && item.item.mediaFiles.length > 0" class="message-media">
                     <div 
-                      v-for="media in message.mediaFiles" 
+                      v-for="media in item.item.mediaFiles" 
                       :key="media.id"
                       class="media-item">
                       
@@ -247,17 +257,53 @@
                   </div>
                   
                   <!-- Message text -->
-                  <p v-if="message.text" class="message-text" v-html="highlightSearch(message.text)"></p>
+                  <p v-if="item.item.text" class="message-text" v-html="highlightSearch(item.item.text)"></p>
                   
                   <!-- Message timestamp -->
-                  <span class="message-time">{{ formatFullTimeWithZone(message.timestamp) }}</span>
+                  <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
+                </div>
+                
+                <!-- Call Recording Display -->
+                <div v-else-if="item.type === 'recording'" class="call-recording-content">
+                  <div class="call-recording-header">
+                    <el-icon class="call-icon"><Phone /></el-icon>
+                    <span class="call-title">
+                      Call Recording
+                    </span>
+                  </div>
+                  
+                  <div class="call-recording-player">
+                    <audio 
+                      :src="item.item.public_url" 
+                      controls 
+                      class="audio-player"
+                      preload="metadata">
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                  
+                  <div class="call-recording-info">
+                    <span class="call-size">{{ formatFileSize(item.item.file_size) }}</span>&nbsp;&nbsp;
+                    <span class="call-date">{{ formatDate(item.item.recorded_at) }}</span>
+                  </div>
+                  
+                  <!-- Placeholder for transcript and summary -->
+                  <div v-if="item.item.recording_transcript" class="call-transcript">
+                    <h4>Transcript:</h4>
+                    <p>{{ item.item.recording_transcript }}</p>
+                  </div>
+                  
+                  <div v-if="item.item.recording_summary" class="call-summary">
+                    <h4>Summary:</h4>
+                    <p>{{ item.item.recording_summary }}</p>
+                  </div>
                 </div>
               </div>
             </template>
             
             <!-- Show loading state when no messages -->
-            <div v-if="!filteredChatMessages.length" class="no-messages">
-              <p>No messages found</p>
+            <div v-if="!groupedChatMessages.length" class="no-messages">
+              <p>No messages or recordings found</p>
             </div>
           </div>
 
@@ -528,6 +574,71 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Call Recording Upload Dialog -->
+    <el-dialog
+      v-model="showCallRecordingDialog"
+      :title="`Upload Call Recording ${callRecordingForm.position === 'before' ? 'Before' : 'After'} Message`"
+      width="500px"
+    >
+      <el-form
+        :model="callRecordingForm"
+        :rules="callRecordingRules"
+        ref="callRecordingFormRef"
+        label-width="120px"
+      >
+        <el-form-item label="Position" prop="position">
+          <el-radio-group v-model="callRecordingForm.position">
+            <el-radio label="before">Before this message</el-radio>
+            <el-radio label="after">After this message</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item label="Recording File" prop="file">
+          <el-upload
+            ref="callRecordingUpload"
+            :show-file-list="false"
+            :before-upload="handleCallRecordingSelect"
+            :multiple="false"
+            accept="audio/*"
+            action="#"
+          >
+            <el-button type="primary" plain>
+              <el-icon><Upload /></el-icon>
+              Select Audio File
+            </el-button>
+          </el-upload>
+          <div v-if="callRecordingForm.file" class="file-info">
+            <el-icon><Document /></el-icon>
+            <span>{{ callRecordingForm.file.name }}</span>
+            <span class="file-size">({{ formatFileSize(callRecordingForm.file.size) }})</span>
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="Recorded Date" prop="recordedAt">
+          <el-date-picker
+            v-model="callRecordingForm.recordedAt"
+            type="datetime"
+            placeholder="When was this call recorded?"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="closeCallRecordingDialog">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="uploadCallRecording"
+            :loading="uploadingCallRecording"
+            :disabled="!callRecordingForm.file"
+          >
+            Upload Recording
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -551,7 +662,8 @@ import {
   Close,
   ArrowDown,
   FolderDelete,
-  Folder
+  Folder,
+  Upload
 } from '@element-plus/icons-vue';
 import { computed } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -580,7 +692,8 @@ export default {
     Close,
     ArrowDown,
     FolderDelete,
-    Folder
+    Folder,
+    Upload
   },
   setup() {
     const matterStore = useMatterStore();
@@ -748,6 +861,22 @@ export default {
       },
       selectedFolder: 'working', // 'working' or 'archived'
       expandedPhoneNumber: null, // tracks which phone number's folders are expanded
+      showCallRecordingDialog: false,
+      selectedMessageForRecording: null,
+      callRecordingForm: {
+        position: 'before',
+        file: null,
+        recordedAt: null
+      },
+      callRecordingRules: {
+        position: [
+          { required: true, message: 'Please select a position', trigger: 'change' }
+        ],
+        file: [
+          { required: true, message: 'Please upload a recording file', trigger: 'change' }
+        ],
+      },
+      uploadingCallRecording: false,
     };
   },
   computed: {
@@ -817,31 +946,31 @@ export default {
 
       let filtered = this.realtimeConversations || [];
       
-      console.log('🔍 Debug - filteredConversations called');
-      console.log('🔍 Debug - selectedInboxItem:', this.selectedInboxItem);
-      console.log('🔍 Debug - realtimeConversations:', this.realtimeConversations);
+      //console.log('🔍 Debug - filteredConversations called');
+      //console.log('🔍 Debug - selectedInboxItem:', this.selectedInboxItem);
+      //console.log('🔍 Debug - realtimeConversations:', this.realtimeConversations);
       
       const [folderType, phoneId] = this.selectedInboxItem.split('_');
-      console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
+      //console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
       
       // Get the phone number for the selected phone ID
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
-      console.log('🔍 Debug - found phone:', phone);
+      //console.log('🔍 Debug - found phone:', phone);
       
       if (phone) {
         // Filter by phone number
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
-        console.log('🔍 Debug - after phone filter:', filtered);
+        //console.log('🔍 Debug - after phone filter:', filtered);
         
         // Filter by folder status
         if (folderType === 'working') {
           // Treat conversations without status as primary (working)
           filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
-          console.log('🔍 Debug - after working filter:', filtered);
+          //console.log('🔍 Debug - after working filter:', filtered);
         } else if (folderType === 'archived') {
           // Only show conversations that explicitly have archived status
           filtered = filtered.filter(conv => conv.status === 'archived');
-          console.log('🔍 Debug - after archived filter:', filtered);
+          //console.log('🔍 Debug - after archived filter:', filtered);
         }
       }
       
@@ -859,7 +988,7 @@ export default {
         });
       }
       
-      console.log('🔍 Debug - final filtered conversations:', filtered);
+      //console.log('🔍 Debug - final filtered conversations:', filtered);
       return filtered;
     },
     
@@ -901,14 +1030,70 @@ export default {
     // Group filtered messages by date
     groupedChatMessages() {
       const groups = {};
+      
+      // Create a combined array of messages and call recordings
+      const timelineItems = [];
+      
+      // Add messages
       this.filteredChatMessages.forEach(msg => {
-        const dateObj = new Date(msg.timestamp);
-        const dateStr = dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-        if (!groups[dateStr]) groups[dateStr] = [];
-        groups[dateStr].push(msg);
+        timelineItems.push({
+          type: 'message',
+          item: msg,
+          timestamp: new Date(msg.timestamp)
+        });
       });
-      // Return as array of { date, messages }
-      return Object.entries(groups).map(([date, messages]) => ({ date, messages }));
+      
+      // Debug: Log call recordings and messages
+      console.log('🔍 Debug - Call recordings:', this.callRecordings);
+      console.log('🔍 Debug - All messages:', this.currentChat?.messages);
+      console.log('🔍 Debug - Filtered messages:', this.filteredChatMessages);
+      
+      // Add call recordings with their position logic
+      // Use full message list (not filtered) to find associated messages
+      const allMessages = this.currentChat?.messages || [];
+      this.callRecordings.forEach(recording => {
+        console.log('🔍 Debug - Processing recording:', recording.id, 'message_id:', recording.message_id);
+        const associatedMessage = allMessages.find(msg => msg.id === recording.message_id);
+        console.log('🔍 Debug - Associated message found:', associatedMessage);
+        
+        if (associatedMessage) {
+          const messageTime = new Date(associatedMessage.timestamp);
+          let recordingTime;
+          
+          if (recording.position === 'before') {
+            // Place recording slightly before the message
+            recordingTime = new Date(messageTime.getTime() - 1000);
+          } else {
+            // Place recording slightly after the message
+            recordingTime = new Date(messageTime.getTime() + 1000);
+          }
+          
+          timelineItems.push({
+            type: 'recording',
+            item: recording,
+            timestamp: recordingTime,
+            associatedMessageId: recording.message_id,
+            associatedMessageDirection: associatedMessage.direction
+          });
+          console.log('🔍 Debug - Added recording to timeline at:', recordingTime);
+        } else {
+          console.log('🔍 Debug - No associated message found for recording:', recording.id);
+        }
+      });
+      
+      // Sort all items by timestamp
+      timelineItems.sort((a, b) => a.timestamp - b.timestamp);
+      console.log('🔍 Debug - Final timeline items:', timelineItems);
+      
+      // Group by date
+      timelineItems.forEach(item => {
+        const dateStr = item.timestamp.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        if (!groups[dateStr]) groups[dateStr] = [];
+        groups[dateStr].push(item);
+      });
+      
+      // Return as array of { date, items }
+      return Object.entries(groups).map(([date, items]) => ({ date, items }));
     },
 
     availableTags() {
@@ -920,6 +1105,12 @@ export default {
         }
       });
       return Array.from(allTags).sort();
+    },
+
+    callRecordings() {
+      if (!this.currentChat) return [];
+      // This will be populated when we load call recordings
+      return this.currentChat.callRecordings || [];
     },
 
     showNewMessageButton() {
@@ -949,10 +1140,10 @@ export default {
     },
 
     selectInboxItem(itemId) {
-      console.log('🔍 Debug - selectInboxItem called with:', itemId);
+      //console.log('🔍 Debug - selectInboxItem called with:', itemId);
       this.selectedInboxItem = itemId;
       this.selectedConversation = null;
-      console.log('🔍 Debug - selectedInboxItem set to:', this.selectedInboxItem);
+      ////console.log('🔍 Debug - selectedInboxItem set to:', this.selectedInboxItem);
     },
 
     getSelectedPhoneNumber() {
@@ -979,6 +1170,9 @@ export default {
       // Load messages for this conversation using real-time composable
       await this.loadMessagesForConversation(conversation.id);
       
+      // Load call recordings for this conversation
+      await this.loadCallRecordings(conversation.id);
+      
       // Mark conversation as read using real-time composable
       await this.realtimeMarkAsRead(conversation.id);
       
@@ -989,6 +1183,25 @@ export default {
           container.scrollTop = container.scrollHeight;
         }
       });
+    },
+
+    async loadCallRecordings(conversationId) {
+      try {
+        const { data: recordings, error } = await supabase
+          .from('call_recordings')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('recorded_at', { ascending: true });
+
+        if (error) throw error;
+
+        // Add call recordings to the current chat
+        if (this.currentChat) {
+          this.currentChat.callRecordings = recordings || [];
+        }
+      } catch (error) {
+        console.error('Error loading call recordings:', error);
+      }
     },
     
     getInitials(name) {
@@ -1520,6 +1733,12 @@ export default {
       if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '-';
       return dateObj.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     },
+    formatDuration(seconds) {
+      if (!seconds) return '0:00';
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    },
     async loadWorkspaceContacts() {
       if (!this.currentMatter) return;
       
@@ -1662,6 +1881,125 @@ export default {
       } catch (error) {
         console.error('Error updating conversation status:', error);
         ElMessage.error('Failed to update conversation status');
+      }
+    },
+    handleMessageMenuCommand(command, message) {
+      if (command === 'details') {
+        this.openMessageDetailsDialog(message);
+      } else if (command === 'upload-before') {
+        this.selectedMessageForRecording = message;
+        this.callRecordingForm.position = 'before';
+        this.showCallRecordingDialog = true;
+      } else if (command === 'upload-after') {
+        this.selectedMessageForRecording = message;
+        this.callRecordingForm.position = 'after';
+        this.showCallRecordingDialog = true;
+      }
+    },
+    handleCallRecordingSelect(file) {
+      this.callRecordingForm.file = file;
+      return true;
+    },
+    closeCallRecordingDialog() {
+      this.showCallRecordingDialog = false;
+      this.callRecordingForm = {
+        position: 'before',
+        file: null,
+        recordedAt: null
+      };
+    },
+    async uploadCallRecording() {
+      if (!this.callRecordingForm.file || !this.selectedMessageForRecording) {
+        this.$message.error('Please select a file and ensure a message is selected');
+        return;
+      }
+
+      this.uploadingCallRecording = true;
+
+      try {
+        const fileToUpload = this.callRecordingForm.file;
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+
+        // Create unique filename
+        const timestamp = Date.now();
+        const fileExtension = fileToUpload.name.split('.').pop();
+        const baseName = fileToUpload.name.replace(`.${fileExtension}`, '');
+        const uniqueName = `call_${timestamp}_${this.callRecordingForm.position}_msg${this.selectedMessageForRecording.id}.${fileExtension}`;
+        const uploadPath = `messages/call_recordings/${uniqueName}`;
+
+        // Convert file to base64
+        const base64Content = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(fileToUpload);
+        });
+
+        // Upload to Gitea
+        const response = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              message: `Upload call recording: ${fileToUpload.name}`,
+              content: base64Content,
+              branch: 'main'
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to upload file to Gitea');
+        }
+
+        const giteaData = await response.json();
+        const publicUrl = this.getAuthenticatedDownloadUrl(giteaData.content.download_url);
+
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Store in call_recordings table
+        const { data: recording, error } = await supabase
+          .from('call_recordings')
+          .insert({
+            matter_id: this.currentMatter.id,
+            conversation_id: this.currentChat.id,
+            message_id: this.selectedMessageForRecording.id,
+            position: this.callRecordingForm.position,
+            filename: fileToUpload.name,
+            file_size: fileToUpload.size,
+            mime_type: fileToUpload.type,
+            gitea_path: giteaData.content.path,
+            public_url: publicUrl,
+            git_sha: giteaData.content.sha,
+            recorded_at: this.callRecordingForm.recordedAt,
+            uploaded_by: user.id
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        this.closeCallRecordingDialog();
+        this.$message.success('Call recording uploaded successfully!');
+
+        // Refresh the conversation to show the new recording
+        await this.loadMessagesForConversation(this.currentChat.id);
+
+      } catch (error) {
+        console.error('Error uploading call recording:', error);
+        this.$message.error(error.message || 'Failed to upload call recording');
+      } finally {
+        this.uploadingCallRecording = false;
       }
     },
   }
@@ -2079,7 +2417,7 @@ export default {
   max-width: 70%;
   padding: 0.75rem 1rem;
   border-radius: 1rem;
-  position: relative;
+  position: relative; /* Ensure relative positioning for absolute children */
 }
 
 .message.outbound .message-content {
@@ -2404,7 +2742,7 @@ export default {
 
 .message-settings-icon {
   position: absolute;
-  bottom: 8px;
+  top: 2px;
   right: 8px;
   cursor: pointer;
   color: #888;
@@ -2554,5 +2892,166 @@ export default {
 
 .inbox-item.folder.active .count-badge {
   background: #409EFF;
+}
+
+/* Call Recording Styles */
+.call-recording-item {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.message.recording {
+  margin-bottom: 1rem;
+  display: flex;
+}
+
+.message.recording.outbound {
+  justify-content: flex-end;
+}
+
+.message.recording.inbound {
+  justify-content: flex-start;
+}
+
+.call-recording-content {
+  width: 70%;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  position: relative;
+}
+
+.message.outbound .call-recording-content {
+  background: #1976d2;
+  color: white;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.message.inbound .call-recording-content {
+  background: white;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.call-recording-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.call-icon {
+  color: #1976d2;
+  font-size: 1.2rem;
+}
+
+.message.outbound .call-icon {
+  color: white;
+}
+
+.call-title {
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.message.outbound .call-title {
+  color: white;
+}
+
+.call-recording-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.message.outbound .call-recording-info {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.call-size {
+  color: #666;
+}
+
+.message.outbound .call-size {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.call-date {
+  color: #666;
+}
+
+.message.outbound .call-date {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.call-duration {
+  background: #1976d2;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.call-recording-player {
+  margin-bottom: 0.75rem;
+}
+
+.audio-player {
+  width: 100%;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.call-transcript,
+.call-summary {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.call-transcript h4,
+.call-summary h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.call-transcript p,
+.call-summary p {
+  margin: 0;
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* File info styles for upload dialog */
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.file-info .el-icon {
+  color: #666;
+}
+
+.file-info .file-size {
+  color: #666;
+  font-size: 0.8rem;
 }
 </style>

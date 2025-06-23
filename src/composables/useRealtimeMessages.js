@@ -195,7 +195,7 @@ export function useRealtimeMessages(matterId) {
     if (!matterId.value) return
     
     try {
-      const response = await fetch(`/api/conversations?matterId=${matterId.value}`)
+      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -212,7 +212,7 @@ export function useRealtimeMessages(matterId) {
   // Load messages for a specific conversation
   const loadMessagesForConversation = async (conversationId) => {
     try {
-      const response = await fetch(`/api/messages/${conversationId}`)
+      const response = await fetch(`https://app.aiworkspace.pro/api/messages/${conversationId}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -245,7 +245,7 @@ export function useRealtimeMessages(matterId) {
     }
     
     try {
-      const response = await fetch('/api/conversations/mark-read', {
+      const response = await fetch('https://app.aiworkspace.pro/api/conversations/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversationId })

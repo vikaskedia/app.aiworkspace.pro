@@ -576,7 +576,9 @@ export default {
     Document,
     Paperclip,
     Close,
-    ArrowDown
+    ArrowDown,
+    FolderDelete,
+    Folder
   },
   setup() {
     const matterStore = useMatterStore();

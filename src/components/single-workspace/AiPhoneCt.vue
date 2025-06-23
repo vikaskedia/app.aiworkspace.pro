@@ -703,6 +703,7 @@ export default {
     const {
       conversations: realtimeConversations,
       loadMessagesForConversation,
+      loadCallRecordingsForConversation,
       markConversationAsRead: realtimeMarkAsRead
     } = useRealtimeMessages(computed(() => currentMatter.value?.id));
     
@@ -710,6 +711,7 @@ export default {
       currentMatter,
       realtimeConversations,
       loadMessagesForConversation,
+      loadCallRecordingsForConversation,
       realtimeMarkAsRead
     };
   },
@@ -1043,18 +1045,11 @@ export default {
         });
       });
       
-      // Debug: Log call recordings and messages
-      console.log('🔍 Debug - Call recordings:', this.callRecordings);
-      console.log('🔍 Debug - All messages:', this.currentChat?.messages);
-      console.log('🔍 Debug - Filtered messages:', this.filteredChatMessages);
-      
       // Add call recordings with their position logic
       // Use full message list (not filtered) to find associated messages
       const allMessages = this.currentChat?.messages || [];
       this.callRecordings.forEach(recording => {
-        console.log('🔍 Debug - Processing recording:', recording.id, 'message_id:', recording.message_id);
         const associatedMessage = allMessages.find(msg => msg.id === recording.message_id);
-        console.log('🔍 Debug - Associated message found:', associatedMessage);
         
         if (associatedMessage) {
           const messageTime = new Date(associatedMessage.timestamp);
@@ -1075,15 +1070,11 @@ export default {
             associatedMessageId: recording.message_id,
             associatedMessageDirection: associatedMessage.direction
           });
-          console.log('🔍 Debug - Added recording to timeline at:', recordingTime);
-        } else {
-          console.log('🔍 Debug - No associated message found for recording:', recording.id);
         }
       });
       
       // Sort all items by timestamp
       timelineItems.sort((a, b) => a.timestamp - b.timestamp);
-      console.log('🔍 Debug - Final timeline items:', timelineItems);
       
       // Group by date
       timelineItems.forEach(item => {
@@ -1169,9 +1160,6 @@ export default {
       
       // Load messages for this conversation using real-time composable
       await this.loadMessagesForConversation(conversation.id);
-      
-      // Load call recordings for this conversation
-      await this.loadCallRecordings(conversation.id);
       
       // Mark conversation as read using real-time composable
       await this.realtimeMarkAsRead(conversation.id);

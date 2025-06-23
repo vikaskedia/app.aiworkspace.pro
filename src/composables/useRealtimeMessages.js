@@ -7,6 +7,7 @@ export function useRealtimeMessages(matterId) {
   // Channels for subscriptions
   let conversationsChannel = null
   let messagesChannel = null
+  let callRecordingsChannel = null
 
   // Computed properties
   const sortedConversations = computed(() => {
@@ -163,6 +164,69 @@ export function useRealtimeMessages(matterId) {
     }
   }
 
+  // Call recording event handlers
+  const handleCallRecordingChange = (payload) => {
+    console.log('📞 Call recording change:', payload.eventType, payload.new)
+    
+    switch (payload.eventType) {
+      case 'INSERT':
+        handleNewCallRecording(payload.new)
+        break
+      case 'UPDATE':
+        handleCallRecordingUpdate(payload.new)
+        break
+      case 'DELETE':
+        handleCallRecordingDelete(payload.old)
+        break
+    }
+  }
+
+  const handleNewCallRecording = (newRecording) => {
+    // Find the conversation this recording belongs to
+    const conversation = conversations.value.find(c => c.id === newRecording.conversation_id)
+    
+    if (conversation) {
+      // Initialize callRecordings array if it doesn't exist
+      if (!conversation.callRecordings) {
+        conversation.callRecordings = []
+      }
+      
+      // Check if recording already exists
+      const existingRecording = conversation.callRecordings.find(r => r.id === newRecording.id)
+      
+      if (!existingRecording) {
+        // Add new recording
+        conversation.callRecordings.push(newRecording)
+        console.log('📞 Added new call recording to conversation:', newRecording.id)
+      }
+    }
+  }
+
+  const handleCallRecordingUpdate = (updatedRecording) => {
+    const conversation = conversations.value.find(c => c.id === updatedRecording.conversation_id)
+    
+    if (conversation && conversation.callRecordings) {
+      const recordingIndex = conversation.callRecordings.findIndex(r => r.id === updatedRecording.id)
+      if (recordingIndex !== -1) {
+        conversation.callRecordings[recordingIndex] = {
+          ...conversation.callRecordings[recordingIndex],
+          ...updatedRecording
+        }
+      }
+    }
+  }
+
+  const handleCallRecordingDelete = (deletedRecording) => {
+    const conversation = conversations.value.find(c => c.id === deletedRecording.conversation_id)
+    
+    if (conversation && conversation.callRecordings) {
+      const recordingIndex = conversation.callRecordings.findIndex(r => r.id === deletedRecording.id)
+      if (recordingIndex !== -1) {
+        conversation.callRecordings.splice(recordingIndex, 1)
+      }
+    }
+  }
+
   // Transform functions to match frontend format
   const transformConversation = (conv) => ({
     id: conv.id,
@@ -195,7 +259,7 @@ export function useRealtimeMessages(matterId) {
     if (!matterId.value) return
     
     try {
-      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`)
+      const response = await fetch(`/api/conversations?matterId=${matterId.value}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -212,7 +276,7 @@ export function useRealtimeMessages(matterId) {
   // Load messages for a specific conversation
   const loadMessagesForConversation = async (conversationId) => {
     try {
-      const response = await fetch(`https://app.aiworkspace.pro/api/messages/${conversationId}`)
+      const response = await fetch(`/api/messages/${conversationId}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -225,6 +289,9 @@ export function useRealtimeMessages(matterId) {
           conversation.messages = messages
         }
         
+        // Also load call recordings for this conversation
+        await loadCallRecordingsForConversation(conversationId)
+        
         return messages
       } else {
         console.error('Failed to load messages:', result.error)
@@ -233,6 +300,28 @@ export function useRealtimeMessages(matterId) {
     } catch (error) {
       console.error('Error loading messages:', error)
       return []
+    }
+  }
+
+  // Load call recordings for a specific conversation
+  const loadCallRecordingsForConversation = async (conversationId) => {
+    try {
+      const { data: recordings, error } = await supabase
+        .from('call_recordings')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('recorded_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Update conversation with loaded call recordings
+      const conversation = conversations.value.find(c => c.id === conversationId)
+      if (conversation) {
+        conversation.callRecordings = recordings || [];
+        console.log('📞 Loaded call recordings for conversation:', recordings?.length || 0);
+      }
+    } catch (error) {
+      console.error('Error loading call recordings:', error);
     }
   }
 
@@ -245,7 +334,7 @@ export function useRealtimeMessages(matterId) {
     }
     
     try {
-      const response = await fetch('https://app.aiworkspace.pro/api/conversations/mark-read', {
+      const response = await fetch('/api/conversations/mark-read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conversationId })
@@ -296,6 +385,22 @@ export function useRealtimeMessages(matterId) {
       })
   }
 
+  // Subscribe to call recordings changes
+  const subscribeToCallRecordings = () => {
+    if (!matterId.value) return
+    
+    callRecordingsChannel = supabase
+      .channel(`call-recordings-${matterId.value}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'call_recordings'
+      }, handleCallRecordingChange)
+      .subscribe((status) => {
+        console.log('📞 Call recordings subscription status:', status)
+      })
+  }
+
   // Unsubscribe from all channels
   const unsubscribe = () => {
     if (conversationsChannel) {
@@ -306,6 +411,11 @@ export function useRealtimeMessages(matterId) {
     if (messagesChannel) {
       supabase.removeChannel(messagesChannel)
       messagesChannel = null
+    }
+    
+    if (callRecordingsChannel) {
+      supabase.removeChannel(callRecordingsChannel)
+      callRecordingsChannel = null
     }
   }
 
@@ -324,6 +434,7 @@ export function useRealtimeMessages(matterId) {
     // Subscribe to real-time updates
     subscribeToConversations()
     subscribeToMessages()
+    subscribeToCallRecordings()
   }
 
 
@@ -350,6 +461,7 @@ export function useRealtimeMessages(matterId) {
     // Methods
     loadConversations,
     loadMessagesForConversation,
+    loadCallRecordingsForConversation,
     markConversationAsRead,
     initializeSubscriptions,
     unsubscribe

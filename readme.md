@@ -17,7 +17,7 @@
 6. Files can be tagged.
 7. Give a button called "Create a new motion" when users click this they can choose a set of files that will be used for the motion and give the AI the goal of the motion.
 
-# Tech:
+# Tech: 
 ## Server side:
     1. Supabase.
     2. Python on server side

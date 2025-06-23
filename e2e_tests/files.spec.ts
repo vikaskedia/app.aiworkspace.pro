@@ -54,7 +54,7 @@ test.describe('Files Component', () => {
     test.setTimeout(60000);
 
     // Login first
-    await page.goto('https://app.associateattorney.ai/login');
+    await page.goto('https://app.aiworkspace.pro/login');
     await page.fill('input[type="email"]', 'soumen+040225@grmtech.com');
     await page.fill('input[type="password"]', 'jaikalima99');
     await page.click('.submit-button');
@@ -66,10 +66,10 @@ test.describe('Files Component', () => {
     );
 
     // Wait for navigation to dashboard
-    await page.waitForURL('https://app.associateattorney.ai/all-workspaces/dashboard');
+    await page.waitForURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
 
     // Navigate to the files page of a matter
-    await page.goto('https://app.associateattorney.ai/single-workspace/19/files');
+    await page.goto('https://app.aiworkspace.pro/single-workspace/19/files');
     
     // Wait for the files component to load and initial API call to complete
     await page.waitForSelector('.manage-files');

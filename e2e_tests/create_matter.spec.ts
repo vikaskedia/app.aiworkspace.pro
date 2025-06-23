@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Create matter after login and edit it', async ({ page }) => {
     // Navigate to your login page
-    await page.goto('https://app.associateattorney.ai/login');
+    await page.goto('https://app.aiworkspace.pro/login');
     //await page.goto('http://localhost/login');
 
     // Fill in the email
@@ -15,11 +15,11 @@ test('Create matter after login and edit it', async ({ page }) => {
     await page.click('.submit-button');
 
     // Wait for navigation or successful login response
-    await page.waitForURL('https://app.associateattorney.ai/all-workspaces/dashboard');
+    await page.waitForURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
     //await page.waitForURL('http://localhost/all-workspaces/dashboard');
 
     // Verify login was successful (e.g., check if dashboard is visible)
-    await expect(page).toHaveURL('https://app.associateattorney.ai/all-workspaces/dashboard');
+    await expect(page).toHaveURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
     //await expect(page).toHaveURL('http://localhost/all-workspaces/dashboard');
 
     // Click the "New Workspace" button

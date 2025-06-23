@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const SITE_URL = 'https://app.associateattorney.ai'; 
+const SITE_URL = 'https://app.aiworkspace.pro'; 
 // const SITE_URL = 'http://localhost'; 
 
 test('Time log addition working', async ({ page }) => {

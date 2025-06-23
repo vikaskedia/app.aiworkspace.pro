@@ -2,14 +2,14 @@ import { test, expect } from '@playwright/test';
 
 test('Create an new account with valid credentials', async ({ page }) => {
     // Navigate to your login page
-    await page.goto('https://app.associateattorney.ai/login'); 
+    await page.goto('https://app.aiworkspace.pro/login'); 
 
     // Click the "Sign up" link
     await page.click('text=Sign up');
 
     // Wait for navigation and verify URL
-    await page.waitForURL('https://app.associateattorney.ai/signup');
-    await expect(page).toHaveURL('https://app.associateattorney.ai/signup');
+    await page.waitForURL('https://app.aiworkspace.pro/signup');
+    await expect(page).toHaveURL('https://app.aiworkspace.pro/signup');
 
     console.log("✅ Click on the Sign Up link and redirected to signup page from login page");
 
@@ -35,8 +35,8 @@ test('Create an new account with valid credentials', async ({ page }) => {
     await expect(page.locator('.el-message--success')).toBeVisible();
 
     // Wait for navigation to login page and verify URL
-    await page.waitForURL('https://app.associateattorney.ai/login');
-    await expect(page).toHaveURL('https://app.associateattorney.ai/login');
+    await page.waitForURL('https://app.aiworkspace.pro/login');
+    await expect(page).toHaveURL('https://app.aiworkspace.pro/login');
     
     console.log(`✅ New account has been created using mailid soumen+${timestamp}@grmtech.com`);
 });

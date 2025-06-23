@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { first } from 'lodash';
 
-const SITE_URL = 'https://app.associateattorney.ai';
+const SITE_URL = 'https://app.aiworkspace.pro';
 // const SITE_URL = 'http://localhost';
 
 test('Task comment download test', async ({ page }) => {

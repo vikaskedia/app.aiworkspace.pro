@@ -3,14 +3,14 @@ import { test, expect } from '@playwright/test';
 test('Talk-to-Dev new topic creation and verification', async ({ page }) => {
     console.log("Initialize test for Talk-to-Dev");
     
-    await page.goto('https://app.associateattorney.ai/login'); 
+    await page.goto('https://app.aiworkspace.pro/login'); 
     await page.fill('input[type="email"]', 'soumen+040225@grmtech.com');
     await page.fill('input[type="password"]', 'jaikalima99');
     await page.click('.submit-button');
 
     // Wait for navigation to the dashboard
-    await page.waitForURL('https://app.associateattorney.ai/all-workspaces/dashboard');
-    await expect(page).toHaveURL('https://app.associateattorney.ai/all-workspaces/dashboard');
+    await page.waitForURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
+    await expect(page).toHaveURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
 
     // Hover over the dropdown container in the header.
     await page.hover('header .header-right .el-dropdown');
@@ -23,8 +23,8 @@ test('Talk-to-Dev new topic creation and verification', async ({ page }) => {
     await talkToDevItem.click();
 
     // Wait for navigation to the Talk-to-Dev page
-    await page.waitForURL('https://app.associateattorney.ai/talk-to-dev');
-    await expect(page).toHaveURL('https://app.associateattorney.ai/talk-to-dev');
+    await page.waitForURL('https://app.aiworkspace.pro/talk-to-dev');
+    await expect(page).toHaveURL('https://app.aiworkspace.pro/talk-to-dev');
 
     // Verify that the header contains the text "Talk to Dev"
     const header = page.locator('header .header-center');

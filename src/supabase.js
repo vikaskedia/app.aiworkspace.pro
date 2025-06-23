@@ -8,7 +8,7 @@ class CrossDomainLocalStorage {
   constructor() {
     this.iframes = [];
     this.domains = [
-      'https://www.associateattorney.ai/forms/storage.html',
+      'https://www.aiworkspace.pro/forms/storage.html',
       'https://app.aiworkspace.pro/storage.html'
     ];
     this.initPromise = this.init();
@@ -140,7 +140,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       cookieOptions: {
-        domain: '.associateattorney.ai',
+        domain: '.aiworkspace.pro',
         path: '/',
         sameSite: 'Lax'
       }

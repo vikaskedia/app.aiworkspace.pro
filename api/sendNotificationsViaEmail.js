@@ -111,7 +111,7 @@ export default async function handler(req, res) {
                 .single();
 
               if (!taskError && taskData) {
-                taskUrl = `https://app.associateattorney.ai/single-workspace/${taskData.matter_id}/tasks/${notification.data.task_id}`;
+                taskUrl = `https://app.aiworkspace.pro/single-workspace/${taskData.matter_id}/tasks/${notification.data.task_id}`;
               }
             }
 
@@ -235,7 +235,7 @@ export default async function handler(req, res) {
                   </div>`;
             }
 
-            const emailResponse = await fetch('https://app.associateattorney.ai/api/sendemail', {
+            const emailResponse = await fetch('https://app.aiworkspace.pro/api/sendemail', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

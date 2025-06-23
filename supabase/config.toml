@@ -103,8 +103,8 @@ additional_redirect_urls = [
   "http://localhost:3000",
   "http://localhost",
   "http://localhost:5173",
-  "https://app.associateattorney.ai",
-  "https://www.associateattorney.ai"
+  "https://app.aiworkspace.pro",
+  "https://www.aiworkspace.pro"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

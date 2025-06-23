@@ -105,7 +105,7 @@ export default {
         user.value = userData
         // Generate referral link using username or user ID
         const username = userData.email.split('@')[0] // Simple way to get username
-        referralLink.value = `https://www.associateattorney.ai/?r=${username}`
+        referralLink.value = `https://www.aiworkspace.pro/?r=${username}`
       }
     }
 

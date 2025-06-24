@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
       watch: {
         ignored: ["**/coverage/**"],
       },
+      headers: {
+        'Permissions-Policy': 'browsing-topics=()'
+      }
     },
     preview: {
       port: 80,

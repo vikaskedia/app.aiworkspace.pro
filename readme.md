@@ -1,5 +1,5 @@
 # Goals:
-1. AI Workspace
+1. AI Workspace.
 
 # Features working:
 1. App running from vercel

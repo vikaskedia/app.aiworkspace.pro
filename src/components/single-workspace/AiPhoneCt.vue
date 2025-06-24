@@ -2036,6 +2036,28 @@ export default {
 
         if (error) throw error;
 
+        // Get transcript using Deepgram
+        this.$message.info('🎤 Generating transcript...');
+        const transcript = await this.getTranscriptFromDeepgram(publicUrl);
+        
+        // Generate summary using OpenAI
+        let summary = null;
+        if (transcript) {
+          this.$message.info('🤖 Generating summary...');
+          summary = await this.generateSummaryFromTranscript(transcript);
+        }
+        // Update the recording with transcript and summary
+        if (transcript || summary) {
+          const updateData = {};
+          if (transcript) updateData.recording_transcript = transcript;
+          if (summary) updateData.recording_summary = summary;
+          await supabase
+            .from('call_recordings')
+            .update(updateData)
+            .eq('id', recording.id);
+        }
+        // --- END RESTORE ---
+
         this.closeCallRecordingDialog();
         this.$message.success('Call recording uploaded successfully!');
 
@@ -2068,6 +2090,113 @@ export default {
         this.phoneTextActions = [];
       } finally {
         this.loadingPhoneTextActions = false;
+      }
+    },
+    
+    async getTranscriptFromDeepgram(audioUrl) {
+      try {
+        console.log('🎤 Getting transcript from Deepgram for:', audioUrl);
+        // Download the audio file from the URL
+        const audioResponse = await fetch(audioUrl);
+        if (!audioResponse.ok) {
+          throw new Error('Failed to download audio file');
+        }
+        const audioBuffer = await audioResponse.arrayBuffer();
+        // Make direct request to Deepgram API
+        const deepgramResponse = await fetch('https://api.deepgram.com/v1/listen?utterances=true&diarize=true&punctuate=true', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${import.meta.env.VITE_DEEPGRAM_API_KEY}`,
+            'Content-Type': 'audio/wav'
+          },
+          body: audioBuffer
+        });
+        if (!deepgramResponse.ok) {
+          const errorText = await deepgramResponse.text();
+          console.error('Deepgram API error:', deepgramResponse.status, errorText);
+          if (deepgramResponse.status === 0 || errorText.includes('CORS')) {
+            console.warn('CORS error detected - Deepgram API may not allow direct browser requests');
+            this.$message.warning('Transcription failed due to CORS restrictions. Please check your Deepgram API configuration.');
+            return null;
+          }
+          throw new Error(`Deepgram API error: ${deepgramResponse.status}`);
+        }
+        const deepgramResult = await deepgramResponse.json();
+        let transcript = '';
+        if (deepgramResult.results && deepgramResult.results.channels) {
+          const channel = deepgramResult.results.channels[0];
+          if (channel.alternatives && channel.alternatives[0]) {
+            transcript = channel.alternatives[0].transcript;
+          }
+        }
+        if (!transcript) {
+          console.warn('No transcript found in Deepgram response');
+          return null;
+        }
+        console.log('✅ Transcript received:', transcript.substring(0, 100) + '...');
+        return transcript;
+      } catch (error) {
+        console.error('❌ Error getting transcript:', error);
+        if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+          this.$message.warning('Transcription failed due to CORS restrictions. Please check your Deepgram API configuration.');
+        } else {
+          this.$message.error('Failed to generate transcript: ' + error.message);
+        }
+        return null;
+      }
+    },
+    async generateSummaryFromTranscript(transcript) {
+      if (!transcript) return null;
+      try {
+        console.log('🤖 Generating summary from transcript...');
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a helpful assistant that creates concise, professional summaries of phone call transcripts. Focus on key points, decisions, and action items.'
+              },
+              {
+                role: 'user',
+                content: `Please provide a concise summary of the following phone call transcript. Focus on the key points, decisions made, and any action items mentioned. Keep the summary professional and clear.\n\nTranscript:\n${transcript}\n\nSummary:`
+              }
+            ],
+            max_tokens: 500,
+            temperature: 0.3
+          })
+        });
+        if (!openaiResponse.ok) {
+          const errorText = await openaiResponse.text();
+          console.error('OpenAI API error:', openaiResponse.status, errorText);
+          if (openaiResponse.status === 0 || errorText.includes('CORS')) {
+            console.warn('CORS error detected - OpenAI API may not allow direct browser requests');
+            this.$message.warning('Summary generation failed due to CORS restrictions. Please check your OpenAI API configuration.');
+            return null;
+          }
+          throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+        }
+        const openaiResult = await openaiResponse.json();
+        const summary = openaiResult.choices?.[0]?.message?.content?.trim();
+        if (!summary) {
+          console.warn('No summary found in OpenAI response');
+          return null;
+        }
+        console.log('✅ Summary generated:', summary.substring(0, 100) + '...');
+        return summary;
+      } catch (error) {
+        console.error('❌ Error generating summary:', error);
+        if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+          this.$message.warning('Summary generation failed due to CORS restrictions. Please check your OpenAI API configuration.');
+        } else {
+          this.$message.error('Failed to generate summary: ' + error.message);
+        }
+        return null;
       }
     },
   }

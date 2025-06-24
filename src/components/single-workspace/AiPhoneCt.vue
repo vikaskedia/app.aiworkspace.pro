@@ -1,7 +1,7 @@
 <template>
   <div class="ai-phone-interface">
 
-    <div class="phone-layout">
+    <div class="phone-layout" :class="{ 'with-contact-panel': showContactDetailsPane }">
       <!-- Left Panel: Inbox/Navigation -->
       <div class="inbox-panel">
         <div class="panel-header">
@@ -141,7 +141,11 @@
               </div>
               <div>
                 <h4>
-                  {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
+                  <span 
+                    class="clickable-contact-name"
+                    @click="openContactDetailsPane(currentChat.fromPhoneNumber, currentChat.contact)">
+                    {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
+                  </span>
                   <template v-if="currentChat">
                     <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
                       <el-icon @click="openContactModal('add')" style="margin-left: 8px;cursor: pointer;"><Plus /></el-icon>
@@ -388,6 +392,106 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fourth Panel: Contact Details -->
+      <div v-if="showContactDetailsPane" class="contact-details-panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <h3>Contact Details</h3>
+            <el-button 
+              size="small" 
+              circle 
+              @click="closeContactDetailsPane"
+              class="close-btn">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
+        </div>
+        
+        <div class="contact-details-content">
+          <div v-if="selectedContactDetails" class="contact-full-details">
+            <!-- Contact Avatar -->
+            <div class="contact-avatar-large">
+              <el-icon><User /></el-icon>
+            </div>
+            
+            <!-- Contact Name -->
+            <h2 class="contact-name-large">{{ selectedContactDetails.name }}</h2>
+            
+            <!-- Contact Phone -->
+            <div class="contact-phone-large">
+              <el-icon><Phone /></el-icon>
+              <span>{{ selectedContactDetails.phone_number }}</span>
+            </div>
+            
+            <!-- Contact Tags -->
+            <div v-if="selectedContactDetails.tags && selectedContactDetails.tags.length" class="contact-tags-section">
+              <h4>Tags</h4>
+              <div class="contact-tags-list">
+                <el-tag 
+                  v-for="tag in selectedContactDetails.tags" 
+                  :key="tag" 
+                  size="medium"
+                  type="info"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
+            </div>
+            
+            <!-- Contact Actions -->
+            <!-- <div class="contact-actions-section">
+              <h4>Actions</h4>
+              <div class="contact-actions-list">
+                <el-button 
+                  type="primary" 
+                  @click="editContactFromPane"
+                  icon="EditPen">
+                  Edit Contact
+                </el-button>
+                <el-button 
+                  @click="viewContactHistory"
+                  icon="Clock">
+                  View History
+                </el-button>
+                <el-button 
+                  @click="composeMessageToContact"
+                  icon="Message">
+                  Send Message
+                </el-button>
+              </div>
+            </div> -->
+            
+            <!-- Contact Statistics -->
+            <!-- <div class="contact-stats-section">
+              <h4>Statistics</h4>
+              <div class="contact-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Total Messages</span>
+                  <span class="stat-value">{{ getContactMessageCount() }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Last Contact</span>
+                  <span class="stat-value">{{ getContactLastContact() }}</span>
+                </div>
+              </div>
+            </div> -->
+          </div>
+          
+          <!-- No contact found -->
+          <div v-else class="no-contact-found">
+            <el-icon class="large-icon"><User /></el-icon>
+            <h3>Contact Not Found</h3>
+            <p>This contact is not in your contacts list.</p>
+            <el-button 
+              type="primary" 
+              @click="addContactFromPane"
+              icon="Plus">
+              Add to Contacts
+            </el-button>
           </div>
         </div>
       </div>
@@ -920,6 +1024,8 @@ export default {
       showTranscriptDialog: false,
       currentTranscript: '',
       summaryCollapse: {},
+      showContactDetailsPane: false,
+      selectedContactDetails: null,
     };
   },
   computed: {
@@ -2152,6 +2258,115 @@ export default {
       this.showTranscriptDialog = false;
       this.currentTranscript = '';
     },
+    openContactDetailsPane(phoneNumber, contactName) {
+      // Find the contact in workspace contacts
+      const contact = this.workspaceContacts.find(c => 
+        c.phone_number === phoneNumber || 
+        c.phone_number === phoneNumber.slice(-10) ||
+        c.phone_number === phoneNumber.replace(/\D/g, '').slice(-10)
+      );
+      
+      if (contact) {
+        this.selectedContactDetails = { ...contact };
+      } else {
+        // If contact not found, create a placeholder with the phone number
+        this.selectedContactDetails = {
+          name: contactName || 'Unknown Contact',
+          phone_number: phoneNumber.replace(/\D/g, '').slice(-10),
+          tags: []
+        };
+      }
+      
+      this.showContactDetailsPane = true;
+    },
+    
+    closeContactDetailsPane() {
+      this.showContactDetailsPane = false;
+      this.selectedContactDetails = null;
+    },
+    
+    editContactFromPane() {
+      this.contactModalMode = 'edit';
+      this.contactModalForm = {
+        name: this.selectedContactDetails.name,
+        phone_number: this.selectedContactDetails.phone_number,
+        tags: this.selectedContactDetails.tags ? [...this.selectedContactDetails.tags] : []
+      };
+      this.showContactModal = true;
+      this.closeContactDetailsPane();
+    },
+    
+    addContactFromPane() {
+      this.contactModalMode = 'add';
+      this.contactModalForm = {
+        name: this.selectedContactDetails.name,
+        phone_number: this.selectedContactDetails.phone_number,
+        tags: []
+      };
+      this.showContactModal = true;
+      this.closeContactDetailsPane();
+    },
+    
+    getContactMessageCount() {
+      if (!this.selectedContactDetails) return 0;
+      
+      // Count messages for this contact across all conversations
+      const phoneNumber = this.selectedContactDetails.phone_number;
+      let count = 0;
+      
+      this.realtimeConversations.forEach(conv => {
+        if (conv.fromPhoneNumber === phoneNumber || 
+            conv.fromPhoneNumber === `+1${phoneNumber}` ||
+            conv.fromPhoneNumber.slice(-10) === phoneNumber) {
+          count += conv.messages ? conv.messages.length : 0;
+        }
+      });
+      
+      return count;
+    },
+    
+    getContactLastContact() {
+      if (!this.selectedContactDetails) return 'Never';
+      
+      const phoneNumber = this.selectedContactDetails.phone_number;
+      let lastContact = null;
+      
+      this.realtimeConversations.forEach(conv => {
+        if (conv.fromPhoneNumber === phoneNumber || 
+            conv.fromPhoneNumber === `+1${phoneNumber}` ||
+            conv.fromPhoneNumber.slice(-10) === phoneNumber) {
+          if (conv.lastMessageTime) {
+            const convTime = new Date(conv.lastMessageTime);
+            if (!lastContact || convTime > lastContact) {
+              lastContact = convTime;
+            }
+          }
+        }
+      });
+      
+      if (!lastContact) return 'Never';
+      
+      const now = new Date();
+      const diffTime = Math.abs(now - lastContact);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return 'Today';
+      } else if (diffDays === 1) {
+        return 'Yesterday';
+      } else if (diffDays < 7) {
+        return `${diffDays} days ago`;
+      } else {
+        return lastContact.toLocaleDateString();
+      }
+    },
+    
+    composeMessageToContact() {
+      this.showNewMessageDialog = true;
+      this.resetNewMessageForm();
+      this.selectedRecipient = this.selectedContactDetails.phone_number;
+      this.closeContactDetailsPane();
+    },
   }
 };
 </script>
@@ -2207,6 +2422,46 @@ export default {
   background: white;
   display: flex;
   flex-direction: column;
+}
+
+/* Fourth Panel: Contact Details */
+.contact-details-panel {
+  width: 25%;
+  height: 100%;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Adjust panel widths when contact details panel is visible */
+.phone-layout:has(.contact-details-panel) .inbox-panel {
+  width: 15%;
+}
+
+.phone-layout:has(.contact-details-panel) .chats-panel {
+  width: 25%;
+}
+
+.phone-layout:has(.contact-details-panel) .chat-panel {
+  width: 35%;
+}
+
+/* Fallback for browsers that don't support :has() */
+.phone-layout.with-contact-panel .inbox-panel {
+  width: 15%;
+}
+
+.phone-layout.with-contact-panel .chats-panel {
+  width: 25%;
+}
+
+.phone-layout.with-contact-panel .chat-panel {
+  width: 35%;
+}
+
+.phone-layout.with-contact-panel .contact-details-panel {
+  width: 25%;
 }
 
 .panel-header {
@@ -2382,8 +2637,8 @@ export default {
 
 .unread-indicator {
   position: absolute;
-  top: 0;
-  right: 0;
+  height: 100%;
+  border-left: 1px solid #e0e0e0;
   width: 12px;
   height: 12px;
   background: #4caf50;
@@ -3255,5 +3510,192 @@ export default {
   color: #222;
   word-break: break-word;
   flex: 1;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.contact-details-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.contact-full-details {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.contact-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #1976d2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+  font-size: 2rem;
+}
+
+.contact-name-large {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.contact-phone-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.contact-phone-large .el-icon {
+  color: #1976d2;
+}
+
+.contact-tags-section,
+.contact-actions-section,
+.contact-stats-section {
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.contact-tags-section h4,
+.contact-actions-section h4,
+.contact-stats-section h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contact-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contact-tags-list .el-tag {
+  margin: 0;
+}
+
+.contact-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contact-actions-list .el-button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.contact-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.no-contact-found {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #666;
+}
+
+.no-contact-found .large-icon {
+  font-size: 3rem;
+  color: #ccc;
+  margin-bottom: 1rem;
+}
+
+.no-contact-found h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.no-contact-found p {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+  color: #333;
+  background: #f5f5f5;
+}
+
+/* Responsive adjustments for contact details panel */
+@media (max-width: 768px) {
+  .contact-details-panel {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .contact-actions-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .contact-actions-list .el-button {
+    width: auto;
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+/* Clickable Contact Name Styles */
+.clickable-contact-name {
+  cursor: pointer;
+  color: #1976d2;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.clickable-contact-name:hover {
+  color: #1565c0;
+  text-decoration: none;
 }
 </style>

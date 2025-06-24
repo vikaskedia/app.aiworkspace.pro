@@ -207,6 +207,15 @@
                         <el-dropdown-item command="upload-before">Upload phone call recording</el-dropdown-item>
                         <!-- <el-dropdown-item command="upload-after">Upload phone call recording after this message</el-dropdown-item> -->
                         <el-dropdown-item command="details">See message details</el-dropdown-item>
+                        <el-dropdown-item v-if="phoneTextActions.length" disabled divided>Text Message Actions</el-dropdown-item>
+                        <el-dropdown-item
+                          v-for="action in phoneTextActions"
+                          :key="'action-' + action.id"
+                          :command="'action-' + action.id"
+                          :loading="loadingPhoneTextActions"
+                        >
+                          {{ action.action_name }}
+                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
@@ -879,6 +888,9 @@ export default {
         ],
       },
       uploadingCallRecording: false,
+      // Phone text message actions
+      phoneTextActions: [],
+      loadingPhoneTextActions: false,
     };
   },
   computed: {
@@ -1122,6 +1134,18 @@ export default {
 
     // Load workspace contacts when component mounts
     await this.loadWorkspaceContacts();
+    // Load phone text message actions
+    await this.loadPhoneTextActions();
+  },
+  watch: {
+    currentMatter: {
+      handler(newMatter) {
+        if (newMatter && newMatter.id) {
+          this.loadPhoneTextActions();
+        }
+      },
+      immediate: false
+    }
   },
   methods: {
     togglePhoneExpand(phoneId) {
@@ -1882,6 +1906,41 @@ export default {
         this.selectedMessageForRecording = message;
         this.callRecordingForm.position = 'after';
         this.showCallRecordingDialog = true;
+      } else if (command.startsWith('action-')) {
+        // Find the action
+        const actionId = command.replace('action-', '');
+        const action = this.phoneTextActions.find(a => a.id == actionId);
+        if (!action) return;
+        // POST to the action's post_url with message data
+        this.executePhoneTextAction(action, message);
+      }
+    },
+    async executePhoneTextAction(action, message) {
+      try {
+        // You can customize the payload as needed
+        const payload = {
+          message_id: message.id,
+          text: message.text,
+          direction: message.direction,
+          timestamp: message.timestamp,
+          fromPhoneNumber: message.fromPhoneNumber,
+          toPhoneNumber: message.toPhoneNumber,
+          status: message.status,
+          mediaFiles: message.mediaFiles || [],
+          webhookData: message.webhookData || null,
+        };
+        const response = await fetch(action.post_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to execute action');
+        }
+        this.$message.success('Action sent successfully!');
+      } catch (error) {
+        this.$message.error('Failed to execute action: ' + (error.message || error));
       }
     },
     handleCallRecordingSelect(file) {
@@ -1988,6 +2047,27 @@ export default {
         this.$message.error(error.message || 'Failed to upload call recording');
       } finally {
         this.uploadingCallRecording = false;
+      }
+    },
+    async loadPhoneTextActions() {
+      this.loadingPhoneTextActions = true;
+      try {
+        if (!this.currentMatter || !this.currentMatter.id) {
+          this.phoneTextActions = [];
+          return;
+        }
+        const { data, error } = await supabase
+          .from('phone_text_message_actions')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        this.phoneTextActions = data || [];
+      } catch (error) {
+        this.$message.error('Error loading phone text actions: ' + (error.message || error));
+        this.phoneTextActions = [];
+      } finally {
+        this.loadingPhoneTextActions = false;
       }
     },
   }

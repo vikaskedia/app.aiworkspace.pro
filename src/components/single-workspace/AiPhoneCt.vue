@@ -297,7 +297,7 @@
                   </div>
                   
                   <!-- Collapsible Summary Section -->
-                  <el-collapse v-model="summaryCollapse" class="call-summary-collapse">
+                  <el-collapse v-model="summaryCollapse[item.item.id]" class="call-summary-collapse">
                     <el-collapse-item name="summary">
                       <template #title>
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -911,7 +911,7 @@ export default {
       loadingPhoneTextActions: false,
       showTranscriptDialog: false,
       currentTranscript: '',
-      summaryCollapse: [],
+      summaryCollapse: {},
     };
   },
   computed: {

@@ -5,32 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Custom storage implementation
 class CrossDomainLocalStorage {
-  constructor() {
-    this.iframes = [];
-    this.domains = [
-      'https://www.aiworkspace.pro/forms/storage.html',
-      'https://app.aiworkspace.pro/storage.html'
-    ];
-    this.initPromise = this.init();
-  }
-
-  async init() {
-    return Promise.all(this.domains.map(domain => {
-      return new Promise((resolve) => {
-        const iframe = document.createElement('iframe');
-        iframe.src = domain;
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        iframe.onload = () => {
-          this.iframes.push(iframe);
-          resolve();
-        };
-      });
-    }));
-  }
-
-  async setItem(key, value) {
+   async setItem(key, value) {
     await this.initPromise;
     
     // Also set in local storage

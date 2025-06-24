@@ -442,6 +442,43 @@
               </div>
             </div>
             
+            <!-- Contact Notes -->
+            <div class="contact-notes-section">
+              <div class="notes-header">
+                <h4>Notes</h4>
+              </div>
+              <div class="notes-content">
+                <div class="notes-list" v-if="contactNotes.length > 0">
+                  <div v-for="note in contactNotes" :key="note.id" class="note-item">
+                    <div class="note-header">
+                      <span class="note-timestamp">{{ formatDate(note.created_at) }}</span>
+                    </div>
+                    <div class="note-text">{{ note.note }}</div>
+                  </div>
+                </div>
+                <div v-else class="no-notes">
+                  No notes added yet
+                </div>
+              </div>
+              <div class="notes-input-section">
+                <el-input
+                  v-model="newNote"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Add a note..."
+                  class="note-input"
+                />
+                <el-button 
+                  type="primary"
+                  :icon="Check"
+                  circle
+                  class="save-note-btn"
+                  @click="saveContactNote"
+                  :disabled="!newNote.trim()"
+                />
+              </div>
+            </div>
+            
             <!-- Contact Actions -->
             <!-- <div class="contact-actions-section">
               <h4>Actions</h4>
@@ -803,12 +840,13 @@ import {
   Folder,
   Upload
 } from '@element-plus/icons-vue';
-import { computed } from 'vue';
+import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
+import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   name: 'AiPhoneCt',
@@ -879,6 +917,9 @@ export default {
       selectedRecipient: null,
       
       chatSearchQuery: '',
+      
+      // Icons
+      Check: markRaw(Check),
       
       conversations: [
         {
@@ -1026,6 +1067,8 @@ export default {
       summaryCollapse: {},
       showContactDetailsPane: false,
       selectedContactDetails: null,
+      contactNotes: [],
+      newNote: '',
     };
   },
   computed: {
@@ -2258,7 +2301,7 @@ export default {
       this.showTranscriptDialog = false;
       this.currentTranscript = '';
     },
-    openContactDetailsPane(phoneNumber, contactName) {
+        async openContactDetailsPane(phoneNumber, contactName) {
       // Find the contact in workspace contacts
       const contact = this.workspaceContacts.find(c => 
         c.phone_number === phoneNumber || 
@@ -2278,11 +2321,16 @@ export default {
       }
       
       this.showContactDetailsPane = true;
+      
+      // Load notes after the pane is shown
+      await this.loadContactNotes();
     },
     
     closeContactDetailsPane() {
       this.showContactDetailsPane = false;
       this.selectedContactDetails = null;
+      this.contactNotes = [];
+      this.newNote = '';
     },
     
     editContactFromPane() {
@@ -2366,6 +2414,59 @@ export default {
       this.resetNewMessageForm();
       this.selectedRecipient = this.selectedContactDetails.phone_number;
       this.closeContactDetailsPane();
+    },
+    async loadContactNotes() {
+      if (!this.currentChat?.id) return;
+      
+      try {
+        const { data: notes, error } = await supabase
+          .from('conversation_notes')
+          .select('*')
+          .eq('conversation_id', this.currentChat.id)
+          .eq('archived', false)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        this.contactNotes = notes || [];
+      } catch (error) {
+        console.error('Error loading conversation notes:', error);
+        this.$message.error('Error loading notes: ' + error.message);
+      }
+    },
+    
+    async saveContactNote() {
+      try {
+        if (!this.currentChat?.id) {
+          this.$message.info('No conversation selected');
+          return;
+        }
+
+        if (!this.newNote.trim()) return;
+
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const { error } = await supabase
+          .from('conversation_notes')
+          .insert({
+            conversation_id: this.currentChat.id,
+            note: this.newNote.trim(),
+            created_by: user.id
+          });
+
+        if (error) throw error;
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
+        // Clear input and reload notes
+        this.newNote = '';
+        await this.loadContactNotes();
+        
+        this.$message.success('Note added successfully');
+      } catch (error) {
+        console.error('Error saving note:', error);
+        this.$message.error('Error saving note: ' + error.message);
+      }
     },
   }
 };
@@ -3697,5 +3798,100 @@ export default {
 .clickable-contact-name:hover {
   color: #1565c0;
   text-decoration: none;
+}
+
+.contact-notes-section {
+  margin-bottom: 2rem;
+  text-align: left;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.notes-header h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.notes-content {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid #e9ecef;
+  border-bottom: none;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.note-item {
+  background: white;
+  border-radius: 8px;
+  padding: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.note-header {
+  margin-bottom: 0.5rem;
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.note-text {
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.no-notes {
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+.notes-input-section {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 0 0 8px 8px;
+}
+
+.note-input {
+  flex: 1;
+}
+
+.note-input :deep(.el-textarea__inner) {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.75rem;
+  resize: none;
+}
+
+.note-input :deep(.el-textarea__inner:focus) {
+  box-shadow: none;
+  border-color: #409eff;
+}
+
+.save-note-btn {
+  align-self: flex-end;
 }
 </style>

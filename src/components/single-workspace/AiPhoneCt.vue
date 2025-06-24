@@ -296,16 +296,18 @@
                     <span class="call-date">{{ formatDate(item.item.recorded_at) }}</span>
                   </div>
                   
-                  <!-- Placeholder for transcript and summary -->
-                  <div v-if="item.item.recording_transcript" class="call-transcript">
-                    <h4>Transcript:</h4>
-                    <p>{{ item.item.recording_transcript }}</p>
-                  </div>
-                  
-                  <div v-if="item.item.recording_summary" class="call-summary">
-                    <h4>Summary:</h4>
-                    <p>{{ item.item.recording_summary }}</p>
-                  </div>
+                  <!-- Collapsible Summary Section -->
+                  <el-collapse v-model="summaryCollapse" class="call-summary-collapse">
+                    <el-collapse-item name="summary">
+                      <template #title>
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                          <span>Summary</span>
+                        </div>
+                      </template>
+                      <div v-html="renderMarkdown(item.item.recording_summary)"></div>
+                      <p class="transcript-link" style="float: right;margin-right: 10px;" @click.stop="openTranscriptDialog(item.item.recording_transcript)">Show transcript</p>
+                    </el-collapse-item>
+                  </el-collapse>
                 </div>
               </div>
             </template>
@@ -648,6 +650,21 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Transcript Dialog -->
+    <el-dialog
+      v-model="showTranscriptDialog"
+      title="Call Transcript"
+      width="600px"
+      :before-close="closeTranscriptDialog"
+    >
+      <div style="max-height: 400px; overflow-y: auto; white-space: pre-wrap;">
+        {{ currentTranscript }}
+      </div>
+      <template #footer>
+        <el-button @click="closeTranscriptDialog">Close</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -679,6 +696,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
+import { marked } from 'marked';
 
 export default {
   name: 'AiPhoneCt',
@@ -891,6 +909,9 @@ export default {
       // Phone text message actions
       phoneTextActions: [],
       loadingPhoneTextActions: false,
+      showTranscriptDialog: false,
+      currentTranscript: '',
+      summaryCollapse: [],
     };
   },
   computed: {
@@ -2097,6 +2118,17 @@ export default {
         this.loadingPhoneTextActions = false;
       }
     },
+    renderMarkdown(text) {
+      return marked.parse(text || '');
+    },
+    openTranscriptDialog(transcript) {
+      this.currentTranscript = transcript;
+      this.showTranscriptDialog = true;
+    },
+    closeTranscriptDialog() {
+      this.showTranscriptDialog = false;
+      this.currentTranscript = '';
+    },
   }
 };
 </script>
@@ -3114,6 +3146,10 @@ export default {
   border: 1px solid #e0e0e0;
 }
 
+.call-summary {
+  color: black;
+  font-size: 12px;
+}
 .call-transcript h4,
 .call-summary h4 {
   margin: 0 0 0.5rem 0;
@@ -3148,5 +3184,19 @@ export default {
 .file-info .file-size {
   color: #666;
   font-size: 0.8rem;
+}
+
+.transcript-link {
+  font-size: 12px;
+  color: #888;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.call-summary-collapse {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  padding: 5px;
 }
 </style>

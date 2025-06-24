@@ -32,6 +32,7 @@
     "lodash": "^4.17.21",
     "mailersend": "^2.3.0",
     "mailparser": "^3.7.3",
+    "marked": "^15.0.12",
     "mitt": "^3.0.1",
     "mixpanel-browser": "^2.61.2",
     "moment": "^2.29.4",

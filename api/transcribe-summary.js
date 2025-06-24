@@ -35,8 +35,24 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Deepgram error: ' + errorText });
   }
   const deepgramData = await deepgramRes.json();
+
+  // Add this helper function at the top or before the handler
+  function formatUtterances(utterances) {
+    return utterances.map(u => {
+      // Format timestamp as mm:ss
+      const mins = Math.floor(u.start / 60);
+      const secs = Math.floor(u.start % 60).toString().padStart(2, '0');
+      const time = `${mins}:${secs}`;
+      // Speaker label (can be 'Speaker 0', 'Speaker 1', etc.)
+      const speaker = u.speaker !== undefined ? `Speaker ${u.speaker}` : 'Speaker';
+      return `${time} ${speaker}: ${u.transcript}`;
+    }).join('\n');
+  }
+
   let transcript = '';
-  if (deepgramData.results && deepgramData.results.channels) {
+  if (deepgramData.results && deepgramData.results.utterances && deepgramData.results.utterances.length > 0) {
+    transcript = formatUtterances(deepgramData.results.utterances);
+  } else if (deepgramData.results && deepgramData.results.channels) {
     const channel = deepgramData.results.channels[0];
     if (channel.alternatives && channel.alternatives[0]) {
       transcript = channel.alternatives[0].transcript;
@@ -47,7 +63,7 @@ export default async function handler(req, res) {
   }
 
   // 3. Send transcript to OpenAI for summary
-  const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+  const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', { 
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.AI_PHONE_OPEN_API_KEY}`,

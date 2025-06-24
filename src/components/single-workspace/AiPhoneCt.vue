@@ -82,6 +82,26 @@
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
+          <el-select
+            v-model="selectedTags"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="Filter by tags..."
+            size="small"
+            class="tag-filter-input"
+            clearable>
+            <el-option
+              v-for="tag in availableTags"
+              :key="tag"
+              :label="tag"
+              :value="tag">
+              <div class="tag-option">
+                <el-icon><User /></el-icon>
+                <span>{{ tag }}</span>
+              </div>
+            </el-option>
+          </el-select>
         </div>
 
         <div class="conversations-list">
@@ -918,6 +938,9 @@ export default {
       
       chatSearchQuery: '',
       
+      // Tag filtering
+      selectedTags: [],
+      
       // Icons
       Check: markRaw(Check),
       
@@ -1138,31 +1161,22 @@ export default {
 
       let filtered = this.realtimeConversations || [];
       
-      //console.log('🔍 Debug - filteredConversations called');
-      //console.log('🔍 Debug - selectedInboxItem:', this.selectedInboxItem);
-      //console.log('🔍 Debug - realtimeConversations:', this.realtimeConversations);
-      
       const [folderType, phoneId] = this.selectedInboxItem.split('_');
-      //console.log('🔍 Debug - folderType:', folderType, 'phoneId:', phoneId);
       
       // Get the phone number for the selected phone ID
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
-      //console.log('🔍 Debug - found phone:', phone);
       
       if (phone) {
         // Filter by phone number
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
-        //console.log('🔍 Debug - after phone filter:', filtered);
         
         // Filter by folder status
         if (folderType === 'working') {
           // Treat conversations without status as primary (working)
           filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
-          //console.log('🔍 Debug - after working filter:', filtered);
         } else if (folderType === 'archived') {
           // Only show conversations that explicitly have archived status
           filtered = filtered.filter(conv => conv.status === 'archived');
-          //console.log('🔍 Debug - after archived filter:', filtered);
         }
       }
       
@@ -1180,7 +1194,63 @@ export default {
         });
       }
       
-      //console.log('🔍 Debug - final filtered conversations:', filtered);
+      
+      if (this.selectedTags.length > 0) { // Apply tag filtering
+        // If contacts haven't loaded yet, don't filter
+        if (!this.workspaceContacts || this.workspaceContacts.length === 0) {
+          return filtered;
+        }
+        
+        // Debug: Show which contacts have the selected tag
+        const contactsWithTag = this.workspaceContacts.filter(c => 
+          c.tags && c.tags.some(tag => this.selectedTags.includes(tag))
+        );
+        
+        // Debug: Show which of these contacts have conversations
+        const contactPhonesWithTag = contactsWithTag.map(c => c.phone_number);
+        const conversationsForTaggedContacts = filtered.filter(conv => {
+          const convPhone = conv.phoneNumber || conv.contact || '';
+          const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+          return contactPhonesWithTag.some(contactPhone => {
+            const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+            return normalizedConvPhone === normalizedContactPhone;
+          });
+        });
+        
+        filtered = filtered.filter(conv => {
+          // Find the contact for this conversation using multiple phone number formats
+          const contact = this.workspaceContacts.find(c => {
+            // Try different phone number formats
+            // Use phoneNumber (contact's phone) instead of fromPhoneNumber (business phone)
+            const convPhone = conv.phoneNumber || conv.contact || '';
+            const contactPhone = c.phone_number || '';
+            
+            // Normalize phone numbers for comparison - remove all non-digits and take last 10
+            const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+            const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+            
+            // Also try comparing with the full number (including country code)
+            const fullConvPhone = convPhone.replace(/\D/g, '');
+            const fullContactPhone = contactPhone.replace(/\D/g, '');
+            
+            // Try both last 10 digits and full number comparison
+            return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+          });
+          
+          // If no contact found, don't show in tag-filtered results
+          if (!contact || !contact.tags || contact.tags.length === 0) {
+            return false;
+          }
+          
+          // Check if the contact has any of the selected tags
+          const hasMatchingTag = this.selectedTags.some(selectedTag => 
+            contact.tags.includes(selectedTag)
+          );
+          
+          return hasMatchingTag;
+        });
+      }
+    
       return filtered;
     },
     
@@ -1280,12 +1350,15 @@ export default {
     availableTags() {
       // Collect all unique tags from workspaceContacts
       const allTags = new Set();
+      
       this.workspaceContacts.forEach(contact => {
         if (contact.tags) {
           contact.tags.forEach(tag => allTags.add(tag));
         }
       });
-      return Array.from(allTags).sort();
+      
+      const tags = Array.from(allTags).sort();
+      return tags;
     },
 
     callRecordings() {
@@ -1348,10 +1421,8 @@ export default {
     },
 
     selectInboxItem(itemId) {
-      //console.log('🔍 Debug - selectInboxItem called with:', itemId);
       this.selectedInboxItem = itemId;
       this.selectedConversation = null;
-      ////console.log('🔍 Debug - selectedInboxItem set to:', this.selectedInboxItem);
     },
 
     getSelectedPhoneNumber() {
@@ -2690,6 +2761,22 @@ export default {
 
 .search-input {
   margin-top: 0.5rem;
+}
+
+.tag-filter-input {
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.tag-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tag-option .el-icon {
+  color: #1976d2;
+  font-size: 14px;
 }
 
 .conversations-list {

@@ -658,8 +658,16 @@
       width="600px"
       :before-close="closeTranscriptDialog"
     >
-      <div style="max-height: 400px; overflow-y: auto; white-space: pre-wrap;">
-        {{ currentTranscript }}
+      <div class="transcript-modal-content">
+        <div
+          v-for="(line, idx) in formattedTranscriptLines"
+          :key="idx"
+          class="transcript-line"
+        >
+          <span class="transcript-timestamp">{{ line.time }}</span>
+          <span class="transcript-speaker">{{ line.speaker }}:</span>
+          <span class="transcript-text">{{ line.text }}</span>
+        </div>
       </div>
       <template #footer>
         <el-button @click="closeTranscriptDialog">Close</el-button>
@@ -1143,6 +1151,21 @@ export default {
       }
       const [folderType, phoneId] = this.selectedInboxItem.split('_');
       return folderType === 'working';
+    },
+    formattedTranscriptLines() {
+      if (!this.currentTranscript) return [];
+      // Each line: "0:01 Speaker 0: Hello?"
+      return this.currentTranscript.split('\n').map(line => {
+        const match = line.match(/^(\d+:\d+)\s+([^:]+):\s*(.*)$/);
+        if (match) {
+          return {
+            time: match[1],
+            speaker: match[2],
+            text: match[3]
+          };
+        }
+        return { time: '', speaker: '', text: line };
+      });
     },
   },
   async mounted() {
@@ -3198,5 +3221,39 @@ export default {
   overflow: hidden;
   background: #fff;
   padding: 5px;
+}
+
+.transcript-modal-content {
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 15px;
+  background: #fafbfc;
+  padding: 8px 0;
+}
+.transcript-line {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.transcript-timestamp {
+  color: #888;
+  min-width: 48px;
+  margin-right: 8px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.transcript-speaker {
+  font-weight: bold;
+  color: #333;
+  margin-right: 6px;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.transcript-text {
+  color: #222;
+  word-break: break-word;
+  flex: 1;
 }
 </style>

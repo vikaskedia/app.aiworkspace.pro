@@ -2040,7 +2040,7 @@ export default {
         let transcript = null;
         let summary = null;
         try {
-          const apiRes = await fetch('/api/transcribe-summary', {
+          const apiRes = await fetch('https://app.aiworkspace.pro/api/transcribe-summary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ audioUrl: publicUrl })

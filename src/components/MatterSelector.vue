@@ -247,15 +247,14 @@ export default {
       
       <template #dropdown>
         <el-dropdown-menu>
-          <el-dropdown-item @click="handleMatterSelect(null)">
-            All Workspaces
+          <el-dropdown-item>
+            <a href="/all-workspace/tasks">All Workspaces</a>
           </el-dropdown-item>
           <el-dropdown-item divided />
           <el-dropdown-item
             v-for="matter in matters"
-            :key="matter.id"
-            @click="handleMatterSelect(matter)">
-            {{ matter.title }}
+            :key="matter.id">
+            <a :href="`/single-workspace/${matter.id}/tasks`">{{ matter.title }}</a>
           </el-dropdown-item>
           <el-dropdown-item divided @click="dialogVisible = true">
             New Workspace
@@ -315,5 +314,13 @@ export default {
 
 .matter-dropdown-link:hover {
   background-color: rgba(0, 0, 0, 0.03);
+}
+
+:deep(.el-dropdown-menu__item a) {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 </style> 

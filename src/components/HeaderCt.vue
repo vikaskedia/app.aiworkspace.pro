@@ -362,29 +362,28 @@ export default {
             <el-dropdown-menu>
               <!-- Show these options when a specific matter is selected -->
               <template v-if="currentMatter">
-                <el-dropdown-item command="dashboard">Dashboard</el-dropdown-item>
-                <el-dropdown-item command="goals">Goals</el-dropdown-item>
-                <el-dropdown-item command="tasks">Tasks</el-dropdown-item>
-                <el-dropdown-item command="events">Events</el-dropdown-item>
-                <el-dropdown-item command="files">Files</el-dropdown-item>
-                <el-dropdown-item 
-                  command="outlines"
-                  :class="{ 'is-active': $route.path.includes('/outlines') }"
-                >Outlines</el-dropdown-item>
-                <el-dropdown-item command="communications">Communications</el-dropdown-item>
-                <el-dropdown-item command="ai_phone">AI Phone</el-dropdown-item>
-                <el-dropdown-item command="contacts">Contacts</el-dropdown-item>
-                <el-dropdown-item command="settings">Settings</el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/dashboard`">Dashboard</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/goals`">Goals</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/tasks`">Tasks</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/events`">Events</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/files`">Files</a></el-dropdown-item>
+                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
+                  <a :href="`/single-workspace/${currentMatter.id}/outlines`">Outlines</a>
+                </el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/communications`">Communications</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_phone`">AI Phone</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/contacts`">Contacts</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/settings`">Settings</a></el-dropdown-item>
               </template>
               <!-- Show these options when "All Workspaces" is selected -->
               <template v-else>
-                <el-dropdown-item command="all_dashboard">Dashboard</el-dropdown-item>
-                <el-dropdown-item command="all_tasks">Tasks</el-dropdown-item>
-                <el-dropdown-item command="all_goals">Goals</el-dropdown-item>
-                <el-dropdown-item command="all_events">Events</el-dropdown-item>
-                <el-dropdown-item command="all_files">Files</el-dropdown-item>
-                <el-dropdown-item command="all_contacts">Contacts</el-dropdown-item>
-                <el-dropdown-item command="all_settings">Settings</el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/dashboard">Dashboard</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/tasks">Tasks</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/goals">Goals</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/events">Events</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/files">Files</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/contacts">Contacts</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/settings">Settings</a></el-dropdown-item>
               </template>
             </el-dropdown-menu>
           </template>
@@ -588,6 +587,15 @@ export default {
 :deep(.el-dropdown-menu__item) {
   font-family: 'Open Sans', sans-serif !important;
   font-size: 0.9rem;
+}
+
+/* Add styles for dropdown anchor tags */
+:deep(.el-dropdown-menu__item a) {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* Add to existing styles */

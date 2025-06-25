@@ -20,7 +20,7 @@
               <span class="phone-number">{{ item.number }}</span>
               <div class="phone-tags-tree" style="margin-top: 4px;">
                 <div 
-                  v-if="availableTagsForPhone(item.number).length > 0"
+                  v-if="hierarchicalTagsForPhone(item.number).length > 0"
                   class="tags-toggle"
                   @click.stop="togglePhoneTagsExpand(item.id)"
                   style="cursor: pointer; font-size: 0.8rem; color: #666; margin-top: 2px;"
@@ -28,7 +28,7 @@
                   <el-icon style="margin-right: 4px;">
                     <component :is="expandedPhoneForTags === item.id ? 'ArrowDown' : 'ArrowRight'" />
                   </el-icon>
-                  Tags ({{ availableTagsForPhone(item.number).length }})
+                  Tags ({{ hierarchicalTagsForPhone(item.number).length }})
                 </div>
                 <div 
                   v-if="expandedPhoneForTags === item.id"
@@ -36,24 +36,60 @@
                   style="margin-left: 16px; margin-top: 4px;"
                 >
                   <div
-                    v-for="tag in availableTagsForPhone(item.number)"
-                    :key="tag"
-                    class="tag-item"
-                    :class="{ active: selectedTagByPhone[item.id] === tag }"
-                    @click.stop="togglePhoneTagFilter(item.id, tag)"
-                    style="padding: 2px 6px; margin: 1px 0; cursor: pointer; border-radius: 4px; font-size: 0.95rem;border-bottom: 1px solid #3276d2; display: flex; align-items: center; justify-content: space-between;"
+                    v-for="tagGroup in hierarchicalTagsForPhone(item.number)"
+                    :key="tagGroup.name"
+                    class="tag-group"
                   >
-                    <div style="display: flex; align-items: center;">
-                      <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
-                      {{ tag }}
-                    </div>
-                    <el-icon 
-                      v-if="selectedTagByPhone[item.id] === tag"
-                      @click.stop="togglePhoneTagFilter(item.id, null)"
-                      style="margin-left: 4px; font-size: 0.8rem; color: #67c23a; cursor: pointer;"
+                    <!-- Parent tag -->
+                    <div
+                      v-if="tagGroup.children.length === 0"
+                      class="tag-item"
+                      :class="{ active: selectedTagByPhone[item.id] === tagGroup.name }"
+                      @click.stop="togglePhoneTagFilter(item.id, tagGroup.name)"
+                      style="padding: 2px 6px; margin: 1px 0; cursor: pointer; border-radius: 4px; font-size: 0.95rem;border-bottom: 1px solid #3276d2; display: flex; align-items: center; justify-content: space-between;"
                     >
-                      <Close />
-                    </el-icon>
+                      <div style="display: flex; align-items: center;">
+                        <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
+                        {{ tagGroup.name }}
+                      </div>
+                      <el-icon 
+                        v-if="selectedTagByPhone[item.id] === tagGroup.name"
+                        @click.stop="togglePhoneTagFilter(item.id, null)"
+                        style="margin-left: 4px; font-size: 0.8rem; color: #67c23a; cursor: pointer;"
+                      >
+                        <Close />
+                      </el-icon>
+                    </div>
+                    
+                    <!-- Parent with children -->
+                    <div v-else class="parent-tag-container">
+                      <div class="parent-tag-header" style="font-weight: 600; color: #333; margin: 2px 0; padding: 2px 0;">
+                        {{ tagGroup.name }}
+                      </div>
+                      <div class="child-tags" style="margin-left: 12px;">
+                        <div
+                          v-for="childTag in tagGroup.children"
+                          :key="childTag.fullName"
+                          class="tag-item child-tag"
+                          :class="{ active: selectedTagByPhone[item.id] === childTag.fullName }"
+                          @click.stop="togglePhoneTagFilter(item.id, childTag.fullName)"
+                          style="padding: 2px 6px; margin: 1px 0; cursor: pointer; border-radius: 4px; font-size: 0.9rem; border-bottom: 1px solid #3276d2; display: flex; align-items: center; justify-content: space-between;"
+                        >
+                          <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 4px;">├─</span>
+                            <img src="/label_icon.png" style="margin-right: 4px; width: 10px; height: 10px;" />
+                            {{ childTag.name }}
+                          </div>
+                          <el-icon 
+                            v-if="selectedTagByPhone[item.id] === childTag.fullName"
+                            @click.stop="togglePhoneTagFilter(item.id, null)"
+                            style="margin-left: 4px; font-size: 0.7rem; color: #67c23a; cursor: pointer;"
+                          >
+                            <Close />
+                          </el-icon>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1438,28 +1474,63 @@ export default {
       });
     },
     availableTagsForPhone() {
-      // Returns a function that takes a phone number and returns unique tags for that phone
+      // Returns all available tags from workspace contacts
+      const allTags = new Set();
+      this.workspaceContacts.forEach(contact => {
+        if (contact.tags) {
+          contact.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      return Array.from(allTags).sort();
+    },
+
+    hierarchicalTagsForPhone() {
+      // Returns a function that takes a phone number and returns hierarchical tags
       return (phoneNumber) => {
-        const tagSet = new Set();
-        (this.realtimeConversations || []).forEach(conv => {
-          if (conv.fromPhoneNumber === phoneNumber) {
-            // Find the contact for this conversation
-            const contact = this.workspaceContacts.find(c => {
-              const convPhone = conv.phoneNumber || conv.contact || '';
-              const contactPhone = c.phone_number || '';
-              const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
-              const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
-              const fullConvPhone = convPhone.replace(/\D/g, '');
-              const fullContactPhone = contactPhone.replace(/\D/g, '');
-              return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
-            });
-            
-            if (contact && contact.tags) {
-              contact.tags.forEach(tag => tagSet.add(tag));
+        const allTags = this.availableTagsForPhone;
+        const tagGroups = {};
+        
+        // Group tags by parent
+        allTags.forEach(tag => {
+          if (tag.includes('.')) {
+            const [parent, child] = tag.split('.');
+            if (!tagGroups[parent]) {
+              tagGroups[parent] = [];
+            }
+            tagGroups[parent].push(child);
+          } else {
+            // Tags without dots are standalone
+            if (!tagGroups[tag]) {
+              tagGroups[tag] = [];
             }
           }
         });
-        return Array.from(tagSet).sort();
+        
+        // Convert to hierarchical structure
+        const hierarchical = [];
+        Object.keys(tagGroups).sort().forEach(parent => {
+          if (tagGroups[parent].length === 0) {
+            // Standalone tag
+            hierarchical.push({
+              name: parent,
+              type: 'parent',
+              children: []
+            });
+          } else {
+            // Parent with children
+            hierarchical.push({
+              name: parent,
+              type: 'parent',
+              children: tagGroups[parent].sort().map(child => ({
+                name: child,
+                type: 'child',
+                fullName: `${parent}.${child}`
+              }))
+            });
+          }
+        });
+        
+        return hierarchical;
       };
     },
   },
@@ -4544,5 +4615,81 @@ export default {
 
 .tag-item.clear-filter:hover {
   background: #f0f9ff;
+}
+
+.parent-tag-container {
+  margin-left: 12px;
+}
+
+.parent-tag-header {
+  font-weight: 600;
+  color: #333;
+  margin: 2px 0;
+  padding: 2px 0;
+}
+
+.child-tags {
+  margin-left: 12px;
+}
+
+.child-tag {
+  padding: 2px 6px;
+  margin: 1px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #3276d2;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.child-tag:hover {
+  background: #f5f5f5;
+}
+
+.child-tag.active {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.child-tag.clear-filter {
+  color: #67c23a;
+}
+
+.child-tag.clear-filter:hover {
+  background: #f0f9ff;
+}
+
+/* Hierarchical tag styles */
+.tag-group {
+  margin-bottom: 4px;
+}
+
+.parent-tag-container {
+  margin-bottom: 4px;
+}
+
+.parent-tag-header {
+  font-weight: 600;
+  color: #333;
+  margin: 2px 0;
+  padding: 2px 0;
+  font-size: 0.9rem;
+}
+
+.child-tags {
+  margin-left: 12px;
+}
+
+.child-tag {
+  font-size: 0.85rem;
+  padding: 1px 4px;
+}
+
+.child-tag .tag-icon {
+  margin-right: 4px;
+  width: 10px;
+  height: 10px;
 }
 </style>

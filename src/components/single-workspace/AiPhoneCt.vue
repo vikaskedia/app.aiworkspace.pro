@@ -222,7 +222,7 @@
               <div v-for="item in group.items" :key="item.type === 'message' ? item.item.id : item.item.id" :class="['message', item.type === 'message' ? item.item.direction : (item.associatedMessageDirection || 'inbound')]">
                 
                 <!-- Message Display -->
-                <div v-if="item.type === 'message'" class="message-content">
+                <div v-if="item.type === 'message'" class="message-content" @mouseenter="setHoveredMessage(item.item.id)" @mouseleave="setHoveredMessage(null)">
                   <!-- Settings Dropdown Menu -->
                   <el-dropdown @command="handleMessageMenuCommand($event, item.item)" style="float: right;bottom: 10px;left: 10px;">
                     <el-icon class="message-settings-icon" style="vertical-align: middle;"><More /></el-icon>
@@ -243,6 +243,22 @@
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
+                  
+                  <!-- Internal Comment Icon -->
+                  <el-tooltip content="Comment in internal thread" placement="top">
+                    <el-icon 
+                      v-show="hoveredMessage === item.item.id"
+                      class="internal-comment-icon" 
+                      @click="openInternalComments(item.item)">
+                      <ChatDotRound />
+                    </el-icon>
+                  </el-tooltip>
+                  
+                  <!-- Internal Comments Indicator -->
+                  <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="openInternalComments(item.item)">
+                    <el-icon><ChatDotRound /></el-icon>
+                    <span class="comments-count">{{ getInternalCommentsCount(item.item.id) }}</span>
+                  </div>
                   <!-- Media attachments -->
                   <div v-if="item.item.mediaFiles && item.item.mediaFiles.length > 0" class="message-media">
                     <div 
@@ -834,6 +850,77 @@
         <el-button @click="closeTranscriptDialog">Close</el-button>
       </template>
     </el-dialog>
+
+    <!-- Internal Comments Dialog -->
+    <el-dialog
+      v-model="showInternalCommentsDialog"
+      :title="`Internal Thread for Message`"
+      width="500px"
+      :before-close="closeInternalCommentsDialog"
+    >
+      <div class="internal-comments-content">
+        <!-- Original Message Context -->
+        <div class="original-message-context">
+          <div class="context-header">
+            <h4>Original Message</h4>
+            <span class="message-timestamp">{{ formatDate(selectedMessageForComments?.timestamp) }}</span>
+          </div>
+          <div class="context-message">
+            <div class="message-direction">
+              <el-tag :type="selectedMessageForComments?.direction === 'outbound' ? 'primary' : 'success'" size="small">
+                {{ selectedMessageForComments?.direction === 'outbound' ? 'Sent' : 'Received' }}
+              </el-tag>
+            </div>
+            <p class="message-text">{{ selectedMessageForComments?.text || 'Media message' }}</p>
+          </div>
+        </div>
+
+        <!-- Internal Comments List -->
+        <div class="internal-comments-list">
+          <div v-if="internalComments.length === 0" class="no-comments">
+            <el-icon class="no-comments-icon"><ChatDotRound /></el-icon>
+            <p>No internal comments yet. Start the conversation!</p>
+          </div>
+          
+          <div v-for="comment in internalComments" :key="comment.id" class="internal-comment-item">
+            <div class="comment-header">
+              <div class="comment-author">
+                <el-icon><User /></el-icon>
+                <span class="author-name">{{ comment.author_name || 'Unknown User' }}</span>
+              </div>
+              <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
+            </div>
+            <div class="comment-content">
+              <p>{{ comment.content }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add New Comment -->
+        <div class="add-comment-section">
+          <el-input
+            v-model="newInternalComment"
+            type="textarea"
+            :rows="3"
+            placeholder="Add an internal comment... (Only visible to your team)"
+            maxlength="500"
+            show-word-limit
+            class="comment-input"
+          />
+          <div class="comment-actions">
+            <el-button @click="closeInternalCommentsDialog">Cancel</el-button>
+            <el-button 
+              type="primary" 
+              @click="addInternalComment"
+              :disabled="!newInternalComment.trim()"
+              :loading="addingComment"
+            >
+              Add Comment
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -1092,6 +1179,15 @@ export default {
       selectedContactDetails: null,
       contactNotes: [],
       newNote: '',
+      
+      // Internal Comments
+      hoveredMessage: null,
+      showInternalCommentsDialog: false,
+      selectedMessageForComments: null,
+      internalComments: [],
+      newInternalComment: '',
+      addingComment: false,
+      messageInternalComments: {}, // Cache for message comments count
     };
   },
   computed: {
@@ -1448,6 +1544,9 @@ export default {
       
       // Load messages for this conversation using real-time composable
       await this.loadMessagesForConversation(conversation.id);
+      
+      // Load internal comments count for messages
+      await this.loadInternalCommentsCount();
       
       // Mark conversation as read using real-time composable
       await this.realtimeMarkAsRead(conversation.id);
@@ -2537,6 +2636,155 @@ export default {
       } catch (error) {
         console.error('Error saving note:', error);
         this.$message.error('Error saving note: ' + error.message);
+      }
+    },
+
+    // Internal Comments Methods
+    setHoveredMessage(messageId) {
+      this.hoveredMessage = messageId;
+    },
+
+    async openInternalComments(message) {
+      this.selectedMessageForComments = message;
+      this.showInternalCommentsDialog = true;
+      this.newInternalComment = '';
+      
+      // Load existing internal comments for this message
+      await this.loadInternalComments(message.id);
+    },
+
+    closeInternalCommentsDialog() {
+      this.showInternalCommentsDialog = false;
+      this.selectedMessageForComments = null;
+      this.internalComments = [];
+      this.newInternalComment = '';
+    },
+
+    async loadInternalComments(messageId) {
+      try {
+        const { data: comments, error } = await supabase
+          .from('message_internal_comments')
+          .select(`
+            *,
+            attorneys(name)
+          `)
+          .eq('message_id', messageId)
+          .eq('archived', false)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        // Add author name from the joined attorneys table
+        this.internalComments = (comments || []).map(comment => ({
+          ...comment,
+          author_name: comment.attorneys?.name || 'Unknown User'
+        }));
+
+      } catch (error) {
+        console.error('Error loading internal comments:', error);
+        this.$message.error('Error loading comments: ' + error.message);
+      }
+    },
+
+    async addInternalComment() {
+      if (!this.newInternalComment.trim() || !this.selectedMessageForComments) return;
+
+      this.addingComment = true;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Get the attorney record for the current user
+        const { data: attorney, error: attorneyError } = await supabase
+          .from('attorneys')
+          .select('id, name')
+          .eq('created_by', user.id)
+          .single();
+
+        if (attorneyError) {
+          console.error('Error finding attorney record:', attorneyError);
+          throw new Error('Could not find attorney record for current user');
+        }
+        
+        const { data: comment, error } = await supabase
+          .from('message_internal_comments')
+          .insert({
+            message_id: this.selectedMessageForComments.id,
+            content: this.newInternalComment.trim(),
+            matter_id: this.currentMatter.id,
+            conversation_id: this.currentChat.id,
+            created_by: attorney.id
+          })
+          .select(`
+            *,
+            attorneys(name)
+          `)
+          .single();
+
+        if (error) throw error;
+
+        // Add the new comment to the list with author name
+        const newComment = {
+          ...comment,
+          author_name: comment.attorneys?.name || attorney.name || 'Unknown User'
+        };
+        
+        this.internalComments.push(newComment);
+        
+        // Update the cache for comments count
+        const messageId = this.selectedMessageForComments.id;
+        this.messageInternalComments[messageId] = (this.messageInternalComments[messageId] || 0) + 1;
+        
+        // Force reactivity update
+        this.$forceUpdate();
+        
+        // Clear input
+        this.newInternalComment = '';
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+        
+        this.$message.success('Internal comment added successfully');
+
+      } catch (error) {
+        console.error('Error adding internal comment:', error);
+        this.$message.error('Error adding comment: ' + error.message);
+      } finally {
+        this.addingComment = false;
+      }
+    },
+
+    getInternalCommentsCount(messageId) {
+      return this.messageInternalComments[messageId] || 0;
+    },
+
+    async loadInternalCommentsCount() {
+      if (!this.currentChat?.messages) return;
+
+      try {
+        // Get all message IDs for the current conversation
+        const messageIds = this.currentChat.messages.map(m => m.id);
+        
+        if (messageIds.length === 0) return;
+
+        const { data: counts, error } = await supabase
+          .from('message_internal_comments')
+          .select('message_id')
+          .in('message_id', messageIds)
+          .eq('archived', false);
+
+        if (error) throw error;
+
+        // Count comments per message
+        const commentsCount = {};
+        counts.forEach(comment => {
+          commentsCount[comment.message_id] = (commentsCount[comment.message_id] || 0) + 1;
+        });
+
+        this.messageInternalComments = commentsCount;
+
+      } catch (error) {
+        console.error('Error loading internal comments count:', error);
       }
     },
   }
@@ -3706,6 +3954,262 @@ export default {
   }
   to {
     transform: translateX(0);
+  }
+}
+
+/* Internal Comments Styles */
+.internal-comment-icon {
+  position: absolute;
+  top: 8px;
+  right: 40px;
+  cursor: pointer;
+  color: #888;
+  font-size: 1rem;
+  z-index: 3;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.internal-comment-icon:hover {
+  color: #1976d2;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+
+.internal-comments-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #1976d2;
+  color: white;
+  border-radius: 12px;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 20px;
+  z-index: 4;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.internal-comments-indicator:hover {
+  background: #1565c0;
+  transform: scale(1.05);
+}
+
+.comments-count {
+  font-weight: 600;
+  line-height: 1;
+}
+
+.internal-comments-content {
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.original-message-context {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid #1976d2;
+}
+
+.context-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.context-header h4 {
+  margin: 0;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.message-timestamp {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.context-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.message-direction {
+  display: flex;
+  align-items: center;
+}
+
+.context-message .message-text {
+  margin: 0;
+  color: #333;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.internal-comments-list {
+  flex: 1;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 8px;
+}
+
+.no-comments {
+  text-align: center;
+  color: #666;
+  padding: 2rem 1rem;
+}
+
+.no-comments-icon {
+  font-size: 2rem;
+  color: #ccc;
+  margin-bottom: 0.5rem;
+}
+
+.no-comments p {
+  margin: 0;
+  font-style: italic;
+}
+
+.internal-comment-item {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.internal-comment-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #1976d2;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.comment-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1976d2;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.comment-author .el-icon {
+  font-size: 0.9rem;
+}
+
+.author-name {
+  color: #333;
+}
+
+.comment-time {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.comment-content {
+  color: #333;
+  line-height: 1.4;
+}
+
+.comment-content p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.add-comment-section {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.comment-input {
+  margin-bottom: 0.75rem;
+}
+
+.comment-input :deep(.el-textarea__inner) {
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  padding: 0.75rem;
+  resize: none;
+  font-family: inherit;
+}
+
+.comment-input :deep(.el-textarea__inner:focus) {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Custom scrollbar for comments list */
+.internal-comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.internal-comments-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.internal-comments-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.internal-comments-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Responsive adjustments for internal comments */
+@media (max-width: 768px) {
+  .internal-comments-content {
+    max-height: 60vh;
+  }
+  
+  .internal-comments-list {
+    max-height: 200px;
+  }
+  
+  .comment-actions {
+    flex-direction: column;
+  }
+  
+  .comment-actions .el-button {
+    width: 100%;
   }
 }
 

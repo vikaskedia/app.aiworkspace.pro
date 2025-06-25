@@ -131,7 +131,7 @@
                 <el-icon><User /></el-icon>
               </div>
               <div>
-                <h4>
+                <h4 style="display: flex; align-items: center;">
                   <span 
                     class="clickable-contact-name"
                     @click="openContactDetailsPane(currentChat.fromPhoneNumber, currentChat.contact)">
@@ -145,6 +145,42 @@
                       <el-icon @click="openContactModal('edit')" style="margin-left: 8px;cursor: pointer;"><EditPen /></el-icon>
                     </el-tooltip>
                   </template>
+                  <div class="conversation-labels-row">
+                    <el-tag
+                      v-for="label in currentChat?.labels || []"
+                      :key="label"
+                      closable
+                      size="small"
+                      @close="removeLabelFromConversation(label)"
+                      style="margin-right: 4px;"
+                    >{{ label }}</el-tag>
+                    <el-popover
+                      placement="bottom"
+                      width="220"
+                      v-model:visible="labelPopoverVisible"
+                      trigger="click"
+                    >
+                      <div>
+                        <el-input
+                          v-model="labelEditInput"
+                          size="small"
+                          placeholder="New label"
+                          @keyup.enter.native="addLabelToConversation(labelEditInput)"
+                          style="width: 120px; margin-right: 4px;"
+                          class="input_for_label"
+                        />
+                        <el-button size="small" type="primary" @click="addLabelToConversation(labelEditInput)">Add</el-button>
+                      </div>
+                      <template #reference>
+                        <el-button size="small" type="info" plain style="display: flex; align-items: center;">
+                          <el-tooltip content="Add label" placement="bottom">
+                            <img src="/label_icon.png" alt="Add Label" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;" />
+                          </el-tooltip>
+                          Labels
+                        </el-button>
+                      </template>
+                    </el-popover>
+                  </div>
                 </h4>
                 <!-- Contact Details -->
                 <div class="contact-details" v-if="getCurrentContact()">
@@ -1151,6 +1187,8 @@ export default {
       newInternalComment: '',
       addingComment: false,
       messageInternalComments: {}, // Cache for message comments count
+      labelEditInput: '',
+      labelPopoverVisible: false,
     };
   },
   computed: {
@@ -1392,6 +1430,16 @@ export default {
         }
         return { time: '', speaker: '', text: line };
       });
+    },
+    allConversationLabels() {
+      // Gather all unique labels from all conversations in the workspace
+      const labelSet = new Set();
+      (this.realtimeConversations || []).forEach(conv => {
+        if (Array.isArray(conv.labels)) {
+          conv.labels.forEach(l => labelSet.add(l));
+        }
+      });
+      return Array.from(labelSet).sort();
     },
   },
   async mounted() {
@@ -2677,6 +2725,52 @@ export default {
         console.error('Error loading internal comments count:', error);
       }
     },
+    getAllConversationLabels() {
+      // Not needed, handled by computed property
+    },
+    async addLabelToConversation(label) {
+      // If label is an object (e.g., from dropdown), try to extract the value
+      if (label && typeof label === 'object') {
+        if ('label' in label) {
+          label = label.label;
+        } else if ('value' in label) {
+          label = label.value;
+        } else {
+          label = '';
+        }
+      }
+      label = String(label || '').trim();
+      if (!label) return;
+      if (!this.currentChat) return;
+      if (this.currentChat.labels && this.currentChat.labels.includes(label)) return;
+      const newLabels = [...(this.currentChat.labels || []), label];
+      await this.updateConversationLabels(newLabels);
+      this.labelEditInput = '';
+      this.labelPopoverVisible = false;
+    },
+    async removeLabelFromConversation(label) {
+      if (!this.currentChat) return;
+      const newLabels = (this.currentChat.labels || []).filter(l => l !== label);
+      await this.updateConversationLabels(newLabels);
+    },
+    async updateConversationLabels(newLabels) {
+      if (!this.currentChat) return;
+      const conversationId = this.currentChat.id;
+      // Update in Supabase
+      const { error } = await supabase
+        .from('conversations')
+        .update({ labels: newLabels })
+        .eq('id', conversationId);
+      if (error) {
+        this.$message.error('Failed to update labels');
+        return;
+      }
+      // Update local state
+      this.currentChat.labels = newLabels;
+      // Also update in realtimeConversations array
+      const conv = this.realtimeConversations.find(c => c.id === conversationId);
+      if (conv) conv.labels = newLabels;
+    }
   }
 };
 </script>
@@ -4374,5 +4468,34 @@ export default {
 
 .save-note-btn {
   align-self: flex-end;
+}
+
+.conversation-labels-row {
+  display: inline-block;
+  margin-left: 12px;
+}
+
+.el-tag {
+  margin-right: 4px;
+}
+
+.el-dropdown {
+  display: inline-block;
+}
+
+.el-dropdown-menu {
+  min-width: 200px;
+}
+
+.el-dropdown-item {
+  padding: 0.25rem 0.5rem;
+}
+
+.input_for_label {
+  width: 140px;
+}
+
+.el-button {
+  margin-left: 4px;
 }
 </style>

@@ -63,8 +63,23 @@
                     
                     <!-- Parent with children -->
                     <div v-else class="parent-tag-container">
-                      <div class="parent-tag-header" style="font-weight: 600; color: #333; margin: 2px 0; padding: 2px 0;">
-                        {{ tagGroup.name }}
+                      <div 
+                        class="parent-tag-header" 
+                        :class="{ active: selectedTagByPhone[item.id] === tagGroup.name }"
+                        @click.stop="togglePhoneTagFilter(item.id, tagGroup.name)"
+                        style="color: #333; margin: 2px 0; padding: 2px 0; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;"
+                      >
+                        <div style="display: flex; align-items: center;">
+                          <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" /> 
+                          {{ tagGroup.name }}
+                        </div>
+                        <el-icon 
+                          v-if="selectedTagByPhone[item.id] === tagGroup.name"
+                          @click.stop="togglePhoneTagFilter(item.id, null)"
+                          style="margin-left: 4px; font-size: 0.8rem; color: #67c23a; cursor: pointer;"
+                        >
+                          <Close />
+                        </el-icon>
                       </div>
                       <div class="child-tags" style="margin-left: 12px;">
                         <div
@@ -188,7 +203,7 @@
         </div>
       </div>
 
-      <!-- Right Panel: Individual Chat -->
+      <!-- Right Panel - Chat (45% width) -->
       <div class="chat-panel">
         <div v-if="!selectedConversation" class="no-chat-selected">
           <el-icon class="large-icon"><ChatDotRound /></el-icon>
@@ -1491,7 +1506,29 @@ export default {
     hierarchicalTagsForPhone() {
       // Returns a function that takes a phone number and returns hierarchical tags
       return (phoneNumber) => {
-        const allTags = this.availableTagsForPhone;
+        const tagSet = new Set();
+        
+        // Get tags only from contacts that have conversations with this phone number
+        (this.realtimeConversations || []).forEach(conv => {
+          if (conv.fromPhoneNumber === phoneNumber) {
+            // Find the contact for this conversation
+            const contact = this.workspaceContacts.find(c => {
+              const convPhone = conv.phoneNumber || conv.contact || '';
+              const contactPhone = c.phone_number || '';
+              const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+              const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+              const fullConvPhone = convPhone.replace(/\D/g, '');
+              const fullContactPhone = contactPhone.replace(/\D/g, '');
+              return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+            });
+            
+            if (contact && contact.tags) {
+              contact.tags.forEach(tag => tagSet.add(tag));
+            }
+          }
+        });
+        
+        const allTags = Array.from(tagSet).sort();
         const tagGroups = {};
         
         // Group tags by parent

@@ -443,7 +443,7 @@
                   type="textarea"
                   :rows="2"
                   placeholder="Type a message..."
-                  @keydown.enter.prevent="sendMessage"
+                  @keydown="handleMessageInputKeydown"
                   resize="none">
                 </el-input>
                 <div class="input-actions">
@@ -461,14 +461,18 @@
                   </el-upload>
                   
                   <!-- Send Button -->
-                  <el-button 
-                    type="primary" 
-                    @click="sendMessage"
-                    :disabled="!canSendMessage"
-                    :loading="sendingMessage">
-                    <el-icon><Promotion /></el-icon>
-                    Send
-                  </el-button>
+                  <el-tooltip 
+                    content="Send message (Enter) • New line (Shift+Enter)" 
+                    placement="top">
+                    <el-button 
+                      type="primary" 
+                      @click="sendMessage"
+                      :disabled="!canSendMessage"
+                      :loading="sendingMessage">
+                      <el-icon><Promotion /></el-icon>
+                      Send
+                    </el-button>
+                  </el-tooltip>
                 </div>
               </div>
             </div>
@@ -2060,6 +2064,19 @@ export default {
 
     clearSelectedFiles() {
       this.selectedFiles = [];
+    },
+
+    handleMessageInputKeydown(event) {
+      // Check if Enter is pressed
+      if (event.key === 'Enter') {
+        // If Shift is held down, allow default behavior (new line)
+        if (event.shiftKey) {
+          return; // Allow default textarea behavior for Shift+Enter
+        }
+        // If just Enter (no Shift), prevent default and send message
+        event.preventDefault();
+        this.sendMessage();
+      }
     },
 
     formatFileSize(bytes) {

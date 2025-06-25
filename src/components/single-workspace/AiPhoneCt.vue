@@ -14,12 +14,49 @@
             :key="item.id"
             :class="['inbox-item', { active: selectedInboxItem === item.id }]"
             @click="selectInboxItem(item.id)">
-            <el-icon>
-              <component :is="item.icon" />
-            </el-icon>
             <div class="item-info">
+              <el-icon><component :is="item.icon" /></el-icon>&nbsp;
               <span class="item-label">{{ item.label }}</span><br>
               <span class="phone-number">{{ item.number }}</span>
+              <div class="phone-tags-tree" style="margin-top: 4px;">
+                <div 
+                  v-if="availableTagsForPhone(item.number).length > 0"
+                  class="tags-toggle"
+                  @click.stop="togglePhoneTagsExpand(item.id)"
+                  style="cursor: pointer; font-size: 0.8rem; color: #666; margin-top: 2px;"
+                >
+                  <el-icon style="margin-right: 4px;">
+                    <component :is="expandedPhoneForTags === item.id ? 'ArrowDown' : 'ArrowRight'" />
+                  </el-icon>
+                  Tags ({{ availableTagsForPhone(item.number).length }})
+                </div>
+                <div 
+                  v-if="expandedPhoneForTags === item.id"
+                  class="tags-list"
+                  style="margin-left: 16px; margin-top: 4px;"
+                >
+                  <div
+                    v-for="tag in availableTagsForPhone(item.number)"
+                    :key="tag"
+                    class="tag-item"
+                    :class="{ active: selectedTagByPhone[item.id] === tag }"
+                    @click.stop="togglePhoneTagFilter(item.id, tag)"
+                    style="padding: 2px 6px; margin: 1px 0; cursor: pointer; border-radius: 4px; font-size: 0.95rem;border-bottom: 1px solid #3276d2; display: flex; align-items: center; justify-content: space-between;"
+                  >
+                    <div style="display: flex; align-items: center;">
+                      <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
+                      {{ tag }}
+                    </div>
+                    <el-icon 
+                      v-if="selectedTagByPhone[item.id] === tag"
+                      @click.stop="togglePhoneTagFilter(item.id, null)"
+                      style="margin-left: 4px; font-size: 0.8rem; color: #67c23a; cursor: pointer;"
+                    >
+                      <Close />
+                    </el-icon>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="item-right">
               <span v-if="item.count" class="count-badge">{{ item.count }}</span>
@@ -75,7 +112,7 @@
               :label="tag"
               :value="tag">
               <div class="tag-option">
-                <el-icon><User /></el-icon>
+                <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
                 <span>{{ tag }}</span>
               </div>
             </el-option>
@@ -913,7 +950,9 @@ import {
   Document,
   Paperclip,
   Close,
-  Upload
+  Upload,
+  ArrowDown,
+  ArrowRight
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -942,7 +981,9 @@ export default {
     Document,
     Paperclip,
     Close,
-    Upload
+    Upload,
+    ArrowDown,
+    ArrowRight
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1153,6 +1194,8 @@ export default {
       messageInternalComments: {}, // Cache for message comments count
       labelEditInput: '',
       labelPopoverVisible: false,
+      selectedTagByPhone: {},
+      expandedPhoneForTags: null,
     };
   },
   computed: {
@@ -1196,6 +1239,24 @@ export default {
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
       if (phone) {
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
+        
+        // Apply tag filtering for the selected phone
+        const selectedTag = this.selectedTagByPhone[`phone_${phone.id}`];
+        if (selectedTag) {
+          filtered = filtered.filter(conv => {
+            const contact = this.workspaceContacts.find(c => {
+              const convPhone = conv.phoneNumber || conv.contact || '';
+              const contactPhone = c.phone_number || '';
+              const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+              const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+              const fullConvPhone = convPhone.replace(/\D/g, '');
+              const fullContactPhone = contactPhone.replace(/\D/g, '');
+              return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+            });
+            
+            return contact && contact.tags && contact.tags.includes(selectedTag);
+          });
+        }
       }
       
       // Apply search
@@ -1212,7 +1273,7 @@ export default {
         });
       }
       
-      // Apply tag filtering
+      // Apply global tag filtering (existing functionality)
       if (this.selectedTags.length > 0) {
         if (!this.workspaceContacts || this.workspaceContacts.length === 0) {
           return filtered;
@@ -1375,6 +1436,31 @@ export default {
         }
         return { time: '', speaker: '', text: line };
       });
+    },
+    availableTagsForPhone() {
+      // Returns a function that takes a phone number and returns unique tags for that phone
+      return (phoneNumber) => {
+        const tagSet = new Set();
+        (this.realtimeConversations || []).forEach(conv => {
+          if (conv.fromPhoneNumber === phoneNumber) {
+            // Find the contact for this conversation
+            const contact = this.workspaceContacts.find(c => {
+              const convPhone = conv.phoneNumber || conv.contact || '';
+              const contactPhone = c.phone_number || '';
+              const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+              const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+              const fullConvPhone = convPhone.replace(/\D/g, '');
+              const fullContactPhone = contactPhone.replace(/\D/g, '');
+              return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+            });
+            
+            if (contact && contact.tags) {
+              contact.tags.forEach(tag => tagSet.add(tag));
+            }
+          }
+        });
+        return Array.from(tagSet).sort();
+      };
     },
   },
   async mounted() {
@@ -2658,6 +2744,32 @@ export default {
 
       } catch (error) {
         console.error('Error loading internal comments count:', error);
+      }
+    },
+    togglePhoneTagsExpand(phoneId) {
+      this.expandedPhoneForTags = this.expandedPhoneForTags === phoneId ? null : phoneId;
+    },
+    
+    async togglePhoneTagFilter(phoneId, tag) {
+      console.log('togglePhoneTagFilter called with:', phoneId, tag);
+      console.log('Current selectedTagByPhone:', this.selectedTagByPhone);
+      
+      try {
+        if (this.selectedTagByPhone[phoneId] === tag) {
+          // Clicking the same tag again clears the filter
+          console.log('Clearing filter for phone:', phoneId);
+          this.selectedTagByPhone = { ...this.selectedTagByPhone, [phoneId]: null };
+        } else {
+          // Setting new filter
+          console.log('Setting filter for phone:', phoneId, 'to tag:', tag);
+          this.selectedTagByPhone = { ...this.selectedTagByPhone, [phoneId]: tag };
+        }
+        
+        // Force reactivity update
+        await this.$nextTick();
+        console.log('Updated selectedTagByPhone:', this.selectedTagByPhone);
+      } catch (error) {
+        console.error('Error in togglePhoneTagFilter:', error);
       }
     },
   }
@@ -4382,5 +4494,55 @@ export default {
 
 .el-button {
   margin-left: 4px;
+}
+
+.phone-tags-tree {
+  margin-top: 4px;
+}
+
+.tags-toggle {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.tags-toggle:hover {
+  color: #1976d2;
+}
+
+.tags-list {
+  margin-left: 16px;
+  margin-top: 4px;
+}
+
+.tag-item {
+  padding: 2px 6px;
+  margin: 1px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.tag-item:hover {
+  background: #f5f5f5;
+}
+
+.tag-item.active {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.tag-item.clear-filter {
+  color: #67c23a;
+}
+
+.tag-item.clear-filter:hover {
+  background: #f0f9ff;
 }
 </style>

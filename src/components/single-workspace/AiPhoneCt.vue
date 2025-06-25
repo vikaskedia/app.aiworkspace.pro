@@ -2547,21 +2547,34 @@ export default {
 
         if (error) throw error;
 
-        // Get current user for comparison
-        const { data: { user } } = await supabase.auth.getUser();
+        if (!comments || comments.length === 0) {
+          this.internalComments = [];
+          return;
+        }
+
+        // Get unique user IDs from comments
+        const userIds = [...new Set(comments.map(c => c.created_by))];
         
-        // Map comments with author names
-        this.internalComments = (comments || []).map(comment => {
-          let authorName = 'Unknown User';
-          
-          // If it's the current user, use their email
-          if (comment.created_by === user?.id) {
-            authorName = user.email?.split('@')[0] || 'You';
-          } else {
-            // For other users, we'll just show "Team Member" for now
-            // In a real app, you might want to create a user profiles table
-            authorName = 'Team Member';
-          }
+        // Get user information using our database function
+        const { data: userInfo, error: userError } = await supabase
+          .rpc('get_user_info_for_matter', {
+            user_ids: userIds,
+            matter_id_param: this.currentMatter.id
+          });
+
+        if (userError) {
+          console.error('Error getting user info:', userError);
+        }
+
+        // Create a lookup map for user info
+        const userInfoMap = {};
+        (userInfo || []).forEach(user => {
+          userInfoMap[user.user_id] = user.display_name;
+        });
+        
+        // Map comments with real author names
+        this.internalComments = comments.map(comment => {
+          const authorName = userInfoMap[comment.created_by] || 'Unknown User';
           
           return {
             ...comment,
@@ -2597,10 +2610,13 @@ export default {
 
         if (error) throw error;
 
+        // Get the display name for the current user
+        const userDisplayName = user.email?.split('@')[0] || 'You';
+        
         // Add the new comment to the list with author name
         const newComment = {
           ...comment,
-          author_name: user.email?.split('@')[0] || 'You'
+          author_name: userDisplayName
         };
         
         this.internalComments.push(newComment);

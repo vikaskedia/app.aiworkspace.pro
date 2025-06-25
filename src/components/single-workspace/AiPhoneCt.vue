@@ -145,42 +145,6 @@
                       <el-icon @click="openContactModal('edit')" style="margin-left: 8px;cursor: pointer;"><EditPen /></el-icon>
                     </el-tooltip>
                   </template>
-                  <div class="conversation-labels-row">
-                    <el-tag
-                      v-for="label in currentChat?.labels || []"
-                      :key="label"
-                      closable
-                      size="small"
-                      @close="removeLabelFromConversation(label)"
-                      style="margin-right: 4px;"
-                    >{{ label }}</el-tag>
-                    <el-popover
-                      placement="bottom"
-                      width="220"
-                      v-model:visible="labelPopoverVisible"
-                      trigger="click"
-                    >
-                      <div>
-                        <el-input
-                          v-model="labelEditInput"
-                          size="small"
-                          placeholder="New label"
-                          @keyup.enter.native="addLabelToConversation(labelEditInput)"
-                          style="width: 120px; margin-right: 4px;"
-                          class="input_for_label"
-                        />
-                        <el-button size="small" type="primary" @click="addLabelToConversation(labelEditInput)">Add</el-button>
-                      </div>
-                      <template #reference>
-                        <el-button size="small" type="info" plain style="display: flex; align-items: center;">
-                          <el-tooltip content="Add label" placement="bottom">
-                            <img src="/label_icon.png" alt="Add Label" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: middle;" />
-                          </el-tooltip>
-                          Labels
-                        </el-button>
-                      </template>
-                    </el-popover>
-                  </div>
                 </h4>
                 <!-- Contact Details -->
                 <div class="contact-details" v-if="getCurrentContact()">
@@ -1224,21 +1188,13 @@ export default {
     },
 
     filteredConversations() {
-      // If no phone number is selected, return empty array
       if (!this.selectedInboxItem) {
         return [];
       }
-
       let filtered = this.realtimeConversations || [];
-      
-      // Extract phone ID from selectedInboxItem (format: phone_123)
       const phoneId = this.selectedInboxItem.replace('phone_', '');
-      
-      // Get the phone number for the selected phone ID
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
-      
       if (phone) {
-        // Filter by phone number
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
       }
       
@@ -1258,36 +1214,25 @@ export default {
       
       // Apply tag filtering
       if (this.selectedTags.length > 0) {
-        // If contacts haven't loaded yet, don't filter
         if (!this.workspaceContacts || this.workspaceContacts.length === 0) {
           return filtered;
         }
         
         filtered = filtered.filter(conv => {
-          // Find the contact for this conversation using multiple phone number formats
           const contact = this.workspaceContacts.find(c => {
-            // Try different phone number formats
             const convPhone = conv.phoneNumber || conv.contact || '';
             const contactPhone = c.phone_number || '';
-            
-            // Normalize phone numbers for comparison - remove all non-digits and take last 10
             const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
             const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
-            
-            // Also try comparing with the full number (including country code)
             const fullConvPhone = convPhone.replace(/\D/g, '');
             const fullContactPhone = contactPhone.replace(/\D/g, '');
-            
-            // Try both last 10 digits and full number comparison
             return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
           });
           
-          // If no contact found, don't show in tag-filtered results
           if (!contact || !contact.tags || contact.tags.length === 0) {
             return false;
           }
           
-          // Check if the contact has any of the selected tags
           const hasMatchingTag = this.selectedTags.some(selectedTag => 
             contact.tags.includes(selectedTag)
           );
@@ -1295,7 +1240,7 @@ export default {
           return hasMatchingTag;
         });
       }
-    
+
       return filtered;
     },
     
@@ -1430,16 +1375,6 @@ export default {
         }
         return { time: '', speaker: '', text: line };
       });
-    },
-    allConversationLabels() {
-      // Gather all unique labels from all conversations in the workspace
-      const labelSet = new Set();
-      (this.realtimeConversations || []).forEach(conv => {
-        if (Array.isArray(conv.labels)) {
-          conv.labels.forEach(l => labelSet.add(l));
-        }
-      });
-      return Array.from(labelSet).sort();
     },
   },
   async mounted() {
@@ -2725,52 +2660,6 @@ export default {
         console.error('Error loading internal comments count:', error);
       }
     },
-    getAllConversationLabels() {
-      // Not needed, handled by computed property
-    },
-    async addLabelToConversation(label) {
-      // If label is an object (e.g., from dropdown), try to extract the value
-      if (label && typeof label === 'object') {
-        if ('label' in label) {
-          label = label.label;
-        } else if ('value' in label) {
-          label = label.value;
-        } else {
-          label = '';
-        }
-      }
-      label = String(label || '').trim();
-      if (!label) return;
-      if (!this.currentChat) return;
-      if (this.currentChat.labels && this.currentChat.labels.includes(label)) return;
-      const newLabels = [...(this.currentChat.labels || []), label];
-      await this.updateConversationLabels(newLabels);
-      this.labelEditInput = '';
-      this.labelPopoverVisible = false;
-    },
-    async removeLabelFromConversation(label) {
-      if (!this.currentChat) return;
-      const newLabels = (this.currentChat.labels || []).filter(l => l !== label);
-      await this.updateConversationLabels(newLabels);
-    },
-    async updateConversationLabels(newLabels) {
-      if (!this.currentChat) return;
-      const conversationId = this.currentChat.id;
-      // Update in Supabase
-      const { error } = await supabase
-        .from('conversations')
-        .update({ labels: newLabels })
-        .eq('id', conversationId);
-      if (error) {
-        this.$message.error('Failed to update labels');
-        return;
-      }
-      // Update local state
-      this.currentChat.labels = newLabels;
-      // Also update in realtimeConversations array
-      const conv = this.realtimeConversations.find(c => c.id === conversationId);
-      if (conv) conv.labels = newLabels;
-    }
   }
 };
 </script>
@@ -4489,10 +4378,6 @@ export default {
 
 .el-dropdown-item {
   padding: 0.25rem 0.5rem;
-}
-
-.input_for_label {
-  width: 140px;
 }
 
 .el-button {

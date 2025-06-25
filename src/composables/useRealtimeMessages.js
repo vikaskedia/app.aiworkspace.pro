@@ -237,7 +237,6 @@ export function useRealtimeMessages(matterId) {
     lastMessageTime: conv.last_message_at || conv.created_at || new Date().toISOString(),
     unread: conv.unread_count || 0,
     matterId: conv.matter_id,
-    labels: Array.isArray(conv.labels) ? conv.labels : (conv.labels ? conv.labels : []),
     status: conv.status || 'primary'
   })
 

@@ -391,7 +391,7 @@ export default {
         localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
         hasChanges.value = checkForChanges(val);
         
-        // Trigger autosave if there are changes
+        // Trigger autosave after user stops typing for 2 seconds
         if (hasChanges.value) {
           debouncedSave();
         }

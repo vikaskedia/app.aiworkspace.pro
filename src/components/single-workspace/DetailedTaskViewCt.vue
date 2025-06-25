@@ -847,6 +847,62 @@
           </div>
         </div>
       </div>
+
+      <!-- Task Outline Section -->
+      <div class="task-outline-section">
+        <div class="task-outline">
+          <div class="outline-header">
+            <h3 class="outline-title">Task Outline</h3>
+            <div class="outline-controls">
+              <el-button 
+                type="primary" 
+                @click="saveTaskOutline" 
+                :loading="savingOutline"
+                :disabled="!hasOutlineChanges"
+                size="small"
+              >
+                <el-icon><DocumentChecked /></el-icon>
+                Save Outline
+              </el-button>
+            </div>
+          </div>
+          
+          <!-- Loading indicator for outline -->
+          <div v-if="outlineLoading" class="loading-message">
+            <el-icon class="loading-spinner"><Loading /></el-icon>
+            <span>Loading outline...</span>
+          </div>
+          
+          <!-- Outline content -->
+          <div v-else class="outline-content">
+            <ul v-if="taskOutline.length" class="outline-list">
+              <OutlinePointsCt
+                v-for="item in taskOutline"
+                :key="item.id"
+                :item="item"
+                @update="onTaskOutlineUpdate"
+                @move="handleTaskOutlineMove"
+                @delete="handleTaskOutlineDelete"
+                @navigate="handleTaskOutlineNavigate"
+                @indent="handleTaskOutlineIndent"
+                @outdent="handleTaskOutlineOutdent"
+                @add-sibling="handleTaskOutlineAddSibling"
+              />
+            </ul>
+            <div v-else class="empty-outline">
+              <p>No outline items yet. Start typing to create your first outline point...</p>
+              <el-button 
+                type="primary" 
+                @click="addFirstOutlineItem"
+                size="small"
+              >
+                <el-icon><Plus /></el-icon>
+                Add First Item
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Add this new Share Task Dialog after the Edit Task Dialog -->
@@ -1119,7 +1175,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -1131,6 +1187,7 @@ import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import OutlinePointsCt from './OutlinePointsCt.vue';
 
 export default {
   components: {
@@ -1161,7 +1218,9 @@ export default {
     CopyDocument,
     Link,
     Plus,
-    Loading
+    Loading,
+    DocumentChecked,
+    OutlinePointsCt
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1277,7 +1336,14 @@ export default {
       updatingChildTasks: new Set(),
       sortColumn: 'priority',
       sortDirection: 'desc', // 'asc' or 'desc'
-      showCompletedTasks: true
+      showCompletedTasks: true,
+      
+      // Task outline properties
+      taskOutline: [],
+      outlineLoading: false,
+      savingOutline: false,
+      hasOutlineChanges: false,
+      lastSavedOutlineContent: null
     };
   },
   async created() {
@@ -1289,11 +1355,12 @@ export default {
     // Load task first (this will handle caching)
     await this.loadTask(taskId);
     
-    // Load other data in parallel
-    await Promise.all([
-      this.loadSharedUsers(),
-      this.refreshTaskCache()
-    ]);
+            // Load other data in parallel
+        await Promise.all([
+          this.loadSharedUsers(),
+          this.refreshTaskCache(),
+          this.loadTaskOutline()
+        ]);
     
     this.setupRealtimeSubscription();
   },
@@ -3546,6 +3613,264 @@ ${comment.content}
         await this.loadTask(taskId, false);
       }
     },
+    async loadTaskOutline() {
+      try {
+        this.outlineLoading = true;
+        
+        // Try to load existing task outline from the main outlines table
+        // We'll use a unique title format to distinguish task outlines
+        const outlineTitle = `Task_${this.task.id}_Outline`;
+        
+        const { data: existingOutline, error } = await supabase
+          .from('outlines')
+          .select('*')
+          .eq('matter_id', this.currentMatter.id)
+          .eq('title', outlineTitle)
+          .order('version', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading task outline:', error);
+          // Initialize with empty outline if no existing outline
+          this.taskOutline = [];
+        } else if (existingOutline) {
+          this.taskOutline = existingOutline.content || [];
+          this.lastSavedOutlineContent = JSON.parse(JSON.stringify(this.taskOutline));
+        } else {
+          // No existing outline, start with empty
+          this.taskOutline = [];
+          this.lastSavedOutlineContent = [];
+        }
+        
+        this.hasOutlineChanges = false;
+      } catch (error) {
+        console.error('Error loading task outline:', error);
+        this.taskOutline = [];
+      } finally {
+        this.outlineLoading = false;
+      }
+    },
+
+    async saveTaskOutline() {
+      try {
+        this.savingOutline = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const outlineTitle = `Task_${this.task.id}_Outline`;
+        const outlineToSave = JSON.parse(JSON.stringify(this.taskOutline));
+
+        // Check if outline already exists
+        const { data: existingOutline } = await supabase
+          .from('outlines')
+          .select('id, version')
+          .eq('matter_id', this.currentMatter.id)
+          .eq('title', outlineTitle)
+          .order('version', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (existingOutline) {
+          // Update existing outline
+          const { data: newVersion, error: versionError } = await supabase
+            .rpc('increment_version', { outline_id: existingOutline.id });
+
+          if (versionError) throw versionError;
+
+          const { error: updateError } = await supabase
+            .from('outlines')
+            .update({
+              content: outlineToSave,
+              version: newVersion,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingOutline.id);
+
+          if (updateError) throw updateError;
+
+          // Create version record
+          const { error: versionRecordError } = await supabase
+            .from('outline_versions')
+            .insert([{
+              outline_id: existingOutline.id,
+              content: outlineToSave,
+              version: newVersion,
+              created_by: user.id
+            }]);
+
+          if (versionRecordError) throw versionRecordError;
+        } else {
+          // Create new outline
+          const { data: newOutline, error: insertError } = await supabase
+            .from('outlines')
+            .insert([{
+              matter_id: this.currentMatter.id,
+              title: outlineTitle,
+              content: outlineToSave,
+              created_by: user.id
+            }])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+
+          // Create initial version record
+          const { error: versionError } = await supabase
+            .from('outline_versions')
+            .insert([{
+              outline_id: newOutline.id,
+              content: outlineToSave,
+              version: newOutline.version,
+              created_by: user.id
+            }]);
+
+          if (versionError) throw versionError;
+        }
+
+        // Create activity log for the task
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: 'Updated task outline',
+            type: 'activity',
+            matter_id: this.task.matter_id,
+            metadata: {
+              action: 'outline_update',
+              outline_items_count: this.taskOutline.length
+            }
+          });
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+
+        this.lastSavedOutlineContent = JSON.parse(JSON.stringify(outlineToSave));
+        this.hasOutlineChanges = false;
+
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task outline saved successfully'
+        });
+
+      } catch (error) {
+        console.error('Error saving task outline:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Error saving task outline: ' + error.message
+        });
+      } finally {
+        this.savingOutline = false;
+      }
+    },
+
+    onTaskOutlineUpdate(data) {
+      // Find and update the specific outline item
+      const updateItem = (items) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id === data.id) {
+            items[i] = { ...items[i], ...data };
+            return true;
+          }
+          if (items[i].children && updateItem(items[i].children)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      updateItem(this.taskOutline);
+      this.hasOutlineChanges = this.checkOutlineChanges();
+    },
+
+    handleTaskOutlineMove(payload) {
+      // Handle moving outline items (similar to the main outline component)
+      console.log('Move outline item:', payload);
+      this.hasOutlineChanges = true;
+    },
+
+    handleTaskOutlineDelete(id) {
+      // Remove item from outline
+      const removeItem = (items) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id === id) {
+            items.splice(i, 1);
+            return true;
+          }
+          if (items[i].children && removeItem(items[i].children)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      removeItem(this.taskOutline);
+      this.hasOutlineChanges = this.checkOutlineChanges();
+    },
+
+    handleTaskOutlineNavigate(data) {
+      // Handle keyboard navigation
+      console.log('Navigate outline:', data);
+    },
+
+    handleTaskOutlineIndent(data) {
+      // Handle indenting outline items
+      console.log('Indent outline item:', data);
+      this.hasOutlineChanges = true;
+    },
+
+    handleTaskOutlineOutdent(data) {
+      // Handle outdenting outline items
+      console.log('Outdent outline item:', data);
+      this.hasOutlineChanges = true;
+    },
+
+    handleTaskOutlineAddSibling(data) {
+      // Add a sibling item
+      const addSibling = (items, targetId) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id === targetId) {
+            const newItem = {
+              id: Date.now().toString(),
+              text: '',
+              children: [],
+              autoFocus: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            items.splice(i + 1, 0, newItem);
+            return true;
+          }
+          if (items[i].children && addSibling(items[i].children, targetId)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      addSibling(this.taskOutline, data.id);
+      this.hasOutlineChanges = true;
+    },
+
+    addFirstOutlineItem() {
+      const newItem = {
+        id: Date.now().toString(),
+        text: '',
+        children: [],
+        autoFocus: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      this.taskOutline.push(newItem);
+      this.hasOutlineChanges = true;
+    },
+
+    checkOutlineChanges() {
+      if (!this.lastSavedOutlineContent) return this.taskOutline.length > 0;
+      const currentContent = JSON.stringify(this.taskOutline);
+      const savedContent = JSON.stringify(this.lastSavedOutlineContent);
+      return currentContent !== savedContent;
+    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -5795,6 +6120,78 @@ table.editor-table {
   .sort-icon,
   .status-settings-icon {
     font-size: 12px;
+  }
+}
+</style>
+
+<style scoped>
+.task-outline-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+.task-outline {
+  width: 100%;
+}
+
+.outline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.outline-title {
+  margin: 0;
+  color: #303133;
+  font-size: 18px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.outline-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.outline-content {
+  margin-top: 16px;
+}
+
+.empty-outline {
+  text-align: center;
+  padding: 2rem;
+  color: var(--el-text-color-secondary);
+  font-style: italic;
+}
+
+.empty-outline p {
+  margin: 0 0 1rem 0;
+}
+
+.outline-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .task-outline-section {
+    border-radius: 0;
+    box-shadow: none;
+    padding: 1rem;
+  }
+  
+  .outline-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .outline-controls {
+    justify-content: center;
   }
 }
 </style>

@@ -5,7 +5,7 @@ CREATE TABLE message_internal_comments (
   conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
   matter_id BIGINT REFERENCES matters(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
-  created_by BIGINT REFERENCES attorneys(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   archived BOOLEAN DEFAULT FALSE
@@ -36,6 +36,7 @@ CREATE POLICY "message_internal_comments_insert_policy" ON message_internal_comm
       SELECT matter_id FROM workspace_access 
       WHERE shared_with_user_id = auth.uid()
     )
+    AND created_by = auth.uid()
   );
 
 CREATE POLICY "message_internal_comments_update_policy" ON message_internal_comments
@@ -44,9 +45,7 @@ CREATE POLICY "message_internal_comments_update_policy" ON message_internal_comm
       SELECT matter_id FROM workspace_access 
       WHERE shared_with_user_id = auth.uid()
     )
-    AND created_by = (
-      SELECT id FROM attorneys WHERE created_by = auth.uid()
-    )
+    AND created_by = auth.uid()
   );
 
 -- Add trigger for updated_at

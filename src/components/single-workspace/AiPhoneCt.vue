@@ -2665,8 +2665,7 @@ export default {
         const { data: comments, error } = await supabase
           .from('message_internal_comments')
           .select(`
-            *,
-            attorneys(name)
+            *
           `)
           .eq('message_id', messageId)
           .eq('archived', false)
@@ -2674,11 +2673,27 @@ export default {
 
         if (error) throw error;
 
-        // Add author name from the joined attorneys table
-        this.internalComments = (comments || []).map(comment => ({
-          ...comment,
-          author_name: comment.attorneys?.name || 'Unknown User'
-        }));
+        // Get current user for comparison
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Map comments with author names
+        this.internalComments = (comments || []).map(comment => {
+          let authorName = 'Unknown User';
+          
+          // If it's the current user, use their email
+          if (comment.created_by === user?.id) {
+            authorName = user.email?.split('@')[0] || 'You';
+          } else {
+            // For other users, we'll just show "Team Member" for now
+            // In a real app, you might want to create a user profiles table
+            authorName = 'Team Member';
+          }
+          
+          return {
+            ...comment,
+            author_name: authorName
+          };
+        });
 
       } catch (error) {
         console.error('Error loading internal comments:', error);
@@ -2694,18 +2709,6 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Get the attorney record for the current user
-        const { data: attorney, error: attorneyError } = await supabase
-          .from('attorneys')
-          .select('id, name')
-          .eq('created_by', user.id)
-          .single();
-
-        if (attorneyError) {
-          console.error('Error finding attorney record:', attorneyError);
-          throw new Error('Could not find attorney record for current user');
-        }
-        
         const { data: comment, error } = await supabase
           .from('message_internal_comments')
           .insert({
@@ -2713,12 +2716,9 @@ export default {
             content: this.newInternalComment.trim(),
             matter_id: this.currentMatter.id,
             conversation_id: this.currentChat.id,
-            created_by: attorney.id
+            created_by: user.id
           })
-          .select(`
-            *,
-            attorneys(name)
-          `)
+          .select('*')
           .single();
 
         if (error) throw error;
@@ -2726,7 +2726,7 @@ export default {
         // Add the new comment to the list with author name
         const newComment = {
           ...comment,
-          author_name: comment.attorneys?.name || attorney.name || 'Unknown User'
+          author_name: user.email?.split('@')[0] || 'You'
         };
         
         this.internalComments.push(newComment);

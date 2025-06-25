@@ -13,10 +13,10 @@
             v-for="item in inboxItems"
             :key="item.id"
             :class="['inbox-item', { active: selectedInboxItem === item.id }]"
-            @click="selectInboxItem(item.id)">
+            >
             <div class="item-info">
               <el-icon><component :is="item.icon" /></el-icon>&nbsp;
-              <span class="item-label">{{ item.label }}</span><br>
+              <span class="item-label" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)">{{ item.label }}</span><br>
               <span class="phone-number">{{ item.number }}</span>
               <div class="phone-tags-tree" style="margin-top: 4px;">
                 <div 
@@ -1251,6 +1251,7 @@ export default {
       labelPopoverVisible: false,
       selectedTagByPhone: {},
       expandedPhoneForTags: null,
+      showUntaggedOnly: false, // New flag to show only untagged conversations
     };
   },
   computed: {
@@ -1310,6 +1311,24 @@ export default {
             });
             
             return contact && contact.tags && contact.tags.includes(selectedTag);
+          });
+        }
+        
+        // Apply untagged filter - show only conversations without tags
+        if (this.showUntaggedOnly) {
+          filtered = filtered.filter(conv => {
+            const contact = this.workspaceContacts.find(c => {
+              const convPhone = conv.phoneNumber || conv.contact || '';
+              const contactPhone = c.phone_number || '';
+              const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+              const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+              const fullConvPhone = convPhone.replace(/\D/g, '');
+              const fullContactPhone = contactPhone.replace(/\D/g, '');
+              return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+            });
+            
+            // Show conversation if contact doesn't exist or has no tags
+            return !contact || !contact.tags || contact.tags.length === 0;
           });
         }
       }
@@ -1374,6 +1393,9 @@ export default {
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (phone) {
+        if (this.showUntaggedOnly) {
+          return `Untagged Conversations for ${phone.number}`;
+        }
         return `Conversations for ${phone.number}`;
       }
       return 'Conversations';
@@ -1605,7 +1627,27 @@ export default {
     },
 
     selectInboxItem(itemId) {
-      this.selectedInboxItem = itemId;
+      // Check if this is a phone number item (not a tag filter)
+      if (itemId.startsWith('phone_')) {
+        // If we're already showing untagged conversations for this phone, toggle it off
+        if (this.showUntaggedOnly && this.selectedInboxItem === itemId) {
+          this.showUntaggedOnly = false;
+          // Clear any tag filters for this phone
+          const phoneId = itemId.replace('phone_', '');
+          this.selectedTagByPhone = { ...this.selectedTagByPhone, [itemId]: null };
+        } else {
+          // Set the phone as selected and enable untagged filter
+          this.selectedInboxItem = itemId;
+          this.showUntaggedOnly = true;
+          // Clear any existing tag filters for this phone
+          const phoneId = itemId.replace('phone_', '');
+          this.selectedTagByPhone = { ...this.selectedTagByPhone, [itemId]: null };
+        }
+      } else {
+        // Handle other inbox items (if any)
+        this.selectedInboxItem = itemId;
+        this.showUntaggedOnly = false;
+      }
       this.selectedConversation = null;
     },
 
@@ -2900,6 +2942,8 @@ export default {
           // Setting new filter
           console.log('Setting filter for phone:', phoneId, 'to tag:', tag);
           this.selectedTagByPhone = { ...this.selectedTagByPhone, [phoneId]: tag };
+          // Clear untagged filter when a tag is selected
+          this.showUntaggedOnly = false;
         }
         
         // Force reactivity update

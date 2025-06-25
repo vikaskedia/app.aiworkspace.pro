@@ -12,39 +12,17 @@
           <div 
             v-for="item in inboxItems"
             :key="item.id"
-            class="phone-item">
-            <!-- Phone Number Item -->
-            <div 
-              :class="['inbox-item', { expanded: expandedPhoneNumber === item.id }]"
-              @click="togglePhoneExpand(item.id)">
-              <el-icon>
-                <component :is="item.icon" />
-              </el-icon>
-              <div class="item-info">
-                <span class="item-label">{{ item.label }}</span><br>
-                <span class="phone-number">{{ item.number }}</span>
-              </div>
-              <div class="item-right">
-                <span v-if="item.count" class="count-badge">{{ item.count }}</span>
-                <el-icon class="expand-icon"><ArrowDown /></el-icon>
-              </div>
+            :class="['inbox-item', { active: selectedInboxItem === item.id }]"
+            @click="selectInboxItem(item.id)">
+            <el-icon>
+              <component :is="item.icon" />
+            </el-icon>
+            <div class="item-info">
+              <span class="item-label">{{ item.label }}</span><br>
+              <span class="phone-number">{{ item.number }}</span>
             </div>
-            
-            <!-- Folders Collapse -->
-            <div 
-              v-show="expandedPhoneNumber === item.id"
-              class="folders-collapse">
-              <div 
-                v-for="folder in item.folders"
-                :key="folder.id"
-                :class="['folder-item', { active: selectedInboxItem === folder.id }]"
-                @click="selectInboxItem(folder.id)">
-                <el-icon>
-                  <component :is="folder.icon" />
-                </el-icon>
-                <span class="folder-label">{{ folder.label }}</span>
-                <span v-if="folder.count" class="count-badge">{{ folder.count }}</span>
-              </div>
+            <div class="item-right">
+              <span v-if="item.count" class="count-badge">{{ item.count }}</span>
             </div>
           </div>
           
@@ -124,13 +102,6 @@
                   {{ getContactName(conversation.fromPhoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact' }}
                 </span>
                 <div class="conversation-actions">
-                  <el-tooltip :content="conversation.status === 'primary' ? 'Archive' : 'Move to Working on'">
-                    <el-icon 
-                      @click.stop="toggleConversationStatus(conversation)"
-                      class="action-icon">
-                      <component :is="conversation.status === 'primary' ? 'FolderDelete' : 'Folder'" />
-                    </el-icon>
-                  </el-tooltip>
                   <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
                 </div>
               </div>
@@ -942,9 +913,6 @@ import {
   Document,
   Paperclip,
   Close,
-  ArrowDown,
-  FolderDelete,
-  Folder,
   Upload
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
@@ -974,9 +942,6 @@ export default {
     Document,
     Paperclip,
     Close,
-    ArrowDown,
-    FolderDelete,
-    Folder,
     Upload
   },
   setup() {
@@ -1151,8 +1116,6 @@ export default {
           { required: true, message: 'Phone number is required', trigger: 'blur' }
         ]
       },
-      selectedFolder: 'working', // 'working' or 'archived'
-      expandedPhoneNumber: null, // tracks which phone number's folders are expanded
       showCallRecordingDialog: false,
       selectedMessageForRecording: null,
       callRecordingForm: {
@@ -1194,17 +1157,11 @@ export default {
     inboxItems() {
       const phoneNumbers = this.currentMatter?.phone_numbers || [];
       return phoneNumbers.map(phone => {
-        // Calculate unread counts for both primary and archived
-        const primaryCount = this.realtimeConversations.filter(conv => 
+        // Calculate unread counts for this phone number
+        const unreadCount = this.realtimeConversations.filter(conv => 
           conv.fromPhoneNumber === phone.number && 
-          conv.unread > 0 && 
-          (!conv.status || conv.status === 'primary')
+          conv.unread > 0
         ).reduce((sum, conv) => sum + conv.unread, 0);
-
-        const archivedCount = this.realtimeConversations.filter(conv => 
-          conv.fromPhoneNumber === phone.number && 
-          conv.status === 'archived'
-        ).length;
 
         return {
           id: `phone_${phone.id}`,
@@ -1212,28 +1169,7 @@ export default {
           number: phone.number,
           icon: 'Phone',
           type: 'phone',
-          count: primaryCount > 0 ? primaryCount : null,
-          folders: [
-            {
-              id: `working_${phone.id}`,
-              label: 'Working on',
-              icon: 'Folder',
-              type: 'folder',
-              status: 'primary',
-              count: this.realtimeConversations.filter(c => 
-                c.fromPhoneNumber === phone.number && 
-                (!c.status || c.status === 'primary')
-              ).length || null
-            },
-            {
-              id: `archived_${phone.id}`,
-              label: 'Archived',
-              icon: 'FolderDelete',
-              type: 'folder',
-              status: 'archived',
-              count: archivedCount || null
-            }
-          ]
+          count: unreadCount > 0 ? unreadCount : null
         };
       });
     },
@@ -1250,14 +1186,15 @@ export default {
     },
 
     filteredConversations() {
-      // If no folder is selected, return empty array
+      // If no phone number is selected, return empty array
       if (!this.selectedInboxItem) {
         return [];
       }
 
       let filtered = this.realtimeConversations || [];
       
-      const [folderType, phoneId] = this.selectedInboxItem.split('_');
+      // Extract phone ID from selectedInboxItem (format: phone_123)
+      const phoneId = this.selectedInboxItem.replace('phone_', '');
       
       // Get the phone number for the selected phone ID
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
@@ -1265,15 +1202,6 @@ export default {
       if (phone) {
         // Filter by phone number
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
-        
-        // Filter by folder status
-        if (folderType === 'working') {
-          // Treat conversations without status as primary (working)
-          filtered = filtered.filter(conv => !conv.status || conv.status === 'primary');
-        } else if (folderType === 'archived') {
-          // Only show conversations that explicitly have archived status
-          filtered = filtered.filter(conv => conv.status === 'archived');
-        }
       }
       
       // Apply search
@@ -1290,34 +1218,17 @@ export default {
         });
       }
       
-      
-      if (this.selectedTags.length > 0) { // Apply tag filtering
+      // Apply tag filtering
+      if (this.selectedTags.length > 0) {
         // If contacts haven't loaded yet, don't filter
         if (!this.workspaceContacts || this.workspaceContacts.length === 0) {
           return filtered;
         }
         
-        // Debug: Show which contacts have the selected tag
-        const contactsWithTag = this.workspaceContacts.filter(c => 
-          c.tags && c.tags.some(tag => this.selectedTags.includes(tag))
-        );
-        
-        // Debug: Show which of these contacts have conversations
-        const contactPhonesWithTag = contactsWithTag.map(c => c.phone_number);
-        const conversationsForTaggedContacts = filtered.filter(conv => {
-          const convPhone = conv.phoneNumber || conv.contact || '';
-          const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
-          return contactPhonesWithTag.some(contactPhone => {
-            const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
-            return normalizedConvPhone === normalizedContactPhone;
-          });
-        });
-        
         filtered = filtered.filter(conv => {
           // Find the contact for this conversation using multiple phone number formats
           const contact = this.workspaceContacts.find(c => {
             // Try different phone number formats
-            // Use phoneNumber (contact's phone) instead of fromPhoneNumber (business phone)
             const convPhone = conv.phoneNumber || conv.contact || '';
             const contactPhone = c.phone_number || '';
             
@@ -1359,7 +1270,8 @@ export default {
         return 'Conversations';
       }
 
-      const [folderType, phoneId] = this.selectedInboxItem.split('_');
+      // Extract phone ID from selectedInboxItem (format: phone_123)
+      const phoneId = this.selectedInboxItem.replace('phone_', '');
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (phone) {
@@ -1464,11 +1376,7 @@ export default {
     },
 
     showNewMessageButton() {
-      if (!this.selectedInboxItem) {
-        return false;
-      }
-      const [folderType, phoneId] = this.selectedInboxItem.split('_');
-      return folderType === 'working';
+      return !!this.selectedInboxItem;
     },
     formattedTranscriptLines() {
       if (!this.currentTranscript) return [];
@@ -1487,11 +1395,10 @@ export default {
     },
   },
   async mounted() {
-    // Auto-select first phone number's "Working on" folder if available
+    // Auto-select first phone number if available
     if (this.currentMatter?.phone_numbers?.length > 0) {
       const firstPhone = this.currentMatter.phone_numbers[0];
-      this.expandedPhoneNumber = `phone_${firstPhone.id}`;
-      this.selectedInboxItem = `working_${firstPhone.id}`;
+      this.selectedInboxItem = `phone_${firstPhone.id}`;
     }
 
     // Load workspace contacts when component mounts
@@ -1526,16 +1433,8 @@ export default {
         return null;
       }
       
-      // Handle both phone_ and folder_ formats
-      let phoneId;
-      if (this.selectedInboxItem.startsWith('phone_')) {
-        phoneId = parseInt(this.selectedInboxItem.replace('phone_', ''));
-      } else if (this.selectedInboxItem.startsWith('working_') || this.selectedInboxItem.startsWith('archived_')) {
-        phoneId = parseInt(this.selectedInboxItem.split('_')[1]);
-      } else {
-        return null;
-      }
-      
+      // Extract phone ID from selectedInboxItem (format: phone_123)
+      const phoneId = parseInt(this.selectedInboxItem.replace('phone_', ''));
       return this.currentMatter?.phone_numbers?.find(p => p.id === phoneId);
     },
     
@@ -2231,31 +2130,6 @@ export default {
         this.$message.error(error.message || 'Failed to save contact');
       } finally {
         this.contactModalSaving = false;
-      }
-    },
-    async toggleConversationStatus(conversation) {
-      try {
-        // Treat undefined status as 'primary'
-        const currentStatus = conversation.status || 'primary';
-        const newStatus = currentStatus === 'primary' ? 'archived' : 'primary';
-        
-        const { error } = await supabase
-          .from('conversations')
-          .update({ status: newStatus })
-          .eq('id', conversation.id);
-
-        if (error) throw error;
-
-        // Update local state
-        const conv = this.realtimeConversations.find(c => c.id === conversation.id);
-        if (conv) {
-          conv.status = newStatus;
-        }
-
-        ElMessage.success(`Conversation ${newStatus === 'archived' ? 'archived' : 'moved to Working on'} successfully`);
-      } catch (error) {
-        console.error('Error updating conversation status:', error);
-        ElMessage.error('Failed to update conversation status');
       }
     },
     handleMessageMenuCommand(command, message) {

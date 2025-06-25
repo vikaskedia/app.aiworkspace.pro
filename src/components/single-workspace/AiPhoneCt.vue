@@ -2119,10 +2119,22 @@ export default {
     },
 
     highlightSearch(text) {
-      if (!this.chatSearchQuery) return this.escapeHtml(text);
-      const query = this.chatSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`(${query})`, 'gi');
-      return this.escapeHtml(text).replace(regex, '<span class="highlight">$1</span>');
+      if (!text) return '';
+      
+      // First escape HTML, then convert newlines to <br>, then apply search highlighting
+      let escapedText = this.escapeHtml(text);
+      
+      // Convert newlines to <br> tags
+      escapedText = escapedText.replace(/\n/g, '<br>');
+      
+      // Apply search highlighting if there's a search query
+      if (this.chatSearchQuery) {
+        const query = this.chatSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${query})`, 'gi');
+        escapedText = escapedText.replace(regex, '<span class="highlight">$1</span>');
+      }
+      
+      return escapedText;
     },
     escapeHtml(text) {
       if (!text) return '';

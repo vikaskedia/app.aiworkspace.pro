@@ -130,6 +130,7 @@ export default {
 
     // Create debounced save function
     const debouncedSave = debounce(async () => {
+      // Only save if there are changes and we're not already saving
       if (hasChanges.value && !saving.value) {
         await saveOutline();
       }
@@ -439,14 +440,17 @@ export default {
           
           currentVersion.value = updatedOutline.version;
           
-          // Update last saved content with a deep clone
+          // Update last saved content with what was actually saved
           lastSavedContent.value = deepClone(outlineToSave);
-          outline.value = deepClone(outlineToSave);
-          hasChanges.value = false;
+          
+          // DON'T overwrite outline.value - user might have made changes during save
+          // Instead, recalculate hasChanges based on current outline vs what was saved
+          hasChanges.value = checkForChanges(outline.value);
 
           // Store last saved content in localStorage for cross-tab sync
           localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
-          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
+          // Update localStorage with current outline state, not the saved snapshot
+          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outline.value));
           localStorage.setItem(getVersionKey(), currentVersion.value.toString());
         } else {
           // Create new outline
@@ -465,14 +469,17 @@ export default {
           outlineId.value = newOutline.id;
           currentVersion.value = newOutline.version;
           
-          // Update last saved content with a deep clone
+          // Update last saved content with what was actually saved
           lastSavedContent.value = deepClone(outlineToSave);
-          outline.value = deepClone(outlineToSave);
-          hasChanges.value = false;
+          
+          // DON'T overwrite outline.value - user might have made changes during save
+          // Instead, recalculate hasChanges based on current outline vs what was saved
+          hasChanges.value = checkForChanges(outline.value);
 
           // Store last saved content in localStorage for cross-tab sync
           localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
-          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outlineToSave));
+          // Update localStorage with current outline state, not the saved snapshot
+          localStorage.setItem(getLocalStorageKey(), JSON.stringify(outline.value));
           localStorage.setItem(getVersionKey(), currentVersion.value.toString());
         }
 
@@ -498,6 +505,11 @@ export default {
           type: 'success',
           duration: 3000
         });
+
+        // If there are still changes after saving (user continued editing), schedule another save
+        if (hasChanges.value) {
+          debouncedSave();
+        }
 
       } catch (error) {
         console.error('Error saving outline:', error);

@@ -28,7 +28,7 @@
                   <el-icon style="margin-right: 4px;">
                     <component :is="expandedPhoneForTags === item.id ? 'ArrowDown' : 'ArrowRight'" />
                   </el-icon>
-                  Tags ({{ hierarchicalTagsForPhone(item.number).length }})
+                  <!-- Tags ({{ hierarchicalTagsForPhone(item.number).length }}) -->
                 </div>
                 <div 
                   v-if="expandedPhoneForTags === item.id"
@@ -559,37 +559,144 @@
         
         <div class="contact-details-content">
           <div v-if="selectedContactDetails" class="contact-full-details redesigned-contact-details">
+            <!-- Edit/Save/Cancel Buttons -->
+            <div class="contact-details-actions" style="text-align: right; margin-bottom: 1rem;">
+              <el-tooltip v-if="!editingContact" content="Edit Contact">
+                <el-icon @click="startEditContact" style="margin-left: 8px;cursor: pointer;"><EditPen /></el-icon>
+              </el-tooltip>
+              <template v-else>
+                <el-button size="small" type="primary" @click="saveEditContact">
+                  <el-icon><Check /></el-icon>
+                  &nbsp;Save
+                </el-button>
+                <el-button size="small" @click="cancelEditContact" style="margin-left: 8px;">
+                  <el-icon><Close /></el-icon>
+                  Cancel
+                </el-button>
+              </template>
+            </div>
             <!-- Avatar with initials or profile picture -->
             <div class="contact-avatar-large redesigned-avatar">
-              <template v-if="selectedContactDetails.profile_picture_url">
-                <img :src="selectedContactDetails.profile_picture_url" :alt="selectedContactDetails.name" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" />
+              <template v-if="editingContact">
+                <el-upload
+                  class="avatar-uploader"
+                  :show-file-list="false"
+                  :before-upload="handleAvatarUpload"
+                  accept="image/*">
+                  <img v-if="editableContact.profile_picture_url" :src="editableContact.profile_picture_url" class="avatar-upload-image" />
+                  <div
+                    v-else
+                    class="avatar-upload-placeholder"
+                    style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: #f5f5f5; border-radius: 50%; border: 1.5px dashed #bdbdbd; transition: border-color 0.2s;"
+                  >
+                    <el-icon style="font-size: 2rem; color: #bdbdbd;"><Upload /></el-icon>
+                  </div>
+                </el-upload>
               </template>
               <template v-else>
-                <div class="avatar-initials">
-                  {{ getInitials(selectedContactDetails.name) }}
-                </div>
+                <img v-if="selectedContactDetails.profile_picture_url" :src="selectedContactDetails.profile_picture_url" class="avatar" />
+                <div v-else class="avatar-initials">{{ getInitials(selectedContactDetails.name) }}</div>
               </template>
             </div>
             <!-- Contact Name -->
-            <h2 class="contact-name-large redesigned-name">{{ selectedContactDetails.name }}</h2>
+            <h2 v-if="!editingContact" class="contact-name-large redesigned-name">{{ selectedContactDetails.name }}</h2>
             <!-- Details List -->
             <div class="contact-details-list">
-              <div class="detail-row"><el-icon><Briefcase /></el-icon><span>Company</span><div class="detail-value">{{ selectedContactDetails.company || 'Set a company...' }}</div></div>
-              <div class="detail-row"><el-icon><User /></el-icon><span>Role</span><div class="detail-value">{{ selectedContactDetails.role || 'Set a role...' }}</div></div>
-              <div class="detail-row"><el-icon><Phone /></el-icon><span>Phone</span><div class="detail-value">{{ formatPhone(selectedContactDetails.phone_number) || 'Set a phone...' }}</div></div>
-              <div class="detail-row"><el-icon><Message /></el-icon><span>Email</span><div class="detail-value">{{ selectedContactDetails.email || 'Set an email...' }}</div></div>
-              <div class="detail-row"><el-icon><Document /></el-icon><span>Matter</span><div class="detail-value">{{ selectedContactDetails.matter_text || 'Set a matter...' }}</div></div>
-              <div class="detail-row"><el-icon><List /></el-icon><span>Tags</span>
+              <div v-if="editingContact" class="detail-row">
+                <el-icon><User /></el-icon><span>Name</span>
                 <div class="detail-value">
-                  <template v-if="selectedContactDetails.tags && selectedContactDetails.tags.length">
-                    <el-tag v-for="tag in selectedContactDetails.tags" :key="tag" size="small" type="info" class="pill-tag">{{ tag }}</el-tag>
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.name" size="small" />
                   </template>
                   <template v-else>
-                    <span class="placeholder">Set tags...</span>
+                    {{ selectedContactDetails.name }}
                   </template>
                 </div>
               </div>
-              <div class="detail-row"><el-icon><Location /></el-icon><span>Address</span><div class="detail-value">{{ selectedContactDetails.address || 'Set an address...' }}</div></div>
+              <div class="detail-row">
+                <el-icon><Briefcase /></el-icon><span>Company</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.company" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ selectedContactDetails.company || 'Set a company...' }}
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><User /></el-icon><span>Role</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.role" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ selectedContactDetails.role || 'Set a role...' }}
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><Phone /></el-icon><span>Phone</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.phone_number" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ formatPhone(selectedContactDetails.phone_number) || 'Set a phone...' }}
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><Message /></el-icon><span>Email</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.email" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ selectedContactDetails.email || 'Set an email...' }}
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><Document /></el-icon><span>Matter</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.matter_text" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ selectedContactDetails.matter_text || 'Set a matter...' }}
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><List /></el-icon><span>Tags</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-select v-model="editableContact.tags" multiple filterable allow-create default-first-option size="small" style="width: 100%">
+                      <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
+                    </el-select>
+                  </template>
+                  <template v-else>
+                    <template v-if="selectedContactDetails.tags && selectedContactDetails.tags.length">
+                      <el-tag v-for="tag in selectedContactDetails.tags" :key="tag" size="small" type="info" class="pill-tag">{{ tag }}</el-tag>
+                    </template>
+                    <template v-else>
+                      <span class="placeholder">Set tags...</span>
+                    </template>
+                  </template>
+                </div>
+              </div>
+              <div class="detail-row">
+                <el-icon><Location /></el-icon><span>Address</span>
+                <div class="detail-value">
+                  <template v-if="editingContact">
+                    <el-input v-model="editableContact.address" size="small" />
+                  </template>
+                  <template v-else>
+                    {{ selectedContactDetails.address || 'Set an address...' }}
+                  </template>
+                </div>
+              </div>
               <div class="detail-row"><el-icon><UserFilled /></el-icon><span>Creator</span><div class="detail-value">{{ selectedContactDetails.creator_name || 'Unknown' }}</div></div>
             </div>
             <hr>
@@ -1262,6 +1369,8 @@ export default {
       selectedTagByPhone: {},
       expandedPhoneForTags: null,
       showUntaggedOnly: false, // New flag to show only untagged conversations
+      editingContact: false,
+      editableContact: {},
     };
   },
   computed: {
@@ -2964,6 +3073,106 @@ export default {
         return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
       }
       return phone;
+    },
+    startEditContact() {
+      this.editingContact = true;
+      this.editableContact = { ...this.selectedContactDetails };
+    },
+    cancelEditContact() {
+      this.editingContact = false;
+      this.editableContact = {};
+    },
+    async saveEditContact() {
+      try {
+        let profilePictureUrl = this.editableContact.profile_picture_url;
+        // Only upload if the image is base64 (newly selected and not already a Gitea URL)
+        if (profilePictureUrl && profilePictureUrl.startsWith('data:image/')) {
+          // Prepare upload to Gitea
+          const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+          const giteaHost = import.meta.env.VITE_GITEA_HOST;
+          const timestamp = Date.now();
+          const extMatch = profilePictureUrl.match(/^data:image\/(\w+);/);
+          const ext = extMatch ? extMatch[1] : 'png';
+          const uniqueName = `profile_${timestamp}.${ext}`;
+          const uploadPath = `contacts/profiles/${uniqueName}`;
+          // Remove base64 prefix
+          const base64Content = profilePictureUrl.split(',')[1];
+          // Upload to Gitea
+          const response = await fetch(
+            `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              },
+              body: JSON.stringify({
+                message: `Upload avatar`,
+                content: base64Content,
+                branch: 'main'
+              })
+            }
+          );
+          if (!response.ok) {
+            throw new Error('Failed to upload avatar to Gitea');
+          }
+          const giteaData = await response.json();
+          // Use the authenticated download URL
+          profilePictureUrl = this.getAuthenticatedDownloadUrl(giteaData.content.download_url);
+        }
+        const updateFields = (({ name, company, role, phone_number, email, matter_text, tags, address }) => ({ name, company, role, phone_number, email, matter_text, tags, address }))(this.editableContact);
+        // Add the (possibly new) profile_picture_url
+        updateFields.profile_picture_url = profilePictureUrl;
+        if (this.selectedContactDetails && this.selectedContactDetails.id) {
+          // Update existing contact
+          const { error } = await supabase
+            .from('contacts')
+            .update(updateFields)
+            .eq('id', this.selectedContactDetails.id);
+          if (error) throw error;
+          this.$message.success('Contact updated successfully');
+        } else {
+          // Insert new contact
+          const { data: { user } } = await supabase.auth.getUser();
+          const { data, error } = await supabase
+            .from('contacts')
+            .insert({
+              ...updateFields,
+              matter_id: this.currentMatter.id,
+              created_by: user.id
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          this.$message.success('Contact added successfully');
+          // Optionally select the new contact
+          this.selectedContactDetails = { ...data, creator_name: user.email?.split('@')[0] || 'You' };
+        }
+        this.editingContact = false;
+        await this.loadWorkspaceContacts();
+        // Refresh details
+        if (this.selectedContactDetails && this.selectedContactDetails.id) {
+          const updated = this.workspaceContacts.find(c => c.id === this.selectedContactDetails.id);
+          if (updated) this.selectedContactDetails = { ...updated, creator_name: this.selectedContactDetails.creator_name };
+        }
+      } catch (error) {
+        this.$message.error(error.message || 'Failed to save contact');
+      }
+    },
+    handleAvatarUpload(file) {
+      // Implement avatar upload logic or use a placeholder for now
+      // For now, just convert to base64 and preview
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          this.editableContact.profile_picture_url = e.target.result;
+          resolve(false); // Prevent auto upload
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
     },
   }
 };
@@ -4954,5 +5163,21 @@ export default {
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
   margin: 0 0.25rem;
+}
+
+.avatar-upload-image, .avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+  display: block;
+  margin: 0 auto;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.avatar-uploader:hover .avatar-upload-placeholder,
+.avatar-uploader:hover .avatar-upload-image {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px #1976d233;
 }
 </style>

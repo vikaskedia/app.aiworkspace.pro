@@ -181,7 +181,7 @@
             v-for="conversation in filteredConversations"
             :key="conversation.id"
             :class="['conversation-item', { active: selectedConversation === conversation.id }]"
-            @click="selectConversation(conversation)">
+            @click="selectConversation(conversation), openContactDetailsPane(conversation.fromPhoneNumber, conversation.contact)">
             
             <div class="conversation-avatar">
               <div class="avatar-circle">
@@ -227,18 +227,17 @@
               <div>
                 <h4 style="display: flex; align-items: center;">
                   <span 
-                    class="clickable-contact-name"
-                    @click="openContactDetailsPane(currentChat.fromPhoneNumber, currentChat.contact)">
+                    class="">
                     {{ getContactName(currentChat.fromPhoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
                   </span>
-                  <template v-if="currentChat">
+                  <!-- <template v-if="currentChat">
                     <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
                       <el-icon @click="openContactModal('add')" style="margin-left: 8px;cursor: pointer;"><Plus /></el-icon>
                     </el-tooltip>
                     <el-tooltip v-else content="Edit Contact">
                       <el-icon @click="openContactModal('edit')" style="margin-left: 8px;cursor: pointer;"><EditPen /></el-icon>
                     </el-tooltip>
-                  </template>
+                  </template> -->
                 </h4>
                 <!-- Contact Details -->
                 <div class="contact-details" v-if="getCurrentContact()">
@@ -543,18 +542,18 @@
         </div>
       </div>
 
-      <!-- Fourth Panel: Contact Details -->
-      <div v-if="showContactDetailsPane" class="contact-details-panel">
+      <!-- Fourth Panel: Contact Details (always visible) -->
+      <div class="contact-details-panel">
         <div class="panel-header">
           <div class="panel-header-title">
             <h3>Contact Details</h3>
-            <el-button 
+            <!-- <el-button 
               size="small" 
               circle 
               @click="closeContactDetailsPane"
               class="close-btn">
               <el-icon><Close /></el-icon>
-            </el-button>
+            </el-button> -->
           </div>
         </div>
         
@@ -625,57 +624,12 @@
                 />
               </div>
             </div>
-            
-            <!-- Contact Actions -->
-            <!-- <div class="contact-actions-section">
-              <h4>Actions</h4>
-              <div class="contact-actions-list">
-                <el-button 
-                  type="primary" 
-                  @click="editContactFromPane"
-                  icon="EditPen">
-                  Edit Contact
-                </el-button>
-                <el-button 
-                  @click="viewContactHistory"
-                  icon="Clock">
-                  View History
-                </el-button>
-                <el-button 
-                  @click="composeMessageToContact"
-                  icon="Message">
-                  Send Message
-                </el-button>
-              </div>
-            </div> -->
-            
-            <!-- Contact Statistics -->
-            <!-- <div class="contact-stats-section">
-              <h4>Statistics</h4>
-              <div class="contact-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Total Messages</span>
-                  <span class="stat-value">{{ getContactMessageCount() }}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Last Contact</span>
-                  <span class="stat-value">{{ getContactLastContact() }}</span>
-                </div>
-              </div>
-            </div> -->
           </div>
-          
-          <!-- No contact found -->
+          <!-- Placeholder if no contact is selected -->
           <div v-else class="no-contact-found">
             <el-icon class="large-icon"><User /></el-icon>
-            <h3>Contact Not Found</h3>
-            <p>This contact is not in your contacts list.</p>
-            <el-button 
-              type="primary" 
-              @click="addContactFromPane"
-              icon="Plus">
-              Add to Contacts
-            </el-button>
+            <h3>No Contact Selected</h3>
+            <p>Select a contact to view details.</p>
           </div>
         </div>
       </div>
@@ -1278,7 +1232,6 @@ export default {
       showTranscriptDialog: false,
       currentTranscript: '',
       summaryCollapse: {},
-      showContactDetailsPane: false,
       selectedContactDetails: null,
       contactNotes: [],
       newNote: '',
@@ -2643,7 +2596,7 @@ export default {
       this.showTranscriptDialog = false;
       this.currentTranscript = '';
     },
-        async openContactDetailsPane(phoneNumber, contactName) {
+    async openContactDetailsPane(phoneNumber, contactName) {
       // Find the contact in workspace contacts
       const contact = this.workspaceContacts.find(c => 
         c.phone_number === phoneNumber || 
@@ -2662,14 +2615,11 @@ export default {
         };
       }
       
-      this.showContactDetailsPane = true;
-      
       // Load notes after the pane is shown
       await this.loadContactNotes();
     },
     
     closeContactDetailsPane() {
-      this.showContactDetailsPane = false;
       this.selectedContactDetails = null;
       this.contactNotes = [];
       this.newNote = '';

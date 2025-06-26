@@ -1403,7 +1403,7 @@ export default {
           type: 'phone',
           count: unreadCount > 0 ? unreadCount : null
         };
-      });
+      }).sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
     },
 
     recentConversations() {
@@ -1424,6 +1424,7 @@ export default {
       let filtered = this.realtimeConversations || [];
       const phoneId = this.selectedInboxItem.replace('phone_', '');
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      
       if (phone) {
         filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
         

@@ -383,40 +383,39 @@
                       <el-icon class="no-comments-icon"><ChatDotRound /></el-icon>
                       <p>No internal comments yet. Start the conversation!</p>
                     </div>
-                    <div v-for="comment in internalCommentsMap[item.item.id] || []" :key="comment.id" class="internal-comment-item">
-                      <div class="comment-header">
-                        <div class="comment-author">
-                          <el-icon><User /></el-icon>
-                          <span class="author-name">{{ comment.author_name || 'Unknown User' }}</span>
+                    <div
+                      v-for="comment in internalCommentsMap[item.item.id] || []"
+                      :key="comment.id"
+                      class="internal-comment-item compact-comment"
+                    >
+                      <el-tooltip :content="formatFullTimeWithZone(comment.created_at)" placement="right">
+                        <div class="comment-bubble">
+                          <span class="comment-author">{{ comment.author_name }}</span>
+                          <span class="comment-content">{{ comment.content }}</span>
                         </div>
-                        <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
-                      </div>
-                      <div class="comment-content">
-                        <p>{{ comment.content }}</p>
-                      </div>
+                      </el-tooltip>
                     </div>
                     <!-- Add New Comment -->
-                    <div class="add-comment-section">
+                    <div class="comment-input-bar">
                       <el-input
                         v-model="newInternalComment[item.item.id]"
-                        type="textarea"
-                        :rows="3"
-                        placeholder="Add an internal comment... (Only visible to your team)"
-                        maxlength="500"
-                        show-word-limit
-                        class="comment-input"
+                        type="text"
+                        placeholder="Reply internally…"
+                        class="internal-reply-input"
+                        @keyup.enter="addInternalComment(item.item.id)"
+                        clearable
                       />
-                      <div class="comment-actions">
-                        <el-button @click="showingInternalCommentsFor = showingInternalCommentsFor.filter(id => id !== item.item.id)">Cancel</el-button>
-                        <el-button 
-                          type="primary" 
-                          @click="addInternalComment(item.item.id)"
-                          :disabled="!newInternalComment[item.item.id]?.trim()"
-                          :loading="addingComment[item.item.id]"
-                        >
-                          Add Comment
-                        </el-button>
-                      </div>
+                    </div>
+                    <div class="comment-actions">
+                      <el-button @click="showingInternalCommentsFor = showingInternalCommentsFor.filter(id => id !== item.item.id)">Cancel</el-button>
+                      <el-button 
+                        type="primary" 
+                        @click="addInternalComment(item.item.id)"
+                        :disabled="!newInternalComment[item.item.id]?.trim()"
+                        :loading="addingComment[item.item.id]"
+                      >
+                        Add Comment
+                      </el-button>
                     </div>
                   </div>
                 </div>
@@ -994,17 +993,13 @@
             <p>No internal comments yet. Start the conversation!</p>
           </div>
           
-          <div v-for="comment in internalCommentsMap[selectedMessageForComments?.id] || []" :key="comment.id" class="internal-comment-item">
-            <div class="comment-header">
-              <div class="comment-author">
-                <el-icon><User /></el-icon>
-                <span class="author-name">{{ comment.author_name || 'Unknown User' }}</span>
+          <div v-for="comment in internalCommentsMap[selectedMessageForComments?.id] || []" :key="comment.id" class="internal-comment-item compact-comment">
+            <el-tooltip :content="formatFullTimeWithZone(comment.created_at)" placement="right">
+              <div class="comment-bubble">
+                <span class="comment-author">{{ comment.author_name }}</span>
+                <span class="comment-content">{{ comment.content }}</span>
               </div>
-              <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
-            </div>
-            <div class="comment-content">
-              <p>{{ comment.content }}</p>
-            </div>
+            </el-tooltip>
           </div>
         </div>
 
@@ -4843,5 +4838,73 @@ export default {
   border: 1px solid #e0e0e0;
   width: 100%;
   box-sizing: border-box;
+}
+
+/* Add compact, pill-shaped, yellow comment styles */
+.compact-comment {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.comment-bubble {
+  background: #fdf6ec;
+  color: #8d5c1e;
+  border-radius: 12px;
+  padding: 0.35em 0.8em;
+  display: inline-block;
+  font-size: 0.92em;
+  max-width: 90%;
+  cursor: pointer;
+  word-break: break-word;
+  line-height: 1.3;
+}
+.comment-author {
+  font-size: 0.95em;
+}
+.comment-content {
+  font-size: 0.95em;
+}
+.comment-bubble:hover {
+  box-shadow: none;
+}
+.comment-author {
+  font-weight: 500;
+  margin-right: 0.5em;
+  color: #b26a00;
+}
+.comment-content {
+  color: #8d5c1e;
+}
+
+/* Add chat-bar style for comment input */
+.comment-input-bar {
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 22px;
+  padding: 0 12px;
+  margin-bottom: 0.5em;
+}
+.internal-reply-input :deep(.el-input__wrapper) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.internal-reply-input :deep(.el-input__inner) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-size: 1em;
+  padding: 10px 0;
+  min-height: 36px;
+}
+.internal-reply-input :deep(.el-input__inner:focus) {
+  box-shadow: none;
 }
 </style>

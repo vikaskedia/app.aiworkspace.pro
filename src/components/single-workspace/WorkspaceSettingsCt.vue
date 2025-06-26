@@ -454,8 +454,43 @@ export default {
       }
     },
 
+    async isPhoneNumberUnique(number) {
+      // First, check if the number exists in the current workspace
+      if (this.phoneNumbers && this.phoneNumbers.some(p => p.number === number)) {
+        return 'current'; // Already in this workspace
+      }
+      // Query all matters and check if the phone number exists in any other workspace
+      const { data, error } = await supabase
+        .from('matters')
+        .select('id, phone_numbers');
+      if (error) throw error;
+      for (const matter of data) {
+        if (!matter.phone_numbers) continue;
+        try {
+          const numbers = Array.isArray(matter.phone_numbers) ? matter.phone_numbers : JSON.parse(matter.phone_numbers);
+          if (numbers.some(p => p.number === number)) {
+            // If it's the current workspace, skip (already checked above)
+            if (matter.id !== this.currentMatter.id) return 'other';
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      return true;
+    },
+
     async addPhoneNumber() {
       try {
+        // Uniqueness check
+        const uniqueResult = await this.isPhoneNumberUnique(this.newPhoneNumber.number);
+        if (uniqueResult === 'current') {
+          ElMessage.error('This phone number is already added in this workspace.');
+          return;
+        }
+        if (uniqueResult === 'other') {
+          ElMessage.error('This phone number is already added in another workspace.');
+          return;
+        }
         const newPhone = {
           id: Date.now(), // Simple ID for frontend use
           label: this.newPhoneNumber.label,

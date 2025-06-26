@@ -23,27 +23,12 @@ export default async function handler(req, res) {
 
   try {
     const { matterId } = req.query
-    const authHeader = req.headers.authorization
 
     console.log('Conversations API called with matterId:', matterId)
 
     if (!matterId) {
       return res.status(400).json({ error: 'Workspace ID is required' })
     }
-
-    if (!authHeader) {
-      return res.status(401).json({ error: 'Authorization header required' })
-    }
-
-    // Extract user ID from JWT token
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid token' })
-    }
-
-    const userId = user.id
 
     // Fetch conversations for the matter with latest message info
     const { data: conversations, error } = await supabase
@@ -65,29 +50,9 @@ export default async function handler(req, res) {
 
     console.log('Found conversations:', conversations?.length || 0)
 
-    // Get user-specific unread counts for all conversations
-    const { data: unreadCounts, error: unreadError } = await supabase
-      .rpc('get_conversation_unread_counts_for_user', {
-        user_id_param: userId,
-        matter_id_param: parseInt(matterId)
-      })
-
-    if (unreadError) {
-      console.error('Error fetching unread counts:', unreadError)
-    }
-
-    // Create a map of conversation_id to unread count
-    const unreadCountMap = {}
-    if (unreadCounts) {
-      unreadCounts.forEach(item => {
-        unreadCountMap[item.conversation_id] = item.unread_count
-      })
-    }
-
     // Transform the data to match frontend format
     const transformedConversations = conversations.map(conv => {
       const latestMessage = conv.messages?.[0]
-      const userUnreadCount = unreadCountMap[conv.id] || 0
       
       return {
         id: conv.id,
@@ -95,7 +60,7 @@ export default async function handler(req, res) {
         phoneNumber: conv.to_phone_number,
         lastMessage: conv.last_message_preview || latestMessage?.message_body || '',
         lastMessageTime: conv.last_message_at || conv.created_at,
-        unread: userUnreadCount, // Use user-specific unread count
+        unread: conv.unread_count || 0,
         fromPhoneNumber: conv.from_phone_number,
         status: conv.status || 'primary'
       }

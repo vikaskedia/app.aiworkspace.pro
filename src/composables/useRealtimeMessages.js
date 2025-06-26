@@ -8,7 +8,6 @@ export function useRealtimeMessages(matterId) {
   let conversationsChannel = null
   let messagesChannel = null
   let callRecordingsChannel = null
-  let conversationReadStatusChannel = null
 
   // Computed properties
   const sortedConversations = computed(() => {
@@ -182,32 +181,6 @@ export function useRealtimeMessages(matterId) {
     }
   }
 
-  // Conversation read status event handlers
-  const handleConversationReadStatusChange = async (payload) => {
-    console.log('👁️ Conversation read status change:', payload.eventType, payload.new)
-    
-    // Only handle updates for the current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user && payload.new.user_id === user.id) {
-      switch (payload.eventType) {
-        case 'INSERT':
-        case 'UPDATE':
-          handleConversationReadStatusUpdate(payload.new)
-          break
-      }
-    }
-  }
-
-  const handleConversationReadStatusUpdate = (readStatus) => {
-    // Update the conversation's unread count for the current user
-    const conversation = conversations.value.find(c => c.id === readStatus.conversation_id)
-    if (conversation) {
-      // Recalculate unread count based on new read status
-      // This will be handled by the conversation UPDATE event from the database
-      console.log('👁️ Updated read status for conversation:', readStatus.conversation_id)
-    }
-  }
-
   const handleNewCallRecording = (newRecording) => {
     // Find the conversation this recording belongs to
     const conversation = conversations.value.find(c => c.id === newRecording.conversation_id)
@@ -286,19 +259,7 @@ export function useRealtimeMessages(matterId) {
     if (!matterId.value) return
     
     try {
-      // Get the current user's session
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        console.error('No active session')
-        return
-      }
-
-      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
+      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`)
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -373,24 +334,10 @@ export function useRealtimeMessages(matterId) {
     }
     
     try {
-      // Get the current user's session
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) {
-        console.error('No active session')
-        return
-      }
-
       const response = await fetch('https://app.aiworkspace.pro/api/conversations/mark-read', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ 
-          conversationId,
-          matterId: conversation?.matterId || matterId.value
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId })
       })
       
       if (!response.ok) {
@@ -454,23 +401,6 @@ export function useRealtimeMessages(matterId) {
       })
   }
 
-  // Subscribe to conversation read status changes
-  const subscribeToConversationReadStatus = () => {
-    if (!matterId.value) return
-    
-    conversationReadStatusChannel = supabase
-      .channel(`conversation-read-status-${matterId.value}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'conversation_read_status',
-        filter: `matter_id=eq.${matterId.value}`
-      }, handleConversationReadStatusChange)
-      .subscribe((status) => {
-        console.log('👁️ Conversation read status subscription status:', status)
-      })
-  }
-
   // Unsubscribe from all channels
   const unsubscribe = () => {
     if (conversationsChannel) {
@@ -486,11 +416,6 @@ export function useRealtimeMessages(matterId) {
     if (callRecordingsChannel) {
       supabase.removeChannel(callRecordingsChannel)
       callRecordingsChannel = null
-    }
-
-    if (conversationReadStatusChannel) {
-      supabase.removeChannel(conversationReadStatusChannel)
-      conversationReadStatusChannel = null
     }
   }
 
@@ -510,7 +435,6 @@ export function useRealtimeMessages(matterId) {
     subscribeToConversations()
     subscribeToMessages()
     subscribeToCallRecordings()
-    subscribeToConversationReadStatus()
   }
 
 

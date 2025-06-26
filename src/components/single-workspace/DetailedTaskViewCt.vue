@@ -651,257 +651,272 @@
         </div>
       </div>
 
-      <!-- Comments Section -->
-      <div class="task-comments-section">
-        <div class="task-comments">
-          <div class="comments-header">
-            <h3 class="comments-title">Comments</h3>
-            <el-dropdown trigger="click">
-              <el-button link>
-                <el-icon><Setting /></el-icon>
-                <!-- el-icon><VerticalDotsIcon /></el-icon -->
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item>
-                    <div class="dropdown-item-content">
-                      <el-switch
-                        v-model="showSystemComments"
-                        size="small"
-                        active-text="Show system comments"
-                      />
-                    </div>
-                  </el-dropdown-item>
-                  <el-dropdown-item>
-                    <div class="dropdown-item-content">
-                      <el-switch
-                        v-model="showArchivedComments"
-                        size="small"
-                        active-text="Show archived"
-                        @change="loadComments"
-                      />
-                    </div>
-                  </el-dropdown-item>
-                  <!-- el-dropdown-item>
-                    <div class="dropdown-item-content" @click="showSystemComments = !showSystemComments">
-                      <el-switch size="small" v-model="showSystemComments" />
-                      <span class="system-comments-label">Show system comments</span>
-                    </div>
-                  </el-dropdown-item>
-                  <el-dropdown-item>
-                    <div class="dropdown-item-content" @click="toggleArchived">
-                      <el-switch size="small" v-model="showArchivedComments" @change="loadComments" />
-                      <span class="archived-comments-label">Show archived</span>
-                    </div>
-                  </el-dropdown-item -->
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-          <div class="comments-list">
-            <!-- Loading indicator for comments -->
-            <div v-if="commentsLoading" class="loading-message">
-              <el-icon class="loading-spinner"><Loading /></el-icon>
-              <span>Loading comments...</span>
-            </div>
+      <!-- Comments and Outline Tabs Section -->
+      <div class="task-tabs-section">
+        <el-tabs v-model="activeTab" class="task-tabs">
+          <!-- Comments Tab -->
+          <el-tab-pane label="Comments" name="comments">
+            <template #label>
+              <span class="tab-label">
+                <el-icon><ChatDotRound /></el-icon>
+                Comments
+                <el-badge 
+                  v-if="filteredComments.length" 
+                  :value="filteredComments.length" 
+                  class="tab-badge"
+                />
+              </span>
+            </template>
             
-            <div 
-              v-for="comment in filteredComments" 
-              :key="comment.id"
-              :class="[
-                'comment-item', `cid-${comment.id}`,
-                {
-                  'ai-response': comment.type === 'ai_response',
-                  'archived': comment.archived,
-                  'system-comment': comment.type === 'activity'
-                }
-              ]"
-            >
-              <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
-                <div class="comment-header">
-                  <span class="comment-author">
-                    {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
-                  </span>
-                  <div class="comment-actions">
-                    <span class="comment-date">
-                      {{ comment.updated_at 
-                        ? new Date(comment.updated_at).toLocaleString(undefined, { 
-                            year: 'numeric', 
-                            month: 'numeric', 
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
-                        : new Date(comment.created_at).toLocaleString(undefined, {
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric', 
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
-                      }}
-                    </span>
-                    <el-dropdown v-if="comment.type !== 'activity'" trigger="click">
-                      <el-button link>
-                        <el-icon><VerticalDotsIcon /></el-icon>
-                      </el-button>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item @click="startEditing(comment)">Edit</el-dropdown-item>
-                          <el-dropdown-item @click="toggleCommentHistory(comment)" v-if="comment.comment_edit_history?.length">
-                            {{ expandedCommentHistories.has(comment.id) ? 'Close History' : `Show History (${comment.comment_edit_history.length})` }}
-                          </el-dropdown-item>
-                          <el-dropdown-item @click="toggleArchiveComment(comment)">
-                            {{ comment.archived ? 'Unarchive' : 'Archive' }}
-                          </el-dropdown-item>
-                          <!-- Add download options for AI responses -->
-                          <el-dropdown-item :class="`download-doc-item-${comment.id}`" @click="downloadResponse(comment, 'doc')">
-                            <el-icon><Download /></el-icon>
-                            Doc
-                          </el-dropdown-item>
-                          <el-dropdown-item :class="`download-pdf-item-${comment.id}`" @click="downloadResponse(comment, 'pdf')">
-                            <el-icon><Download /></el-icon>
-                            PDF
-                          </el-dropdown-item>   
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </div>
+            <div class="tab-content">
+              <div class="comments-header">
+                <el-dropdown trigger="click">
+                  <el-button link>
+                    <el-icon><Setting /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item>
+                        <div class="dropdown-item-content">
+                          <el-switch
+                            v-model="showSystemComments"
+                            size="small"
+                            active-text="Show system comments"
+                          />
+                        </div>
+                      </el-dropdown-item>
+                      <el-dropdown-item>
+                        <div class="dropdown-item-content">
+                          <el-switch
+                            v-model="showArchivedComments"
+                            size="small"
+                            active-text="Show archived"
+                            @change="loadComments"
+                          />
+                        </div>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+              
+              <div class="comments-list">
+                <!-- Loading indicator for comments -->
+                <div v-if="commentsLoading" class="loading-message">
+                  <el-icon class="loading-spinner"><Loading /></el-icon>
+                  <span>Loading comments...</span>
                 </div>
-                <div class="comment-text">
-                  <div v-if="editingCommentId === comment.id">
-                    <TiptapEditor
-                      v-model="editingCommentText"
-                      placeholder="Edit your comment..."
-                      :taskId="String(task.id)"
-                      :taskTitle="task.title"
-                      :sharedUsers="sharedUsers"
-                      :isTaskComment="true"
-                      :autofocus="true"
-                      :enable-typeahead="false"
-                    />
-                    <div class="comment-edit-actions">
-                      <el-button @click="cancelEditing" size="small">Cancel</el-button>
-                                          <el-button 
-                      type="primary" 
-                      @click="saveCommentEdit(comment)" 
-                      size="small"
-                      :loading="savingComment"
-                      :disabled="!editingCommentText.trim() || editingCommentText === comment.content"
-                    >
-                      Save
-                    </el-button>
+                
+                <div 
+                  v-for="comment in filteredComments" 
+                  :key="comment.id"
+                  :class="[
+                    'comment-item', `cid-${comment.id}`,
+                    {
+                      'ai-response': comment.type === 'ai_response',
+                      'archived': comment.archived,
+                      'system-comment': comment.type === 'activity'
+                    }
+                  ]"
+                >
+                  <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
+                    <div class="comment-header">
+                      <span class="comment-author">
+                        {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
+                      </span>
+                      <div class="comment-actions">
+                        <span class="comment-date">
+                          {{ comment.updated_at 
+                            ? new Date(comment.updated_at).toLocaleString(undefined, { 
+                                year: 'numeric', 
+                                month: 'numeric', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : new Date(comment.created_at).toLocaleString(undefined, {
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric', 
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                          }}
+                        </span>
+                        <el-dropdown v-if="comment.type !== 'activity'" trigger="click">
+                          <el-button link>
+                            <el-icon><VerticalDotsIcon /></el-icon>
+                          </el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item @click="startEditing(comment)">Edit</el-dropdown-item>
+                              <el-dropdown-item @click="toggleCommentHistory(comment)" v-if="comment.comment_edit_history?.length">
+                                {{ expandedCommentHistories.has(comment.id) ? 'Close History' : `Show History (${comment.comment_edit_history.length})` }}
+                              </el-dropdown-item>
+                              <el-dropdown-item @click="toggleArchiveComment(comment)">
+                                {{ comment.archived ? 'Unarchive' : 'Archive' }}
+                              </el-dropdown-item>
+                              <!-- Add download options for AI responses -->
+                              <el-dropdown-item :class="`download-doc-item-${comment.id}`" @click="downloadResponse(comment, 'doc')">
+                                <el-icon><Download /></el-icon>
+                                Doc
+                              </el-dropdown-item>
+                              <el-dropdown-item :class="`download-pdf-item-${comment.id}`" @click="downloadResponse(comment, 'pdf')">
+                                <el-icon><Download /></el-icon>
+                                PDF
+                              </el-dropdown-item>   
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
+                      </div>
                     </div>
-                  </div>
-                  <span v-else v-html="formatCommentContent(comment.content)"></span>
-                  
-                  <!-- Add this new history section -->
-                  <div v-if="expandedCommentHistories.has(comment.id) && comment.comment_edit_history?.length" class="comment-history">
-                    <div class="history-header">Edit History</div>
-                    <div v-for="(historyEntry, index) in comment.comment_edit_history.slice().reverse()" 
-                         :key="index" 
-                         class="history-entry">
-                      <div class="previous-content">{{ historyEntry.previous_content }}</div>
-                      <div class="edit-metadata">
-                        Edited by {{ userEmails[historyEntry.edited_by] }}
-                        on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'numeric',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) }}
+                    <div class="comment-text">
+                      <div v-if="editingCommentId === comment.id">
+                        <TiptapEditor
+                          v-model="editingCommentText"
+                          placeholder="Edit your comment..."
+                          :taskId="String(task.id)"
+                          :taskTitle="task.title"
+                          :sharedUsers="sharedUsers"
+                          :isTaskComment="true"
+                          :autofocus="true"
+                          :enable-typeahead="false"
+                        />
+                        <div class="comment-edit-actions">
+                          <el-button @click="cancelEditing" size="small">Cancel</el-button>
+                          <el-button 
+                            type="primary" 
+                            @click="saveCommentEdit(comment)" 
+                            size="small"
+                            :loading="savingComment"
+                            :disabled="!editingCommentText.trim() || editingCommentText === comment.content"
+                          >
+                            Save
+                          </el-button>
+                        </div>
+                      </div>
+                      <span v-else v-html="formatCommentContent(comment.content)"></span>
+                      
+                      <!-- Add this new history section -->
+                      <div v-if="expandedCommentHistories.has(comment.id) && comment.comment_edit_history?.length" class="comment-history">
+                        <div class="history-header">Edit History</div>
+                        <div v-for="(historyEntry, index) in comment.comment_edit_history.slice().reverse()" 
+                             :key="index" 
+                             class="history-entry">
+                          <div class="previous-content">{{ historyEntry.previous_content }}</div>
+                          <div class="edit-metadata">
+                            Edited by {{ userEmails[historyEntry.edited_by] }}
+                            on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
+                              year: 'numeric',
+                              month: 'numeric',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) }}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div class="comment-input">
-            <TiptapEditor
-              v-model="newComment"
-              placeholder="Write a comment..."
-              :taskId="String(task.id)"
-              :taskTitle="task.title"
-              :sharedUsers="sharedUsers"
-              :isTaskComment="true"
-              :enable-typeahead="false"
-            />
-            <div class="comment-input-actions">
-              <el-button
-                type="primary"
-                :disabled="!newComment.trim()"
-                :loading="addingComment"
-                @click="addComment">
-                Add Comment
-              </el-button>
-              
-              <!-- Loading message when adding comment -->
-              <div v-if="addingComment" class="adding-comment-message">
-                <el-icon class="loading-spinner"><Loading /></el-icon>
-                <span>Adding comment...</span>
+              <div class="comment-input">
+                <TiptapEditor
+                  v-model="newComment"
+                  placeholder="Write a comment..."
+                  :taskId="String(task.id)"
+                  :taskTitle="task.title"
+                  :sharedUsers="sharedUsers"
+                  :isTaskComment="true"
+                  :enable-typeahead="false"
+                />
+                <div class="comment-input-actions">
+                  <el-button
+                    type="primary"
+                    :disabled="!newComment.trim()"
+                    :loading="addingComment"
+                    @click="addComment">
+                    Add Comment
+                  </el-button>
+                  
+                  <!-- Loading message when adding comment -->
+                  <div v-if="addingComment" class="adding-comment-message">
+                    <el-icon class="loading-spinner"><Loading /></el-icon>
+                    <span>Adding comment...</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </el-tab-pane>
 
-      <!-- Task Outline Section -->
-      <div class="task-outline-section">
-        <div class="task-outline">
-          <div class="outline-header">
-            <h3 class="outline-title">Task Outline</h3>
-            <div class="outline-controls">
-              <el-button 
-                type="primary" 
-                @click="saveTaskOutline" 
-                :loading="savingOutline"
-                :disabled="!hasOutlineChanges"
-                size="small"
-              >
-                <el-icon><DocumentChecked /></el-icon>
-                Save Outline
-              </el-button>
+          <!-- Outline Tab -->
+          <el-tab-pane label="Outline" name="outline">
+            <template #label>
+              <span class="tab-label">
+                <el-icon><List /></el-icon>
+                Outline
+                <el-badge 
+                  v-if="taskOutline.length" 
+                  :value="taskOutline.length" 
+                  class="tab-badge"
+                />
+              </span>
+            </template>
+            
+            <div class="tab-content">
+              <div class="outline-header">
+                <div class="outline-controls">
+                  <el-button 
+                    type="primary" 
+                    @click="saveTaskOutline" 
+                    :loading="savingOutline"
+                    :disabled="!hasOutlineChanges"
+                    size="small"
+                  >
+                    <el-icon><DocumentChecked /></el-icon>
+                    Save Outline
+                  </el-button>
+                </div>
+              </div>
+              
+              <!-- Loading indicator for outline -->
+              <div v-if="outlineLoading" class="loading-message">
+                <el-icon class="loading-spinner"><Loading /></el-icon>
+                <span>Loading outline...</span>
+              </div>
+              
+              <!-- Outline content -->
+              <div v-else class="outline-content">
+                <ul v-if="taskOutline.length" class="outline-list">
+                  <OutlinePointsCt
+                    v-for="item in taskOutline"
+                    :key="item.id"
+                    :item="item"
+                    @update="onTaskOutlineUpdate"
+                    @move="handleTaskOutlineMove"
+                    @delete="handleTaskOutlineDelete"
+                    @navigate="handleTaskOutlineNavigate"
+                    @indent="handleTaskOutlineIndent"
+                    @outdent="handleTaskOutlineOutdent"
+                    @add-sibling="handleTaskOutlineAddSibling"
+                  />
+                </ul>
+                <div v-else class="empty-outline">
+                  <p>No outline items yet. Start typing to create your first outline point...</p>
+                  <el-button 
+                    type="primary" 
+                    @click="addFirstOutlineItem"
+                    size="small"
+                  >
+                    <el-icon><Plus /></el-icon>
+                    Add First Item
+                  </el-button>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <!-- Loading indicator for outline -->
-          <div v-if="outlineLoading" class="loading-message">
-            <el-icon class="loading-spinner"><Loading /></el-icon>
-            <span>Loading outline...</span>
-          </div>
-          
-          <!-- Outline content -->
-          <div v-else class="outline-content">
-            <ul v-if="taskOutline.length" class="outline-list">
-              <OutlinePointsCt
-                v-for="item in taskOutline"
-                :key="item.id"
-                :item="item"
-                @update="onTaskOutlineUpdate"
-                @move="handleTaskOutlineMove"
-                @delete="handleTaskOutlineDelete"
-                @navigate="handleTaskOutlineNavigate"
-                @indent="handleTaskOutlineIndent"
-                @outdent="handleTaskOutlineOutdent"
-                @add-sibling="handleTaskOutlineAddSibling"
-              />
-            </ul>
-            <div v-else class="empty-outline">
-              <p>No outline items yet. Start typing to create your first outline point...</p>
-              <el-button 
-                type="primary" 
-                @click="addFirstOutlineItem"
-                size="small"
-              >
-                <el-icon><Plus /></el-icon>
-                Add First Item
-              </el-button>
-            </div>
-          </div>
-        </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </div>
     
@@ -1175,7 +1190,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -1220,6 +1235,8 @@ export default {
     Plus,
     Loading,
     DocumentChecked,
+    ChatDotRound,
+    List,
     OutlinePointsCt
   },
   setup() {
@@ -1343,7 +1360,10 @@ export default {
       outlineLoading: false,
       savingOutline: false,
       hasOutlineChanges: false,
-      lastSavedOutlineContent: null
+      lastSavedOutlineContent: null,
+      
+      // Tab management
+      activeTab: 'comments'
     };
   },
   async created() {
@@ -5287,11 +5307,44 @@ table.editor-table {
   overflow: hidden;
 }
 
-.task-comments-section {
+.task-tabs-section {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  padding: 1rem;
+}
+
+.task-tabs {
+  width: 100%;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.tab-badge {
+  margin-left: 4px;
+}
+
+.tab-content {
+  padding: 1rem 0;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.outline-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {
@@ -5331,10 +5384,22 @@ table.editor-table {
     width: 100%;
   }
 
-  .task-comments-section {
+  .task-tabs-section {
     border-radius: 0;
     box-shadow: none;
-    padding: 1rem;
+    padding: 0.5rem;
+  }
+  
+  .tab-content {
+    padding: 0.5rem 0;
+  }
+  
+  .tab-label {
+    font-size: 13px;
+  }
+  
+  .tab-badge {
+    margin-left: 2px;
   }
 
   /* Make dialog take up most of the screen width on mobile */
@@ -5682,10 +5747,7 @@ table.editor-table {
 </style>
 
 <style scoped>
-.comments-title {
-  text-decoration: underline;
-  text-underline-offset: 4px; /* Optional: adds some space between text and underline */
-}
+
 </style>
 
 <style scoped>
@@ -6125,32 +6187,6 @@ table.editor-table {
 </style>
 
 <style scoped>
-.task-outline-section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-}
-
-.task-outline {
-  width: 100%;
-}
-
-.outline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.outline-title {
-  margin: 0;
-  color: #303133;
-  font-size: 18px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
 .outline-controls {
   display: flex;
   gap: 8px;
@@ -6175,23 +6211,5 @@ table.editor-table {
   list-style: none;
   padding-left: 0;
   margin: 0;
-}
-
-@media (max-width: 768px) {
-  .task-outline-section {
-    border-radius: 0;
-    box-shadow: none;
-    padding: 1rem;
-  }
-  
-  .outline-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-  
-  .outline-controls {
-    justify-content: center;
-  }
 }
 </style>

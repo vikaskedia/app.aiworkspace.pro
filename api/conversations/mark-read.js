@@ -22,7 +22,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { conversationId } = req.body
+    const { conversationId, matterId } = req.body
+    const authHeader = req.headers.authorization
 
     console.log('Marking conversation as read:', conversationId)
 
@@ -30,18 +31,35 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Conversation ID is required' })
     }
 
-    // Mark conversation as read by setting unread_count to 0
+    if (!matterId) {
+      return res.status(400).json({ error: 'Matter ID is required' })
+    }
+
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header required' })
+    }
+
+    // Extract user ID from JWT token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Invalid token' })
+    }
+
+    const userId = user.id
+
+    // Mark conversation as read for this specific user
     const { error } = await supabase
-      .from('conversations')
-      .update({
-        unread_count: 0,
-        updated_at: new Date().toISOString()
+      .rpc('mark_conversation_as_read', {
+        conversation_id_param: conversationId,
+        user_id_param: userId,
+        matter_id_param: parseInt(matterId)
       })
-      .eq('id', conversationId)
 
     if (error) throw error
 
-    console.log('Conversation marked as read successfully')
+    console.log('Conversation marked as read successfully for user:', userId)
 
     return res.status(200).json({
       success: true,

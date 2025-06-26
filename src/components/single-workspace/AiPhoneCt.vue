@@ -558,36 +558,41 @@
         </div>
         
         <div class="contact-details-content">
-          <div v-if="selectedContactDetails" class="contact-full-details">
-            <!-- Contact Avatar -->
-            <div class="contact-avatar-large">
-              <el-icon><User /></el-icon>
+          <div v-if="selectedContactDetails" class="contact-full-details redesigned-contact-details">
+            <!-- Avatar with initials or profile picture -->
+            <div class="contact-avatar-large redesigned-avatar">
+              <template v-if="selectedContactDetails.profile_picture_url">
+                <img :src="selectedContactDetails.profile_picture_url" :alt="selectedContactDetails.name" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" />
+              </template>
+              <template v-else>
+                <div class="avatar-initials">
+                  {{ getInitials(selectedContactDetails.name) }}
+                </div>
+              </template>
             </div>
-            
             <!-- Contact Name -->
-            <h2 class="contact-name-large">{{ selectedContactDetails.name }}</h2>
-            
-            <!-- Contact Phone -->
-            <div class="contact-phone-large">
-              <el-icon><Phone /></el-icon>
-              <span>{{ selectedContactDetails.phone_number }}</span>
-            </div>
-            
-            <!-- Contact Tags -->
-            <div v-if="selectedContactDetails.tags && selectedContactDetails.tags.length" class="contact-tags-section">
-              <h4>Tags</h4>
-              <div class="contact-tags-list">
-                <el-tag 
-                  v-for="tag in selectedContactDetails.tags" 
-                  :key="tag" 
-                  size="medium"
-                  type="info"
-                >
-                  {{ tag }}
-                </el-tag>
+            <h2 class="contact-name-large redesigned-name">{{ selectedContactDetails.name }}</h2>
+            <!-- Details List -->
+            <div class="contact-details-list">
+              <div class="detail-row"><el-icon><Briefcase /></el-icon><span>Company</span><div class="detail-value">{{ selectedContactDetails.company || 'Set a company...' }}</div></div>
+              <div class="detail-row"><el-icon><User /></el-icon><span>Role</span><div class="detail-value">{{ selectedContactDetails.role || 'Set a role...' }}</div></div>
+              <div class="detail-row"><el-icon><Phone /></el-icon><span>Phone</span><div class="detail-value">{{ formatPhone(selectedContactDetails.phone_number) || 'Set a phone...' }}</div></div>
+              <div class="detail-row"><el-icon><Message /></el-icon><span>Email</span><div class="detail-value">{{ selectedContactDetails.email || 'Set an email...' }}</div></div>
+              <div class="detail-row"><el-icon><Document /></el-icon><span>Matter</span><div class="detail-value">{{ selectedContactDetails.matter_text || 'Set a matter...' }}</div></div>
+              <div class="detail-row"><el-icon><List /></el-icon><span>Tags</span>
+                <div class="detail-value">
+                  <template v-if="selectedContactDetails.tags && selectedContactDetails.tags.length">
+                    <el-tag v-for="tag in selectedContactDetails.tags" :key="tag" size="small" type="info" class="pill-tag">{{ tag }}</el-tag>
+                  </template>
+                  <template v-else>
+                    <span class="placeholder">Set tags...</span>
+                  </template>
+                </div>
               </div>
+              <div class="detail-row"><el-icon><Location /></el-icon><span>Address</span><div class="detail-value">{{ selectedContactDetails.address || 'Set an address...' }}</div></div>
+              <div class="detail-row"><el-icon><UserFilled /></el-icon><span>Creator</span><div class="detail-value">{{ selectedContactDetails.creator_name || 'Unknown' }}</div></div>
             </div>
-            
+            <hr>
             <!-- Contact Notes -->
             <div class="contact-notes-section">
               <div class="notes-header">
@@ -1005,7 +1010,11 @@ import {
   Close,
   Upload,
   ArrowDown,
-  ArrowRight
+  ArrowRight,
+  Briefcase,
+  List,
+  Location,
+  View
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -1036,7 +1045,11 @@ export default {
     Close,
     Upload,
     ArrowDown,
-    ArrowRight
+    ArrowRight,
+    Briefcase,
+    List,
+    Location,
+    View
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1705,7 +1718,8 @@ export default {
     },
     
     getInitials(name) {
-      return name.split(' ').map(n => n[0]).join('').toUpperCase();
+      if (!name) return '';
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
     },
     
     formatTime(date) {
@@ -2599,22 +2613,35 @@ export default {
     async openContactDetailsPane(phoneNumber, contactName) {
       // Find the contact in workspace contacts
       const contact = this.workspaceContacts.find(c => 
-        c.phone_number === phoneNumber || 
-        c.phone_number === phoneNumber.slice(-10) ||
-        c.phone_number === phoneNumber.replace(/\D/g, '').slice(-10)
+        c.phone_number === contactName || 
+        c.phone_number === contactName.slice(-10) ||
+        c.phone_number === contactName.replace(/\D/g, '').slice(-10)
       );
-      
+      let creatorName = 'Unknown';
+      if (contact && contact.created_by) {
+        try {
+          const { data: userInfo, error } = await supabase
+            .rpc('get_user_info_for_matter', {
+              user_ids: [contact.created_by],
+              matter_id_param: this.currentMatter.id
+            });
+          if (userInfo && userInfo.length > 0) {
+            creatorName = userInfo[0].display_name || userInfo[0].email || 'Unknown';
+          }
+        } catch (e) {
+          // fallback to Unknown
+        }
+      }
       if (contact) {
-        this.selectedContactDetails = { ...contact };
+        this.selectedContactDetails = { ...contact, creator_name: creatorName };
       } else {
-        // If contact not found, create a placeholder with the phone number
         this.selectedContactDetails = {
           name: contactName || 'Unknown Contact',
           phone_number: phoneNumber.replace(/\D/g, '').slice(-10),
-          tags: []
+          tags: [],
+          creator_name: creatorName
         };
       }
-      
       // Load notes after the pane is shown
       await this.loadContactNotes();
     },
@@ -2929,6 +2956,14 @@ export default {
       } catch (error) {
         console.error('Error in togglePhoneTagFilter:', error);
       }
+    },
+    formatPhone(phone) {
+      if (!phone) return '';
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length === 10) {
+        return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+      }
+      return phone;
     },
   }
 };
@@ -4856,5 +4891,68 @@ export default {
 }
 .internal-reply-input :deep(.el-input__inner:focus) {
   box-shadow: none;
+}
+
+.redesigned-contact-details {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.redesigned-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #1976d2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+  font-size: 2rem;
+}
+
+.redesigned-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.contact-actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.contact-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-value {
+  flex: 1;
+  text-align: left;
+}
+
+.placeholder {
+  color: #909399;
+  font-size: 0.8rem;
+}
+
+.pill-tag {
+  background-color: #e9ecef;
+  color: #606266;
+  border-radius: 12px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  margin: 0 0.25rem;
 }
 </style>

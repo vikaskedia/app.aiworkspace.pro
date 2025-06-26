@@ -16,7 +16,7 @@
             >
             <div class="item-info">
               <el-icon><component :is="item.icon" /></el-icon>&nbsp;
-              <span class="item-label" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)">{{ item.label }}</span><br>
+              <span class="item-label" style="cursor: pointer;" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)">{{ item.label }}</span><br>
               <span class="phone-number">{{ item.number }}</span>
               <div class="phone-tags-tree" style="margin-top: 4px;">
                 <div 
@@ -128,7 +128,13 @@
       <div class="chats-panel">
         <div class="panel-header">
           <div class="panel-header-title">
-            <h3>{{ conversationHeaderTitle }}</h3>
+            <el-tooltip 
+              v-if="conversationHeaderTitle.tooltip" 
+              :content="conversationHeaderTitle.tooltip" 
+              placement="top">
+              <h3>{{ conversationHeaderTitle.title }}</h3>
+            </el-tooltip>
+            <h3 v-else>{{ conversationHeaderTitle.title }}</h3>
             <el-button 
               v-if="showNewMessageButton"
               size="small" 
@@ -1428,20 +1434,26 @@ export default {
     
     conversationHeaderTitle() {
       if (!this.selectedInboxItem) {
-        return 'Conversations';
+        return { title: 'Conversations', tooltip: null };
       }
 
       // Extract phone ID from selectedInboxItem (format: phone_123)
       const phoneId = this.selectedInboxItem.replace('phone_', '');
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
-      if (phone) {
+      if (phone) {        
         if (this.showUntaggedOnly) {
-          return `Untagged Conversations for ${phone.number}`;
+          return { 
+            title: `Untagged Conversations for ${phone.label}`, 
+            tooltip: phone.number 
+          };
         }
-        return `Conversations for ${phone.number}`;
+        return { 
+          title: `Conversations for ${phone.label}`, 
+          tooltip: phone.number 
+        };
       }
-      return 'Conversations';
+      return { title: 'Conversations', tooltip: null };
     },
 
     canSendMessage() {
@@ -3105,7 +3117,6 @@ export default {
 .inbox-item {
   position: relative;
   padding: 0.75rem 1rem;
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.75rem;

@@ -38,6 +38,7 @@ export default {
       if (path.includes('/events')) return 'events'
       if (path.includes('/outlines')) return 'outlines'
       if (path.includes('/contacts')) return 'contacts'
+      if (path.includes('/ai_phone')) return 'ai-phone'
       return 'dashboard'
     }
   },
@@ -92,6 +93,10 @@ export default {
   }
 }
 .matter-content.matter-content--tasks {
+    max-width: 100%;
+}
+
+.matter-content.matter-content--ai-phone {
     max-width: 100%;
 }
 </style>

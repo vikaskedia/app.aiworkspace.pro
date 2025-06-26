@@ -185,7 +185,13 @@
             
             <div class="conversation-avatar">
               <div class="avatar-circle">
-                <el-icon><User /></el-icon>
+                <img 
+                  v-if="getContactForConversation(conversation)?.profile_picture_url" 
+                  :src="getContactForConversation(conversation).profile_picture_url" 
+                  :alt="getContactForConversation(conversation)?.name"
+                  class="avatar-image"
+                />
+                <el-icon v-else><User /></el-icon>
               </div>
               <!-- <div v-if="conversation.unread" class="unread-indicator"></div> -->
             </div>
@@ -222,7 +228,13 @@
           <div class="chat-header">
             <div class="chat-contact-info">
               <div class="contact-avatar">
-                <el-icon><User /></el-icon>
+                <img 
+                  v-if="getCurrentContact()?.profile_picture_url" 
+                  :src="getCurrentContact().profile_picture_url" 
+                  :alt="getCurrentContact()?.name"
+                  class="avatar-image"
+                />
+                <el-icon v-else><User /></el-icon>
               </div>
               <div>
                 <h4 style="display: flex; align-items: center;">
@@ -2421,6 +2433,19 @@ export default {
       return this.workspaceContacts.find(c => c.phone_number === this.currentChat.phoneNumber.slice(-10));
     },
 
+    getContactForConversation(conversation) {
+      if (!conversation) return null;
+      return this.workspaceContacts.find(c => {
+        const convPhone = conversation.fromPhoneNumber || conversation.phoneNumber || conversation.contact || '';
+        const contactPhone = c.phone_number || '';
+        const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+        const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+        const fullConvPhone = convPhone.replace(/\D/g, '');
+        const fullContactPhone = contactPhone.replace(/\D/g, '');
+        return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+      });
+    },
+
     onRecipientSelect(value) {
       this.newMessageForm.to = value;
     },
@@ -3180,7 +3205,7 @@ export default {
 
 <style scoped>
 .ai-phone-interface {
-  height: 80vh;
+  height: 85vh;
   display: flex;
   flex-direction: column;
   background: #f5f5f5;
@@ -3208,7 +3233,7 @@ export default {
 
 /* Left Panel - Inbox (20% width) */
 .inbox-panel {
-  width: 20%;
+  width: 15%;
   height: 100%;
   background: white;
   border-right: 1px solid #e0e0e0;
@@ -3216,7 +3241,7 @@ export default {
 
 /* Middle Panel - Conversations (35% width) */
 .chats-panel {
-  width: 35%;
+  width: 25%;
   height: 100%;
   background: white;
   border-right: 1px solid #e0e0e0;
@@ -3233,7 +3258,7 @@ export default {
 
 /* Fourth Panel: Contact Details */
 .contact-details-panel {
-  width: 25%;
+  width: 15%;
   height: 100%;
   background: white;
   border-left: 1px solid #e0e0e0;
@@ -3242,7 +3267,7 @@ export default {
 }
 
 /* Adjust panel widths when contact details panel is visible */
-.phone-layout:has(.contact-details-panel) .inbox-panel {
+/* .phone-layout:has(.contact-details-panel) .inbox-panel {
   width: 15%;
 }
 
@@ -3254,7 +3279,7 @@ export default {
   width: 35%;
 }
 
-/* Fallback for browsers that don't support :has() */
+//Fallback for browsers that don't support :has()
 .phone-layout.with-contact-panel .inbox-panel {
   width: 15%;
 }
@@ -3269,7 +3294,7 @@ export default {
 
 .phone-layout.with-contact-panel .contact-details-panel {
   width: 25%;
-}
+} */
 
 .panel-header {
   padding: 1rem;
@@ -3451,6 +3476,14 @@ export default {
   justify-content: center;
   font-weight: bold;
   font-size: 1.1rem;
+  overflow: hidden;
+}
+
+.avatar-circle .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .avatar-circle .el-icon {
@@ -3568,6 +3601,14 @@ export default {
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  overflow: hidden;
+}
+
+.contact-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .contact-avatar .el-icon {

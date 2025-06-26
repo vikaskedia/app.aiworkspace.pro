@@ -308,13 +308,13 @@
                     <el-icon 
                       v-show="hoveredMessage === item.item.id"
                       class="internal-comment-icon" 
-                      @click="openInternalComments(item.item)">
+                      @click="toggleInlineInternalComments(item.item)">
                       <ChatDotRound />
                     </el-icon>
                   </el-tooltip>
                   
                   <!-- Internal Comments Indicator -->
-                  <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="openInternalComments(item.item)">
+                  <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="toggleInlineInternalComments(item.item)">
                     <el-icon><ChatDotRound /></el-icon>
                     <span class="comments-count">{{ getInternalCommentsCount(item.item.id) }}</span>
                   </div>
@@ -369,9 +369,52 @@
                   
                   <!-- Message timestamp -->
                   <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
+
+                  <!-- Inline Internal Comments Thread (moved inside message-content) -->
+                  <div v-if="showingInternalCommentsFor.includes(item.item.id)" class="inline-internal-comments">
+                    <!-- Internal Comments List -->
+                    <div v-if="(internalCommentsMap[item.item.id] || []).length === 0" class="no-comments">
+                      <el-icon class="no-comments-icon"><ChatDotRound /></el-icon>
+                      <p>No internal comments yet. Start the conversation!</p>
+                    </div>
+                    <div v-for="comment in internalCommentsMap[item.item.id] || []" :key="comment.id" class="internal-comment-item">
+                      <div class="comment-header">
+                        <div class="comment-author">
+                          <el-icon><User /></el-icon>
+                          <span class="author-name">{{ comment.author_name || 'Unknown User' }}</span>
+                        </div>
+                        <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
+                      </div>
+                      <div class="comment-content">
+                        <p>{{ comment.content }}</p>
+                      </div>
+                    </div>
+                    <!-- Add New Comment -->
+                    <div class="add-comment-section">
+                      <el-input
+                        v-model="newInternalComment[item.item.id]"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="Add an internal comment... (Only visible to your team)"
+                        maxlength="500"
+                        show-word-limit
+                        class="comment-input"
+                      />
+                      <div class="comment-actions">
+                        <el-button @click="showingInternalCommentsFor = showingInternalCommentsFor.filter(id => id !== item.item.id)">Cancel</el-button>
+                        <el-button 
+                          type="primary" 
+                          @click="addInternalComment(item.item.id)"
+                          :disabled="!newInternalComment[item.item.id]?.trim()"
+                          :loading="addingComment[item.item.id]"
+                        >
+                          Add Comment
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <!-- Call Recording Display -->
+                <!-- Inline Internal Comments Thread -->
                 <div v-else-if="item.type === 'recording'" class="call-recording-content">
                   <div class="call-recording-header">
                     <el-icon class="call-icon"><Phone /></el-icon>
@@ -940,12 +983,12 @@
 
         <!-- Internal Comments List -->
         <div class="internal-comments-list">
-          <div v-if="internalComments.length === 0" class="no-comments">
+          <div v-if="(internalCommentsMap[selectedMessageForComments?.id] || []).length === 0" class="no-comments">
             <el-icon class="no-comments-icon"><ChatDotRound /></el-icon>
             <p>No internal comments yet. Start the conversation!</p>
           </div>
           
-          <div v-for="comment in internalComments" :key="comment.id" class="internal-comment-item">
+          <div v-for="comment in internalCommentsMap[selectedMessageForComments?.id] || []" :key="comment.id" class="internal-comment-item">
             <div class="comment-header">
               <div class="comment-author">
                 <el-icon><User /></el-icon>
@@ -962,7 +1005,7 @@
         <!-- Add New Comment -->
         <div class="add-comment-section">
           <el-input
-            v-model="newInternalComment"
+            v-model="newInternalComment[selectedMessageForComments?.id]"
             type="textarea"
             :rows="3"
             placeholder="Add an internal comment... (Only visible to your team)"
@@ -971,12 +1014,12 @@
             class="comment-input"
           />
           <div class="comment-actions">
-            <el-button @click="closeInternalCommentsDialog">Cancel</el-button>
+            <el-button @click="showingInternalCommentsFor = showingInternalCommentsFor.filter(id => id !== selectedMessageForComments?.id)">Cancel</el-button>
             <el-button 
               type="primary" 
-              @click="addInternalComment"
-              :disabled="!newInternalComment.trim()"
-              :loading="addingComment"
+              @click="addInternalComment(selectedMessageForComments?.id)"
+              :disabled="!newInternalComment[selectedMessageForComments?.id]?.trim()"
+              :loading="addingComment[selectedMessageForComments?.id]"
             >
               Add Comment
             </el-button>
@@ -1241,11 +1284,11 @@ export default {
       
       // Internal Comments
       hoveredMessage: null,
-      showInternalCommentsDialog: false,
+      showingInternalCommentsFor: [], // array of open messageIds
       selectedMessageForComments: null,
-      internalComments: [],
-      newInternalComment: '',
-      addingComment: false,
+      internalCommentsMap: {}, // { [messageId]: comments[] }
+      newInternalComment: {}, // { [messageId]: string }
+      addingComment: {},      // { [messageId]: boolean }
       messageInternalComments: {}, // Cache for message comments count
       labelEditInput: '',
       labelPopoverVisible: false,
@@ -2766,129 +2809,106 @@ export default {
       this.hoveredMessage = messageId;
     },
 
-    async openInternalComments(message) {
-      this.selectedMessageForComments = message;
-      this.showInternalCommentsDialog = true;
-      this.newInternalComment = '';
-      
-      // Load existing internal comments for this message
-      await this.loadInternalComments(message.id);
+    async toggleInlineInternalComments(message) {
+      const idx = this.showingInternalCommentsFor.indexOf(message.id);
+      if (idx !== -1) {
+        // Close this thread
+        this.showingInternalCommentsFor.splice(idx, 1);
+        delete this.internalCommentsMap[message.id];
+      } else {
+        // Open this thread
+        this.showingInternalCommentsFor.push(message.id);
+        await this.loadInternalComments(message.id);
+      }
+      this.newInternalComment = {};
     },
 
     closeInternalCommentsDialog() {
-      this.showInternalCommentsDialog = false;
+      this.showingInternalCommentsFor = [];
       this.selectedMessageForComments = null;
-      this.internalComments = [];
-      this.newInternalComment = '';
+      this.internalCommentsMap = {};
+      this.newInternalComment = {};
     },
 
     async loadInternalComments(messageId) {
       try {
         const { data: comments, error } = await supabase
           .from('message_internal_comments')
-          .select(`
-            *
-          `)
+          .select(`*`)
           .eq('message_id', messageId)
           .eq('archived', false)
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-
         if (!comments || comments.length === 0) {
-          this.internalComments = [];
+          this.internalCommentsMap[messageId] = [];
           return;
         }
-
         // Get unique user IDs from comments
         const userIds = [...new Set(comments.map(c => c.created_by))];
-        
-        // Get user information using our database function
         const { data: userInfo, error: userError } = await supabase
           .rpc('get_user_info_for_matter', {
             user_ids: userIds,
             matter_id_param: this.currentMatter.id
           });
-
         if (userError) {
           console.error('Error getting user info:', userError);
         }
-
-        // Create a lookup map for user info
         const userInfoMap = {};
         (userInfo || []).forEach(user => {
           userInfoMap[user.user_id] = user.display_name;
         });
-        
-        // Map comments with real author names
-        this.internalComments = comments.map(comment => {
+        const mappedComments = comments.map(comment => {
           const authorName = userInfoMap[comment.created_by] || 'Unknown User';
-          
           return {
             ...comment,
             author_name: authorName
           };
         });
-
+        this.internalCommentsMap[messageId] = mappedComments;
       } catch (error) {
         console.error('Error loading internal comments:', error);
         this.$message.error('Error loading comments: ' + error.message);
       }
     },
 
-    async addInternalComment() {
-      if (!this.newInternalComment.trim() || !this.selectedMessageForComments) return;
-
-      this.addingComment = true;
-
+    async addInternalComment(messageId) {
+      if (!this.newInternalComment[messageId]?.trim()) return;
+      this.addingComment[messageId] = true;
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
         const { data: comment, error } = await supabase
           .from('message_internal_comments')
           .insert({
-            message_id: this.selectedMessageForComments.id,
-            content: this.newInternalComment.trim(),
+            message_id: messageId,
+            content: this.newInternalComment[messageId].trim(),
             matter_id: this.currentMatter.id,
             conversation_id: this.currentChat.id,
             created_by: user.id
           })
           .select('*')
           .single();
-
         if (error) throw error;
-
-        // Get the display name for the current user
         const userDisplayName = user.email?.split('@')[0] || 'You';
-        
-        // Add the new comment to the list with author name
         const newComment = {
           ...comment,
           author_name: userDisplayName
         };
-        
-        this.internalComments.push(newComment);
-        
-        // Update the cache for comments count
-        const messageId = this.selectedMessageForComments.id;
+        if (!this.internalCommentsMap[messageId]) {
+          this.internalCommentsMap[messageId] = [];
+        }
+        this.internalCommentsMap[messageId].push(newComment);
         this.messageInternalComments[messageId] = (this.messageInternalComments[messageId] || 0) + 1;
-        
-        // Force reactivity update
         this.$forceUpdate();
-        
-        // Clear input
-        this.newInternalComment = '';
-        
-        // Update matter activity
+        this.newInternalComment[messageId] = '';
         await updateMatterActivity(this.currentMatter.id);
-        
         this.$message.success('Internal comment added successfully');
-
+        await this.loadInternalComments(messageId);
       } catch (error) {
         console.error('Error adding internal comment:', error);
         this.$message.error('Error adding comment: ' + error.message);
       } finally {
-        this.addingComment = false;
+        this.addingComment[messageId] = false;
       }
     },
 
@@ -4801,5 +4821,16 @@ export default {
   margin-right: 4px;
   width: 10px;
   height: 10px;
+}
+
+.inline-internal-comments {
+  margin-top: 1rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  padding: 0.5rem 0.75rem 0.75rem 0.75rem;
+  border: 1px solid #e0e0e0;
+  width: 100%;
+  box-sizing: border-box;
 }
 </style>

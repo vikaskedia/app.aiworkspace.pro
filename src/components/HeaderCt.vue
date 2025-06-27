@@ -1,6 +1,6 @@
 <script>
 import { supabase } from '../supabase';
-import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog } from 'element-plus';
+import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
@@ -26,7 +26,9 @@ export default {
       subscription: null,
       showNotificationsDialog: false,
       userEmails: {},
-      loading: false
+      loading: false,
+      commitHash: __SHORT_COMMIT_HASH__,
+      fullCommitHash: __COMMIT_HASH__
     };
   },
   computed: {
@@ -310,6 +312,15 @@ export default {
       } catch (error) {
         ElMessage.error('Error marking notification as read: ' + error.message);
       }
+    },
+    async copyCommitHash() {
+      try {
+        await navigator.clipboard.writeText(this.fullCommitHash);
+        ElMessage.success('Commit hash copied to clipboard!');
+      } catch (error) {
+        console.error('Failed to copy commit hash:', error);
+        ElMessage.error('Failed to copy commit hash');
+      }
     }
   },
   emits: ['logo-click']
@@ -427,7 +438,13 @@ export default {
             <el-dropdown-item command="initial_consultation">
               Initial Consultation
             </el-dropdown-item>
-            <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
+            <el-dropdown-item divided @click="copyCommitHash" class="version-item">
+              <div class="version-info">
+                <span class="version-label">Version:</span>
+                <span class="version-hash">{{ commitHash }}</span>
+              </div>
+            </el-dropdown-item>
+            <el-dropdown-item command="logout">Logout</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -729,5 +746,37 @@ export default {
   font-weight: 500;
   color: #1a1a1a;
   margin: 0;
+}
+
+/* Version info styles */
+.version-item {
+  cursor: pointer !important;
+}
+
+.version-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.version-label {
+  color: #606266;
+  font-weight: 500;
+}
+
+.version-hash {
+  color: #409EFF;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.8rem;
+  background: rgba(64, 158, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.version-hash:hover {
+  background: rgba(64, 158, 255, 0.2);
 }
 </style>

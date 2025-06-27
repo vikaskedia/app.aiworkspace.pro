@@ -3332,7 +3332,11 @@ export default {
       this.showAICheckDialog = true;
 
       try {
-        const response = await fetch('https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message', {
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
+          : '/api/ai-check-message';
+
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3373,7 +3377,11 @@ export default {
       this.showAICheckDialog = true;
 
       try {
-        const response = await fetch('/api/ai-check-message', {
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
+          : '/api/ai-check-message';
+          
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

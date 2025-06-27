@@ -6,6 +6,12 @@
       <div class="inbox-panel">
         <div class="panel-header">
           <h3>Phone Numbers</h3>
+          <!-- Message count statistics -->
+          <div class="message-stats" style="margin-top: 8px; font-size: 0.75rem; color: #999;">
+            <div class="stat-line">This week: {{ messageCountsThisWeek }} sent</div>
+            <div class="stat-line">This month: {{ messageCountsThisMonth }} sent</div>
+            <div class="stat-line">This year: {{ messageCountsThisYear }} sent</div>
+          </div>
         </div>
         
         <div class="inbox-menu">
@@ -1435,6 +1441,13 @@ export default {
       // Tag filtering
       selectedTags: [],
       
+      // Message counts
+      messageCounts: {
+        week: 0,
+        month: 0,
+        year: 0
+      },
+      
       // Icons
       Check: markRaw(Check),
       
@@ -1893,6 +1906,19 @@ export default {
       return Array.from(allTags).sort();
     },
 
+    // Message count statistics
+    messageCountsThisWeek() {
+      return this.messageCounts.week || 0;
+    },
+
+    messageCountsThisMonth() {
+      return this.messageCounts.month || 0;
+    },
+
+    messageCountsThisYear() {
+      return this.messageCounts.year || 0;
+    },
+
     hierarchicalTagsForPhone() {
       // Returns a function that takes a phone number and returns hierarchical tags
       return (phoneNumber) => {
@@ -1976,18 +2002,80 @@ export default {
     await this.loadWorkspaceContacts();
     // Load phone text message actions
     await this.loadPhoneTextActions();
+    // Load message counts
+    await this.loadMessageCounts();
   },
   watch: {
     currentMatter: {
       handler(newMatter) {
         if (newMatter && newMatter.id) {
           this.loadPhoneTextActions();
+          this.loadMessageCounts();
         }
       },
       immediate: false
     }
   },
   methods: {
+    // Load message counts from database
+    async loadMessageCounts() {
+      if (!this.currentMatter?.id) return;
+      
+      try {
+        const now = new Date();
+        
+        // Calculate start dates for each period
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const yearStart = new Date(now.getFullYear(), 0, 1);
+        
+        // Query the database for message counts
+        const { data: conversations, error } = await supabase
+          .from('conversations')
+          .select(`
+            messages(
+              id,
+              direction,
+              created_at
+            )
+          `)
+          .eq('matter_id', this.currentMatter.id);
+        
+        if (error) throw error;
+        
+        // Count outbound messages for each period
+        let weekCount = 0;
+        let monthCount = 0;
+        let yearCount = 0;
+        
+        conversations.forEach(conv => {
+          if (conv.messages) {
+            conv.messages.forEach(msg => {
+              if (msg.direction === 'outbound') {
+                const msgDate = new Date(msg.created_at);
+                if (msgDate >= weekStart) weekCount++;
+                if (msgDate >= monthStart) monthCount++;
+                if (msgDate >= yearStart) yearCount++;
+              }
+            });
+          }
+        });
+        
+        // Update the counts
+        this.messageCounts = {
+          week: weekCount,
+          month: monthCount,
+          year: yearCount
+        };
+        
+      } catch (error) {
+        console.error('Error loading message counts:', error);
+      }
+    },
+
     togglePhoneExpand(phoneId) {
       this.expandedPhoneNumber = this.expandedPhoneNumber === phoneId ? null : phoneId;
       this.selectedInboxItem = null;
@@ -2251,6 +2339,9 @@ export default {
 
         // Mark conversation as read when sending a message
         await this.realtimeMarkAsRead(this.currentChat.id);
+        
+        // Refresh message counts after sending
+        await this.loadMessageCounts();
 
       } catch (error) {
         console.error('Error sending message:', error);
@@ -2437,6 +2528,9 @@ export default {
 
         this.closeNewMessageDialog();
         this.$message.success('Message sent successfully!');
+        
+        // Refresh message counts after sending
+        await this.loadMessageCounts();
         
         // The real-time system will automatically update conversations
         // If we have a conversation ID, auto-select it after a brief delay
@@ -5102,6 +5196,19 @@ export default {
 
 .internal-comments-list::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Message statistics styling */
+.message-stats {
+  padding: 6px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.stat-line {
+  margin: 2px 0;
+  color: #999;
+  font-size: 0.75rem;
+  line-height: 1.2;
 }
 
 /* Responsive adjustments for internal comments */

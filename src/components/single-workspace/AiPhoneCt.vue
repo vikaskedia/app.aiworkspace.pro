@@ -534,6 +534,20 @@
                     </el-button>
                   </el-upload>
                   
+                  <!-- AI Draft Message Button -->
+                  <el-tooltip 
+                    v-if="currentChat && currentChat.messages && currentChat.messages.length > 0"
+                    content="AI-DM: Let AI suggest a reply based on conversation" 
+                    placement="top">
+                    <el-button 
+                      circle
+                      @click="draftMessageWithAI"
+                      :loading="draftingMessageWithAI"
+                      type="success">
+                      <el-icon><ChatLineRound /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+
                   <!-- AI Check Button -->
                   <el-tooltip 
                     v-if="newMessage.trim()"
@@ -1214,6 +1228,96 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- AI Draft Message Dialog -->
+    <el-dialog
+      v-model="showAIDraftDialog"
+      title="AI-DM: Draft Message"
+      width="600px"
+      :before-close="closeAIDraftDialog"
+    >
+      <div class="ai-draft-content">
+        <!-- Conversation Context Preview -->
+        <div class="conversation-context-section">
+          <h4>Recent Conversation</h4>
+          <div class="conversation-preview">
+            <div 
+              v-for="(msg, index) in recentConversationMessages" 
+              :key="index"
+              :class="['context-message', msg.direction]">
+              <strong>{{ msg.direction === 'outbound' ? 'You' : (getCurrentContactName() || 'Contact') }}:</strong>
+              {{ msg.text || '[Media message]' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Suggested Message -->
+        <div v-if="aiDraftResult" class="ai-draft-section">
+          <!-- Suggested Message -->
+          <div class="suggested-message-section">
+            <h4>Suggested Reply</h4>
+            <el-input
+              v-model="editableDraftMessage"
+              type="textarea"
+              :rows="3"
+              class="draft-message-input"
+            />
+            
+            <!-- AI Reasoning -->
+            <div v-if="aiDraftResult.reasoning" class="ai-reasoning">
+              <el-icon><ChatLineRound /></el-icon>
+              <span><strong>AI Reasoning:</strong> {{ aiDraftResult.reasoning }}</span>
+            </div>
+            
+            <!-- Tone Badge -->
+            <div v-if="aiDraftResult.tone" class="tone-badge">
+              <el-tag :type="getToneTagType(aiDraftResult.tone)" size="small">
+                {{ aiDraftResult.tone }} tone
+              </el-tag>
+            </div>
+          </div>
+
+          <!-- Alternative Suggestions -->
+          <div v-if="aiDraftResult.alternatives && aiDraftResult.alternatives.length > 0" class="alternatives-section">
+            <h4>Alternative Suggestions</h4>
+            <div class="alternatives-list">
+              <div 
+                v-for="(alternative, index) in aiDraftResult.alternatives" 
+                :key="index"
+                class="alternative-item"
+                @click="selectAlternative(alternative)">
+                <el-icon><Message /></el-icon>
+                <span>{{ alternative }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-else-if="draftingMessageWithAI" class="loading-section">
+          <el-icon class="loading-icon"><ChatLineRound /></el-icon>
+          <p>AI is analyzing the conversation and drafting a reply...</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="ai-draft-footer">
+          <el-button @click="closeAIDraftDialog">Cancel</el-button>
+          <el-button 
+            v-if="aiDraftResult"
+            @click="useDraftMessage"
+            type="primary">
+            Use This Message
+          </el-button>
+          <el-button 
+            v-if="aiDraftResult"
+            @click="useDraftAndSend"
+            type="success">
+            Use & Send Now
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1242,7 +1346,8 @@ import {
   List,
   Location,
   View,
-  MagicStick
+  MagicStick,
+  ChatLineRound
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -1278,7 +1383,8 @@ export default {
     List,
     Location,
     View,
-    MagicStick
+    MagicStick,
+    ChatLineRound
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1500,6 +1606,13 @@ export default {
       aiCheckOriginalMessage: '',
       aiCheckResult: null,
       editableImprovedMessage: '',
+      
+      // AI Draft Message
+      showAIDraftDialog: false,
+      draftingMessageWithAI: false,
+      aiDraftResult: null,
+      editableDraftMessage: '',
+      recentConversationMessages: [],
     };
   },
   computed: {
@@ -3460,6 +3573,114 @@ export default {
         'tone': 'success'
       };
       return typeMap[type] || 'info';
+    },
+
+    // AI Draft Message Methods
+    async draftMessageWithAI() {
+      if (!this.currentChat || !this.currentChat.messages || this.currentChat.messages.length === 0) {
+        this.$message.warning('No conversation found to analyze');
+        return;
+      }
+
+      this.draftingMessageWithAI = true;
+      this.aiDraftResult = null;
+      this.editableDraftMessage = '';
+      this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+      this.showAIDraftDialog = true;
+
+      try {
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-draft-message'
+          : '/api/ai-draft-message';
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation: this.currentChat.messages,
+            contactName: this.getCurrentContactName() || this.currentChat.contact || 'Contact',
+            context: 'This is a professional legal/business communication.'
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to draft message with AI');
+        }
+
+        this.aiDraftResult = result;
+        this.editableDraftMessage = result.suggestedMessage || '';
+
+      } catch (error) {
+        console.error('Error drafting message with AI:', error);
+        this.$message.error(error.message || 'Failed to draft message with AI');
+        this.closeAIDraftDialog();
+      } finally {
+        this.draftingMessageWithAI = false;
+      }
+    },
+
+    closeAIDraftDialog() {
+      this.showAIDraftDialog = false;
+      this.draftingMessageWithAI = false;
+      this.aiDraftResult = null;
+      this.editableDraftMessage = '';
+      this.recentConversationMessages = [];
+    },
+
+    useDraftMessage() {
+      if (this.editableDraftMessage.trim()) {
+        this.newMessage = this.editableDraftMessage.trim();
+        this.closeAIDraftDialog();
+        this.$message.success('AI-drafted message added to input');
+        
+        // Focus back on the textarea
+        this.$nextTick(() => {
+          const textarea = this.$el.querySelector('.message-input-area textarea');
+          if (textarea) {
+            textarea.focus();
+          }
+        });
+      } else {
+        this.$message.warning('Please enter a valid message');
+      }
+    },
+
+    async useDraftAndSend() {
+      if (this.editableDraftMessage.trim()) {
+        this.newMessage = this.editableDraftMessage.trim();
+        this.closeAIDraftDialog();
+        
+        // Send the message immediately
+        await this.$nextTick();
+        await this.sendMessage();
+      } else {
+        this.$message.warning('Please enter a valid message');
+      }
+    },
+
+    selectAlternative(alternative) {
+      this.editableDraftMessage = alternative;
+      this.$message.info('Alternative selected');
+    },
+
+    getCurrentContactName() {
+      if (!this.currentChat) return null;
+      const contact = this.getContactForConversation(this.currentChat);
+      return contact ? contact.name : null;
+    },
+
+    getToneTagType(tone) {
+      const toneMap = {
+        'professional': 'info',
+        'friendly': 'success',
+        'formal': 'warning',
+        'casual': 'primary'
+      };
+      return toneMap[tone] || 'info';
     },
   }
 };
@@ -5711,6 +5932,193 @@ export default {
 
   .ai-check-button-container {
     text-align: center;
+  }
+}
+
+/* AI Draft Message Dialog Styles */
+.ai-draft-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.conversation-context-section {
+  margin-bottom: 1.5rem;
+}
+
+.conversation-context-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.conversation-preview {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.context-message {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.context-message:last-child {
+  margin-bottom: 0;
+}
+
+.context-message.outbound {
+  background: #e3f2fd;
+  text-align: right;
+}
+
+.context-message.inbound {
+  background: #f1f8e9;
+  text-align: left;
+}
+
+.context-message strong {
+  color: #333;
+  margin-right: 0.5rem;
+}
+
+.ai-draft-section {
+  margin-bottom: 1rem;
+}
+
+.suggested-message-section {
+  margin-bottom: 1.5rem;
+}
+
+.suggested-message-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #27ae60;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.draft-message-input {
+  margin-bottom: 1rem;
+}
+
+.draft-message-input :deep(.el-textarea__inner) {
+  border: 2px solid #27ae60;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  resize: none;
+  transition: all 0.2s ease;
+}
+
+.draft-message-input :deep(.el-textarea__inner:focus) {
+  border-color: #219a52;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+.ai-reasoning {
+  background: #f0f9f0;
+  border: 1px solid #c3e6c3;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #2d5016;
+  line-height: 1.4;
+}
+
+.ai-reasoning .el-icon {
+  color: #27ae60;
+  font-size: 1rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.tone-badge {
+  text-align: right;
+  margin-bottom: 1rem;
+}
+
+.alternatives-section {
+  margin-bottom: 1rem;
+}
+
+.alternatives-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #2c5aa0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.alternatives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.alternative-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.alternative-item:hover {
+  background: #e9ecef;
+  border-color: #2c5aa0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alternative-item .el-icon {
+  color: #2c5aa0;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.ai-draft-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* Responsive adjustments for AI draft dialog */
+@media (max-width: 768px) {
+  .ai-draft-content {
+    max-height: 60vh;
+  }
+  
+  .conversation-preview {
+    max-height: 150px;
+  }
+  
+  .ai-draft-footer {
+    flex-direction: column;
+  }
+  
+  .ai-draft-footer .el-button {
+    width: 100%;
   }
 }
 </style>

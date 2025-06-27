@@ -94,10 +94,10 @@ import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
 
-// Add debounce utility
+// Add debounce utility with cancellation support
 function debounce(func, wait) {
   let timeout;
-  return function executedFunction(...args) {
+  const executedFunction = function(...args) {
     const later = () => {
       clearTimeout(timeout);
       func(...args);
@@ -105,6 +105,12 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+  
+  executedFunction.cancel = function() {
+    clearTimeout(timeout);
+  };
+  
+  return executedFunction;
 }
 
 // Generate unique render ID for this tab
@@ -313,69 +319,30 @@ export default {
       // Store the handler for cleanup
       window.outlineKeyDownHandler = handleKeyDown;
 
-      // Add storage event listener for cross-tab communication
+      // Disable aggressive localStorage cross-tab syncing for now
+      // This was causing text deletion during typing
+      // The render ID system and real-time subscription handle cross-tab sync
       function handleStorageChange(event) {
-        if (!matterId.value) return;
-        
-        const localStorageKey = getLocalStorageKey();
-        const versionKey = getVersionKey();
-        const lastSavedKey = `${localStorageKey}_last_saved`;
-        
-        // Check if the change is for our outline
-        if (event.key === localStorageKey) {
-          try {
-            const newContent = JSON.parse(event.newValue);
-            if (newContent) {
-              outline.value = deepClone(newContent);
-              hasChanges.value = checkForChanges(newContent);
-            }
-          } catch (error) {
-            console.error('Error parsing outline from storage:', error);
-          }
-        }
-        
-        // Check if the last saved content was updated
-        if (event.key === lastSavedKey) {
-          try {
-            const newLastSaved = JSON.parse(event.newValue);
-            if (newLastSaved) {
-              lastSavedContent.value = deepClone(newLastSaved);
-              hasChanges.value = checkForChanges(outline.value);
-            }
-          } catch (error) {
-            console.error('Error parsing last saved content from storage:', error);
-          }
-        }
-        
-        // Check if the version was updated
-        if (event.key === versionKey) {
-          try {
-            const newVersion = parseInt(event.newValue);
-            if (!isNaN(newVersion)) {
-              currentVersion.value = newVersion;
-            }
-          } catch (error) {
-            console.error('Error parsing version from storage:', error);
-          }
-        }
+        // Temporarily disabled to prevent text deletion
+        return;
       }
 
-      // Add and remove storage event listener
-      window.addEventListener('storage', handleStorageChange);
+      // Add and remove storage event listener (disabled)
+      // window.addEventListener('storage', handleStorageChange);
 
       // Add subscription setup after outline is loaded
       if (outlineId.value) {
         await subscribeToChanges();
       }
 
-      // Set up periodic refresh every 30 seconds as a fallback
-      refreshInterval = setInterval(refreshOutlineData, 30000);
+      // Don't use aggressive periodic refresh - rely on real-time subscription
+      // Periodic refresh was causing text deletion during typing
     });
 
     // Cleanup keyboard event listener on unmount
     onUnmounted(() => {
-      // Remove storage event listener
-      window.removeEventListener('storage', handleStorageChange);
+      // Remove storage event listener (was disabled)
+      // window.removeEventListener('storage', handleStorageChange);
       
       // Remove keyboard event listener
       if (window.outlineKeyDownHandler) {
@@ -388,23 +355,18 @@ export default {
         realtimeSubscription.value.unsubscribe();
       }
 
-      // Clear refresh interval
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-        refreshInterval = null;
-      }
+      // No refresh interval to clear anymore
     });
 
-    // Watch for changes in outline
+    // Watch for changes in outline - but don't auto-save on every change
+    // Only update localStorage and change detection
     watch(outline, (val) => {
       if (matterId.value) {
         localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
         hasChanges.value = checkForChanges(val);
         
-        // Trigger autosave after user stops typing for 2 seconds
-        if (hasChanges.value) {
-          debouncedSave();
-        }
+        // Don't trigger auto-save here - let individual text updates handle it
+        // This prevents conflicts between outline-level and item-level saves
       }
     }, { deep: true });
 
@@ -412,6 +374,11 @@ export default {
       if (!matterId.value) {
         console.error('No matter ID available');
         return;
+      }
+
+      // Cancel any pending auto-save when manually saving
+      if (debouncedSave && debouncedSave.cancel) {
+        debouncedSave.cancel();
       }
 
       saving.value = true;
@@ -592,8 +559,20 @@ export default {
       return null;
     }
 
-    function onOutlineUpdate({ id, text }) {
+    function onOutlineUpdate({ id, text, updated_at }) {
       updateTextById(outline.value, id, text);
+      // Update the timestamp if provided
+      if (updated_at) {
+        const item = findItemById(outline.value, id);
+        if (item) {
+          item.updated_at = updated_at;
+        }
+      }
+      
+      // Trigger auto-save only when text actually changes
+      if (hasChanges.value && !saving.value) {
+        debouncedSave();
+      }
     }
 
     function handleMove({ draggedId, targetId, position }) {
@@ -972,34 +951,47 @@ export default {
                 if (newVersion > currentVersion.value) {
                   console.log('Updating to new version from another tab');
                   
-                  // Force a fresh clone of the content to trigger reactivity
-                  const freshContent = JSON.parse(JSON.stringify(newContent));
-                  
-                  // Update local state using nextTick to ensure DOM updates
-                  await nextTick(() => {
-                    outline.value = freshContent;
+                  // Only update if we don't have unsaved changes to prevent overwriting
+                  if (!hasChanges.value) {
+                    // Force a fresh clone of the content to trigger reactivity
+                    const freshContent = JSON.parse(JSON.stringify(newContent));
+                    
+                    // Update local state using nextTick to ensure DOM updates
+                    await nextTick(() => {
+                      outline.value = freshContent;
+                      currentVersion.value = newVersion;
+                      lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+                      hasChanges.value = false;
+                    });
+
+                    // Update localStorage
+                    const localStorageKey = getLocalStorageKey();
+                    const versionKey = getVersionKey();
+                    localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+                    localStorage.setItem(versionKey, newVersion.toString());
+                    localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+
+                    // Show notification
+                    ElNotification({
+                      title: 'Outline Updated',
+                      message: 'The outline has been updated by another user',
+                      type: 'info',
+                      duration: 3000
+                    });
+                  } else {
+                    // We have unsaved changes, just update the version and saved content reference
+                    console.log('Skipping content update - we have unsaved changes');
                     currentVersion.value = newVersion;
-                    lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
-                    hasChanges.value = false;
-                  });
-
-                  // Update localStorage
-                  const localStorageKey = getLocalStorageKey();
-                  const versionKey = getVersionKey();
-                  localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
-                  localStorage.setItem(versionKey, newVersion.toString());
-                  localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
-
-                  // Immediately fetch fresh data to ensure consistency
-                  await refreshOutlineData();
-
-                  // Show notification
-                  ElNotification({
-                    title: 'Outline Updated',
-                    message: 'The outline has been updated by another user',
-                    type: 'info',
-                    duration: 3000
-                  });
+                    lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                    
+                    // Show a different notification
+                    ElNotification({
+                      title: 'Outline Updated Remotely',
+                      message: 'Another user updated the outline. Your changes are preserved.',
+                      type: 'warning',
+                      duration: 5000
+                    });
+                  }
                 }
               }
             } catch (error) {
@@ -1022,8 +1014,7 @@ export default {
           
           if (status === 'SUBSCRIBED') {
             console.log('Successfully subscribed to outline changes');
-            // Fetch latest data when subscription is established
-            refreshOutlineData();
+            // Don't auto-refresh on subscription - this can cause overwrites
           } else {
             console.log('Subscription status changed:', status);
           }

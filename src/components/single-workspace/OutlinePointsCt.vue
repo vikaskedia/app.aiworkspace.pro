@@ -257,10 +257,10 @@ const eventBus = {
   }
 };
 
-// Add debounce utility
+// Add debounce utility with cancellation support
 function debounce(func, wait) {
   let timeout;
-  return function executedFunction(...args) {
+  const executedFunction = function(...args) {
     const later = () => {
       clearTimeout(timeout);
       func(...args);
@@ -268,6 +268,12 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+  
+  executedFunction.cancel = function() {
+    clearTimeout(timeout);
+  };
+  
+  return executedFunction;
 }
 
 export default {
@@ -305,8 +311,7 @@ export default {
       savingComment: false,
       selectionTooltipVisible: false,
       tooltipStyle: {},
-      tooltipTimer: null,
-      debouncedUpdate: null
+      tooltipTimer: null
     };
   },
   setup() {
@@ -316,16 +321,7 @@ export default {
     };
   },
   created() {
-    // Create debounced update function
-    this.debouncedUpdate = debounce((text) => {
-      const now = new Date().toISOString();
-      this.item.updated_at = now;
-      this.$emit('update', { 
-        id: this.item.id, 
-        text: text,
-        updated_at: now
-      });
-    }, 2000);
+    // No longer using debounced updates at item level - immediate updates only
 
     // Subscribe to drag events
     this.unsubscribe = eventBus.on((event, data) => {
@@ -450,8 +446,16 @@ export default {
   },
   methods: {
     handleTextChange() {
-      // Call debounced update when text changes
-      this.debouncedUpdate(this.editText);
+      // Immediate update instead of debounced to prevent text loss
+      // The parent component handles the debounced save
+      const now = new Date().toISOString();
+      this.item.updated_at = now;
+      this.item.text = this.editText; // Update local item immediately
+      this.$emit('update', { 
+        id: this.item.id, 
+        text: this.editText,
+        updated_at: now
+      });
     },
 
     startEdit() {
@@ -475,9 +479,10 @@ export default {
       this.editing = false;
       this.selectionTooltipVisible = false;
       if (this.editText !== this.item.text) {
-        // Final update when editing finishes
+        // Final update when editing finishes (no debouncing needed now)
         const now = new Date().toISOString();
         this.item.updated_at = now;
+        this.item.text = this.editText; // Update local item immediately
         this.$emit('update', { 
           id: this.item.id, 
           text: this.editText,

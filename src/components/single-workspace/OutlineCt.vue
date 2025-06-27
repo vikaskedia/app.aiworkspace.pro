@@ -559,7 +559,7 @@ export default {
       return null;
     }
 
-    function onOutlineUpdate({ id, text, updated_at }) {
+    function onOutlineUpdate({ id, text, updated_at, immediate }) {
       updateTextById(outline.value, id, text);
       // Update the timestamp if provided
       if (updated_at) {
@@ -569,8 +569,19 @@ export default {
         }
       }
       
-      // Trigger auto-save only when text actually changes
-      if (hasChanges.value && !saving.value) {
+      // Check for changes directly instead of relying on reactive hasChanges
+      const currentChanges = checkForChanges(outline.value);
+      
+      // If immediate save is requested (e.g., when finishing edit), save immediately
+      if (immediate && currentChanges && !saving.value) {
+        // Cancel any pending debounced save and save immediately
+        if (debouncedSave && debouncedSave.cancel) {
+          debouncedSave.cancel();
+        }
+        console.log('Immediate save triggered from onOutlineUpdate');
+        saveOutline();
+      } else if (currentChanges && !saving.value) {
+        // Otherwise, trigger auto-save only when text actually changes
         debouncedSave();
       }
     }

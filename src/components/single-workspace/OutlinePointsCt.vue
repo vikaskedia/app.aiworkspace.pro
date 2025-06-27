@@ -476,19 +476,27 @@ export default {
         this.$refs.textarea.removeEventListener('input', this.handleTextChange);
       }
 
+      console.log('finishEdit called:', {
+        editText: this.editText,
+        itemText: this.item.text,
+        different: this.editText !== this.item.text
+      });
+
       this.editing = false;
       this.selectionTooltipVisible = false;
-      if (this.editText !== this.item.text) {
-        // Final update when editing finishes (no debouncing needed now)
-        const now = new Date().toISOString();
-        this.item.updated_at = now;
-        this.item.text = this.editText; // Update local item immediately
-        this.$emit('update', { 
-          id: this.item.id, 
-          text: this.editText,
-          updated_at: now
-        });
-      }
+      
+      // Always trigger immediate save when finishing edit, regardless of local state
+      // The change detection will happen at the parent level
+      const now = new Date().toISOString();
+      this.item.updated_at = now;
+      this.item.text = this.editText; // Update local item immediately
+      console.log('Emitting immediate update for item:', this.item.id, 'with text:', this.editText);
+      this.$emit('update', { 
+        id: this.item.id, 
+        text: this.editText,
+        updated_at: now,
+        immediate: true // Flag to indicate immediate save needed
+      });
     },
 
     handleEnter() {

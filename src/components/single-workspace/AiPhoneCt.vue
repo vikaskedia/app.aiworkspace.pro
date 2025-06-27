@@ -534,6 +534,20 @@
                     </el-button>
                   </el-upload>
                   
+                  <!-- AI Check Button -->
+                  <el-tooltip 
+                    v-if="newMessage.trim()"
+                    content="Check message with AI for grammar and clarity" 
+                    placement="top">
+                    <el-button 
+                      circle
+                      @click="checkMessageWithAI"
+                      :loading="checkingMessageWithAI"
+                      type="warning">
+                      <el-icon><MagicStick /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  
                   <!-- Send Button -->
                   <el-tooltip 
                     content="Send message (Enter) • New line (Shift+Enter)" 
@@ -847,6 +861,18 @@
             maxlength="1600"
             show-word-limit>
           </el-input>
+          
+          <!-- AI Check Button for New Message -->
+          <div v-if="newMessageForm.message.trim()" class="ai-check-button-container">
+            <el-button 
+              size="small"
+              type="warning"
+              @click="checkNewMessageWithAI"
+              :loading="checkingMessageWithAI">
+              <el-icon><MagicStick /></el-icon>
+              Check with AI
+            </el-button>
+          </div>
         </el-form-item>
       </el-form>
       
@@ -1106,6 +1132,88 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- AI Check Message Dialog -->
+    <el-dialog
+      v-model="showAICheckDialog"
+      title="AI Message Check"
+      width="600px"
+      :before-close="closeAICheckDialog"
+    >
+      <div class="ai-check-content">
+        <!-- Original Message -->
+        <div class="original-message-section">
+          <h4>Original Message</h4>
+          <div class="original-message-box">
+            {{ aiCheckOriginalMessage }}
+          </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <div v-if="aiCheckResult" class="ai-analysis-section">
+          <!-- Issues Found -->
+          <div v-if="aiCheckResult.hasIssues && aiCheckResult.suggestions.length > 0" class="issues-section">
+            <h4>Issues Found</h4>
+            <div class="suggestions-list">
+              <div 
+                v-for="(suggestion, index) in aiCheckResult.suggestions" 
+                :key="index"
+                class="suggestion-item">
+                <el-tag 
+                  :type="getSuggestionTagType(suggestion.type)" 
+                  size="small"
+                  class="suggestion-type">
+                  {{ suggestion.type }}
+                </el-tag>
+                <div class="suggestion-content">
+                  <p class="issue-description">{{ suggestion.issue }}</p>
+                  <p class="suggestion-text">{{ suggestion.suggestion }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Improved Message -->
+          <div class="improved-message-section">
+            <h4>Improved Message</h4>
+            <el-input
+              v-model="editableImprovedMessage"
+              type="textarea"
+              :rows="3"
+              class="improved-message-input"
+            />
+            <div v-if="aiCheckResult.explanation" class="explanation">
+              <strong>Explanation:</strong> {{ aiCheckResult.explanation }}
+            </div>
+          </div>
+
+          <!-- No Issues Found -->
+          <div v-if="!aiCheckResult.hasIssues" class="no-issues-section">
+            <el-icon class="check-icon"><Check /></el-icon>
+            <p>Your message looks good! No grammatical errors or clarity issues found.</p>
+            <p v-if="aiCheckResult.explanation" class="explanation">{{ aiCheckResult.explanation }}</p>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div v-else-if="checkingMessageWithAI" class="loading-section">
+          <el-icon class="loading-icon"><MagicStick /></el-icon>
+          <p>AI is checking your message...</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="ai-check-footer">
+          <el-button @click="closeAICheckDialog">Cancel</el-button>
+          <el-button 
+            v-if="aiCheckResult"
+            @click="useImprovedMessage"
+            type="primary">
+            Use Improved Message
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1133,7 +1241,8 @@ import {
   Briefcase,
   List,
   Location,
-  View
+  View,
+  MagicStick
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -1168,7 +1277,8 @@ export default {
     Briefcase,
     List,
     Location,
-    View
+    View,
+    MagicStick
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1383,6 +1493,13 @@ export default {
       showUntaggedOnly: false, // New flag to show only untagged conversations
       editingContact: false,
       editableContact: {},
+      
+      // AI Check Message
+      showAICheckDialog: false,
+      checkingMessageWithAI: false,
+      aiCheckOriginalMessage: '',
+      aiCheckResult: null,
+      editableImprovedMessage: '',
     };
   },
   computed: {
@@ -3199,6 +3316,142 @@ export default {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
+    },
+
+    // AI Check Message Methods
+    async checkMessageWithAI() {
+      if (!this.newMessage.trim()) {
+        this.$message.warning('Please enter a message to check');
+        return;
+      }
+
+      this.aiCheckOriginalMessage = this.newMessage;
+      this.checkingMessageWithAI = true;
+      this.aiCheckResult = null;
+      this.editableImprovedMessage = '';
+      this.showAICheckDialog = true;
+
+      try {
+        const response = await fetch('https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: this.newMessage
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to check message with AI');
+        }
+
+        this.aiCheckResult = result;
+        this.editableImprovedMessage = result.improvedMessage || this.newMessage;
+
+      } catch (error) {
+        console.error('Error checking message with AI:', error);
+        this.$message.error(error.message || 'Failed to check message with AI');
+        this.closeAICheckDialog();
+      } finally {
+        this.checkingMessageWithAI = false;
+      }
+    },
+
+    async checkNewMessageWithAI() {
+      if (!this.newMessageForm.message.trim()) {
+        this.$message.warning('Please enter a message to check');
+        return;
+      }
+
+      this.aiCheckOriginalMessage = this.newMessageForm.message;
+      this.checkingMessageWithAI = true;
+      this.aiCheckResult = null;
+      this.editableImprovedMessage = '';
+      this.showAICheckDialog = true;
+
+      try {
+        const response = await fetch('/api/ai-check-message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: this.newMessageForm.message
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to check message with AI');
+        }
+
+        this.aiCheckResult = result;
+        this.editableImprovedMessage = result.improvedMessage || this.newMessageForm.message;
+
+      } catch (error) {
+        console.error('Error checking message with AI:', error);
+        this.$message.error(error.message || 'Failed to check message with AI');
+        this.closeAICheckDialog();
+      } finally {
+        this.checkingMessageWithAI = false;
+      }
+    },
+
+    closeAICheckDialog() {
+      this.showAICheckDialog = false;
+      this.checkingMessageWithAI = false;
+      this.aiCheckOriginalMessage = '';
+      this.aiCheckResult = null;
+      this.editableImprovedMessage = '';
+    },
+
+    useImprovedMessage() {
+      if (this.editableImprovedMessage.trim()) {
+        // Check if we're updating the main message or new message dialog
+        if (this.aiCheckOriginalMessage === this.newMessage) {
+          // Main message input
+          this.newMessage = this.editableImprovedMessage.trim();
+          this.closeAICheckDialog();
+          this.$message.success('Message updated with AI suggestions');
+          
+          // Focus back on the textarea
+          this.$nextTick(() => {
+            const textarea = this.$el.querySelector('.message-input-area textarea');
+            if (textarea) {
+              textarea.focus();
+            }
+          });
+        } else if (this.aiCheckOriginalMessage === this.newMessageForm.message) {
+          // New message dialog
+          this.newMessageForm.message = this.editableImprovedMessage.trim();
+          this.closeAICheckDialog();
+          this.$message.success('Message updated with AI suggestions');
+          
+          // Focus back on the new message textarea
+          this.$nextTick(() => {
+            const textarea = this.$el.querySelector('.el-dialog textarea');
+            if (textarea) {
+              textarea.focus();
+            }
+          });
+        }
+      } else {
+        this.$message.warning('Please enter a valid message');
+      }
+    },
+
+    getSuggestionTagType(type) {
+      const typeMap = {
+        'grammar': 'danger',
+        'spelling': 'warning',
+        'clarity': 'info',
+        'tone': 'success'
+      };
+      return typeMap[type] || 'info';
     },
   }
 };
@@ -5221,5 +5474,235 @@ export default {
 .avatar-uploader:hover .avatar-upload-image {
   border-color: #1976d2;
   box-shadow: 0 0 0 2px #1976d233;
+}
+
+/* AI Check Message Dialog Styles */
+.ai-check-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.original-message-section {
+  margin-bottom: 1.5rem;
+}
+
+.original-message-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.original-message-box {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-analysis-section {
+  margin-bottom: 1rem;
+}
+
+.issues-section {
+  margin-bottom: 1.5rem;
+}
+
+.issues-section h4 {
+  margin: 0 0 1rem 0;
+  color: #e74c3c;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.suggestion-item {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.suggestion-type {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.suggestion-content {
+  flex: 1;
+}
+
+.issue-description {
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.suggestion-text {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.improved-message-section {
+  margin-bottom: 1rem;
+}
+
+.improved-message-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #27ae60;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.improved-message-input {
+  margin-bottom: 0.75rem;
+}
+
+.improved-message-input :deep(.el-textarea__inner) {
+  border: 2px solid #27ae60;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  resize: none;
+  transition: all 0.2s ease;
+}
+
+.improved-message-input :deep(.el-textarea__inner:focus) {
+  border-color: #219a52;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+.explanation {
+  background: #f0f9f0;
+  border: 1px solid #c3e6c3;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: #2d5016;
+  line-height: 1.4;
+}
+
+.no-issues-section {
+  text-align: center;
+  background: #f0f9f0;
+  border: 1px solid #c3e6c3;
+  border-radius: 8px;
+  padding: 2rem 1rem;
+  color: #2d5016;
+}
+
+.no-issues-section .check-icon {
+  font-size: 3rem;
+  color: #27ae60;
+  margin-bottom: 1rem;
+}
+
+.no-issues-section p {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.no-issues-section .explanation {
+  margin-top: 1rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-style: italic;
+}
+
+.loading-section {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.loading-section .loading-icon {
+  font-size: 3rem;
+  color: #f39c12;
+  margin-bottom: 1rem;
+  animation: pulse 2s infinite;
+}
+
+.loading-section p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ai-check-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* AI Check Button in Forms */
+.ai-check-button-container {
+  margin-top: 0.75rem;
+  text-align: right;
+}
+
+.ai-check-button-container .el-button {
+  font-size: 0.85rem;
+}
+
+/* Responsive adjustments for AI check dialog */
+@media (max-width: 768px) {
+  .ai-check-content {
+    max-height: 60vh;
+  }
+  
+  .suggestion-item {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .suggestion-type {
+    align-self: flex-start;
+  }
+  
+  .ai-check-footer {
+    flex-direction: column;
+  }
+  
+  .ai-check-footer .el-button {
+    width: 100%;
+  }
+
+  .ai-check-button-container {
+    text-align: center;
+  }
 }
 </style>

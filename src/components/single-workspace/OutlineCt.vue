@@ -107,6 +107,11 @@ function debounce(func, wait) {
   };
 }
 
+// Generate unique render ID for this tab
+function generateRenderID() {
+  return 'render_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
 export default {
   name: 'OutlineCt',
   components: { OutlinePointsCt, Clock },
@@ -126,6 +131,10 @@ export default {
     const loadingHistory = ref(false);
     const selectedVersion = ref(null);
     const realtimeSubscription = ref(null);
+    
+    // Generate unique render ID for this tab/component instance
+    const outlineRenderID = ref(generateRenderID());
+    
     let refreshInterval = null;
 
     // Create debounced save function
@@ -411,7 +420,7 @@ export default {
         if (!user) throw new Error('No authenticated user');
 
         const outlineToSave = deepClone(outline.value);
-        console.log('Saving outline:', outlineToSave);
+        console.log('Saving outline with renderID:', outlineRenderID.value);
 
         if (outlineId.value) {
           // First get the new version number
@@ -422,12 +431,13 @@ export default {
 
           console.log('Got new version:', newVersion);
 
-          // Then update the outline with the new version
+          // Then update the outline with the new version and renderID
           const { data: updatedOutline, error: updateError } = await supabase
             .from('outlines')
             .update({
               content: outlineToSave,
               version: newVersion,
+              render_id: outlineRenderID.value, // Send render ID with save
               updated_at: new Date().toISOString() // Add explicit updated_at
             })
             .eq('id', outlineId.value)
@@ -460,6 +470,7 @@ export default {
               matter_id: matterId.value,
               title: 'Outline',
               content: outlineToSave,
+              render_id: outlineRenderID.value, // Send render ID with save
               created_by: user.id
             }])
             .select()
@@ -934,6 +945,13 @@ export default {
           async (payload) => {
             console.log('Received real-time update:', payload);
             
+            // Check if this update came from our own tab
+            const updateRenderID = payload.new.render_id;
+            if (updateRenderID === outlineRenderID.value) {
+              console.log('Skipping update - this came from our own tab (renderID match)');
+              return;
+            }
+            
             // Skip if we're currently saving (to avoid echo)
             if (saving.value) {
               console.log('Skipping update - we are currently saving');
@@ -948,10 +966,11 @@ export default {
 
                 console.log('Current version:', currentVersion.value);
                 console.log('Received version:', newVersion);
+                console.log('Update renderID:', updateRenderID, 'Our renderID:', outlineRenderID.value);
 
                 // Check if the new version is higher than our current version
                 if (newVersion > currentVersion.value) {
-                  console.log('Updating to new version');
+                  console.log('Updating to new version from another tab');
                   
                   // Force a fresh clone of the content to trigger reactivity
                   const freshContent = JSON.parse(JSON.stringify(newContent));
@@ -1050,6 +1069,7 @@ export default {
       outline, 
       saving,
       hasChanges,
+      outlineRenderID,
       onOutlineUpdate, 
       handleMove, 
       handleDelete,

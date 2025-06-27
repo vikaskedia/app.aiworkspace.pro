@@ -7,7 +7,8 @@ CREATE TABLE outlines (
     created_by uuid REFERENCES auth.users(id) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    version integer DEFAULT 1 NOT NULL
+    version integer DEFAULT 1 NOT NULL,
+    render_id text
 );
 
 -- Create outline_versions table for history
@@ -24,6 +25,7 @@ CREATE TABLE outline_versions (
 -- Create indexes
 CREATE INDEX outlines_matter_id_idx ON outlines(matter_id);
 CREATE INDEX outlines_created_by_idx ON outlines(created_by);
+CREATE INDEX outlines_render_id_idx ON outlines(render_id);
 CREATE INDEX outline_versions_outline_id_idx ON outline_versions(outline_id);
 
 -- Enable RLS

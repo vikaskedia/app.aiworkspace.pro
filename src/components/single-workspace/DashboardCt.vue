@@ -54,16 +54,17 @@
     <div class="dashboard-section">
       <div class="section-header">
         <h3>Recent Tasks</h3>
-        <el-button 
-          type="primary" 
-          link 
-          @click="$router.push(`/single-workspace/${currentMatter?.id}/tasks`)">
+        <a 
+          :href="`/single-workspace/${currentMatter?.id}/tasks`"
+          class="el-button el-button--primary is-link">
           View All Tasks
-        </el-button>
+        </a>
       </div>
-      <div class="recent-task" v-for="task in recentTasks" :key="task.id" 
-           @click="navigateToTask(task)" 
-           style="cursor: pointer">
+      <a 
+        v-for="task in recentTasks" 
+        :key="task.id" 
+        :href="`/single-workspace/${task.matter_id}/tasks/${task.id}`"
+        class="recent-task">
         <div class="task-title">{{ task.title }}</div>
         <div class="task-timestamps">
           <el-tooltip>
@@ -74,7 +75,7 @@
             <span class="time-ago">{{ task.latestActivityTimeAgo }}</span>
           </el-tooltip>
         </div>
-      </div>
+      </a>
     </div>
 
     <!-- Events Section -->
@@ -252,15 +253,7 @@ export default {
       return statusMap[status] || status;
     },
 
-    navigateToTask(task) {
-      this.$router.push({
-        name: 'SingleTaskPage',
-        params: {
-          matterId: task.matter_id,
-          taskId: task.id
-        }
-      });
-    }
+
   }
 };
 </script>
@@ -330,6 +323,8 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  text-decoration: none;
+  color: inherit;
 }
 
 .recent-task:hover {

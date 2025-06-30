@@ -1402,7 +1402,7 @@ export default {
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
       markConversationAsRead: realtimeMarkAsRead
-    } = useRealtimeMessages(computed(() => currentMatter.value?.id), computed(() => this.selectedConversation));
+    } = useRealtimeMessages(computed(() => currentMatter.value?.id));
     
     return { 
       currentMatter,

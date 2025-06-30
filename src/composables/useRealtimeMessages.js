@@ -1,7 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { supabase } from '../supabase'
 
-export function useRealtimeMessages(matterId, selectedConversation) {
+export function useRealtimeMessages(matterId) {
   const conversations = ref([])
   
   // Channels for subscriptions
@@ -63,17 +63,6 @@ export function useRealtimeMessages(matterId, selectedConversation) {
       case 'INSERT':
         await handleNewMessage(payload.new)
         await loadConversations()
-        // Reload messages for the currently selected conversation with a delay
-        if (
-          payload.new &&
-          payload.new.conversation_id &&
-          selectedConversation &&
-          selectedConversation.value === payload.new.conversation_id
-        ) {
-          setTimeout(() => {
-            loadMessagesForConversation(payload.new.conversation_id)
-          }, 300)
-        }
         break
       case 'UPDATE':
         handleMessageUpdate(payload.new)
@@ -305,20 +294,25 @@ export function useRealtimeMessages(matterId, selectedConversation) {
       const result = await response.json()
       
       if (response.ok && result.success) {
-        // Preserve messages for currently selected conversation
-        const currentSelectedId = selectedConversation?.value
-        const currentConversation = conversations.value.find(c => c.id === currentSelectedId)
-        const preservedMessages = currentConversation?.messages
+        // Store current conversations with their messages for preservation
+        const currentConversations = conversations.value
+        const conversationsWithMessages = {}
+        
+        // Create a map of conversation ID to messages
+        currentConversations.forEach(conv => {
+          if (conv.messages && conv.messages.length > 0) {
+            conversationsWithMessages[conv.id] = conv.messages
+          }
+        })
         
         conversations.value = result.conversations || []
         
-        // Restore messages for the selected conversation if it still exists
-        if (currentSelectedId && preservedMessages) {
-          const newConversation = conversations.value.find(c => c.id === currentSelectedId)
-          if (newConversation) {
-            newConversation.messages = preservedMessages
+        // Restore messages for conversations that had them
+        conversations.value.forEach(conv => {
+          if (conversationsWithMessages[conv.id]) {
+            conv.messages = conversationsWithMessages[conv.id]
           }
-        }
+        })
         
         console.log('📱 Loaded conversations:', conversations.value.length)
       } else {

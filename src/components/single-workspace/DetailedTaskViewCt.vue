@@ -865,55 +865,34 @@
             </template>
             
             <div class="tab-content">
-              <div class="outline-header">
-                <div class="outline-controls">
-                  <el-button 
-                    type="primary" 
-                    @click="saveTaskOutline" 
-                    :loading="savingOutline"
-                    :disabled="!hasOutlineChanges"
-                    size="small"
-                  >
-                    <el-icon><DocumentChecked /></el-icon>
-                    Save Outline (⌘S)
-                  </el-button>
-                </div>
-              </div>
-              
               <!-- Loading indicator for outline -->
               <div v-if="outlineLoading" class="loading-message">
                 <el-icon class="loading-spinner"><Loading /></el-icon>
                 <span>Loading outline...</span>
               </div>
               
-              <!-- Outline content -->
-              <div v-else class="outline-content">
-                <ul v-if="taskOutline.length" class="outline-list">
-                  <OutlinePointsCt
-                    v-for="item in taskOutline"
-                    :key="item.id"
-                    :item="item"
-                    @update="onTaskOutlineUpdate"
-                    @move="handleTaskOutlineMove"
-                    @delete="handleTaskOutlineDelete"
-                    @navigate="handleTaskOutlineNavigate"
-                    @indent="handleTaskOutlineIndent"
-                    @outdent="handleTaskOutlineOutdent"
-                    @add-sibling="handleTaskOutlineAddSibling"
-                  />
-                </ul>
-                <div v-else class="empty-outline">
-                  <p>No outline items yet. Start typing to create your first outline point...</p>
-                  <el-button 
-                    type="primary" 
-                    @click="addFirstOutlineItem"
-                    size="small"
-                  >
-                    <el-icon><Plus /></el-icon>
-                    Add First Item
-                  </el-button>
-                </div>
-              </div>
+              <!-- Reusable Outline Component -->
+              <ReusableOutlineCt
+                v-else
+                :outline-data="taskOutline"
+                :has-changes="hasOutlineChanges"
+                :saving="savingOutline"
+                :auto-save="true"
+                :auto-save-delay="3000"
+                :header-size="'small'"
+                :show-history="false"
+                :show-breadcrumbs="false"
+                save-button-text="Save Outline (⌘S)"
+                empty-state-text="No outline items yet. Start typing to create your first outline point..."
+                @save="saveTaskOutline"
+                @update="onTaskOutlineUpdate"
+                @move="handleTaskOutlineMove"
+                @delete="handleTaskOutlineDelete"
+                @navigate="handleTaskOutlineNavigate"
+                @indent="handleTaskOutlineIndent"
+                @outdent="handleTaskOutlineOutdent"
+                @add-sibling="handleTaskOutlineAddSibling"
+              />
             </div>
           </el-tab-pane>
         </el-tabs>
@@ -1202,7 +1181,7 @@ import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
 import { updateMatterActivity } from '../../utils/matterActivity';
-import OutlinePointsCt from './OutlinePointsCt.vue';
+import ReusableOutlineCt from './ReusableOutlineCt.vue';
 
 export default {
   components: {
@@ -1237,7 +1216,7 @@ export default {
     DocumentChecked,
     ChatDotRound,
     List,
-    OutlinePointsCt
+    ReusableOutlineCt
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1365,11 +1344,7 @@ export default {
       // Tab management
       activeTab: 'comments',
       
-      // Keyboard shortcuts
-      keyboardHandler: null,
-      
-      // Auto-save functionality
-      debouncedAutoSave: null
+
     };
   },
   async created() {
@@ -1389,12 +1364,6 @@ export default {
         ]);
     
     this.setupRealtimeSubscription();
-    
-    // Add keyboard shortcuts
-    this.setupKeyboardShortcuts();
-    
-    // Initialize debounced auto-save
-    this.initializeAutoSave();
   },
 
   async activated() {
@@ -1406,16 +1375,6 @@ export default {
       this.subscription.unsubscribe();
     }
     document.title = 'TaskManager';
-    
-    // Clean up keyboard shortcuts
-    if (this.keyboardHandler) {
-      window.removeEventListener('keydown', this.keyboardHandler);
-    }
-    
-    // Clean up auto-save
-    if (this.debouncedAutoSave && this.debouncedAutoSave.cancel) {
-      this.debouncedAutoSave.cancel();
-    }
   },
   methods: {
 
@@ -3823,9 +3782,6 @@ ${comment.content}
 
       updateItem(this.taskOutline);
       this.hasOutlineChanges = this.checkOutlineChanges();
-      
-      // Auto-save after a delay (debounced)
-      this.debouncedAutoSave();
     },
 
     handleTaskOutlineMove(payload) {
@@ -3871,7 +3827,6 @@ ${comment.content}
       if (removeItem(this.taskOutline) && draggedItem) {
         insertItem(this.taskOutline);
         this.hasOutlineChanges = true;
-        this.debouncedAutoSave();
       }
     },
 
@@ -3892,12 +3847,25 @@ ${comment.content}
 
       removeItem(this.taskOutline);
       this.hasOutlineChanges = this.checkOutlineChanges();
-      this.debouncedAutoSave();
     },
 
     handleTaskOutlineNavigate({ id, direction }) {
       // Flatten the outline for navigation
-      const flat = this.flattenOutlineForNavigation(this.taskOutline);
+      const flattenOutline = (items) => {
+        const result = [];
+        const traverse = (items) => {
+          items.forEach(item => {
+            result.push(item);
+            if (item.children && item.children.length > 0) {
+              traverse(item.children);
+            }
+          });
+        };
+        traverse(items);
+        return result;
+      };
+
+      const flat = flattenOutline(this.taskOutline);
       const idx = flat.findIndex(item => item.id.toString() === id.toString());
       if (idx === -1) return;
 
@@ -3945,7 +3913,6 @@ ${comment.content}
       moved.autoFocus = true;
       this.taskOutline = [...this.taskOutline];
       this.hasOutlineChanges = true;
-      this.debouncedAutoSave();
     },
 
     handleTaskOutlineOutdent({ id }) {
@@ -3993,10 +3960,25 @@ ${comment.content}
       moved.autoFocus = true;
       this.taskOutline = [...this.taskOutline];
       this.hasOutlineChanges = true;
-      this.debouncedAutoSave();
     },
 
     handleTaskOutlineAddSibling({ id }) {
+      // Handle adding sibling or first item
+      if (id === null) {
+        // Special case: adding first item
+        const newItem = {
+          id: Date.now().toString(),
+          text: '',
+          children: [],
+          autoFocus: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.taskOutline.push(newItem);
+        this.hasOutlineChanges = true;
+        return;
+      }
+
       // Add a sibling item after the target item
       const addSibling = (items, targetId) => {
         for (let i = 0; i < items.length; i++) {
@@ -4032,44 +4014,13 @@ ${comment.content}
         };
         this.taskOutline.splice(rootIndex + 1, 0, newItem);
         this.hasOutlineChanges = true;
-        this.debouncedAutoSave();
         return;
       }
 
       // Otherwise search recursively
       if (addSibling(this.taskOutline, id)) {
         this.hasOutlineChanges = true;
-        this.debouncedAutoSave();
       }
-    },
-
-    addFirstOutlineItem() {
-      const newItem = {
-        id: Date.now().toString(),
-        text: '',
-        children: [],
-        autoFocus: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      this.taskOutline.push(newItem);
-      this.hasOutlineChanges = true;
-      this.debouncedAutoSave();
-    },
-
-    // Helper function to flatten outline for navigation
-    flattenOutlineForNavigation(items) {
-      const result = [];
-      const traverse = (items) => {
-        items.forEach(item => {
-          result.push(item);
-          if (item.children && item.children.length > 0) {
-            traverse(item.children);
-          }
-        });
-      };
-      traverse(items);
-      return result;
     },
 
     checkOutlineChanges() {
@@ -4079,48 +4030,7 @@ ${comment.content}
       return currentContent !== savedContent;
     },
 
-    setupKeyboardShortcuts() {
-      this.keyboardHandler = (e) => {
-        // Ctrl+S or Cmd+S to save outline
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-          // Only if we're in the outline tab and have changes
-          if (this.activeTab === 'outline' && this.hasOutlineChanges && !this.savingOutline) {
-            e.preventDefault();
-            this.saveTaskOutline();
-          }
-        }
-      };
-      
-      window.addEventListener('keydown', this.keyboardHandler);
-    },
 
-    initializeAutoSave() {
-      // Create debounced function for auto-saving
-      const debounce = (func, wait) => {
-        let timeout;
-        const executedFunction = function(...args) {
-          const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-          };
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
-        };
-        
-        executedFunction.cancel = function() {
-          clearTimeout(timeout);
-        };
-        
-        return executedFunction;
-      };
-
-      this.debouncedAutoSave = debounce(async () => {
-        // Only auto-save if there are changes and we're not already saving
-        if (this.hasOutlineChanges && !this.savingOutline) {
-          await this.saveTaskOutline();
-        }
-      }, 3000); // Auto-save after 3 seconds of inactivity
-    }
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -5570,12 +5480,7 @@ table.editor-table {
   margin-bottom: 1rem;
 }
 
-.outline-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-bottom: 1rem;
-}
+
 
 @media (max-width: 768px) {
   .task-content-wrapper {
@@ -6416,30 +6321,3 @@ table.editor-table {
 }
 </style>
 
-<style scoped>
-.outline-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.outline-content {
-  margin-top: 16px;
-}
-
-.empty-outline {
-  text-align: center;
-  padding: 2rem;
-  color: var(--el-text-color-secondary);
-  font-style: italic;
-}
-
-.empty-outline p {
-  margin: 0 0 1rem 0;
-}
-
-.outline-list {
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
-}
-</style>

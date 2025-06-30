@@ -1,7 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { supabase } from '../supabase'
 
-export function useRealtimeMessages(matterId) {
+export function useRealtimeMessages(matterId, selectedConversation) {
   const conversations = ref([])
   
   // Channels for subscriptions
@@ -62,7 +62,16 @@ export function useRealtimeMessages(matterId) {
     switch (payload.eventType) {
       case 'INSERT':
         await handleNewMessage(payload.new)
-        await loadConversations() // Refresh unread counts in real-time
+        await loadConversations()
+        // Reload messages for the currently selected conversation
+        if (
+          payload.new &&
+          payload.new.conversation_id &&
+          selectedConversation &&
+          selectedConversation.value === payload.new.conversation_id
+        ) {
+          await loadMessagesForConversation(payload.new.conversation_id)
+        }
         break
       case 'UPDATE':
         handleMessageUpdate(payload.new)

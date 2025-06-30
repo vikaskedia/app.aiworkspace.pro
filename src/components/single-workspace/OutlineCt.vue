@@ -12,18 +12,48 @@
       </template>
     </div>
     <div class="outline-header">
-      <el-button 
-        type="primary" 
-        @click="saveOutline" 
-        :loading="saving"
-        :disabled="!hasChanges"
-        style="margin-right: 8px;"
-      >
-        Save Outline (cmd+s)
-      </el-button>
-      <el-button icon @click="openHistoryDialog" style="margin-right: 8px;">
-        <el-icon><Clock /></el-icon>
-      </el-button>
+      <div class="outline-actions">
+        <el-button 
+          type="primary" 
+          @click="saveOutline" 
+          :loading="saving"
+          :disabled="!hasChanges"
+          style="margin-right: 8px;"
+        >
+          Save Outline (cmd+s)
+        </el-button>
+        <el-button 
+          icon 
+          @click="manualRefresh" 
+          :loading="refreshing"
+          title="Refresh from server"
+          style="margin-right: 8px;"
+          :type="hasChanges ? 'warning' : 'default'"
+        >
+          <el-icon><Refresh /></el-icon>
+        </el-button>
+        <el-button icon @click="openHistoryDialog" style="margin-right: 8px;">
+          <el-icon><Clock /></el-icon>
+        </el-button>
+      </div>
+      <div class="sync-status">
+        <el-tag 
+          v-if="!hasChanges" 
+          type="success" 
+          size="small"
+          effect="light"
+        >
+          ✅ Synced
+        </el-tag>
+        <el-tag 
+          v-else 
+          type="warning" 
+          size="small"
+          effect="light"
+        >
+          📝 Unsaved changes
+        </el-tag>
+      </div>
     </div>
     <el-dialog v-model="historyDialogVisible" title="Outline Version History" width="700px">
       <el-table :data="versionHistory" style="width: 100%" v-loading="loadingHistory">
@@ -94,7 +124,7 @@
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
-import { Clock } from '@element-plus/icons-vue';
+import { Clock, Refresh } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
@@ -125,12 +155,13 @@ function generateRenderID() {
 
 export default {
   name: 'OutlineCt',
-  components: { OutlinePointsCt, Clock },
+  components: { OutlinePointsCt, Clock, Refresh },
   setup() {
     const route = useRoute();
     const router = useRouter();
     const matterId = computed(() => route.params.matterId);
     const saving = ref(false);
+    const refreshing = ref(false);
     const outline = ref([]);
     const outlineId = ref(null);
     const currentVersion = ref(1);
@@ -462,13 +493,45 @@ export default {
         console.log('Saving outline with renderID:', outlineRenderID.value);
 
         if (outlineId.value) {
+          // Check current server version before saving to detect conflicts
+          const { data: serverOutline, error: serverCheckError } = await supabase
+            .from('outlines')
+            .select('version')
+            .eq('id', outlineId.value)
+            .single();
+
+          if (serverCheckError) {
+            console.error('❌ Error checking server version:', serverCheckError);
+            throw serverCheckError;
+          }
+
+          // Detect version conflict
+          if (serverOutline.version > currentVersion.value) {
+            console.log('⚠️ Version conflict detected during save');
+            
+            ElNotification({
+              title: 'Save Conflict',
+              message: 'The outline was updated by another user. Please refresh and try again.',
+              type: 'warning',
+              duration: 7000,
+              showClose: true
+            });
+            
+            // Update our version tracking and don't save
+            currentVersion.value = serverOutline.version;
+            return;
+          }
+
           // First get the new version number
           const { data: newVersion, error: versionError } = await supabase
             .rpc('increment_version', { outline_id: outlineId.value });
 
-          if (versionError) throw versionError;
+          if (versionError) {
+            console.error('❌ Error incrementing version:', versionError);
+            throw versionError;
+          }
 
-          console.log('Got new version:', newVersion);
+          console.log('📝 Saving with new version:', newVersion);
 
           // Then update the outline with the new version and renderID
           const { data: updatedOutline, error: updateError } = await supabase
@@ -483,9 +546,12 @@ export default {
             .select()
             .single();
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error('❌ Error updating outline:', updateError);
+            throw updateError;
+          }
 
-          console.log('Updated outline:', updatedOutline);
+          console.log('✅ Successfully updated outline:', updatedOutline);
           
           currentVersion.value = updatedOutline.version;
           
@@ -550,8 +616,8 @@ export default {
 
         // Show success notification
         ElNotification({
-          title: 'Success',
-          message: 'Outline saved successfully',
+          title: 'Outline Saved',
+          message: `Successfully saved version ${currentVersion.value}`,
           type: 'success',
           duration: 3000
         });
@@ -562,13 +628,26 @@ export default {
         }
 
       } catch (error) {
-        console.error('Error saving outline:', error);
+        console.error('❌ Error saving outline:', error);
+        
+        // Provide specific error messages
+        let errorMessage = 'Failed to save outline. Please try again.';
+        
+        if (error.message?.includes('version')) {
+          errorMessage = 'Version conflict detected. Please refresh and try again.';
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message?.includes('permission') || error.message?.includes('auth')) {
+          errorMessage = 'Permission error. Please refresh the page and try again.';
+        }
+        
         // Show error notification
         ElNotification({
-          title: 'Error',
-          message: 'Failed to save outline. Please try again.',
+          title: 'Save Failed',
+          message: errorMessage,
           type: 'error',
-          duration: 5000
+          duration: 7000,
+          showClose: true
         });
       } finally {
         saving.value = false;
@@ -1058,7 +1137,7 @@ export default {
 
       // Subscribe to changes on the outlines table
       realtimeSubscription.value = supabase
-        .channel(`outline_changes_${outlineId.value}`)
+        .channel(`outline_changes_${outlineId.value}_${outlineRenderID.value}`)
         .on(
           'postgres_changes',
           {
@@ -1068,19 +1147,19 @@ export default {
             filter: `id=eq.${outlineId.value}`
           },
           async (payload) => {
-            console.log('Received real-time update:', payload);
+            console.log('🔄 Received real-time update:', payload);
             
             // Check if this update came from our own tab
-            const updateRenderID = payload.new.render_id;
+            const updateRenderID = payload.new?.render_id;
             if (updateRenderID === outlineRenderID.value) {
-              console.log('Skipping update - this came from our own tab (renderID match)');
+              console.log('⏭️ Skipping update - this came from our own tab (renderID match)');
               return;
             }
             
-            // Skip if we're currently saving (to avoid echo)
+            // Don't skip if we're saving - we need to handle concurrent edits
+            // Just log it for debugging
             if (saving.value) {
-              console.log('Skipping update - we are currently saving');
-              return;
+              console.log('⚠️ Received update while saving - processing anyway');
             }
 
             try {
@@ -1089,87 +1168,141 @@ export default {
                 const newContent = payload.new.content;
                 const newVersion = payload.new.version;
 
-                console.log('Current version:', currentVersion.value);
-                console.log('Received version:', newVersion);
-                console.log('Update renderID:', updateRenderID, 'Our renderID:', outlineRenderID.value);
+                console.log('📊 Version check:', {
+                  current: currentVersion.value,
+                  received: newVersion,
+                  updateRenderID,
+                  ourRenderID: outlineRenderID.value
+                });
 
-                // Check if the new version is higher than our current version
-                if (newVersion > currentVersion.value) {
-                  console.log('Updating to new version from another tab');
+                // Always update version tracking, regardless of content merge
+                const versionIsNewer = newVersion > currentVersion.value;
+                const versionIsSame = newVersion === currentVersion.value;
+                
+                if (versionIsNewer || versionIsSame) {
+                  console.log('🔄 Processing update from another tab');
                   
-                  // Only update if we don't have unsaved changes to prevent overwriting
-                  if (!hasChanges.value) {
-                    // Force a fresh clone of the content to trigger reactivity
-                    const freshContent = JSON.parse(JSON.stringify(newContent));
+                  // Compare content to see if there are actual differences
+                  const currentContentStr = JSON.stringify(outline.value);
+                  const newContentStr = JSON.stringify(newContent);
+                  const contentIsDifferent = currentContentStr !== newContentStr;
+                  
+                  if (contentIsDifferent) {
+                    console.log('📝 Content is different, deciding how to merge...');
                     
-                    // Update local state using nextTick to ensure DOM updates
-                    await nextTick(() => {
-                      outline.value = freshContent;
+                    if (!hasChanges.value) {
+                      // No local changes - safe to update completely
+                      console.log('✅ No local changes - applying remote update');
+                      const freshContent = JSON.parse(JSON.stringify(newContent));
+                      
+                      // Update local state
+                      await nextTick(() => {
+                        outline.value = freshContent;
+                        currentVersion.value = newVersion;
+                        lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+                        hasChanges.value = false;
+                      });
+
+                      // Update localStorage
+                      const localStorageKey = getLocalStorageKey();
+                      const versionKey = getVersionKey();
+                      localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+                      localStorage.setItem(versionKey, newVersion.toString());
+                      localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+
+                      // Show success notification
+                      ElNotification({
+                        title: 'Outline Updated',
+                        message: 'The outline has been updated from another tab',
+                        type: 'success',
+                        duration: 3000
+                      });
+                    } else {
+                      // We have local changes - need conflict resolution
+                      console.log('⚠️ Local changes detected - handling conflict');
+                      
+                      // Update version and saved content reference for conflict tracking
                       currentVersion.value = newVersion;
-                      lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
-                      hasChanges.value = false;
-                    });
-
-                    // Update localStorage
-                    const localStorageKey = getLocalStorageKey();
-                    const versionKey = getVersionKey();
-                    localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
-                    localStorage.setItem(versionKey, newVersion.toString());
-                    localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
-
-                    // Show notification
-                    ElNotification({
-                      title: 'Outline Updated',
-                      message: 'The outline has been updated by another user',
-                      type: 'info',
-                      duration: 3000
-                    });
+                      lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                      
+                      // Recalculate hasChanges based on new remote content
+                      hasChanges.value = checkForChanges(outline.value);
+                      
+                      // Update localStorage with remote version info but keep local content
+                      const versionKey = getVersionKey();
+                      localStorage.setItem(versionKey, newVersion.toString());
+                      localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
+                      
+                      // Show conflict notification with action buttons
+                      ElNotification({
+                        title: 'Sync Conflict Detected',
+                        message: 'Another user updated the outline while you have unsaved changes. Your changes are preserved.',
+                        type: 'warning',
+                        duration: 7000,
+                        showClose: true
+                      });
+                    }
                   } else {
-                    // We have unsaved changes, just update the version and saved content reference
-                    console.log('Skipping content update - we have unsaved changes');
+                    // Content is the same, just update version tracking
+                    console.log('📄 Content is identical - updating version only');
                     currentVersion.value = newVersion;
                     lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                    hasChanges.value = checkForChanges(outline.value);
                     
-                    // Show a different notification
-                    ElNotification({
-                      title: 'Outline Updated Remotely',
-                      message: 'Another user updated the outline. Your changes are preserved.',
-                      type: 'warning',
-                      duration: 5000
-                    });
+                    // Update localStorage version
+                    const versionKey = getVersionKey();
+                    localStorage.setItem(versionKey, newVersion.toString());
                   }
+                } else {
+                  console.log('⏪ Received older version - ignoring');
                 }
               }
             } catch (error) {
-              console.error('Error handling real-time update:', error);
+              console.error('❌ Error handling real-time update:', error);
               
-              // On error, force a fresh data fetch
-              await refreshOutlineData();
-              
+              // Show error notification
               ElNotification({
                 title: 'Sync Error',
-                message: 'Attempting to recover latest changes...',
-                type: 'warning',
-                duration: 5000
+                message: 'There was an error syncing changes. Please refresh if issues persist.',
+                type: 'error',
+                duration: 5000,
+                showClose: true
               });
+              
+              // Try to recover by refreshing data
+              try {
+                await refreshOutlineData();
+                console.log('🔄 Successfully recovered from sync error');
+              } catch (recoveryError) {
+                console.error('❌ Failed to recover from sync error:', recoveryError);
+              }
             }
           }
         )
         .subscribe((status) => {
-          console.log('Subscription status:', status);
+          console.log('📡 Subscription status:', status);
           
           if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to outline changes');
-            // Don't auto-refresh on subscription - this can cause overwrites
+            console.log('✅ Successfully subscribed to outline changes');
+          } else if (status === 'CLOSED') {
+            console.log('❌ Subscription closed - attempting to reconnect...');
+            // Retry subscription after a delay
+            setTimeout(() => {
+              if (outlineId.value && matterId.value) {
+                subscribeToChanges();
+              }
+            }, 2000);
           } else {
-            console.log('Subscription status changed:', status);
+            console.log('📡 Subscription status changed:', status);
           }
         });
     }
 
-    // Modify refreshOutlineData to be more aggressive in updates
+    // Enhanced refreshOutlineData with better conflict handling
     async function refreshOutlineData() {
       if (!matterId.value || !outlineId.value) return;
+
+      console.log('🔄 Refreshing outline data...');
 
       try {
         const { data: outlineData, error: outlineError } = await supabase
@@ -1178,26 +1311,99 @@ export default {
           .eq('id', outlineId.value)
           .single();
 
-        if (outlineError) throw outlineError;
+        if (outlineError) {
+          console.error('❌ Error fetching outline data:', outlineError);
+          throw outlineError;
+        }
 
         if (outlineData) {
-          // Always update if we have data, not just on version change
-          const freshContent = JSON.parse(JSON.stringify(outlineData.content));
-          
-          await nextTick(() => {
-            outline.value = freshContent;
-            currentVersion.value = outlineData.version;
-            lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
-            hasChanges.value = false;
+          console.log('📄 Received fresh outline data:', {
+            version: outlineData.version,
+            currentVersion: currentVersion.value,
+            hasLocalChanges: hasChanges.value
           });
 
-          // Update localStorage
-          localStorage.setItem(getLocalStorageKey(), JSON.stringify(freshContent));
-          localStorage.setItem(getVersionKey(), outlineData.version.toString());
-          localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(freshContent));
+          const freshContent = JSON.parse(JSON.stringify(outlineData.content));
+          const contentIsDifferent = JSON.stringify(outline.value) !== JSON.stringify(freshContent);
+          
+          if (!hasChanges.value || !contentIsDifferent) {
+            // Safe to update - no local changes or content is identical
+            console.log('✅ Safe to update - applying fresh data');
+            
+            await nextTick(() => {
+              outline.value = freshContent;
+              currentVersion.value = outlineData.version;
+              lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+              hasChanges.value = false;
+            });
+
+            // Update localStorage
+            const localStorageKey = getLocalStorageKey();
+            const versionKey = getVersionKey();
+            localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+            localStorage.setItem(versionKey, outlineData.version.toString());
+            localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+            
+            console.log('✅ Successfully refreshed outline data');
+          } else {
+            // Conflict detected - update references but preserve local changes
+            console.log('⚠️ Conflict detected during refresh - preserving local changes');
+            
+            currentVersion.value = outlineData.version;
+            lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+            hasChanges.value = checkForChanges(outline.value);
+            
+            // Update localStorage with server version info
+            const versionKey = getVersionKey();
+            localStorage.setItem(versionKey, outlineData.version.toString());
+            localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(freshContent));
+            
+            // Notify user of conflict
+            ElNotification({
+              title: 'Sync Conflict',
+              message: 'Your local changes have been preserved. Save to update with your changes.',
+              type: 'warning',
+              duration: 5000,
+              showClose: true
+            });
+          }
         }
       } catch (error) {
-        console.error('Error refreshing outline:', error);
+        console.error('❌ Error refreshing outline data:', error);
+        
+        // Show user-friendly error
+        ElNotification({
+          title: 'Sync Error',
+          message: 'Unable to sync with server. Your changes are preserved locally.',
+          type: 'error',
+          duration: 7000,
+          showClose: true
+        });
+        
+        throw error; // Re-throw for caller handling
+      }
+    }
+
+    // Manual refresh function for user-triggered sync
+    async function manualRefresh() {
+      if (refreshing.value) return;
+      
+      refreshing.value = true;
+      try {
+        console.log('🔄 Manual refresh triggered');
+        await refreshOutlineData();
+        
+        ElNotification({
+          title: 'Sync Complete',
+          message: 'Outline has been synced with server',
+          type: 'success',
+          duration: 3000
+        });
+      } catch (error) {
+        console.error('❌ Manual refresh failed:', error);
+        // Error notification is already shown in refreshOutlineData
+      } finally {
+        refreshing.value = false;
       }
     }
 
@@ -1205,12 +1411,14 @@ export default {
       matterId,
       outline, 
       saving,
+      refreshing,
       hasChanges,
       outlineRenderID,
       onOutlineUpdate, 
       handleMove, 
       handleDelete,
       saveOutline,
+      manualRefresh,
       // Drilldown
       focusedId,
       handleDrilldown,
@@ -1249,8 +1457,20 @@ export default {
 
 .outline-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+}
+
+.outline-actions {
+  display: flex;
+  align-items: center;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
 }
 
 .outline-list {

@@ -116,7 +116,7 @@
               </div>
             </div>
             <div class="item-right">
-              <el-tooltip content="Unread messages" placement="top">
+              <el-tooltip content="Messages unread by you" placement="top">
                 <span v-if="item.count" class="count-badge">{{ item.count }}</span>
               </el-tooltip>
             </div>
@@ -216,7 +216,7 @@
               
               <div class="conversation-preview">
                 <span class="last-message">{{ conversation.lastMessage }}</span>
-                <el-tooltip content="Unread messages" placement="top">
+                <el-tooltip content="Messages unread by you " placement="top">
                   <span v-if="conversation.unread" class="unread-count">{{ conversation.unread }}</span>
                 </el-tooltip>
               </div>

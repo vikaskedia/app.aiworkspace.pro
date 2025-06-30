@@ -63,14 +63,16 @@ export function useRealtimeMessages(matterId, selectedConversation) {
       case 'INSERT':
         await handleNewMessage(payload.new)
         await loadConversations()
-        // Reload messages for the currently selected conversation
+        // Reload messages for the currently selected conversation with a delay
         if (
           payload.new &&
           payload.new.conversation_id &&
           selectedConversation &&
           selectedConversation.value === payload.new.conversation_id
         ) {
-          await loadMessagesForConversation(payload.new.conversation_id)
+          setTimeout(() => {
+            loadMessagesForConversation(payload.new.conversation_id)
+          }, 300)
         }
         break
       case 'UPDATE':
@@ -318,20 +320,16 @@ export function useRealtimeMessages(matterId, selectedConversation) {
     try {
       const response = await fetch(`https://app.aiworkspace.pro/api/messages/${conversationId}`)
       const result = await response.json()
-      
       if (response.ok && result.success) {
-        // The API already transforms messages, so we don't need to transform them again
         const messages = result.messages
-        
+        console.log('Loaded messages for conversation:', conversationId, messages)
         // Update conversation with loaded messages
         const conversation = conversations.value.find(c => c.id === conversationId)
         if (conversation) {
           conversation.messages = messages
         }
-        
         // Also load call recordings for this conversation
         await loadCallRecordingsForConversation(conversationId)
-        
         return messages
       } else {
         console.error('Failed to load messages:', result.error)

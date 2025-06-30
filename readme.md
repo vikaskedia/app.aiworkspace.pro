@@ -6,7 +6,7 @@
 2. Notification system.
 3. Users can upload files to gitea and there is a interface to gitea
 4. Task system
-5. AI phone
+5. AI phone.
 
 # Future features:
 1. Individual users can give feedback by clicking on their profile icon.

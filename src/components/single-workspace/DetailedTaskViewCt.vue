@@ -875,7 +875,7 @@
                     size="small"
                   >
                     <el-icon><DocumentChecked /></el-icon>
-                    Save Outline
+                    Save Outline (⌘S)
                   </el-button>
                 </div>
               </div>
@@ -1363,7 +1363,13 @@ export default {
       lastSavedOutlineContent: null,
       
       // Tab management
-      activeTab: 'comments'
+      activeTab: 'comments',
+      
+      // Keyboard shortcuts
+      keyboardHandler: null,
+      
+      // Auto-save functionality
+      debouncedAutoSave: null
     };
   },
   async created() {
@@ -1383,6 +1389,12 @@ export default {
         ]);
     
     this.setupRealtimeSubscription();
+    
+    // Add keyboard shortcuts
+    this.setupKeyboardShortcuts();
+    
+    // Initialize debounced auto-save
+    this.initializeAutoSave();
   },
 
   async activated() {
@@ -1394,6 +1406,16 @@ export default {
       this.subscription.unsubscribe();
     }
     document.title = 'TaskManager';
+    
+    // Clean up keyboard shortcuts
+    if (this.keyboardHandler) {
+      window.removeEventListener('keydown', this.keyboardHandler);
+    }
+    
+    // Clean up auto-save
+    if (this.debouncedAutoSave && this.debouncedAutoSave.cancel) {
+      this.debouncedAutoSave.cancel();
+    }
   },
   methods: {
 
@@ -3801,12 +3823,56 @@ ${comment.content}
 
       updateItem(this.taskOutline);
       this.hasOutlineChanges = this.checkOutlineChanges();
+      
+      // Auto-save after a delay (debounced)
+      this.debouncedAutoSave();
     },
 
     handleTaskOutlineMove(payload) {
-      // Handle moving outline items (similar to the main outline component)
-      console.log('Move outline item:', payload);
-      this.hasOutlineChanges = true;
+      // Handle moving outline items (drag and drop)
+      const { draggedId, targetId, position } = payload;
+      
+      // Find and remove the dragged item
+      let draggedItem = null;
+      const removeItem = (items) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id.toString() === draggedId.toString()) {
+            draggedItem = items.splice(i, 1)[0];
+            return true;
+          }
+          if (items[i].children && removeItem(items[i].children)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Find the target and insert the dragged item
+      const insertItem = (items) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id.toString() === targetId.toString()) {
+            if (position === 'before') {
+              items.splice(i, 0, draggedItem);
+            } else if (position === 'after') {
+              items.splice(i + 1, 0, draggedItem);
+            } else if (position === 'child') {
+              if (!items[i].children) items[i].children = [];
+              items[i].children.push(draggedItem);
+            }
+            return true;
+          }
+          if (items[i].children && insertItem(items[i].children)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      if (removeItem(this.taskOutline) && draggedItem) {
+        insertItem(this.taskOutline);
+        this.hasOutlineChanges = true;
+        this.debouncedAutoSave();
+      }
     },
 
     handleTaskOutlineDelete(id) {
@@ -3826,27 +3892,112 @@ ${comment.content}
 
       removeItem(this.taskOutline);
       this.hasOutlineChanges = this.checkOutlineChanges();
+      this.debouncedAutoSave();
     },
 
-    handleTaskOutlineNavigate(data) {
-      // Handle keyboard navigation
-      console.log('Navigate outline:', data);
+    handleTaskOutlineNavigate({ id, direction }) {
+      // Flatten the outline for navigation
+      const flat = this.flattenOutlineForNavigation(this.taskOutline);
+      const idx = flat.findIndex(item => item.id.toString() === id.toString());
+      if (idx === -1) return;
+
+      let targetIdx = null;
+      if (direction === 'up' && idx > 0) targetIdx = idx - 1;
+      if (direction === 'down' && idx < flat.length - 1) targetIdx = idx + 1;
+
+      if (targetIdx !== null) {
+        // Set autoFocus for the target item
+        Object.assign(flat[targetIdx], { autoFocus: true });
+        // Force reactivity
+        this.taskOutline = [...this.taskOutline];
+      }
     },
 
-    handleTaskOutlineIndent(data) {
-      // Handle indenting outline items
-      console.log('Indent outline item:', data);
+    handleTaskOutlineIndent({ id }) {
+      // Find parent and previous sibling
+      const findParentAndIndex = (items, id, parent = null) => {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id.toString() === id.toString()) {
+            return { parent, index: i, items };
+          }
+          if (items[i].children && items[i].children.length) {
+            const res = findParentAndIndex(items[i].children, id, items[i]);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+
+      const res = findParentAndIndex(this.taskOutline, id);
+      if (!res || res.index === 0) return; // No previous sibling
+
+      const { parent, index, items } = res;
+      const prevSibling = items[index - 1];
+      
+      // Remove from current position
+      const [moved] = items.splice(index, 1);
+      
+      // Add as last child of previous sibling
+      if (!prevSibling.children) prevSibling.children = [];
+      prevSibling.children.push(moved);
+      
+      // Set autoFocus for moved node
+      moved.autoFocus = true;
+      this.taskOutline = [...this.taskOutline];
       this.hasOutlineChanges = true;
+      this.debouncedAutoSave();
     },
 
-    handleTaskOutlineOutdent(data) {
-      // Handle outdenting outline items
-      console.log('Outdent outline item:', data);
+    handleTaskOutlineOutdent({ id }) {
+      // Find the node, its parent, and its grandparent
+      const findNodeAndAncestors = (items, id, parent = null, grandparent = null) => {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.id.toString() === id.toString()) {
+            return { node: item, parent, grandparent, index: i, items };
+          }
+          if (item.children && item.children.length) {
+            const res = findNodeAndAncestors(item.children, id, item, parent);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+
+      const res = findNodeAndAncestors(this.taskOutline, id);
+      if (!res || !res.parent) {
+        return; // Cannot outdent root level items
+      }
+
+      const { parent, grandparent, index, items } = res;
+
+      // Remove from current position
+      const [moved] = items.splice(index, 1);
+
+      if (grandparent) {
+        // Find parent in grandparent's children
+        const gpChildren = grandparent.children;
+        const parentIdx = gpChildren.findIndex(child => child.id === parent.id);
+        if (parentIdx !== -1) {
+          gpChildren.splice(parentIdx + 1, 0, moved);
+        }
+      } else {
+        // Parent is at root level, move to root
+        const parentIdx = this.taskOutline.findIndex(item => item.id === parent.id);
+        if (parentIdx !== -1) {
+          this.taskOutline.splice(parentIdx + 1, 0, moved);
+        }
+      }
+
+      // Set autoFocus for moved node
+      moved.autoFocus = true;
+      this.taskOutline = [...this.taskOutline];
       this.hasOutlineChanges = true;
+      this.debouncedAutoSave();
     },
 
-    handleTaskOutlineAddSibling(data) {
-      // Add a sibling item
+    handleTaskOutlineAddSibling({ id }) {
+      // Add a sibling item after the target item
       const addSibling = (items, targetId) => {
         for (let i = 0; i < items.length; i++) {
           if (items[i].id === targetId) {
@@ -3868,8 +4019,28 @@ ${comment.content}
         return false;
       };
 
-      addSibling(this.taskOutline, data.id);
-      this.hasOutlineChanges = true;
+      // Try adding at root level first
+      const rootIndex = this.taskOutline.findIndex(item => item.id === id);
+      if (rootIndex !== -1) {
+        const newItem = {
+          id: Date.now().toString(),
+          text: '',
+          children: [],
+          autoFocus: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.taskOutline.splice(rootIndex + 1, 0, newItem);
+        this.hasOutlineChanges = true;
+        this.debouncedAutoSave();
+        return;
+      }
+
+      // Otherwise search recursively
+      if (addSibling(this.taskOutline, id)) {
+        this.hasOutlineChanges = true;
+        this.debouncedAutoSave();
+      }
     },
 
     addFirstOutlineItem() {
@@ -3883,6 +4054,22 @@ ${comment.content}
       };
       this.taskOutline.push(newItem);
       this.hasOutlineChanges = true;
+      this.debouncedAutoSave();
+    },
+
+    // Helper function to flatten outline for navigation
+    flattenOutlineForNavigation(items) {
+      const result = [];
+      const traverse = (items) => {
+        items.forEach(item => {
+          result.push(item);
+          if (item.children && item.children.length > 0) {
+            traverse(item.children);
+          }
+        });
+      };
+      traverse(items);
+      return result;
     },
 
     checkOutlineChanges() {
@@ -3890,6 +4077,49 @@ ${comment.content}
       const currentContent = JSON.stringify(this.taskOutline);
       const savedContent = JSON.stringify(this.lastSavedOutlineContent);
       return currentContent !== savedContent;
+    },
+
+    setupKeyboardShortcuts() {
+      this.keyboardHandler = (e) => {
+        // Ctrl+S or Cmd+S to save outline
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          // Only if we're in the outline tab and have changes
+          if (this.activeTab === 'outline' && this.hasOutlineChanges && !this.savingOutline) {
+            e.preventDefault();
+            this.saveTaskOutline();
+          }
+        }
+      };
+      
+      window.addEventListener('keydown', this.keyboardHandler);
+    },
+
+    initializeAutoSave() {
+      // Create debounced function for auto-saving
+      const debounce = (func, wait) => {
+        let timeout;
+        const executedFunction = function(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+        
+        executedFunction.cancel = function() {
+          clearTimeout(timeout);
+        };
+        
+        return executedFunction;
+      };
+
+      this.debouncedAutoSave = debounce(async () => {
+        // Only auto-save if there are changes and we're not already saving
+        if (this.hasOutlineChanges && !this.savingOutline) {
+          await this.saveTaskOutline();
+        }
+      }, 3000); // Auto-save after 3 seconds of inactivity
     }
   },
   watch: {

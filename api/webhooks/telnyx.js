@@ -186,8 +186,7 @@ async function handleMessageReceived(eventData) {
           to_phone_number: fromPhone,
           contact_name: null,
           last_message_at: new Date().toISOString(),
-          last_message_preview: previewText.substring(0, 100),
-          unread_count: 1
+          last_message_preview: previewText.substring(0, 100)
         })
         .select()
         .single()
@@ -200,8 +199,7 @@ async function handleMessageReceived(eventData) {
         .from('conversations')
         .update({
           last_message_at: new Date().toISOString(),
-          last_message_preview: previewText.substring(0, 100),
-          unread_count: conversation.unread_count + 1
+          last_message_preview: previewText.substring(0, 100)
         })
         .eq('id', conversation.id)
     }

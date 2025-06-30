@@ -22,30 +22,53 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { conversationId } = req.body
+    const { conversationId, matterId } = req.body
 
     console.log('Marking conversation as read:', conversationId)
+    console.log('Matter ID:', matterId)
 
     if (!conversationId) {
       return res.status(400).json({ error: 'Conversation ID is required' })
     }
 
-    // Mark conversation as read by setting unread_count to 0
+    if (!matterId) {
+      return res.status(400).json({ error: 'Matter ID is required' })
+    }
+
+    // Get user from Authorization header if provided
+    let userId = null
+    const authHeader = req.headers.authorization
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '')
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+        if (!authError && user) {
+          userId = user.id
+        }
+      } catch (error) {
+        console.log('Auth header parsing failed')
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User authentication required' })
+    }
+
+    // Mark conversation as read for this specific user
     const { error } = await supabase
-      .from('conversations')
-      .update({
-        unread_count: 0,
-        updated_at: new Date().toISOString()
+      .rpc('mark_conversation_as_read_for_user', {
+        conversation_id_param: conversationId,
+        user_id_param: userId,
+        matter_id_param: parseInt(matterId)
       })
-      .eq('id', conversationId)
 
     if (error) throw error
 
-    console.log('Conversation marked as read successfully')
+    console.log('Conversation marked as read for user:', userId)
 
     return res.status(200).json({
       success: true,
-      message: 'Conversation marked as read'
+      message: 'Conversation marked as read for user'
     })
 
   } catch (error) {

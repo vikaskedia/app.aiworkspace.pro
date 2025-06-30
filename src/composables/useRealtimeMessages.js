@@ -8,6 +8,7 @@ export function useRealtimeMessages(matterId) {
   let conversationsChannel = null
   let messagesChannel = null
   let callRecordingsChannel = null
+  let conversationReadStatusChannel = null
 
   // Computed properties
   const sortedConversations = computed(() => {
@@ -18,7 +19,26 @@ export function useRealtimeMessages(matterId) {
     })
   })
 
-
+  // Get auth token for API calls
+  const getAuthToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      return session.access_token
+    }
+    
+    // Fallback: try to get from localStorage if session is not available
+    try {
+      const authData = localStorage.getItem('sb-auth-token')
+      if (authData) {
+        const parsed = JSON.parse(authData)
+        return parsed.access_token
+      }
+    } catch (error) {
+      console.error('Error parsing auth token from localStorage:', error)
+    }
+    
+    return null
+  }
 
   // Event handlers
   const handleConversationChange = (payload) => {
@@ -51,6 +71,13 @@ export function useRealtimeMessages(matterId) {
         handleMessageDelete(payload.old)
         break
     }
+  }
+
+  const handleConversationReadStatusChange = async (payload) => {
+    console.log('👁️ Conversation read status change:', payload.eventType, payload.new)
+    
+    // Reload conversations to get updated unread counts
+    await loadConversations()
   }
 
   const handleNewConversation = (newConversation) => {
@@ -203,6 +230,7 @@ export function useRealtimeMessages(matterId) {
   }
 
   const handleCallRecordingUpdate = (updatedRecording) => {
+    // Find conversation and update recording
     const conversation = conversations.value.find(c => c.id === updatedRecording.conversation_id)
     
     if (conversation && conversation.callRecordings) {
@@ -235,7 +263,7 @@ export function useRealtimeMessages(matterId) {
     fromPhoneNumber: conv.from_phone_number,
     lastMessage: conv.last_message_preview || '',
     lastMessageTime: conv.last_message_at || conv.created_at || new Date().toISOString(),
-    unread: conv.unread_count || 0,
+    unread: conv.unread || 0, // This will now come from user-specific API
     matterId: conv.matter_id,
     status: conv.status || 'primary'
   })
@@ -252,14 +280,17 @@ export function useRealtimeMessages(matterId) {
     mediaUrls: msg.media_urls || []
   })
 
-
-
   // Load conversations from database
   const loadConversations = async () => {
     if (!matterId.value) return
     
     try {
-      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`)
+      const token = await getAuthToken()
+      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const result = await response.json()
       
       if (response.ok && result.success) {
@@ -334,10 +365,17 @@ export function useRealtimeMessages(matterId) {
     }
     
     try {
+      const token = await getAuthToken()
       const response = await fetch('https://app.aiworkspace.pro/api/conversations/mark-read', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          conversationId,
+          matterId: matterId.value
+        })
       })
       
       if (!response.ok) {
@@ -401,6 +439,23 @@ export function useRealtimeMessages(matterId) {
       })
   }
 
+  // Subscribe to conversation read status changes
+  const subscribeToConversationReadStatus = () => {
+    if (!matterId.value) return
+    
+    conversationReadStatusChannel = supabase
+      .channel(`conversation-read-status-${matterId.value}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversation_read_status',
+        filter: `matter_id=eq.${matterId.value}`
+      }, handleConversationReadStatusChange)
+      .subscribe((status) => {
+        console.log('👁️ Conversation read status subscription status:', status)
+      })
+  }
+
   // Unsubscribe from all channels
   const unsubscribe = () => {
     if (conversationsChannel) {
@@ -416,6 +471,11 @@ export function useRealtimeMessages(matterId) {
     if (callRecordingsChannel) {
       supabase.removeChannel(callRecordingsChannel)
       callRecordingsChannel = null
+    }
+
+    if (conversationReadStatusChannel) {
+      supabase.removeChannel(conversationReadStatusChannel)
+      conversationReadStatusChannel = null
     }
   }
 
@@ -435,9 +495,8 @@ export function useRealtimeMessages(matterId) {
     subscribeToConversations()
     subscribeToMessages()
     subscribeToCallRecordings()
+    subscribeToConversationReadStatus()
   }
-
-
 
   // Watch for matterId changes
   watch(() => matterId.value, (newMatterId) => {

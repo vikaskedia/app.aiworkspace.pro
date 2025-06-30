@@ -1402,7 +1402,7 @@ export default {
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
       markConversationAsRead: realtimeMarkAsRead
-    } = useRealtimeMessages(computed(() => currentMatter.value?.id));
+    } = useRealtimeMessages(computed(() => currentMatter.value?.id), computed(() => this.selectedConversation));
     
     return { 
       currentMatter,
@@ -1854,6 +1854,7 @@ export default {
       });
       
       // Return as array of { date, items }
+      console.log('groupedChatMessages:', groups);
       return Object.entries(groups).map(([date, items]) => ({ date, items }));
     },
 
@@ -2004,6 +2005,14 @@ export default {
     await this.loadPhoneTextActions();
     // Load message counts
     await this.loadMessageCounts();
+
+    this.$watch(
+      () => this.currentChat?.messages,
+      (val) => {
+        console.log('currentChat.messages changed:', val);
+      },
+      { deep: true }
+    );
   },
   watch: {
     currentMatter: {
@@ -2302,7 +2311,7 @@ export default {
         });
 
         // Send via API
-        const smsResponse = await fetch('/api/sms/send', {
+        const smsResponse = await fetch('https://app.aiworkspace.pro/api/sms/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2505,7 +2514,7 @@ export default {
         const cleanTo = this.getCleanPhoneNumber();
         const fullToNumber = `+1${cleanTo}`;
         
-        const response = await fetch('/api/sms/send', {
+        const response = await fetch('https://app.aiworkspace.pro/api/sms/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

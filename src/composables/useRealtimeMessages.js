@@ -305,7 +305,21 @@ export function useRealtimeMessages(matterId, selectedConversation) {
       const result = await response.json()
       
       if (response.ok && result.success) {
+        // Preserve messages for currently selected conversation
+        const currentSelectedId = selectedConversation?.value
+        const currentConversation = conversations.value.find(c => c.id === currentSelectedId)
+        const preservedMessages = currentConversation?.messages
+        
         conversations.value = result.conversations || []
+        
+        // Restore messages for the selected conversation if it still exists
+        if (currentSelectedId && preservedMessages) {
+          const newConversation = conversations.value.find(c => c.id === currentSelectedId)
+          if (newConversation) {
+            newConversation.messages = preservedMessages
+          }
+        }
+        
         console.log('📱 Loaded conversations:', conversations.value.length)
       } else {
         console.error('Failed to load conversations:', result.error)

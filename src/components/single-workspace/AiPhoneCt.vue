@@ -4261,6 +4261,10 @@ export default {
   background: #e3f2fd;
 }
 
+.inbox-item.active {
+  background: #e3f2fd;
+}
+
 .item-right {
   margin-left: auto;
   display: flex;

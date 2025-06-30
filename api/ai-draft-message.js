@@ -121,7 +121,17 @@ Please suggest a professional and helpful response.`;
     return res.status(200).json({
       success: true,
       conversationLength: conversation.length,
-      ...parsedResponse
+      ...parsedResponse,
+      debug: {
+        systemPrompt,
+        userPrompt,
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        maxTokens: 800,
+        rawAIResponse: aiResponse,
+        conversationContext,
+        inputData: { conversation, contactName, context }
+      }
     });
 
   } catch (error) {

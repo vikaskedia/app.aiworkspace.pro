@@ -1156,10 +1156,26 @@
     <!-- AI Check Message Dialog -->
     <el-dialog
       v-model="showAICheckDialog"
-      title="AI Message Check"
       width="600px"
       :before-close="closeAICheckDialog"
     >
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <span style="font-size: 1.1rem; font-weight: 600;">AI Message Check</span>
+          <el-tooltip 
+            v-if="aiCheckDebugData"
+            content="Show Debug Information" 
+            placement="top">
+            <el-button 
+              circle
+              size="small"
+              @click="showAICheckDebug = !showAICheckDebug"
+              :type="showAICheckDebug ? 'primary' : 'default'">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
+      </template>
       <div class="ai-check-content">
         <!-- Original Message -->
         <div class="original-message-section">
@@ -1220,6 +1236,66 @@
           <el-icon class="loading-icon"><MagicStick /></el-icon>
           <p>AI is checking your message...</p>
         </div>
+
+        <!-- Debug Information -->
+        <div v-if="showAICheckDebug && aiCheckDebugData" class="debug-section">
+          <h4>Debug Information</h4>
+          <el-collapse>
+            <el-collapse-item title="Request Data" name="request">
+              <div class="debug-content">
+                <h5>API URL:</h5>
+                <code>{{ aiCheckDebugData.apiUrl }}</code>
+                
+                <h5>Timestamp:</h5>
+                <code>{{ aiCheckDebugData.timestamp }}</code>
+                
+                <h5>Request Body:</h5>
+                <pre><code>{{ JSON.stringify(aiCheckDebugData.requestData, null, 2) }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiCheckDebugData.response" title="Response Data" name="response">
+              <div class="debug-content">
+                <h5>Status:</h5>
+                <code>{{ aiCheckDebugData.response.status }} {{ aiCheckDebugData.response.statusText }}</code>
+                
+                <h5>Headers:</h5>
+                <pre><code>{{ JSON.stringify(aiCheckDebugData.response.headers, null, 2) }}</code></pre>
+                
+                <h5>Response Body:</h5>
+                <pre><code>{{ JSON.stringify(aiCheckDebugData.response.body, null, 2) }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiCheckDebugData.response && aiCheckDebugData.response.body.debug" title="AI Prompt & Response" name="ai-debug">
+              <div class="debug-content">
+                <h5>System Prompt:</h5>
+                <pre><code>{{ aiCheckDebugData.response.body.debug.systemPrompt }}</code></pre>
+                
+                <h5>User Prompt:</h5>
+                <pre><code>{{ aiCheckDebugData.response.body.debug.userPrompt }}</code></pre>
+                
+                <h5>AI Model Settings:</h5>
+                <pre><code>Model: {{ aiCheckDebugData.response.body.debug.model }}
+Temperature: {{ aiCheckDebugData.response.body.debug.temperature }}
+Max Tokens: {{ aiCheckDebugData.response.body.debug.maxTokens }}</code></pre>
+                
+                <h5>Raw AI Response:</h5>
+                <pre><code>{{ aiCheckDebugData.response.body.debug.rawAIResponse }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiCheckDebugData.error" title="Error Information" name="error">
+              <div class="debug-content">
+                <h5>Error Message:</h5>
+                <code class="error-text">{{ aiCheckDebugData.error.message }}</code>
+                
+                <h5>Stack Trace:</h5>
+                <pre><code class="error-text">{{ aiCheckDebugData.error.stack }}</code></pre>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
       </div>
 
       <template #footer>
@@ -1238,10 +1314,26 @@
     <!-- AI Draft Message Dialog -->
     <el-dialog
       v-model="showAIDraftDialog"
-      title="AI-DM: Draft Message"
       width="600px"
       :before-close="closeAIDraftDialog"
     >
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <span style="font-size: 1.1rem; font-weight: 600;">AI-DM: Draft Message</span>
+          <el-tooltip 
+            v-if="aiDraftDebugData"
+            content="Show Debug Information" 
+            placement="top">
+            <el-button 
+              circle
+              size="small"
+              @click="showAIDraftDebug = !showAIDraftDebug"
+              :type="showAIDraftDebug ? 'primary' : 'default'">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </div>
+      </template>
       <div class="ai-draft-content">
         <!-- Conversation Context Preview -->
         <div class="conversation-context-section">
@@ -1303,6 +1395,72 @@
         <div v-else-if="draftingMessageWithAI" class="loading-section">
           <el-icon class="loading-icon"><ChatLineRound /></el-icon>
           <p>AI is analyzing the conversation and drafting a reply...</p>
+        </div>
+
+        <!-- Debug Information -->
+        <div v-if="showAIDraftDebug && aiDraftDebugData" class="debug-section">
+          <h4>Debug Information</h4>
+          <el-collapse>
+            <el-collapse-item title="Request Data" name="request">
+              <div class="debug-content">
+                <h5>API URL:</h5>
+                <code>{{ aiDraftDebugData.apiUrl }}</code>
+                
+                <h5>Timestamp:</h5>
+                <code>{{ aiDraftDebugData.timestamp }}</code>
+                
+                <h5>Request Body:</h5>
+                <pre><code>{{ JSON.stringify(aiDraftDebugData.requestData, null, 2) }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiDraftDebugData.response" title="Response Data" name="response">
+              <div class="debug-content">
+                <h5>Status:</h5>
+                <code>{{ aiDraftDebugData.response.status }} {{ aiDraftDebugData.response.statusText }}</code>
+                
+                <h5>Headers:</h5>
+                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.headers, null, 2) }}</code></pre>
+                
+                <h5>Response Body:</h5>
+                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.body, null, 2) }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiDraftDebugData.response && aiDraftDebugData.response.body.debug" title="AI Prompt & Response" name="ai-debug">
+              <div class="debug-content">
+                <h5>System Prompt:</h5>
+                <pre><code>{{ aiDraftDebugData.response.body.debug.systemPrompt }}</code></pre>
+                
+                <h5>User Prompt:</h5>
+                <pre><code>{{ aiDraftDebugData.response.body.debug.userPrompt }}</code></pre>
+                
+                <h5>AI Model Settings:</h5>
+                <pre><code>Model: {{ aiDraftDebugData.response.body.debug.model }}
+Temperature: {{ aiDraftDebugData.response.body.debug.temperature }}
+Max Tokens: {{ aiDraftDebugData.response.body.debug.maxTokens }}</code></pre>
+                
+                <h5>Conversation Context Sent to AI:</h5>
+                <pre><code>{{ aiDraftDebugData.response.body.debug.conversationContext }}</code></pre>
+                
+                <h5>Raw AI Response:</h5>
+                <pre><code>{{ aiDraftDebugData.response.body.debug.rawAIResponse }}</code></pre>
+                
+                <h5>Input Data:</h5>
+                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.body.debug.inputData, null, 2) }}</code></pre>
+              </div>
+            </el-collapse-item>
+            
+            <el-collapse-item v-if="aiDraftDebugData.error" title="Error Information" name="error">
+              <div class="debug-content">
+                <h5>Error Message:</h5>
+                <code class="error-text">{{ aiDraftDebugData.error.message }}</code>
+                
+                <h5>Stack Trace:</h5>
+                <pre><code class="error-text">{{ aiDraftDebugData.error.stack }}</code></pre>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
         </div>
       </div>
 
@@ -1619,6 +1777,8 @@ export default {
       aiCheckOriginalMessage: '',
       aiCheckResult: null,
       editableImprovedMessage: '',
+      showAICheckDebug: false,
+      aiCheckDebugData: null,
       
       // AI Draft Message
       showAIDraftDialog: false,
@@ -1626,6 +1786,8 @@ export default {
       aiDraftResult: null,
       editableDraftMessage: '',
       recentConversationMessages: [],
+      showAIDraftDebug: false,
+      aiDraftDebugData: null,
     };
   },
   computed: {
@@ -3546,23 +3708,44 @@ export default {
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
       this.showAICheckDialog = true;
+      this.aiCheckDebugData = null;
+      this.showAICheckDebug = false;
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
           ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
           : '/api/ai-check-message';
 
+        const requestData = {
+          message: this.newMessage
+        };
+
+        // Store debug data - request
+        this.aiCheckDebugData = {
+          apiUrl,
+          requestData,
+          timestamp: new Date().toISOString(),
+          response: null,
+          error: null
+        };
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            message: this.newMessage
-          })
+          body: JSON.stringify(requestData)
         });
 
         const result = await response.json();
+
+        // Store debug data - response
+        this.aiCheckDebugData.response = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: result
+        };
 
         if (!response.ok) {
           throw new Error(result.error || 'Failed to check message with AI');
@@ -3573,6 +3756,10 @@ export default {
 
       } catch (error) {
         console.error('Error checking message with AI:', error);
+        this.aiCheckDebugData.error = {
+          message: error.message,
+          stack: error.stack
+        };
         this.$message.error(error.message || 'Failed to check message with AI');
         this.closeAICheckDialog();
       } finally {
@@ -3591,23 +3778,44 @@ export default {
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
       this.showAICheckDialog = true;
+      this.aiCheckDebugData = null;
+      this.showAICheckDebug = false;
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
           ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
           : '/api/ai-check-message';
+
+        const requestData = {
+          message: this.newMessageForm.message
+        };
+
+        // Store debug data - request
+        this.aiCheckDebugData = {
+          apiUrl,
+          requestData,
+          timestamp: new Date().toISOString(),
+          response: null,
+          error: null
+        };
           
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            message: this.newMessageForm.message
-          })
+          body: JSON.stringify(requestData)
         });
 
         const result = await response.json();
+
+        // Store debug data - response
+        this.aiCheckDebugData.response = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: result
+        };
 
         if (!response.ok) {
           throw new Error(result.error || 'Failed to check message with AI');
@@ -3618,6 +3826,10 @@ export default {
 
       } catch (error) {
         console.error('Error checking message with AI:', error);
+        this.aiCheckDebugData.error = {
+          message: error.message,
+          stack: error.stack
+        };
         this.$message.error(error.message || 'Failed to check message with AI');
         this.closeAICheckDialog();
       } finally {
@@ -3631,6 +3843,8 @@ export default {
       this.aiCheckOriginalMessage = '';
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
+      this.showAICheckDebug = false;
+      this.aiCheckDebugData = null;
     },
 
     useImprovedMessage() {
@@ -3690,25 +3904,46 @@ export default {
       this.editableDraftMessage = '';
       this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
       this.showAIDraftDialog = true;
+      this.aiDraftDebugData = null;
+      this.showAIDraftDebug = false;
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
           ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-draft-message'
           : '/api/ai-draft-message';
 
+        const requestData = {
+          conversation: this.currentChat.messages,
+          contactName: this.getCurrentContactName() || this.currentChat.contact || 'Contact',
+          context: 'This is a professional legal/business communication.'
+        };
+
+        // Store debug data - request
+        this.aiDraftDebugData = {
+          apiUrl,
+          requestData,
+          timestamp: new Date().toISOString(),
+          response: null,
+          error: null
+        };
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            conversation: this.currentChat.messages,
-            contactName: this.getCurrentContactName() || this.currentChat.contact || 'Contact',
-            context: 'This is a professional legal/business communication.'
-          })
+          body: JSON.stringify(requestData)
         });
 
         const result = await response.json();
+
+        // Store debug data - response
+        this.aiDraftDebugData.response = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: result
+        };
 
         if (!response.ok) {
           throw new Error(result.error || 'Failed to draft message with AI');
@@ -3719,6 +3954,10 @@ export default {
 
       } catch (error) {
         console.error('Error drafting message with AI:', error);
+        this.aiDraftDebugData.error = {
+          message: error.message,
+          stack: error.stack
+        };
         this.$message.error(error.message || 'Failed to draft message with AI');
         this.closeAIDraftDialog();
       } finally {
@@ -3732,6 +3971,8 @@ export default {
       this.aiDraftResult = null;
       this.editableDraftMessage = '';
       this.recentConversationMessages = [];
+      this.showAIDraftDebug = false;
+      this.aiDraftDebugData = null;
     },
 
     useDraftMessage() {
@@ -6236,5 +6477,91 @@ export default {
   .ai-draft-footer .el-button {
     width: 100%;
   }
+}
+
+/* Debug Section Styles */
+.debug-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.debug-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #666;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.debug-content {
+  padding: 0.5rem 0;
+}
+
+.debug-content h5 {
+  margin: 0.75rem 0 0.25rem 0;
+  color: #444;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.debug-content code {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #333;
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+}
+
+.debug-content pre {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.debug-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre;
+  word-break: normal;
+  display: block;
+}
+
+.debug-content .error-text {
+  color: #e74c3c;
+  background: #fdf2f2;
+  border-color: #f5c6cb;
+}
+
+.debug-content pre .error-text {
+  background: none;
+  border: none;
+}
+
+/* Debug collapse item styles */
+.debug-section :deep(.el-collapse-item__header) {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #555;
+}
+
+.debug-section :deep(.el-collapse-item__content) {
+  padding-bottom: 0.5rem;
 }
 </style>

@@ -109,7 +109,15 @@ If the message is already good, set hasIssues to false and return the original m
     return res.status(200).json({
       success: true,
       originalMessage: message,
-      ...parsedResponse
+      ...parsedResponse,
+      debug: {
+        systemPrompt,
+        userPrompt,
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        maxTokens: 1000,
+        rawAIResponse: aiResponse
+      }
     });
 
   } catch (error) {

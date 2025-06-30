@@ -57,12 +57,12 @@ export function useRealtimeMessages(matterId) {
     }
   }
 
-  const handleMessageChange = (payload) => {
+  const handleMessageChange = async (payload) => {
     console.log('💬 Message change:', payload.eventType, payload.new)
-    
     switch (payload.eventType) {
       case 'INSERT':
-        handleNewMessage(payload.new)
+        await handleNewMessage(payload.new)
+        await loadConversations() // Refresh unread counts in real-time
         break
       case 'UPDATE':
         handleMessageUpdate(payload.new)

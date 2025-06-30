@@ -315,7 +315,7 @@
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="upload-before">Upload phone call recording</el-dropdown-item>
-                        <!-- <el-dropdown-item command="upload-after">Upload phone call recording after this message</el-dropdown-item> -->
+                        <el-dropdown-item command="comment-internal">Comment in internal thread</el-dropdown-item>
                         <el-dropdown-item command="details">See message details</el-dropdown-item>
                         <el-dropdown-item v-if="phoneTextActions.length" disabled divided>Text Message Actions</el-dropdown-item>
                         <el-dropdown-item
@@ -329,16 +329,6 @@
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
-                  
-                  <!-- Internal Comment Icon -->
-                  <el-tooltip content="Comment in internal thread" placement="top">
-                    <el-icon 
-                      v-show="hoveredMessage === item.item.id"
-                      class="internal-comment-icon" 
-                      @click="toggleInlineInternalComments(item.item)">
-                      <ChatDotRound />
-                    </el-icon>
-                  </el-tooltip>
                   
                   <!-- Internal Comments Indicator -->
                   <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="toggleInlineInternalComments(item.item)">
@@ -3036,6 +3026,8 @@ export default {
     handleMessageMenuCommand(command, message) {
       if (command === 'details') {
         this.openMessageDetailsDialog(message);
+      } else if (command === 'comment-internal') {
+        this.toggleInlineInternalComments(message);
       } else if (command === 'upload-before') {
         this.selectedMessageForRecording = message;
         this.callRecordingForm.position = 'before';

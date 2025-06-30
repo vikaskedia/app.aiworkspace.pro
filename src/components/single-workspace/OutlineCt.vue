@@ -258,11 +258,12 @@ export default {
 
       // Then fetch from Supabase
       try {
-        // Get the latest outline for this matter
+        // Get the latest main outline for this matter (not task outlines)
         const { data: outlineData, error: outlineError } = await supabase
           .from('outlines')
           .select('*')
           .eq('matter_id', matterId.value)
+          .eq('title', 'Outline')
           .order('version', { ascending: false })
           .limit(1)
           .single();

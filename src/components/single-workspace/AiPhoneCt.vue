@@ -211,6 +211,38 @@
                 </span>
                 <div class="conversation-actions">
                   <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
+                  <el-popover
+                    placement="bottom-end"
+                    :width="300"
+                    trigger="click"
+                    @show="loadLastSeenUsers(conversation.id)"
+                  >
+                    <template #reference>
+                      <el-icon class="conversation-menu-icon" @click.stop>
+                        <More />
+                      </el-icon>
+                    </template>
+                    <div class="last-seen-popover">
+                      <h4>Last Seen</h4>
+                      <div v-if="loadingLastSeen[conversation.id]" class="loading-last-seen">
+                        <el-icon class="is-loading"><Loading /></el-icon>
+                        Loading...
+                      </div>
+                      <div v-else-if="lastSeenUsers[conversation.id]?.length > 0" class="last-seen-list">
+                        <div 
+                          v-for="user in lastSeenUsers[conversation.id]" 
+                          :key="user.user_id"
+                          class="last-seen-item"
+                        >
+                          <span class="user-name">{{ user.display_name }}</span>
+                          <span class="last-seen-time">→ {{ formatLastSeenTime(user.last_read_at) }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="no-last-seen">
+                        No one has seen this conversation yet
+                      </div>
+                    </div>
+                  </el-popover>
                 </div>
               </div>
               
@@ -1505,7 +1537,8 @@ import {
   Location,
   View,
   MagicStick,
-  ChatLineRound
+  ChatLineRound,
+  Loading
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -1542,7 +1575,8 @@ export default {
     Location,
     View,
     MagicStick,
-    ChatLineRound
+    ChatLineRound,
+    Loading
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1784,6 +1818,10 @@ export default {
       recentConversationMessages: [],
       showAIDraftDebug: false,
       aiDraftDebugData: null,
+      
+      // Last Seen Users
+      lastSeenUsers: {}, // { [conversationId]: users[] }
+      loadingLastSeen: {}, // { [conversationId]: boolean }
     };
   },
   computed: {
@@ -2266,6 +2304,9 @@ export default {
           const phoneId = itemId.replace('phone_', '');
           this.selectedTagByPhone = { ...this.selectedTagByPhone, [itemId]: null };
         }
+        
+        // Load last seen users for all conversations in this phone number
+        this.loadLastSeenUsersForPhone(itemId);
       } else {
         // Handle other inbox items (if any)
         this.selectedInboxItem = itemId;
@@ -4107,6 +4148,119 @@ export default {
         console.log('Could not focus field:', fieldName);
       }, 50); // 50ms delay
     },
+    loadLastSeenUsers(conversationId) {
+      this.loadingLastSeen[conversationId] = true;
+      
+      // First get the conversation read status
+      supabase
+        .from('conversation_read_status')
+        .select('user_id, last_read_at')
+        .eq('conversation_id', conversationId)
+        .order('last_read_at', { ascending: false })
+        .then(async ({ data: readStatus, error }) => {
+          if (error) throw error;
+          
+          if (readStatus && readStatus.length > 0) {
+            // Get user IDs from read status
+            const userIds = readStatus.map(status => status.user_id);
+            
+            // Get user information using the function
+            const { data: userInfo, error: userError } = await supabase
+              .rpc('get_user_info_for_matter', {
+                user_ids: userIds,
+                matter_id_param: this.currentMatter.id
+              });
+            
+            if (userError) throw userError;
+            
+            // Combine user info with read status
+            const lastSeenData = readStatus.map(status => {
+              const user = userInfo.find(u => u.user_id === status.user_id);
+              return {
+                user_id: status.user_id,
+                display_name: user ? user.display_name : 'Unknown User',
+                last_read_at: status.last_read_at
+              };
+            });
+            
+            this.lastSeenUsers[conversationId] = lastSeenData;
+          } else {
+            this.lastSeenUsers[conversationId] = [];
+          }
+          
+          this.loadingLastSeen[conversationId] = false;
+        })
+        .catch(error => {
+          console.error('Error loading last seen users:', error);
+          this.loadingLastSeen[conversationId] = false;
+        });
+    },
+    
+    loadLastSeenUsersForPhone(phoneItemId) {
+      // Get the phone number from the item ID
+      const phoneId = phoneItemId.replace('phone_', '');
+      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      
+      if (!phone) return;
+      
+      // Get all conversations for this phone number
+      const phoneConversations = this.realtimeConversations.filter(conv => conv.fromPhoneNumber === phone.number);
+      
+      // Load last seen users for each conversation
+      phoneConversations.forEach(conversation => {
+        this.loadLastSeenUsers(conversation.id);
+      });
+    },
+    formatLastSeenTime(lastReadAt) {
+      if (!lastReadAt) return 'Never';
+      
+      // Convert to Date object if it's a string
+      const dateObj = typeof lastReadAt === 'string' ? new Date(lastReadAt) : lastReadAt;
+      
+      // Check if the date is valid
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+        return 'Never';
+      }
+      
+      // Get the time string (hour:minute AM/PM)
+      const timeStr = dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      
+      // Get the offset in minutes
+      const offsetMin = -dateObj.getTimezoneOffset();
+      
+      // Determine timezone abbreviation
+      let timezoneAbbr = 'IST'; // Default
+      if (offsetMin === 330) {
+        timezoneAbbr = 'IST';
+      } else if (offsetMin === -420) {
+        timezoneAbbr = 'PDT';
+      } else if (offsetMin === -480) {
+        timezoneAbbr = 'PST';
+      } else if (offsetMin <= -420 && offsetMin >= -480) {
+        timezoneAbbr = 'PST';
+      }
+      
+      // Format date with ordinal suffix
+      const day = dateObj.getDate();
+      const suffix = this.getOrdinalSuffix(day);
+      const dayWithSuffix = day + suffix;
+      
+      // Format the full date string
+      const month = dateObj.toLocaleDateString(undefined, { month: 'long' });
+      const year = dateObj.getFullYear();
+      
+      return `${month} ${dayWithSuffix}, ${year} at ${timeStr} ${timezoneAbbr}`;
+    },
+    
+    getOrdinalSuffix(day) {
+      if (day > 3 && day < 21) return 'th';
+      switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+      }
+    }
   }
 };
 </script>
@@ -6710,5 +6864,70 @@ export default {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.conversation-menu-icon {
+  cursor: pointer;
+  color: #888;
+  font-size: 1.1rem;
+  z-index: 2;
+  transition: color 0.2s;
+}
+
+.conversation-menu-icon:hover {
+  color: #1976d2;
+}
+
+.last-seen-popover {
+  padding: 1rem;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loading-last-seen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.loading-last-seen .is-loading {
+  margin-right: 0.5rem;
+}
+
+.last-seen-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.last-seen-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.last-seen-item:last-child {
+  border-bottom: none;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.last-seen-time {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.no-last-seen {
+  text-align: center;
+  color: #666;
+  padding: 1rem 0;
 }
 </style>

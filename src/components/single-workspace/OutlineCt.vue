@@ -708,6 +708,15 @@ export default {
       // Force Vue to update
       outline.value = [...outline.value];
       console.log('Move operation completed');
+      
+      // Trigger auto-save after move operation
+      nextTick(() => {
+        const currentChanges = checkForChanges(outline.value);
+        if (currentChanges && !saving.value) {
+          console.log('Triggering auto-save after move operation');
+          debouncedSave();
+        }
+      });
     }
 
     function handleDelete(id) {
@@ -716,6 +725,16 @@ export default {
       removeItemById(outline.value, id);
       // Force Vue to update
       outline.value = [...outline.value];
+      
+      // Trigger auto-save after deletion using nextTick to ensure changes are detected
+      nextTick(() => {
+        // Check for changes manually since the deletion represents a structural change
+        const currentChanges = checkForChanges(outline.value);
+        if (currentChanges && !saving.value) {
+          console.log('Triggering auto-save after deletion');
+          debouncedSave();
+        }
+      });
     }
 
     function handleDrilldown(id) {
@@ -929,6 +948,15 @@ export default {
       // Set autoFocus for moved node
       moved.autoFocus = true;
       outline.value = [...outline.value];
+      
+      // Trigger auto-save after indent operation
+      nextTick(() => {
+        const currentChanges = checkForChanges(outline.value);
+        if (currentChanges && !saving.value) {
+          console.log('Triggering auto-save after indent operation');
+          debouncedSave();
+        }
+      });
     }
 
     function handleOutdent({ id }) {
@@ -982,6 +1010,15 @@ export default {
       // Set autoFocus for moved node
       moved.autoFocus = true;
       outline.value = [...latestOutline];
+      
+      // Trigger auto-save after outdent operation
+      nextTick(() => {
+        const currentChanges = checkForChanges(outline.value);
+        if (currentChanges && !saving.value) {
+          console.log('Triggering auto-save after outdent operation');
+          debouncedSave();
+        }
+      });
     }
 
     function handleAddSiblingRoot({ id }) {
@@ -998,6 +1035,15 @@ export default {
           updated_at: now
         };
         outline.value.splice(idx + 1, 0, newSibling);
+        
+        // Trigger auto-save after adding new sibling
+        nextTick(() => {
+          const currentChanges = checkForChanges(outline.value);
+          if (currentChanges && !saving.value) {
+            console.log('Triggering auto-save after adding sibling');
+            debouncedSave();
+          }
+        });
       }
     }
 

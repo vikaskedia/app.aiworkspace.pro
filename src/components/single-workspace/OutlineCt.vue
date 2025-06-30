@@ -87,7 +87,7 @@
 
 <script>
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElNotification } from 'element-plus';
 import { Clock } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
@@ -123,6 +123,7 @@ export default {
   components: { OutlinePointsCt, Clock },
   setup() {
     const route = useRoute();
+    const router = useRouter();
     const matterId = computed(() => route.params.matterId);
     const saving = ref(false);
     const outline = ref([]);
@@ -649,10 +650,22 @@ export default {
 
     function handleDrilldown(id) {
       focusedId.value = id;
+      // Update the URL with the focus parameter
+      router.push({
+        path: route.path,
+        query: { ...route.query, focus: id }
+      });
     }
 
     function handleBack() {
       focusedId.value = null;
+      // Clear the focus parameter from the URL
+      const newQuery = { ...route.query };
+      delete newQuery.focus;
+      router.push({
+        path: route.path,
+        query: newQuery
+      });
     }
 
     function getFocusedOutline() {
@@ -692,6 +705,11 @@ export default {
       // If last breadcrumb, do nothing (already focused)
       if (idx === breadcrumbPath.value.length - 1) return;
       focusedId.value = node.id;
+      // Update the URL with the focus parameter
+      router.push({
+        path: route.path,
+        query: { ...route.query, focus: node.id }
+      });
     }
 
     function getBreadcrumbText(text) {

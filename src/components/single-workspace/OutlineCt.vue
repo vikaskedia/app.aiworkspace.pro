@@ -59,6 +59,8 @@
               :key="item.id"
               :item="item"
               :readonly="true"
+              :collapsed="false"
+              :is-node-collapsed="() => false"
             />
           </ul>
         </div>
@@ -72,6 +74,8 @@
         v-for="item in getFocusedOutline()"
         :key="item.id"
         :item="item"
+        :collapsed="isNodeCollapsed(item.id)"
+        :is-node-collapsed="isNodeCollapsed"
         @update="onOutlineUpdate"
         @move="handleMove"
         @delete="handleDelete"
@@ -80,6 +84,7 @@
         @indent="handleIndent"
         @outdent="handleOutdent"
         @add-sibling="handleAddSiblingRoot"
+        @collapse-toggle="handleCollapseToggle"
       />
     </ul>
   </div>
@@ -138,6 +143,7 @@ export default {
     const loadingHistory = ref(false);
     const selectedVersion = ref(null);
     const realtimeSubscription = ref(null);
+    const collapsedNodes = ref(new Set());
     
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
@@ -155,6 +161,7 @@ export default {
     // Get localStorage keys for current matter
     const getLocalStorageKey = () => `outline_${matterId.value}`;
     const getVersionKey = () => `outline_version_${matterId.value}`;
+    const getCollapsedKey = () => `outline_collapsed_${matterId.value}_${window.location.pathname}`;
 
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
@@ -166,6 +173,66 @@ export default {
 
     // Helper to deep clone an object
     const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+    // Functions to handle collapsed state persistence
+    const loadCollapsedState = () => {
+      // First try to load from URL
+      const urlCollapsed = route.query.collapsed;
+      if (urlCollapsed) {
+        const collapsedIds = urlCollapsed.split(',').filter(id => id.trim());
+        collapsedNodes.value = new Set(collapsedIds);
+        return;
+      }
+
+      // Fall back to localStorage
+      const collapsedKey = getCollapsedKey();
+      const stored = localStorage.getItem(collapsedKey);
+      if (stored) {
+        try {
+          const collapsedArray = JSON.parse(stored);
+          collapsedNodes.value = new Set(collapsedArray);
+        } catch (error) {
+          console.error('Error parsing collapsed state:', error);
+          collapsedNodes.value = new Set();
+        }
+      }
+    };
+
+    const saveCollapsedState = () => {
+      const collapsedKey = getCollapsedKey();
+      const collapsedArray = Array.from(collapsedNodes.value);
+      localStorage.setItem(collapsedKey, JSON.stringify(collapsedArray));
+      
+      // Update URL
+      const newQuery = { ...route.query };
+      if (collapsedArray.length > 0) {
+        newQuery.collapsed = collapsedArray.join(',');
+      } else {
+        delete newQuery.collapsed;
+      }
+      
+      router.replace({
+        path: route.path,
+        query: newQuery
+      });
+    };
+
+    const handleCollapseToggle = (nodeId, isCollapsed) => {
+      console.log('handleCollapseToggle called with:', { nodeId, isCollapsed, currentCollapsedNodes: Array.from(collapsedNodes.value) });
+      if (isCollapsed) {
+        collapsedNodes.value.add(nodeId.toString());
+      } else {
+        collapsedNodes.value.delete(nodeId.toString());
+      }
+      console.log('After toggle, collapsedNodes:', Array.from(collapsedNodes.value));
+      saveCollapsedState();
+    };
+
+    const isNodeCollapsed = (nodeId) => {
+      const result = collapsedNodes.value.has(nodeId.toString());
+      console.log('isNodeCollapsed check for node:', nodeId, 'result:', result, 'collapsedNodes:', Array.from(collapsedNodes.value));
+      return result;
+    };
 
     // Default outline data
     const defaultOutline = [
@@ -228,6 +295,9 @@ export default {
     // Load from localStorage or use default
     onMounted(async () => {
       if (!matterId.value) return;
+
+      // Load collapsed state first
+      loadCollapsedState();
 
       // Check for focus query parameter
       const focusParam = route.query.focus;
@@ -1116,6 +1186,8 @@ export default {
       handleIndent,
       handleOutdent,
       handleAddSiblingRoot,
+      isNodeCollapsed,
+      handleCollapseToggle,
     };
   }
 };

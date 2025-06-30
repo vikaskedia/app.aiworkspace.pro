@@ -224,6 +224,8 @@
         :key="child.id"
         :item="child"
         :autoFocus="child.autoFocus"
+        :collapsed="isNodeCollapsed(child.id)"
+        :is-node-collapsed="isNodeCollapsed"
         @update="updateChild"
         @move="handleMove"
         @delete="handleDelete"
@@ -232,6 +234,7 @@
         @indent="$emit('indent', $event)"
         @outdent="$emit('outdent', $event)"
         @add-sibling="handleAddSibling"
+        @collapse-toggle="handleChildCollapseToggle"
       />
     </ul>
   </li>
@@ -288,14 +291,21 @@ export default {
     autoFocus: {
       type: Boolean,
       default: false
+    },
+    collapsed: {
+      type: Boolean,
+      default: false
+    },
+    isNodeCollapsed: {
+      type: Function,
+      default: () => () => false
     }
   },
-  emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent', 'add-sibling'],
+  emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent', 'add-sibling', 'collapse-toggle'],
   data() {
     return {
       editing: false,
       editText: this.item.text,
-      collapsed: false,
       isDragging: false,
       isDragOver: false,
       unsubscribe: null,
@@ -673,7 +683,8 @@ export default {
       this.$emit('delete', id);
     },
     toggleCollapse() {
-      this.collapsed = !this.collapsed;
+      console.log('toggleCollapse called for item:', this.item.id, 'current collapsed:', this.collapsed, 'new state:', !this.collapsed);
+      this.$emit('collapse-toggle', this.item.id, !this.collapsed);
     },
     async handleFileDrop(file) {
       try {
@@ -1319,6 +1330,9 @@ export default {
         // Not found in this level, propagate up
         this.$emit('add-sibling', { id });
       }
+    },
+    handleChildCollapseToggle(id, collapsed) {
+      this.$emit('collapse-toggle', id, collapsed);
     }
   }
 };

@@ -547,37 +547,38 @@
                 <el-input
                   v-model="newMessage"
                   type="textarea"
-                  :rows="2"
+                  :rows="4"
                   placeholder="Type a message..."
                   @keydown="handleMessageInputKeydown"
                   resize="none">
                 </el-input>
                 <div class="input-actions">
                   <!-- File Upload Button -->
-                  <el-upload
-                    ref="fileUpload"
-                    :show-file-list="false"
-                    :before-upload="handleFileSelect"
-                    :multiple="false"
-                    :accept="acceptedFileTypes"
-                    action="#">
-                    <el-button circle>
-                      <el-icon><Paperclip /></el-icon>
-                    </el-button>
-                  </el-upload>
+                   <el-tooltip content="Upload a file" placement="top">
+                    <el-upload
+                      ref="fileUpload"
+                      :show-file-list="false"
+                      :before-upload="handleFileSelect"
+                      :multiple="false"
+                      :accept="acceptedFileTypes"
+                      action="#">
+                        <el-icon class="cursor-pointer" :size="25"><Paperclip /></el-icon>
+                    </el-upload>
+                  </el-tooltip>
                   
                   <!-- AI Draft Message Button -->
                   <el-tooltip 
                     v-if="currentChat && currentChat.messages && currentChat.messages.length > 0"
                     content="AI-DM: Let AI suggest a reply based on conversation" 
                     placement="top">
-                    <el-button 
+                    <!-- <el-button 
                       circle
                       @click="draftMessageWithAI"
                       :loading="draftingMessageWithAI"
                       type="success">
                       <el-icon><ChatLineRound /></el-icon>
-                    </el-button>
+                    </el-button> -->
+                    <el-icon class="cursor-pointer" :size="25" @click="draftMessageWithAI" :loading="draftingMessageWithAI" color="#67c23a"><ChatLineRound /></el-icon>
                   </el-tooltip>
 
                   <!-- AI Check Button -->
@@ -585,27 +586,36 @@
                     v-if="newMessage.trim()"
                     content="Check message with AI for grammar and clarity" 
                     placement="top">
-                    <el-button 
+                    <!-- <el-button 
                       circle
                       @click="checkMessageWithAI"
                       :loading="checkingMessageWithAI"
                       type="warning">
                       <el-icon><MagicStick /></el-icon>
-                    </el-button>
+                    </el-button> -->
+                    <el-icon class="cursor-pointer" :size="25" @click="checkMessageWithAI" :loading="checkingMessageWithAI" color="#e6a23c"><MagicStick /></el-icon>
                   </el-tooltip>
                   
                   <!-- Send Button -->
                   <el-tooltip 
                     content="Send message (Enter) • New line (Shift+Enter)" 
                     placement="top">
-                    <el-button 
+                    <!-- <el-button 
                       type="primary" 
                       @click="sendMessage"
                       :disabled="!canSendMessage"
                       :loading="sendingMessage">
                       <el-icon><Promotion /></el-icon>
-                      Send
-                    </el-button>
+                    </el-button> -->
+                    <el-icon 
+                      color="#409efc" 
+                      :size="25"
+                      class="cursor-pointer"
+                      @click="sendMessage"
+                      :disabled="!canSendMessage"
+                      :loading="sendingMessage">
+                      <Promotion />
+                    </el-icon>
                   </el-tooltip>
                 </div>
               </div>
@@ -4702,7 +4712,7 @@ export default {
   padding: 1rem;
   overflow-y: auto;
   background: #f9f9f9;
-  max-height: calc(80vh - 200px);
+  max-height: calc(80vh - 150px);
   min-height: 300px;
 }
 
@@ -4863,7 +4873,7 @@ export default {
 
 .input-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.2rem;
   align-items: center;
 }
 

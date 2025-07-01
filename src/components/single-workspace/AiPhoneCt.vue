@@ -223,7 +223,6 @@
                       </el-icon>
                     </template>
                     <div class="last-seen-popover">
-                      <h4>Last Seen</h4>
                       <div v-if="loadingLastSeen[conversation.id]" class="loading-last-seen">
                         <el-icon class="is-loading"><Loading /></el-icon>
                         Loading...
@@ -235,7 +234,9 @@
                           class="last-seen-item"
                         >
                           <span class="user-name">{{ user.display_name }}</span>
-                          <span class="last-seen-time">→ {{ formatLastSeenTime(user.last_read_at) }}</span>
+                          <span class="last-seen-time">
+                            <el-icon><Check /></el-icon>{{ formatLastSeenTime(user.last_read_at) }}
+                          </span>
                         </div>
                       </div>
                       <div v-else class="no-last-seen">
@@ -6865,72 +6866,61 @@ export default {
 }
 
 .last-seen-popover {
-  padding: 1rem;
-  border-radius: 8px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  padding: 0.5rem 0.5rem 0.25rem 0.5rem;
+  min-width: 220px;
+  max-width: 300px;
+  border: 1px solid #f0f0f0;
 }
-
-.loading-last-seen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  font-size: 0.9rem;
-  padding: 0.5rem 0;
-}
-
-.loading-last-seen .is-loading {
-  margin-right: 0.5rem;
-}
-
 .last-seen-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.last-seen-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  flex-direction: column;
+  gap: 0.25rem;
 }
-
-.last-seen-item:last-child {
-  border-bottom: none;
+.last-seen-item {
+  padding: 0.5rem 0.25rem 0.35rem 0.25rem;
+  border-radius: 6px;
+  transition: background 0.18s;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
-
+.last-seen-item:hover {
+  background: #f7faff;
+}
 .user-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 400;
+  color: #222;
+  font-size: 1.04rem;
+  margin-bottom: 0.1rem;
 }
-
 .last-seen-time {
-  color: #666;
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #888;
+  font-size: 0.93rem;
+  font-weight: 400;
+  margin-left: 2px;
 }
-
+.last-seen-time .el-icon, .last-seen-time svg {
+  font-size: 1em;
+  color: #bdbdbd;
+  margin-right: 2px;
+}
 .no-last-seen {
+  color: #aaa;
   text-align: center;
-  color: #666;
-  padding: 1rem 0;
+  font-size: 0.97rem;
+  padding: 0.75rem 0;
 }
-
-/* Add custom action icon button styles */
-.action-icon-btn {
-  transition: background 0.2s, box-shadow 0.2s;
-  border-radius: 5px;
-  padding: 2px;
-}
-.action-icon-btn:hover {
-  background: #f0f7ff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
-  border-radius: 5px;
-}
-/* focus style for new message input textarea */
-:deep(.el-textarea.new-message-input-textarea .el-textarea__inner:focus) {
-  box-shadow: inset 0 0 0 1px #a0cfff, 0 0 0 4px rgba(64, 158, 255, 0.1);
-  border-color: #409eff;
+.loading-last-seen {
+  color: #888;
+  text-align: center;
+  font-size: 0.97rem;
+  padding: 0.75rem 0;
 }
 </style>

@@ -3947,7 +3947,7 @@ export default {
       
       // Load recent conversation messages for context
       if (this.currentChat && this.currentChat.messages && this.currentChat.messages.length > 0) {
-        this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+        this.recentConversationMessages = this.currentChat.messages.slice(-3); // Show last 5 messages
       } else {
         this.recentConversationMessages = [];
       }
@@ -4026,12 +4026,12 @@ export default {
       // Load recent conversation messages for context
       // Note: For new message dialog, we may not have currentChat, so we try to get recent conversations
       if (this.currentChat && this.currentChat.messages && this.currentChat.messages.length > 0) {
-        this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+        this.recentConversationMessages = this.currentChat.messages.slice(-3); // Show last 5 messages
       } else if (this.realtimeConversations && this.realtimeConversations.length > 0) {
         // If no specific chat is selected, try to get messages from the most recent conversation
         const recentConv = this.realtimeConversations[0];
         if (recentConv && recentConv.messages && recentConv.messages.length > 0) {
-          this.recentConversationMessages = recentConv.messages.slice(-5);
+          this.recentConversationMessages = recentConv.messages.slice(-3);
         } else {
           this.recentConversationMessages = [];
         }
@@ -4165,7 +4165,7 @@ export default {
       this.draftingMessageWithAI = true;
       this.aiDraftResult = null;
       this.editableDraftMessage = '';
-      this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+      this.recentConversationMessages = this.currentChat.messages.slice(-3); // Show last 5 messages
       this.showAIDraftDialog = true;
       this.aiDraftDebugData = null;
       this.showAIDraftDebug = false;

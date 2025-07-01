@@ -550,6 +550,7 @@
                   :rows="4"
                   placeholder="Type a message..."
                   @keydown="handleMessageInputKeydown"
+                  class="new-message-input-textarea"
                   resize="none">
                 </el-input>
                 <div class="input-actions">
@@ -6930,5 +6931,10 @@ export default {
   background: #f0f7ff;
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
   border-radius: 5px;
+}
+/* focus style for new message input textarea */
+:deep(.el-textarea.new-message-input-textarea .el-textarea__inner:focus) {
+  box-shadow: inset 0 0 0 1px #a0cfff, 0 0 0 4px rgba(64, 158, 255, 0.1);
+  border-color: #409eff;
 }
 </style>

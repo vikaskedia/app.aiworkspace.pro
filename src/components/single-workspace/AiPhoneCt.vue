@@ -7343,4 +7343,13 @@ export default {
 .new-message-input-textarea :deep(.el-textarea__inner:focus) {
   box-shadow: inset 0 0 0 1px #a0cfff, 0 0 0 4px rgba(64, 158, 255, 0.1);
 }
+.action-icon-btn {
+  transition: background 0.2s, box-shadow 0.2s;
+  border-radius: 5px;
+}
+.action-icon-btn:hover {
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
+  border-radius: 5px;
+}
 </style>

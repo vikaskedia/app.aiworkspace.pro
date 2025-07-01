@@ -379,7 +379,7 @@
                       
                       <!-- Image -->
                       <img 
-                        v-if="media.mimetype && media.mimetype.startsWith('image/')"
+                        v-if="(media.mimetype && media.mimetype.startsWith('image/')) || (media.type && media.type.startsWith('image/'))"
                         :src="media.public_url"
                         :alt="media.filename"
                         class="media-image"
@@ -4760,10 +4760,6 @@ export default {
 .message-content .message-text {
   margin: 0 0 0.25rem 0;
   line-height: 1.4;
-}
-
-.message-media {
-  margin-bottom: 0.5rem;
 }
 
 .media-item {

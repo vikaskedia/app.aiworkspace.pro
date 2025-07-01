@@ -1445,32 +1445,6 @@ Max Tokens: {{ aiCheckDebugData.response.body.debug.maxTokens }}</code></pre>
         <div v-if="showAIDraftDebug && aiDraftDebugData" class="debug-section">
           <h4>Debug Information</h4>
           <el-collapse>
-            <el-collapse-item title="Request Data" name="request">
-              <div class="debug-content">
-                <h5>API URL:</h5>
-                <code>{{ aiDraftDebugData.apiUrl }}</code>
-                
-                <h5>Timestamp:</h5>
-                <code>{{ aiDraftDebugData.timestamp }}</code>
-                
-                <h5>Request Body:</h5>
-                <pre><code>{{ JSON.stringify(aiDraftDebugData.requestData, null, 2) }}</code></pre>
-              </div>
-            </el-collapse-item>
-            
-            <el-collapse-item v-if="aiDraftDebugData.response" title="Response Data" name="response">
-              <div class="debug-content">
-                <h5>Status:</h5>
-                <code>{{ aiDraftDebugData.response.status }} {{ aiDraftDebugData.response.statusText }}</code>
-                
-                <h5>Headers:</h5>
-                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.headers, null, 2) }}</code></pre>
-                
-                <h5>Response Body:</h5>
-                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.body, null, 2) }}</code></pre>
-              </div>
-            </el-collapse-item>
-            
             <el-collapse-item v-if="aiDraftDebugData.response && aiDraftDebugData.response.body.debug" title="System Prompt" name="system-prompt">
               <div class="debug-content">
                 <pre><code>{{ aiDraftDebugData.response.body.debug.systemPrompt }}</code></pre>
@@ -1491,24 +1465,12 @@ Max Tokens: {{ aiDraftDebugData.response.body.debug.maxTokens }}</code></pre>
               </div>
             </el-collapse-item>
             
-            <el-collapse-item v-if="aiDraftDebugData.response && aiDraftDebugData.response.body.debug" title="Conversation Context Sent to AI" name="conversation-context">
-              <div class="debug-content">
-                <pre><code>{{ aiDraftDebugData.response.body.debug.conversationContext }}</code></pre>
-              </div>
-            </el-collapse-item>
-            
             <el-collapse-item v-if="aiDraftDebugData.response && aiDraftDebugData.response.body.debug" title="Raw AI Response" name="ai-response">
               <div class="debug-content">
                 <pre><code>{{ aiDraftDebugData.response.body.debug.rawAIResponse }}</code></pre>
               </div>
             </el-collapse-item>
-            
-            <el-collapse-item v-if="aiDraftDebugData.response && aiDraftDebugData.response.body.debug" title="Input Data" name="input-data">
-              <div class="debug-content">
-                <pre><code>{{ JSON.stringify(aiDraftDebugData.response.body.debug.inputData, null, 2) }}</code></pre>
-              </div>
-            </el-collapse-item>
-            
+          
             <el-collapse-item v-if="aiDraftDebugData.error" title="Error Information" name="error">
               <div class="debug-content">
                 <h5>Error Message:</h5>

@@ -3871,6 +3871,14 @@ export default {
       this.checkingMessageWithAI = true;
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
+      
+      // Load recent conversation messages for context
+      if (this.currentChat && this.currentChat.messages && this.currentChat.messages.length > 0) {
+        this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+      } else {
+        this.recentConversationMessages = [];
+      }
+      
       this.showAICheckDialog = true;
       this.aiCheckDebugData = null;
       this.showAICheckDebug = false;
@@ -3941,6 +3949,23 @@ export default {
       this.checkingMessageWithAI = true;
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
+      
+      // Load recent conversation messages for context
+      // Note: For new message dialog, we may not have currentChat, so we try to get recent conversations
+      if (this.currentChat && this.currentChat.messages && this.currentChat.messages.length > 0) {
+        this.recentConversationMessages = this.currentChat.messages.slice(-5); // Show last 5 messages
+      } else if (this.realtimeConversations && this.realtimeConversations.length > 0) {
+        // If no specific chat is selected, try to get messages from the most recent conversation
+        const recentConv = this.realtimeConversations[0];
+        if (recentConv && recentConv.messages && recentConv.messages.length > 0) {
+          this.recentConversationMessages = recentConv.messages.slice(-5);
+        } else {
+          this.recentConversationMessages = [];
+        }
+      } else {
+        this.recentConversationMessages = [];
+      }
+      
       this.showAICheckDialog = true;
       this.aiCheckDebugData = null;
       this.showAICheckDebug = false;
@@ -4007,6 +4032,7 @@ export default {
       this.aiCheckOriginalMessage = '';
       this.aiCheckResult = null;
       this.editableImprovedMessage = '';
+      this.recentConversationMessages = [];
       this.showAICheckDebug = false;
       this.aiCheckDebugData = null;
     },

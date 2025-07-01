@@ -57,6 +57,9 @@
                       <div style="display: flex; align-items: center;">
                         <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
                         {{ tagGroup.name }}
+                        <span style="margin-left: 4px; font-size: 0.75rem; color: #888; font-weight: normal; white-space: nowrap;">
+                          ({{ getMessageCountsForTag(item.number, tagGroup.name).year }}|{{ getMessageCountsForTag(item.number, tagGroup.name).month }}|{{ getMessageCountsForTag(item.number, tagGroup.name).week }})
+                        </span>
                       </div>
                       <el-icon 
                         v-if="selectedTagByPhone[item.id] === tagGroup.name"
@@ -78,6 +81,9 @@
                         <div style="display: flex; align-items: center;">
                           <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" /> 
                           {{ tagGroup.name }}
+                          <span style="margin-left: 4px; font-size: 0.75rem; color: #888; font-weight: normal; white-space: nowrap;">
+                            ({{ getMessageCountsForTag(item.number, tagGroup.name).year }}|{{ getMessageCountsForTag(item.number, tagGroup.name).month }}|{{ getMessageCountsForTag(item.number, tagGroup.name).week }})
+                          </span>
                         </div>
                         <el-icon 
                           v-if="selectedTagByPhone[item.id] === tagGroup.name"
@@ -100,6 +106,9 @@
                             <span style="margin-right: 4px;">├─</span>
                             <img src="/label_icon.png" style="margin-right: 4px; width: 10px; height: 10px;" />
                             {{ childTag.name }}
+                            <span style="margin-left: 4px; font-size: 0.75rem; color: #888; font-weight: normal; white-space: nowrap;">
+                              ({{ getMessageCountsForTag(item.number, childTag.fullName).year }}|{{ getMessageCountsForTag(item.number, childTag.fullName).month }}|{{ getMessageCountsForTag(item.number, childTag.fullName).week }})
+                            </span>
                           </div>
                           <el-icon 
                             v-if="selectedTagByPhone[item.id] === childTag.fullName"
@@ -1661,6 +1670,9 @@ export default {
         year: 0
       },
       
+      // Per-tag message counts - format: { phoneNumber: { tagName: { year, month, week } } }
+      tagMessageCounts: {},
+      
       // Icons
       Check: markRaw(Check),
       
@@ -2146,6 +2158,17 @@ export default {
       return this.messageCounts.year || 0;
     },
 
+    // Get message counts for a specific tag and phone number
+    getMessageCountsForTag() {
+      return (phoneNumber, tagName) => {
+        if (!phoneNumber || !tagName || !this.tagMessageCounts[phoneNumber]) {
+          return { year: 0, month: 0, week: 0 };
+        }
+
+        return this.tagMessageCounts[phoneNumber][tagName] || { year: 0, month: 0, week: 0 };
+      };
+    },
+
     hierarchicalTagsForPhone() {
       // Returns a function that takes a phone number and returns hierarchical tags
       return (phoneNumber) => {
@@ -2244,8 +2267,10 @@ export default {
     currentMatter: {
       handler(newMatter) {
         if (newMatter && newMatter.id) {
-          this.loadPhoneTextActions();
-          this.loadMessageCounts();
+          this.loadWorkspaceContacts().then(() => {
+            this.loadPhoneTextActions();
+            this.loadMessageCounts();
+          });
         }
       },
       immediate: false
@@ -2267,10 +2292,13 @@ export default {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const yearStart = new Date(now.getFullYear(), 0, 1);
         
-        // Query the database for message counts
+        // Query the database for conversations with messages and from_phone_number
         const { data: conversations, error } = await supabase
           .from('conversations')
           .select(`
+            id,
+            from_phone_number,
+            to_phone_number,
             messages(
               id,
               direction,
@@ -2281,30 +2309,75 @@ export default {
         
         if (error) throw error;
         
-        // Count outbound messages for each period
+        // Count overall outbound messages for each period
         let weekCount = 0;
         let monthCount = 0;
         let yearCount = 0;
+        
+        // Initialize per-tag counts structure
+        const tagCounts = {};
         
         conversations.forEach(conv => {
           if (conv.messages) {
             conv.messages.forEach(msg => {
               if (msg.direction === 'outbound') {
                 const msgDate = new Date(msg.created_at);
+                
+                // Overall counts
                 if (msgDate >= weekStart) weekCount++;
                 if (msgDate >= monthStart) monthCount++;
                 if (msgDate >= yearStart) yearCount++;
+                
+                // Per-tag counts
+                const fromPhone = conv.from_phone_number;
+                if (fromPhone) {
+                  // Find contacts for this conversation
+                  const contact = this.workspaceContacts.find(c => {
+                    const convPhone = conv.to_phone_number || '';
+                    const contactPhone = c.phone_number || '';
+                    const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+                    const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+                    const fullConvPhone = convPhone.replace(/\D/g, '');
+                    const fullContactPhone = contactPhone.replace(/\D/g, '');
+                    return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+                  });
+                  
+                  if (contact && contact.tags) {
+                    contact.tags.forEach(tag => {
+                      // Initialize phone structure if needed
+                      if (!tagCounts[fromPhone]) {
+                        tagCounts[fromPhone] = {};
+                      }
+                      
+                      // Initialize tag structure if needed
+                      if (!tagCounts[fromPhone][tag]) {
+                        tagCounts[fromPhone][tag] = { year: 0, month: 0, week: 0 };
+                      }
+                      
+                      // Count messages for this tag
+                      if (msgDate >= weekStart) tagCounts[fromPhone][tag].week++;
+                      if (msgDate >= monthStart) tagCounts[fromPhone][tag].month++;
+                      if (msgDate >= yearStart) tagCounts[fromPhone][tag].year++;
+                    });
+                  }
+                }
               }
             });
           }
         });
         
-        // Update the counts
+        // Update the overall counts
         this.messageCounts = {
           week: weekCount,
           month: monthCount,
           year: yearCount
         };
+        
+        // Update the per-tag counts
+        this.tagMessageCounts = tagCounts;
+        
+        console.log('Loaded message counts:', this.messageCounts);
+        console.log('Loaded tag message counts:', this.tagMessageCounts);
         
       } catch (error) {
         console.error('Error loading message counts:', error);

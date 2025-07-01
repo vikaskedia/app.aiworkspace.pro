@@ -686,7 +686,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><Briefcase /></el-icon><span>Company</span>
+                <el-icon size="15" color="#69696b"><Briefcase /></el-icon><span class="contact-detail-label">Company</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="companyInput" v-model="editableContact.company" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'company')" />
@@ -697,7 +697,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><User /></el-icon><span>Role</span>
+                <el-icon size="15" color="#69696b"><User /></el-icon><span class="contact-detail-label">Role</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="roleInput" v-model="editableContact.role" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'role')" />
@@ -708,7 +708,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><Phone /></el-icon><span>Phone</span>
+                <el-icon size="15" color="#69696b"><Phone /></el-icon><span class="contact-detail-label">Phone</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="phoneInput" v-model="editableContact.phone_number" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'phone')" />
@@ -719,7 +719,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><Message /></el-icon><span>Email</span>
+                <el-icon size="15" color="#69696b"><Message /></el-icon><span class="contact-detail-label">Email</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="emailInput" v-model="editableContact.email" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'email')" />
@@ -730,7 +730,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><Document /></el-icon><span>Matter</span>
+                <el-icon size="15" color="#69696b"><Document /></el-icon><span class="contact-detail-label">Matter</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="matterInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'matter')" />
@@ -741,7 +741,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><List /></el-icon><span>Tags</span>
+                <el-icon size="15" color="#69696b"><List /></el-icon><span class="contact-detail-label">Tags</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-select ref="tagsInput" v-model="editableContact.tags" multiple filterable allow-create default-first-option size="small" style="width: 100%" @blur="saveEditContact">
@@ -759,7 +759,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon><Location /></el-icon><span>Address</span>
+                <el-icon size="15" color="#69696b"><Location /></el-icon><span class="contact-detail-label">Address</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingContact">
                     <el-input ref="addressInput" v-model="editableContact.address" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'address')" />
@@ -769,7 +769,7 @@
                   </template>
                 </div>
               </div>
-              <div class="detail-row"><el-icon><UserFilled /></el-icon><span>Creator</span><div class="detail-value">{{ selectedContactDetails.creator_name || 'Unknown' }}</div></div>
+              <div class="detail-row"><el-icon size="15" color="#69696b"><UserFilled /></el-icon><span class="contact-detail-label">Creator</span><div class="detail-value">{{ selectedContactDetails.creator_name || 'Unknown' }}</div></div>
             </div>
             <hr>
             <!-- Contact Notes -->
@@ -4531,37 +4531,6 @@ export default {
   display: flex;
   flex-direction: column;
 }
-
-/* Adjust panel widths when contact details panel is visible */
-/* .phone-layout:has(.contact-details-panel) .inbox-panel {
-  width: 15%;
-}
-
-.phone-layout:has(.contact-details-panel) .chats-panel {
-  width: 25%;
-}
-
-.phone-layout:has(.contact-details-panel) .chat-panel {
-  width: 35%;
-}
-
-//Fallback for browsers that don't support :has()
-.phone-layout.with-contact-panel .inbox-panel {
-  width: 15%;
-}
-
-.phone-layout.with-contact-panel .chats-panel {
-  width: 25%;
-}
-
-.phone-layout.with-contact-panel .chat-panel {
-  width: 35%;
-}
-
-.phone-layout.with-contact-panel .contact-details-panel {
-  width: 25%;
-} */
-
 .panel-header {
   padding: 1rem;
   border-bottom: 1px solid #e0e0e0;
@@ -5030,11 +4999,6 @@ export default {
 }
 
 .file-size {
-  font-size: 0.75rem;
-  opacity: 0.7;
-}
-
-.message-time {
   font-size: 0.75rem;
   opacity: 0.7;
 }
@@ -6441,10 +6405,9 @@ export default {
 }
 
 .redesigned-name {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: #222224;
 }
 
 .contact-actions-row {
@@ -6984,7 +6947,6 @@ export default {
 }
 
 .message-time {
-  color: #666;
   font-size: 0.7rem;
   opacity: 0.8;
 }
@@ -7206,10 +7168,6 @@ export default {
   .message-header {
     font-size: 0.75rem;
     margin-bottom: 0.4rem;
-  }
-
-  .message-time {
-    font-size: 0.7rem;
   }
   
   .ai-draft-footer {
@@ -7450,5 +7408,10 @@ export default {
   background: #f0f7ff;
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
   border-radius: 5px;
+}
+.contact-detail-label {
+  color: #69696b;
+  font-size: 13px;
+  font-weight: 425;
 }
 </style>

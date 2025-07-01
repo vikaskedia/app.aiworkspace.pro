@@ -175,6 +175,7 @@ export default {
     const selectedVersion = ref(null);
     const realtimeSubscription = ref(null);
     const collapsedNodes = ref(new Set());
+    const firstUpdateReceived = ref(false);
     
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
@@ -1175,6 +1176,14 @@ export default {
               return;
             }
 
+            // Add a small delay to avoid immediate notifications after saves
+            // This helps prevent notification spam when one tab saves
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Skip notifications for the first update after page load to avoid spam
+            const isFirstUpdate = !firstUpdateReceived.value;
+            firstUpdateReceived.value = true;
+
             try {
               // For UPDATE events
               if (payload.eventType === 'UPDATE') {
@@ -1223,13 +1232,20 @@ export default {
                       localStorage.setItem(versionKey, newVersion.toString());
                       localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
 
-                      // Show success notification
-                      ElNotification({
-                        title: 'Outline Updated',
-                        message: 'The outline has been updated from another tab',
-                        type: 'success',
-                        duration: 3000
-                      });
+                      // Only show notification if this is a significant structural change
+                      // and it's not the first update after page load
+                      const currentItemCount = JSON.stringify(outline.value).split('"id":').length - 1;
+                      const newItemCount = JSON.stringify(freshContent).split('"id":').length - 1;
+                      const hasStructuralChanges = currentItemCount !== newItemCount;
+                      
+                      if (hasStructuralChanges && !isFirstUpdate) {
+                        ElNotification({
+                          title: 'Outline Updated',
+                          message: 'The outline structure has been updated from another tab',
+                          type: 'success',
+                          duration: 3000
+                        });
+                      }
                     } else {
                       // We have local changes - check if they're actually conflicting
                       console.log('⚠️ Local changes detected - checking for actual conflicts');
@@ -1258,14 +1274,8 @@ export default {
                         localStorage.setItem(versionKey, newVersion.toString());
                         localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(newContent));
 
-                        // Show a very brief, quiet success notification for sync
-                        ElNotification({
-                          title: 'Synced',
-                          message: 'Changes synchronized',
-                          type: 'success',
-                          duration: 1500,
-                          showClose: false
-                        });
+                        // Silently sync - no notification needed for seamless sync
+                        console.log('✅ Changes synchronized between tabs');
                       } else {
                         // Actual conflict - local changes are different from remote
                         console.log('⚠️ Actual conflict detected - preserving local changes');
@@ -1282,14 +1292,16 @@ export default {
                         localStorage.setItem(versionKey, newVersion.toString());
                         localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
                         
-                        // Show conflict notification only for real conflicts
-                        ElNotification({
-                          title: 'Sync Conflict Detected',
-                          message: 'Another user updated the outline while you have different unsaved changes. Your changes are preserved.',
-                          type: 'warning',
-                          duration: 7000,
-                          showClose: true
-                        });
+                        // Show conflict notification only for real conflicts, but only if not first update
+                        if (!isFirstUpdate) {
+                          ElNotification({
+                            title: 'Sync Conflict Detected',
+                            message: 'Another user updated the outline while you have different unsaved changes. Your changes are preserved.',
+                            type: 'warning',
+                            duration: 5000,
+                            showClose: true
+                          });
+                        }
                       }
                     }
                   } else {
@@ -1475,7 +1487,7 @@ export default {
           title: 'Sync Complete',
           message: 'Outline has been synced with server',
           type: 'success',
-          duration: 3000
+          duration: 2000
         });
       } catch (error) {
         console.error('❌ Manual refresh failed:', error);

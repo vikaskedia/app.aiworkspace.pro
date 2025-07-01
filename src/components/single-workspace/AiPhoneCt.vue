@@ -562,7 +562,7 @@
                       :multiple="false"
                       :accept="acceptedFileTypes"
                       action="#">
-                        <el-icon class="cursor-pointer" :size="25"><Paperclip /></el-icon>
+                        <el-icon class="cursor-pointer action-icon-btn" :size="25" color="#888"><Paperclip /></el-icon>
                     </el-upload>
                   </el-tooltip>
                   
@@ -571,14 +571,7 @@
                     v-if="currentChat && currentChat.messages && currentChat.messages.length > 0"
                     content="AI-DM: Let AI suggest a reply based on conversation" 
                     placement="top">
-                    <!-- <el-button 
-                      circle
-                      @click="draftMessageWithAI"
-                      :loading="draftingMessageWithAI"
-                      type="success">
-                      <el-icon><ChatLineRound /></el-icon>
-                    </el-button> -->
-                    <el-icon class="cursor-pointer" :size="25" @click="draftMessageWithAI" :loading="draftingMessageWithAI" color="#67c23a"><ChatLineRound /></el-icon>
+                    <el-icon class="cursor-pointer action-icon-btn" :size="25" @click="draftMessageWithAI" :loading="draftingMessageWithAI" color="#67c23a"><ChatLineRound /></el-icon>
                   </el-tooltip>
 
                   <!-- AI Check Button -->
@@ -586,31 +579,17 @@
                     v-if="newMessage.trim()"
                     content="Check message with AI for grammar and clarity" 
                     placement="top">
-                    <!-- <el-button 
-                      circle
-                      @click="checkMessageWithAI"
-                      :loading="checkingMessageWithAI"
-                      type="warning">
-                      <el-icon><MagicStick /></el-icon>
-                    </el-button> -->
-                    <el-icon class="cursor-pointer" :size="25" @click="checkMessageWithAI" :loading="checkingMessageWithAI" color="#e6a23c"><MagicStick /></el-icon>
+                    <el-icon class="cursor-pointer action-icon-btn" :size="25" @click="checkMessageWithAI" :loading="checkingMessageWithAI" color="#e6a23c"><MagicStick /></el-icon>
                   </el-tooltip>
                   
                   <!-- Send Button -->
                   <el-tooltip 
                     content="Send message (Enter) • New line (Shift+Enter)" 
                     placement="top">
-                    <!-- <el-button 
-                      type="primary" 
-                      @click="sendMessage"
-                      :disabled="!canSendMessage"
-                      :loading="sendingMessage">
-                      <el-icon><Promotion /></el-icon>
-                    </el-button> -->
                     <el-icon 
                       color="#409efc" 
                       :size="25"
-                      class="cursor-pointer"
+                      class="cursor-pointer action-icon-btn"
                       @click="sendMessage"
                       :disabled="!canSendMessage"
                       :loading="sendingMessage">
@@ -4873,7 +4852,7 @@ export default {
 
 .input-actions {
   display: flex;
-  gap: 0.2rem;
+  gap: 0.1rem;
   align-items: center;
 }
 
@@ -6939,5 +6918,17 @@ export default {
   text-align: center;
   color: #666;
   padding: 1rem 0;
+}
+
+/* Add custom action icon button styles */
+.action-icon-btn {
+  transition: background 0.2s, box-shadow 0.2s;
+  border-radius: 5px;
+  padding: 2px;
+}
+.action-icon-btn:hover {
+  background: #f0f7ff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
+  border-radius: 5px;
 }
 </style>

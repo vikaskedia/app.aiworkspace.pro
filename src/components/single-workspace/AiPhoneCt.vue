@@ -210,7 +210,12 @@
                   :alt="getContactForConversation(conversation)?.name"
                   class="avatar-image"
                 />
-                <el-icon v-else><User /></el-icon>
+                <span v-else-if="getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact" class="avatar-text">
+                  <span v-if="getInitials(getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact') != '+'">
+                    {{ getInitials(getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact') }}
+                  </span>
+                  <el-icon v-else><User /></el-icon>
+                </span>
               </div>
               <!-- <div v-if="conversation.unread" class="unread-indicator"></div> -->
             </div>

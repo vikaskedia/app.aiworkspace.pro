@@ -7340,4 +7340,7 @@ export default {
   font-size: 0.97rem;
   padding: 0.75rem 0;
 }
+.new-message-input-textarea :deep(.el-textarea__inner:focus) {
+  box-shadow: inset 0 0 0 1px #a0cfff, 0 0 0 4px rgba(64, 158, 255, 0.1);
+}
 </style>

@@ -22,20 +22,9 @@
             >
             <div class="item-info">
               <el-icon><component :is="item.icon" /></el-icon>&nbsp;
-              <span class="item-label" style="cursor: pointer;" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)">{{ item.label }}</span><br>
+              <span class="item-label" style="cursor: pointer;" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)" @click.stop="togglePhoneTagsExpand(item.id)">{{ item.label }}</span><br>
               <span class="phone-number">{{ item.number }}</span>
               <div class="phone-tags-tree" style="margin-top: 4px;">
-                <div 
-                  v-if="hierarchicalTagsForPhone(item.number).length > 0"
-                  class="tags-toggle"
-                  @click.stop="togglePhoneTagsExpand(item.id)"
-                  style="cursor: pointer; font-size: 0.8rem; color: #666; margin-top: 2px;"
-                >
-                  <el-icon style="margin-right: 4px;">
-                    <component :is="expandedPhoneForTags === item.id ? 'ArrowDown' : 'ArrowRight'" />
-                  </el-icon>
-                  <!-- Tags ({{ hierarchicalTagsForPhone(item.number).length }}) -->
-                </div>
                 <div 
                   v-if="expandedPhoneForTags === item.id"
                   class="tags-list"
@@ -128,6 +117,19 @@
               <el-tooltip content="Messages unread by you" placement="top">
                 <span v-if="item.count" class="count-badge">{{ item.count }}</span>
               </el-tooltip>
+              <div 
+                v-if="hierarchicalTagsForPhone(item.number).length > 0"
+                class="tags-toggle"
+                style="font-size: 0.8rem; color: #666; margin-top: 2px;"
+                >
+                <el-icon style="margin-right: 4px;">
+                  <component :is="expandedPhoneForTags === item.id ? 'ArrowDown' : 'ArrowRight'" />
+                </el-icon>
+                <!-- Tags ({{ hierarchicalTagsForPhone(item.number).length }}) -->
+              </div>
+              <div v-else style="margin-top: 2px;" class="tags-toggle">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              </div>
             </div>
           </div>
           
@@ -4497,8 +4499,13 @@ export default {
 
 .panel-header h3 {
   margin: 0;
-  color: #333;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #555557;
+}
+
+.item-label {
+  color: #555557;
 }
 
 .panel-header-title {
@@ -4525,7 +4532,7 @@ export default {
   position: relative;
   padding: 0.75rem 1rem;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.75rem;
   transition: all 0.3s;
 }
@@ -6144,7 +6151,6 @@ export default {
 }
 
 .tags-toggle {
-  cursor: pointer;
   font-size: 0.8rem;
   color: #666;
   margin-top: 2px;

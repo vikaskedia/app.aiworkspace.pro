@@ -631,6 +631,9 @@ export default {
           duration: 3000
         });
 
+        // Use nextTick to ensure all state updates are complete before checking for more changes
+        await nextTick();
+        
         // If there are still changes after saving (user continued editing), schedule another save
         if (hasChanges.value) {
           debouncedSave();
@@ -1165,10 +1168,11 @@ export default {
               return;
             }
             
-            // Don't skip if we're saving - we need to handle concurrent edits
-            // Just log it for debugging
+            // If we're currently saving, skip processing to avoid race conditions
+            // Our own save will update local state properly
             if (saving.value) {
-              console.log('⚠️ Received update while saving - processing anyway');
+              console.log('⏭️ Skipping update - currently saving (avoiding race condition)');
+              return;
             }
 
             try {

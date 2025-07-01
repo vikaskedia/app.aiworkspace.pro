@@ -4717,11 +4717,6 @@ export default {
   margin-bottom: 0.25rem;
 }
 
-.contact-name {
-  font-weight: 600;
-  color: #333;
-}
-
 .time {
   font-size: 0.75rem;
   color: #666;
@@ -5233,7 +5228,7 @@ export default {
 
 .contact-name {
   font-weight: 500;
-  color: #2c3e50;
+  color: #555557db;
 }
 
 .contact-phone {

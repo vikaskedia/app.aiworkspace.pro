@@ -43,7 +43,7 @@
           size="small"
           effect="light"
         >
-          ✅ Synced
+          ✅ Synced ({{ displayVersion }})
         </el-tag>
         <el-tag 
           v-else 
@@ -265,6 +265,11 @@ export default {
       return result;
     };
 
+    // Computed property to ensure version is always displayed
+    const displayVersion = computed(() => {
+      return currentVersion.value || 1;
+    });
+
     // Default outline data
     const defaultOutline = [
       {
@@ -399,6 +404,10 @@ export default {
           // If no outline in Supabase, mark as changed if we have local content
           hasChanges.value = outline.value !== defaultOutline;
           lastSavedContent.value = outline.value;
+          // Ensure currentVersion is set to 1 if no outline exists in Supabase
+          if (!currentVersion.value) {
+            currentVersion.value = 1;
+          }
         }
       } catch (error) {
         console.error('Error in outline setup:', error);
@@ -1218,29 +1227,66 @@ export default {
                         duration: 3000
                       });
                     } else {
-                      // We have local changes - need conflict resolution
-                      console.log('⚠️ Local changes detected - handling conflict');
+                      // We have local changes - check if they're actually conflicting
+                      console.log('⚠️ Local changes detected - checking for actual conflicts');
                       
-                      // Update version and saved content reference for conflict tracking
-                      currentVersion.value = newVersion;
-                      lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                      // Check if our local changes are the same as what we're receiving
+                      // This can happen when one tab saves and another tab receives the update
+                      const localChangesStr = JSON.stringify(outline.value);
+                      const remoteChangesStr = JSON.stringify(newContent);
                       
-                      // Recalculate hasChanges based on new remote content
-                      hasChanges.value = checkForChanges(outline.value);
-                      
-                      // Update localStorage with remote version info but keep local content
-                      const versionKey = getVersionKey();
-                      localStorage.setItem(versionKey, newVersion.toString());
-                      localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
-                      
-                      // Show conflict notification with action buttons
-                      ElNotification({
-                        title: 'Sync Conflict Detected',
-                        message: 'Another user updated the outline while you have unsaved changes. Your changes are preserved.',
-                        type: 'warning',
-                        duration: 7000,
-                        showClose: true
-                      });
+                      if (localChangesStr === remoteChangesStr) {
+                        // Our local changes match the remote content - this is a sync, not a conflict
+                        console.log('✅ Local changes match remote content - applying sync');
+                        
+                        // Update local state to match the server
+                        await nextTick(() => {
+                          outline.value = JSON.parse(JSON.stringify(newContent));
+                          currentVersion.value = newVersion;
+                          lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                          hasChanges.value = false;
+                        });
+
+                        // Update localStorage
+                        const localStorageKey = getLocalStorageKey();
+                        const versionKey = getVersionKey();
+                        localStorage.setItem(localStorageKey, JSON.stringify(newContent));
+                        localStorage.setItem(versionKey, newVersion.toString());
+                        localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(newContent));
+
+                        // Show a very brief, quiet success notification for sync
+                        ElNotification({
+                          title: 'Synced',
+                          message: 'Changes synchronized',
+                          type: 'success',
+                          duration: 1500,
+                          showClose: false
+                        });
+                      } else {
+                        // Actual conflict - local changes are different from remote
+                        console.log('⚠️ Actual conflict detected - preserving local changes');
+                        
+                        // Update version and saved content reference for conflict tracking
+                        currentVersion.value = newVersion;
+                        lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                        
+                        // Recalculate hasChanges based on new remote content
+                        hasChanges.value = checkForChanges(outline.value);
+                        
+                        // Update localStorage with remote version info but keep local content
+                        const versionKey = getVersionKey();
+                        localStorage.setItem(versionKey, newVersion.toString());
+                        localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
+                        
+                        // Show conflict notification only for real conflicts
+                        ElNotification({
+                          title: 'Sync Conflict Detected',
+                          message: 'Another user updated the outline while you have different unsaved changes. Your changes are preserved.',
+                          type: 'warning',
+                          duration: 7000,
+                          showClose: true
+                        });
+                      }
                     }
                   } else {
                     // Content is the same, just update version tracking
@@ -1346,26 +1392,54 @@ export default {
             
             console.log('✅ Successfully refreshed outline data');
           } else {
-            // Conflict detected - update references but preserve local changes
-            console.log('⚠️ Conflict detected during refresh - preserving local changes');
+            // We have local changes and content is different - check if it's a real conflict
+            console.log('⚠️ Local changes detected during refresh - checking for actual conflicts');
             
-            currentVersion.value = outlineData.version;
-            lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
-            hasChanges.value = checkForChanges(outline.value);
+            // Check if our local changes are the same as the server content
+            const localChangesStr = JSON.stringify(outline.value);
+            const serverChangesStr = JSON.stringify(freshContent);
             
-            // Update localStorage with server version info
-            const versionKey = getVersionKey();
-            localStorage.setItem(versionKey, outlineData.version.toString());
-            localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(freshContent));
-            
-            // Notify user of conflict
-            ElNotification({
-              title: 'Sync Conflict',
-              message: 'Your local changes have been preserved. Save to update with your changes.',
-              type: 'warning',
-              duration: 5000,
-              showClose: true
-            });
+            if (localChangesStr === serverChangesStr) {
+              // Local changes match server - this is a sync, not a conflict
+              console.log('✅ Local changes match server content - applying sync');
+              
+              await nextTick(() => {
+                outline.value = freshContent;
+                currentVersion.value = outlineData.version;
+                lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+                hasChanges.value = false;
+              });
+
+              // Update localStorage
+              const localStorageKey = getLocalStorageKey();
+              const versionKey = getVersionKey();
+              localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+              localStorage.setItem(versionKey, outlineData.version.toString());
+              localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+              
+              console.log('✅ Successfully synced outline data');
+            } else {
+              // Actual conflict - local changes are different from server
+              console.log('⚠️ Actual conflict detected during refresh - preserving local changes');
+              
+              currentVersion.value = outlineData.version;
+              lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+              hasChanges.value = checkForChanges(outline.value);
+              
+              // Update localStorage with server version info
+              const versionKey = getVersionKey();
+              localStorage.setItem(versionKey, outlineData.version.toString());
+              localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(freshContent));
+              
+              // Notify user of actual conflict
+              ElNotification({
+                title: 'Sync Conflict',
+                message: 'Your local changes are different from the server. Your changes have been preserved.',
+                type: 'warning',
+                duration: 5000,
+                showClose: true
+              });
+            }
           }
         }
       } catch (error) {
@@ -1414,6 +1488,7 @@ export default {
       refreshing,
       hasChanges,
       outlineRenderID,
+      displayVersion,
       onOutlineUpdate, 
       handleMove, 
       handleDelete,

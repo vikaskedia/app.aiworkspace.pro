@@ -306,6 +306,7 @@ export default {
     return {
       editing: false,
       editText: this.item.text,
+      originalText: this.item.text, // Store original text to detect changes
       isDragging: false,
       isDragOver: false,
       unsubscribe: null,
@@ -384,10 +385,16 @@ export default {
   watch: {
     'item.text'(val) {
       this.editText = val;
+      // If not currently editing, also update the original text reference
+      if (!this.editing) {
+        this.originalText = val;
+      }
     },
     autoFocus(newVal) {
       if (newVal) {
         this.editing = true;
+        this.originalText = this.item.text; // Capture original text when auto-focusing
+        this.editText = this.item.text; // Ensure editText matches current item text
         this.$nextTick(() => {
           if (this.$refs.textarea) {
             this.$refs.textarea.focus();
@@ -401,6 +408,8 @@ export default {
   mounted() {
     if (this.autoFocus) {
       this.editing = true;
+      this.originalText = this.item.text; // Capture original text when auto-focusing on mount
+      this.editText = this.item.text; // Ensure editText matches current item text
       this.$nextTick(() => {
         if (this.$refs.textarea) {
           this.$refs.textarea.focus();
@@ -470,6 +479,8 @@ export default {
 
     startEdit() {
       this.editing = true;
+      this.originalText = this.item.text; // Capture original text when editing starts
+      this.editText = this.item.text; // Ensure editText matches current item text
       this.$nextTick(() => {
         if (this.$refs.textarea) {
           this.$refs.textarea.focus();
@@ -488,25 +499,35 @@ export default {
 
       console.log('finishEdit called:', {
         editText: this.editText,
+        originalText: this.originalText,
         itemText: this.item.text,
-        different: this.editText !== this.item.text
+        textChanged: this.editText !== this.originalText
       });
 
       this.editing = false;
       this.selectionTooltipVisible = false;
       
-      // Always trigger immediate save when finishing edit, regardless of local state
-      // The change detection will happen at the parent level
-      const now = new Date().toISOString();
-      this.item.updated_at = now;
-      this.item.text = this.editText; // Update local item immediately
-      console.log('Emitting immediate update for item:', this.item.id, 'with text:', this.editText);
-      this.$emit('update', { 
-        id: this.item.id, 
-        text: this.editText,
-        updated_at: now,
-        immediate: true // Flag to indicate immediate save needed
-      });
+      // Only save if the text has actually changed from the original
+      if (this.editText !== this.originalText) {
+        console.log('Text changed, triggering save for item:', this.item.id);
+        const now = new Date().toISOString();
+        this.item.updated_at = now;
+        this.item.text = this.editText; // Update local item immediately
+        this.$emit('update', { 
+          id: this.item.id, 
+          text: this.editText,
+          updated_at: now,
+          immediate: true // Flag to indicate immediate save needed
+        });
+      } else {
+        console.log('No text changes detected, skipping save for item:', this.item.id);
+        // Still update the item to ensure any autoFocus state is cleared
+        this.$emit('update', { 
+          id: this.item.id, 
+          text: this.item.text,
+          autoFocus: false
+        });
+      }
     },
 
     handleEnter() {

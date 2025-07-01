@@ -1194,6 +1194,31 @@
         </div>
       </template>
       <div class="ai-check-content">
+        <!-- Conversation Context Preview -->
+        <div class="conversation-context-section-compact">
+          <div class="conversation-header-compact" @click="toggleConversationView">
+            <h4>Recent Conversation</h4>
+            <el-icon class="collapse-icon" :class="{ 'expanded': showConversationPreview }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <div v-show="showConversationPreview" class="conversation-preview-compact">
+            <div 
+              v-for="(msg, index) in recentConversationMessages.slice(0, 3)" 
+              :key="index"
+              :class="['context-message-compact', msg.direction]">
+              <div class="message-row">
+                <span class="sender-compact">{{ msg.direction === 'outbound' ? 'You' : (getCurrentContactName() || 'Contact') }}</span>
+                <span class="message-text-compact">{{ msg.text || '[Media message]' }}</span>
+                <span class="time-compact" v-if="msg.timestamp">{{ formatCompactTime(msg.timestamp) }}</span>
+              </div>
+            </div>
+            <div v-if="!recentConversationMessages || recentConversationMessages.length === 0" class="no-messages-compact">
+              No recent messages
+            </div>
+          </div>
+        </div>
+
         <!-- Original Message -->
         <div class="original-message-section">
           <h4>Original Message</h4>
@@ -1353,15 +1378,26 @@ Max Tokens: {{ aiCheckDebugData.response.body.debug.maxTokens }}</code></pre>
       </template>
       <div class="ai-draft-content">
         <!-- Conversation Context Preview -->
-        <div class="conversation-context-section">
-          <h4>Recent Conversation</h4>
-          <div class="conversation-preview">
+        <div class="conversation-context-section-compact">
+          <div class="conversation-header-compact" @click="toggleConversationView">
+            <h4>Recent Conversation</h4>
+            <el-icon class="collapse-icon" :class="{ 'expanded': showConversationPreview }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <div v-show="showConversationPreview" class="conversation-preview-compact">
             <div 
-              v-for="(msg, index) in recentConversationMessages" 
+              v-for="(msg, index) in recentConversationMessages.slice(0, 3)" 
               :key="index"
-              :class="['context-message', msg.direction]">
-              <strong>{{ msg.direction === 'outbound' ? 'You' : (getCurrentContactName() || 'Contact') }}:</strong>
-              {{ msg.text || '[Media message]' }}
+              :class="['context-message-compact', msg.direction]">
+              <div class="message-row">
+                <span class="sender-compact">{{ msg.direction === 'outbound' ? 'You' : (getCurrentContactName() || 'Contact') }}</span>
+                <span class="message-text-compact">{{ msg.text || '[Media message]' }}</span>
+                <span class="time-compact" v-if="msg.timestamp">{{ formatCompactTime(msg.timestamp) }}</span>
+              </div>
+            </div>
+            <div v-if="!recentConversationMessages || recentConversationMessages.length === 0" class="no-messages-compact">
+              No recent messages
             </div>
           </div>
         </div>
@@ -1809,6 +1845,9 @@ export default {
       recentConversationMessages: [],
       showAIDraftDebug: false,
       aiDraftDebugData: null,
+      
+      // Conversation Preview
+      showConversationPreview: true,
       
       // Last Seen Users
       lastSeenUsers: {}, // { [conversationId]: users[] }
@@ -2388,6 +2427,81 @@ export default {
       } else {
         return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
       }
+    },
+
+    formatMessageTime(date) {
+      // Handle null, undefined, or invalid dates
+      if (!date) {
+        return '';
+      }
+      
+      // Convert to Date object if it's a string
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      
+      // Check if the date is valid
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+        return '';
+      }
+      
+      const now = new Date();
+      const diffTime = Math.abs(now - dateObj);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        // Show time for today
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else if (diffDays === 1) {
+        // Show "Yesterday" + time for yesterday
+        const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `Yesterday ${time}`;
+      } else if (diffDays < 7) {
+        // Show day name + time for this week
+        const dayName = dateObj.toLocaleDateString([], { weekday: 'short' });
+        const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${dayName} ${time}`;
+      } else {
+        // Show date + time for older messages
+        const date = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${date} ${time}`;
+      }
+    },
+
+    formatCompactTime(date) {
+      // Handle null, undefined, or invalid dates
+      if (!date) {
+        return '';
+      }
+      
+      // Convert to Date object if it's a string
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      
+      // Check if the date is valid
+      if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+        return '';
+      }
+      
+      const now = new Date();
+      const diffTime = Math.abs(now - dateObj);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        // Show only time for today
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else if (diffDays === 1) {
+        // Show "Yest" for yesterday
+        return 'Yest';
+      } else if (diffDays < 7) {
+        // Show day name for this week
+        return dateObj.toLocaleDateString([], { weekday: 'short' });
+      } else {
+        // Show short date for older messages
+        return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+    },
+
+    toggleConversationView() {
+      this.showConversationPreview = !this.showConversationPreview;
     },
     
     async sendMessage() {
@@ -6495,6 +6609,62 @@ export default {
   .ai-check-content {
     max-height: 60vh;
   }
+
+  .conversation-preview-improved {
+    max-height: 200px;
+    padding: 0.75rem;
+  }
+
+  .conversation-preview-compact {
+    max-height: 100px;
+    padding: 0.4rem;
+  }
+
+  .context-message-compact {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .message-row {
+    gap: 0.3rem;
+  }
+
+  .sender-compact {
+    font-size: 0.7rem;
+    min-width: 35px;
+  }
+
+  .message-text-compact {
+    max-width: 150px;
+    font-size: 0.75rem;
+  }
+
+  .time-compact {
+    font-size: 0.65rem;
+  }
+
+  .context-message-improved.outbound {
+    margin-left: 1rem;
+    max-width: 90%;
+  }
+
+  .context-message-improved.inbound {
+    margin-right: 1rem;
+    max-width: 90%;
+  }
+
+  .context-message-improved {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .message-header {
+    font-size: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .message-time {
+    font-size: 0.7rem;
+  }
   
   .suggestion-item {
     flex-direction: column;
@@ -6538,6 +6708,119 @@ export default {
   gap: 0.5rem;
 }
 
+/* Compact Conversation Styles */
+.conversation-context-section-compact {
+  margin-bottom: 1rem;
+}
+
+.conversation-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.conversation-header-compact:hover {
+  background-color: #f5f5f5;
+}
+
+.conversation-header-compact h4 {
+  margin: 0;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.collapse-icon {
+  font-size: 0.8rem;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.collapse-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.conversation-preview-compact {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.5rem;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.context-message-compact {
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  transition: all 0.15s ease;
+}
+
+.context-message-compact:last-child {
+  margin-bottom: 0;
+}
+
+.context-message-compact:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.context-message-compact.outbound {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-left: 2px solid #2196f3;
+}
+
+.context-message-compact.inbound {
+  background: linear-gradient(135deg, #f1f8e9 0%, #c8e6c9 100%);
+  border-left: 2px solid #4caf50;
+}
+
+.message-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sender-compact {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  min-width: 40px;
+}
+
+.message-text-compact {
+  flex: 1;
+  color: #444;
+  word-wrap: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.time-compact {
+  color: #666;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.no-messages-compact {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 1rem;
+  font-size: 0.8rem;
+}
+
 .conversation-preview {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
@@ -6545,6 +6828,84 @@ export default {
   padding: 1rem;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.conversation-preview-improved {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 0.75rem;
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.context-message-improved {
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: all 0.15s ease;
+}
+
+.context-message-improved:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.context-message-improved.outbound {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-left: 3px solid #2196f3;
+  margin-left: 1.5rem;
+  align-self: flex-end;
+  max-width: 80%;
+}
+
+.context-message-improved.inbound {
+  background: linear-gradient(135deg, #f1f8e9 0%, #c8e6c9 100%);
+  border-left: 3px solid #4caf50;
+  margin-right: 1.5rem;
+  align-self: flex-start;
+  max-width: 80%;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
+}
+
+.sender-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.message-time {
+  color: #666;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.message-content {
+  color: #444;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.no-recent-messages {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 2rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+  border: 2px dashed #ddd;
 }
 
 .context-message {
@@ -6694,6 +7055,62 @@ export default {
   
   .conversation-preview {
     max-height: 150px;
+  }
+
+  .conversation-preview-improved {
+    max-height: 250px;
+    padding: 0.75rem;
+  }
+
+  .conversation-preview-compact {
+    max-height: 100px;
+    padding: 0.4rem;
+  }
+
+  .context-message-compact {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .message-row {
+    gap: 0.3rem;
+  }
+
+  .sender-compact {
+    font-size: 0.7rem;
+    min-width: 35px;
+  }
+
+  .message-text-compact {
+    max-width: 150px;
+    font-size: 0.75rem;
+  }
+
+  .time-compact {
+    font-size: 0.65rem;
+  }
+
+  .context-message-improved.outbound {
+    margin-left: 1rem;
+    max-width: 90%;
+  }
+
+  .context-message-improved.inbound {
+    margin-right: 1rem;
+    max-width: 90%;
+  }
+
+  .context-message-improved {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .message-header {
+    font-size: 0.75rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .message-time {
+    font-size: 0.7rem;
   }
   
   .ai-draft-footer {

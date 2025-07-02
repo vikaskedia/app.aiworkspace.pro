@@ -5,13 +5,16 @@
       <!-- Left Panel: Inbox/Navigation -->
       <div class="inbox-panel">
         <div class="panel-header">
-          <h3>Phone Numbers</h3>
-          <!-- Message count statistics -->
-          <div class="message-stats" style="margin-top: 8px; font-size: 0.75rem; color: #999;">
-            <div class="stat-line">This week: {{ messageCountsThisWeek }} sent</div>
-            <div class="stat-line">This month: {{ messageCountsThisMonth }} sent</div>
-            <div class="stat-line">This year: {{ messageCountsThisYear }} sent</div>
-          </div>
+          <el-tooltip placement="bottom">
+            <template #content>
+              <div>
+                <div>This week: {{ messageCountsThisWeek }} sent</div>
+                <div>This month: {{ messageCountsThisMonth }} sent</div>
+                <div>This year: {{ messageCountsThisYear }} sent</div>
+              </div>
+            </template>
+            <h3 style="cursor: pointer;">Phone Numbers</h3>
+          </el-tooltip>
         </div>
         
         <div class="inbox-menu">

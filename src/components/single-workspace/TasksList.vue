@@ -1,6 +1,6 @@
 <!-- src/components/TasksList.vue -->
 <script>
-import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check, ArrowLeft } from '@element-plus/icons-vue';
+import { ArrowUp, ArrowDown, InfoFilled, Link, Edit, More, Calendar, User, Timer, Delete, Plus, ArrowRight, Check, ArrowLeft, View } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
@@ -23,7 +23,8 @@ export default {
     Plus,
     ArrowRight,
     Check,
-    ArrowLeft
+    ArrowLeft,
+    View
   },
   props: {
     tasks: {
@@ -400,6 +401,13 @@ export default {
     },
     
     openComments(task) {
+      this.$emit('view-comments', task);
+    },
+
+    handleViewClick(event, task) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
       this.$emit('view-comments', task);
     },
 
@@ -851,11 +859,11 @@ export default {
       <template v-for="task in filteredTasks" :key="task.id">
         <!-- Parent task -->
         <div class="task-group">
-          <div 
+          <a 
+            :href="`/single-workspace/${task.matter_id}/tasks/${task.id}`"
             class="task-card"
             :class="{ 'parent-task': hasChildren(task) }"
-            @click="openComments(task)"
-            @contextmenu.prevent="navigateToDetailedView(task)">
+            @click.prevent="navigateToDetailedView(task)">
             <div class="task-main">
               <div 
                 v-if="hasChildren(task)"
@@ -900,6 +908,9 @@ export default {
                   </span>
                 </div>
                 <div class="hover-actions" v-if="editingTaskId !== task.id">
+                  <el-tooltip content="Quick view" placement="top">
+                    <el-icon class="action-icon view" @click="handleViewClick($event, task)"><View /></el-icon>
+                  </el-tooltip>
                   <el-icon class="action-icon" @click.stop="startEditing(task, 'title')"><Edit /></el-icon>
                   <el-icon class="action-icon delete" @click.stop="handleAction('delete', task)"><Delete /></el-icon>
                 </div>
@@ -976,7 +987,7 @@ export default {
                 </div>
               </div>
             </div>
-          </div>
+          </a>
 
           <!-- Modified child tasks section -->
           <el-collapse-transition>
@@ -985,11 +996,11 @@ export default {
               class="child-tasks">
               <template v-for="childTask in task.children" :key="childTask.id">
                 <!-- Recursive task component -->
-                <div 
+                <a 
+                  :href="`/single-workspace/${childTask.matter_id}/tasks/${childTask.id}`"
                   class="task-card"
                   :class="{ 'child-task': true, 'has-children': hasChildren(childTask) }"
-                  @click="openComments(childTask)"
-                  @contextmenu.prevent="navigateToDetailedView(childTask)">
+                  @click.prevent="navigateToDetailedView(childTask)">
                   <div class="task-main">
                     <div 
                       v-if="hasChildren(childTask)"
@@ -1025,6 +1036,9 @@ export default {
                         </span>
                       </div>
                       <div class="hover-actions" v-if="editingTaskId !== childTask.id">
+                        <el-tooltip content="Quick view" placement="top">
+                          <el-icon class="action-icon view" @click="handleViewClick($event, childTask)"><View /></el-icon>
+                        </el-tooltip>
                         <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
                         <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
                       </div>
@@ -1093,7 +1107,7 @@ export default {
                       </div>
                     </div>
                   </div>
-                </div>
+                </a>
 
                 <!-- Recursively render grand children -->
                 <el-collapse-transition>
@@ -1101,10 +1115,10 @@ export default {
                     v-if="hasChildren(childTask) && isExpanded(childTask.id)" 
                     class="child-tasks">
                     <template v-for="grandChildTask in childTask.children" :key="grandChildTask.id">
-                      <div 
+                      <a 
+                        :href="`/single-workspace/${grandChildTask.matter_id}/tasks/${grandChildTask.id}`"
                         class="task-card child-task"
-                        @click="openComments(grandChildTask)"
-                        @contextmenu.prevent="navigateToDetailedView(grandChildTask)">
+                        @click.prevent="navigateToDetailedView(grandChildTask)">
                         <div class="task-main">
                           <div class="task-title-container">
                             <template v-if="editingTaskId === grandChildTask.id && editingField === 'title'">
@@ -1132,6 +1146,9 @@ export default {
                               </span>
                             </div>
                             <div class="hover-actions" v-if="editingTaskId !== grandChildTask.id">
+                              <el-tooltip content="Quick view" placement="top">
+                                <el-icon class="action-icon view" @click="handleViewClick($event, grandChildTask)"><View /></el-icon>
+                              </el-tooltip>
                               <el-icon class="action-icon" @click.stop="startEditing(grandChildTask, 'title')"><Edit /></el-icon>
                               <el-icon class="action-icon delete" @click.stop="handleAction('delete', grandChildTask)"><Delete /></el-icon>
                             </div>
@@ -1200,7 +1217,7 @@ export default {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </a>
                     </template>
                   </div>
                 </el-collapse-transition>
@@ -1326,6 +1343,12 @@ export default {
   transition: background-color 0.2s ease;
   cursor: pointer;
   border-bottom: 1px solid var(--el-border-color-lighter);
+  text-decoration: none;
+  color: inherit;
+}
+
+.task-card:visited {
+  color: inherit;
 }
 
 .task-card:hover {
@@ -1495,6 +1518,14 @@ export default {
 
 .action-icon.delete:hover {
   color: var(--el-color-danger);
+}
+
+.action-icon.view {
+  color: var(--el-color-info);
+}
+
+.action-icon.view:hover {
+  color: var(--el-color-primary);
 }
 
 .assignee-badge.unassigned {

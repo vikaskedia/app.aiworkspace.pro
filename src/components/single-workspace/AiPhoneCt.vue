@@ -531,7 +531,12 @@
           </div>
 
           <!-- Message Input -->
-          <div class="message-input-area">
+          <div 
+            class="message-input-area"
+            @dragover.prevent="handleDragOver"
+            @dragleave.prevent="handleDragLeave"
+            @drop.prevent="handleFileDrop"
+            :class="{ 'drag-over': isDragOver }">
             <!-- File Preview Area -->
             <div v-if="selectedFiles.length > 0" class="file-preview-area">
               <div class="file-preview-header">
@@ -1613,6 +1618,7 @@ export default {
       
       // File handling
       selectedFiles: [],
+      isDragOver: false,
       uploadingFiles: false,
       
       // New Message Dialog
@@ -3033,6 +3039,39 @@ export default {
 
     clearSelectedFiles() {
       this.selectedFiles = [];
+    },
+
+    // Drag and drop handlers
+    handleDragOver(event) {
+      event.preventDefault();
+      this.isDragOver = true;
+    },
+
+    handleDragLeave(event) {
+      event.preventDefault();
+      // Only set isDragOver to false if we're leaving the entire drop zone
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        this.isDragOver = false;
+      }
+    },
+
+    handleFileDrop(event) {
+      event.preventDefault();
+      this.isDragOver = false;
+      
+      const files = event.dataTransfer.files;
+      if (files.length === 0) return;
+      
+      // Handle only the first file (matching existing behavior)
+      const file = files[0];
+      console.log('🔍 File dropped:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+      
+      // Use existing file validation logic
+      this.handleFileSelect(file);
     },
 
     handleMessageInputKeydown(event) {
@@ -5048,6 +5087,33 @@ export default {
   padding: 1rem;
   border-top: 1px solid #e0e0e0;
   background: white;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.message-input-area.drag-over {
+  background: #f0f9ff;
+  border-color: #409efc;
+}
+
+.message-input-area.drag-over::before {
+  content: '📎 Drop image here to attach';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(64, 158, 252, 0.1);
+  border: 2px dashed #409efc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #409efc;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .input-container {

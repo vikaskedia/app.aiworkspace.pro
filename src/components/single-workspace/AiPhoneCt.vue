@@ -35,7 +35,14 @@
                      <div>This year: {{ getPhoneNumberMessageCounts(item.number).year }} sent</div>
                    </div>
                  </template>
-                 <span class="item-label" style="cursor: pointer;" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)" @click.stop="togglePhoneTagsExpand(item.id)">{{ item.label }}</span>
+                 <span class="item-label" style="cursor: pointer;" :class="{ 'untagged-filter-active': showUntaggedOnly && selectedInboxItem === item.id }" @click="selectInboxItem(item.id)" @click.stop="togglePhoneTagsExpand(item.id)">
+                   {{ item.label }}
+                   <el-tooltip v-if="showUntaggedOnly && selectedInboxItem === item.id && getUnreadCountsForUntagged(item.number) > 0" content="Unread untagged messages" placement="top">
+                     <span class="unread-badge" style="margin-left: 6px; background: #909399; color: white; font-size: 0.7rem; padding: 1px 4px; border-radius: 8px; min-width: 12px; text-align: center;">
+                       {{ getUnreadCountsForUntagged(item.number) }}
+                     </span>
+                   </el-tooltip>
+                 </span>
                </el-tooltip><br>
               <span class="phone-number">{{ item.number }}</span>
               <div class="phone-tags-tree" style="margin-top: 4px;">
@@ -60,6 +67,11 @@
                       <div style="display: flex; align-items: center;">
                         <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" />
                         {{ tagGroup.name }}
+                        <el-tooltip v-if="getUnreadCountsForTag(item.number, tagGroup.name) > 0" content="Unread messages" placement="top">
+                          <span class="unread-badge" style="margin-left: 6px; background: #f56c6c; color: white; font-size: 0.7rem; padding: 1px 4px; border-radius: 8px; min-width: 12px; text-align: center;">
+                            {{ getUnreadCountsForTag(item.number, tagGroup.name) }}
+                          </span>
+                        </el-tooltip>
                       </div>
                       <el-icon 
                         v-if="selectedTagByPhone[item.id] === tagGroup.name"
@@ -81,6 +93,11 @@
                         <div style="display: flex; align-items: center;">
                           <img src="/label_icon.png" style="margin-right: 4px; width: 12px; height: 12px;" /> 
                           {{ tagGroup.name }}
+                          <el-tooltip v-if="getUnreadCountsForTag(item.number, tagGroup.name) > 0" content="Unread messages" placement="top">
+                            <span class="unread-badge" style="margin-left: 6px; background: #f56c6c; color: white; font-size: 0.7rem; padding: 1px 4px; border-radius: 8px; min-width: 12px; text-align: center;">
+                              {{ getUnreadCountsForTag(item.number, tagGroup.name) }}
+                            </span>
+                          </el-tooltip>
                         </div>
                         <el-icon 
                           v-if="selectedTagByPhone[item.id] === tagGroup.name"
@@ -103,6 +120,11 @@
                             <span style="margin-right: 4px;">├─</span>
                             <img src="/label_icon.png" style="margin-right: 4px; width: 10px; height: 10px;" />
                             {{ childTag.name }}
+                            <el-tooltip v-if="getUnreadCountsForTag(item.number, childTag.fullName) > 0" content="Unread messages" placement="top">
+                              <span class="unread-badge" style="margin-left: 6px; background: #f56c6c; color: white; font-size: 0.65rem; padding: 1px 3px; border-radius: 6px; min-width: 10px; text-align: center;">
+                                {{ getUnreadCountsForTag(item.number, childTag.fullName) }}
+                              </span>
+                            </el-tooltip>
                           </div>
                           <el-icon 
                             v-if="selectedTagByPhone[item.id] === childTag.fullName"
@@ -2177,7 +2199,66 @@ export default {
       };
     },
 
+    // Calculate unread message counts for each tag
+    getUnreadCountsForTag() {
+      return (phoneNumber, tagName) => {
+        if (!phoneNumber || !tagName) return 0;
+        
+        // Get conversations for this phone number
+        const phoneConversations = this.realtimeConversations.filter(conv => 
+          conv.fromPhoneNumber === phoneNumber
+        );
+        
+        // Filter conversations that have contacts with this tag
+        const taggedConversations = phoneConversations.filter(conv => {
+          const contact = this.workspaceContacts.find(c => {
+            const convPhone = conv.phoneNumber || conv.contact || '';
+            const contactPhone = c.phone_number || '';
+            const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+            const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+            const fullConvPhone = convPhone.replace(/\D/g, '');
+            const fullContactPhone = contactPhone.replace(/\D/g, '');
+            return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+          });
+          
+          return contact && contact.tags && contact.tags.includes(tagName);
+        });
+        
+        // Sum up unread counts for these conversations
+        return taggedConversations.reduce((sum, conv) => sum + (conv.unread || 0), 0);
+      };
+    },
 
+    // Calculate unread counts for untagged conversations
+    getUnreadCountsForUntagged() {
+      return (phoneNumber) => {
+        if (!phoneNumber) return 0;
+        
+        // Get conversations for this phone number
+        const phoneConversations = this.realtimeConversations.filter(conv => 
+          conv.fromPhoneNumber === phoneNumber
+        );
+        
+        // Filter conversations that have no tags or contacts without tags
+        const untaggedConversations = phoneConversations.filter(conv => {
+          const contact = this.workspaceContacts.find(c => {
+            const convPhone = conv.phoneNumber || conv.contact || '';
+            const contactPhone = c.phone_number || '';
+            const normalizedConvPhone = convPhone.replace(/\D/g, '').slice(-10);
+            const normalizedContactPhone = contactPhone.replace(/\D/g, '').slice(-10);
+            const fullConvPhone = convPhone.replace(/\D/g, '');
+            const fullContactPhone = contactPhone.replace(/\D/g, '');
+            return normalizedConvPhone === normalizedContactPhone || fullConvPhone === fullContactPhone;
+          });
+          
+          // Show conversation if contact doesn't exist or has no tags
+          return !contact || !contact.tags || contact.tags.length === 0;
+        });
+        
+        // Sum up unread counts for these conversations
+        return untaggedConversations.reduce((sum, conv) => sum + (conv.unread || 0), 0);
+      };
+    },
 
     hierarchicalTagsForPhone() {
       // Returns a function that takes a phone number and returns hierarchical tags
@@ -6433,6 +6514,24 @@ export default {
 
 .parent-tag-container {
   margin-bottom: 4px;
+}
+
+/* Unread badge styles */
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.unread-badge:hover {
+  transform: scale(1.1);
 }
 
 .parent-tag-header {

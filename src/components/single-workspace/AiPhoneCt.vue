@@ -8,6 +8,7 @@
           <el-tooltip placement="bottom">
             <template #content>
               <div>
+                <div style="font-weight: bold; margin-bottom: 4px;">Messages Sent by Team (All Numbers)</div>
                 <div>This week: {{ messageCountsThisWeek }} sent</div>
                 <div>This month: {{ messageCountsThisMonth }} sent</div>
                 <div>This year: {{ messageCountsThisYear }} sent</div>
@@ -28,6 +29,7 @@
                              <el-tooltip placement="right">
                  <template #content>
                    <div>
+                     <div style="font-weight: bold; margin-bottom: 4px;">Messages Sent by Team ({{ item.number }})</div>
                      <div>This week: {{ getPhoneNumberMessageCounts(item.number).week }} sent</div>
                      <div>This month: {{ getPhoneNumberMessageCounts(item.number).month }} sent</div>
                      <div>This year: {{ getPhoneNumberMessageCounts(item.number).year }} sent</div>

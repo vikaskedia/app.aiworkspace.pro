@@ -22,19 +22,26 @@
         >
           Save Outline (cmd+s)
         </el-button-->
-        <el-button 
-          icon 
-          @click="manualRefresh" 
-          :loading="refreshing"
-          title="Refresh from server"
-          style="margin-right: 8px;"
-          :type="hasChanges ? 'warning' : 'default'"
-        >
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-        <el-button icon @click="openHistoryDialog" style="margin-right: 8px;">
-          <el-icon><Clock /></el-icon>
-        </el-button>
+        <el-tooltip content="Refresh outline from server" placement="bottom">
+          <el-button 
+            icon 
+            @click="manualRefresh" 
+            :loading="refreshing"
+            style="margin-right: 8px;"
+            :type="hasChanges ? 'warning' : 'default'"
+          >
+            <el-icon><Refresh /></el-icon>
+          </el-button>
+        </el-tooltip>
+        <el-tooltip content="View outline version history" placement="bottom">
+          <el-button 
+            icon 
+            @click="openHistoryDialog" 
+            style="margin-right: 8px;"
+          >
+            <el-icon><Clock /></el-icon>
+          </el-button>
+        </el-tooltip>
       </div>
       <div class="sync-status">
         <el-tag 

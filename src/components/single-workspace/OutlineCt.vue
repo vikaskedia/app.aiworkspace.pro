@@ -198,9 +198,19 @@ export default {
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
       if (!lastSavedContent.value) return false;
-      const newContentStr = JSON.stringify(newContent);
-      const lastSavedStr = JSON.stringify(lastSavedContent.value);
-      return newContentStr !== lastSavedStr;
+      try {
+        // Create snapshots to avoid reactive object issues
+        const newContentSnapshot = JSON.parse(JSON.stringify(newContent));
+        const lastSavedSnapshot = JSON.parse(JSON.stringify(lastSavedContent.value));
+        
+        const newContentStr = JSON.stringify(newContentSnapshot);
+        const lastSavedStr = JSON.stringify(lastSavedSnapshot);
+        return newContentStr !== lastSavedStr;
+      } catch (error) {
+        console.warn('⚠️ Error in checkForChanges, assuming changes exist:', error);
+        // If serialization fails, assume there are changes to be safe
+        return true;
+      }
     };
 
     // Helper to deep clone an object
@@ -1204,10 +1214,21 @@ export default {
                 if (versionIsNewer || versionIsSame) {
                   console.log('🔄 Processing update from another tab');
                   
-                  // Compare content to see if there are actual differences
-                  const currentContentStr = JSON.stringify(outline.value);
-                  const newContentStr = JSON.stringify(newContent);
-                  const contentIsDifferent = currentContentStr !== newContentStr;
+                  // Safe content comparison with error handling
+                  let currentContentStr, newContentStr, contentIsDifferent;
+                  try {
+                    // Create a deep clone to avoid reactive object issues during comparison
+                    const currentContentSnapshot = JSON.parse(JSON.stringify(outline.value));
+                    currentContentStr = JSON.stringify(currentContentSnapshot);
+                    newContentStr = JSON.stringify(newContent);
+                    contentIsDifferent = currentContentStr !== newContentStr;
+                  } catch (serializationError) {
+                    console.warn('⚠️ Content comparison failed, assuming content is different:', serializationError);
+                    // If serialization fails, assume content is different and proceed safely
+                    contentIsDifferent = true;
+                    currentContentStr = '';
+                    newContentStr = JSON.stringify(newContent);
+                  }
                   
                   if (contentIsDifferent) {
                     console.log('📝 Content is different, deciding how to merge...');
@@ -1218,19 +1239,33 @@ export default {
                       const freshContent = JSON.parse(JSON.stringify(newContent));
                       
                       // Update local state
-                      await nextTick(() => {
+                      try {
+                        await nextTick(() => {
+                          outline.value = freshContent;
+                          currentVersion.value = newVersion;
+                          lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
+                          hasChanges.value = false;
+                        });
+                      } catch (updateError) {
+                        console.warn('⚠️ Error updating local state, applying manually:', updateError);
+                        // Fallback to direct assignment if nextTick fails
                         outline.value = freshContent;
                         currentVersion.value = newVersion;
                         lastSavedContent.value = JSON.parse(JSON.stringify(freshContent));
                         hasChanges.value = false;
-                      });
+                      }
 
                       // Update localStorage
-                      const localStorageKey = getLocalStorageKey();
-                      const versionKey = getVersionKey();
-                      localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
-                      localStorage.setItem(versionKey, newVersion.toString());
-                      localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+                      try {
+                        const localStorageKey = getLocalStorageKey();
+                        const versionKey = getVersionKey();
+                        localStorage.setItem(localStorageKey, JSON.stringify(freshContent));
+                        localStorage.setItem(versionKey, newVersion.toString());
+                        localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(freshContent));
+                      } catch (storageError) {
+                        console.warn('⚠️ Failed to update localStorage:', storageError);
+                        // Continue execution even if localStorage fails
+                      }
 
                       // Only show notification if this is a significant structural change
                       // and it's not the first update after page load
@@ -1252,27 +1287,50 @@ export default {
                       
                       // Check if our local changes are the same as what we're receiving
                       // This can happen when one tab saves and another tab receives the update
-                      const localChangesStr = JSON.stringify(outline.value);
-                      const remoteChangesStr = JSON.stringify(newContent);
+                      let localChangesStr, remoteChangesStr;
+                      try {
+                        const localSnapshot = JSON.parse(JSON.stringify(outline.value));
+                        localChangesStr = JSON.stringify(localSnapshot);
+                        remoteChangesStr = JSON.stringify(newContent);
+                      } catch (comparisonError) {
+                        console.warn('⚠️ Local changes comparison failed, treating as conflict:', comparisonError);
+                        // If comparison fails, treat as a conflict to be safe
+                        localChangesStr = 'local_error';
+                        remoteChangesStr = 'remote_content';
+                      }
                       
                       if (localChangesStr === remoteChangesStr) {
                         // Our local changes match the remote content - this is a sync, not a conflict
                         console.log('✅ Local changes match remote content - applying sync');
                         
                         // Update local state to match the server
-                        await nextTick(() => {
+                        try {
+                          await nextTick(() => {
+                            outline.value = JSON.parse(JSON.stringify(newContent));
+                            currentVersion.value = newVersion;
+                            lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
+                            hasChanges.value = false;
+                          });
+                        } catch (syncUpdateError) {
+                          console.warn('⚠️ Error updating state during sync, applying manually:', syncUpdateError);
+                          // Fallback to direct assignment if nextTick fails
                           outline.value = JSON.parse(JSON.stringify(newContent));
                           currentVersion.value = newVersion;
                           lastSavedContent.value = JSON.parse(JSON.stringify(newContent));
                           hasChanges.value = false;
-                        });
+                        }
 
                         // Update localStorage
-                        const localStorageKey = getLocalStorageKey();
-                        const versionKey = getVersionKey();
-                        localStorage.setItem(localStorageKey, JSON.stringify(newContent));
-                        localStorage.setItem(versionKey, newVersion.toString());
-                        localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(newContent));
+                        try {
+                          const localStorageKey = getLocalStorageKey();
+                          const versionKey = getVersionKey();
+                          localStorage.setItem(localStorageKey, JSON.stringify(newContent));
+                          localStorage.setItem(versionKey, newVersion.toString());
+                          localStorage.setItem(`${localStorageKey}_last_saved`, JSON.stringify(newContent));
+                        } catch (syncStorageError) {
+                          console.warn('⚠️ Failed to update localStorage during sync:', syncStorageError);
+                          // Continue execution even if localStorage fails
+                        }
 
                         // Silently sync - no notification needed for seamless sync
                         console.log('✅ Changes synchronized between tabs');
@@ -1288,9 +1346,14 @@ export default {
                         hasChanges.value = checkForChanges(outline.value);
                         
                         // Update localStorage with remote version info but keep local content
-                        const versionKey = getVersionKey();
-                        localStorage.setItem(versionKey, newVersion.toString());
-                        localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
+                        try {
+                          const versionKey = getVersionKey();
+                          localStorage.setItem(versionKey, newVersion.toString());
+                          localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(newContent));
+                        } catch (conflictStorageError) {
+                          console.warn('⚠️ Failed to update localStorage during conflict handling:', conflictStorageError);
+                          // Continue execution even if localStorage fails
+                        }
                         
                         // Show conflict notification only for real conflicts, but only if not first update
                         if (!isFirstUpdate) {
@@ -1312,8 +1375,13 @@ export default {
                     hasChanges.value = checkForChanges(outline.value);
                     
                     // Update localStorage version
-                    const versionKey = getVersionKey();
-                    localStorage.setItem(versionKey, newVersion.toString());
+                    try {
+                      const versionKey = getVersionKey();
+                      localStorage.setItem(versionKey, newVersion.toString());
+                    } catch (versionStorageError) {
+                      console.warn('⚠️ Failed to update version in localStorage:', versionStorageError);
+                      // Continue execution even if localStorage fails
+                    }
                   }
                 } else {
                   console.log('⏪ Received older version - ignoring');

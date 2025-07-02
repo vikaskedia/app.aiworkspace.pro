@@ -13,7 +13,7 @@
     </div>
     <div class="outline-header">
       <div class="outline-actions">
-        <el-button 
+        <!--el-button 
           type="primary" 
           @click="saveOutline" 
           :loading="saving"
@@ -21,7 +21,7 @@
           style="margin-right: 8px;"
         >
           Save Outline (cmd+s)
-        </el-button>
+        </el-button-->
         <el-button 
           icon 
           @click="manualRefresh" 

@@ -536,7 +536,9 @@
             @dragover.prevent="handleDragOver"
             @dragleave.prevent="handleDragLeave"
             @drop.prevent="handleFileDrop"
-            :class="{ 'drag-over': isDragOver }">
+            @paste="handlePaste"
+            :class="{ 'drag-over': isDragOver }"
+            tabindex="0">
             <!-- File Preview Area -->
             <div v-if="selectedFiles.length > 0" class="file-preview-area">
               <div class="file-preview-header">
@@ -575,8 +577,9 @@
                   v-model="newMessage"
                   type="textarea"
                   :rows="4"
-                  placeholder="Type a message..."
+                  placeholder="Type a message... (Paste images with Cmd/Ctrl+V)"
                   @keydown="handleMessageInputKeydown"
+                  @paste="handlePaste"
                   class="new-message-input-textarea"
                   resize="none">
                 </el-input>
@@ -3074,6 +3077,47 @@ export default {
       this.handleFileSelect(file);
     },
 
+    async handlePaste(event) {
+      const clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+
+      const items = clipboardData.items;
+      if (!items) return;
+
+      // Look for image items in clipboard
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        if (item.type.indexOf('image') !== -1) {
+          event.preventDefault();
+          
+          const blob = item.getAsFile();
+          if (blob) {
+            // Create a meaningful filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const extension = blob.type.split('/')[1] || 'png';
+            const filename = `pasted-image-${timestamp}.${extension}`;
+            
+            // Create a File object from the blob with a proper name
+            const file = new File([blob], filename, {
+              type: blob.type,
+              lastModified: Date.now()
+            });
+            
+            console.log('📋 Image pasted from clipboard:', {
+              name: file.name,
+              type: file.type,
+              size: file.size
+            });
+            
+            // Use existing file validation logic
+            this.handleFileSelect(file);
+          }
+          break; // Only handle the first image found
+        }
+      }
+    },
+
     handleMessageInputKeydown(event) {
       // Check if Enter is pressed
       if (event.key === 'Enter') {
@@ -5089,6 +5133,7 @@ export default {
   background: white;
   transition: all 0.2s ease;
   position: relative;
+  outline: none; /* Remove focus outline since this is primarily for paste events */
 }
 
 .message-input-area.drag-over {

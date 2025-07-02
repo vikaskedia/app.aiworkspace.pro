@@ -7302,6 +7302,8 @@ export default {
   padding-bottom: 0.5rem;
 }
 
+
+
 /* Contact Details Inline Editing Styles */
 .contact-name-large {
   cursor: pointer;

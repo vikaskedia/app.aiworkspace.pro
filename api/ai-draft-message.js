@@ -30,7 +30,12 @@ export default async function handler(req, res) {
     // Prepare the conversation context for ChatGPT
     const conversationContext = conversation
       .slice(-10) // Get last 10 messages to avoid token limits
-      .map(msg => `${msg.direction === 'outbound' ? 'You' : (contactName || 'Contact')}: ${msg.text || '[Media message]'}`)
+      .map(msg => {
+        const sender = msg.direction === 'outbound' ? 'You' : (contactName || 'Contact');
+        const messageText = msg.text || '[Media message]';
+        const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown time';
+        return `[${timestamp}] ${sender}: ${messageText}`;
+      })
       .join('\n');
 
     const systemPrompt = `You are an AI assistant helping to draft professional and appropriate text message replies. 

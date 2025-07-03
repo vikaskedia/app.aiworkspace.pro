@@ -605,12 +605,12 @@
                 <el-input
                   v-model="newMessage"
                   type="textarea"
-                  :rows="4"
+                  :autosize="{ minRows: 4, maxRows: 100 }"
                   placeholder="Type a message... (Paste images with Cmd/Ctrl+V)"
                   @keydown="handleMessageInputKeydown"
                   @paste="handlePaste"
                   class="new-message-input-textarea"
-                  resize="none">
+                >
                 </el-input>
                 <div class="input-actions">
                   <!-- File Upload Button -->

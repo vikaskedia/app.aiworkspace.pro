@@ -818,7 +818,7 @@
                   </template>
                 </div>
               </div>
-              <div class="detail-row"><el-icon size="15" color="#69696b"><UserFilled /></el-icon><span class="contact-detail-label">Creator</span><div class="detail-value">{{ selectedContactDetails.creator_name || 'Unknown' }}</div></div>
+              <div class="detail-row"><el-icon size="15" color="#69696b"><UserFilled /></el-icon><span class="contact-detail-label">Creator</span><div class="detail-value"><span>{{ selectedContactDetails.creator_name || 'Unknown' }}</span></div></div>
             </div>
             <hr>
             <!-- Contact Notes -->
@@ -6727,18 +6727,50 @@ export default {
 .contact-details-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.1rem;
 }
 
 .detail-row {
   display: flex;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.contact-detail-label {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  min-width: 110px;
+  max-width: 140px;
+  color: #69696b;
+  font-size: 15px;
+  font-weight: 425;
+  margin-left: 6px;
 }
 
 .detail-value {
   flex: 1;
   text-align: left;
+  font-size: 15px;
+  color: #222;
+  font-weight: 400;
+  margin-left: 12px;
+  display: flex;
+  align-items: baseline;
+}
+
+.detail-value .placeholder {
+  color: #bdbdbd;
+}
+
+.detail-row .el-icon {
+  min-width: 20px;
+  color: #69696b;
+  font-size: 17px;
+  margin-right: 2px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
 }
 
 .placeholder {
@@ -7630,6 +7662,11 @@ export default {
 .detail-value .el-select :deep(.el-input__inner:focus) {
   border-color: #409eff;
   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.detail-value span {
+  font-size: 13px;
+  color: #69696b;
 }
 
 .cursor-pointer {

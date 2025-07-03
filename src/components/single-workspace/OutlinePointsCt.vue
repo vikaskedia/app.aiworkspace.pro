@@ -78,14 +78,14 @@
         </span>
       </span>
       
-      <div 
+      <a 
         class="outline-bullet"
         draggable="true"
-        @click="$emit('drilldown', item.id)"
-        style="cursor:pointer;"
+        :href="`${$route.path}?focus=${item.id}`"
         @dragstart="handleDragStart"
         @dragend="handleDragEnd"
-      ></div>
+        @click.prevent="$emit('drilldown', item.id)"
+      ></a>
       <span v-if="!editing && item.text.length > 0" class="outline-text" @click="handleTextClick" v-html="renderTextWithLinks(item.text)"></span>
       <textarea
         v-else

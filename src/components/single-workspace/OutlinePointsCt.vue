@@ -1429,7 +1429,7 @@ export default {
   border: 2px solid #e3eaf6;
   margin-left: -18px;
   margin-top: 5px;
-  cursor: move;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 

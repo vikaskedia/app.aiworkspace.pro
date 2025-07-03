@@ -320,6 +320,9 @@
                   :alt="getCurrentContact()?.name"
                   class="avatar-image"
                 />
+                <span v-else-if="getInitials(getCurrentContact()?.name) != '+' && getCurrentContact()?.name">
+                  {{ getInitials(getCurrentContact()?.name) }}
+                </span>
                 <el-icon v-else><User /></el-icon>
               </div>
               <div>

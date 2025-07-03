@@ -2578,6 +2578,17 @@ export default {
           container.scrollTop = container.scrollHeight;
         }
       });
+      // Open all internal comment threads by default for messages with comments
+      this.showingInternalCommentsFor = [];
+      if (this.currentChat && this.currentChat.messages) {
+        for (const msg of this.currentChat.messages) {
+          if (this.getInternalCommentsCount(msg.id) > 0) {
+            this.showingInternalCommentsFor.push(msg.id);
+            // Load comments for this message
+            this.loadInternalComments(msg.id);
+          }
+        }
+      }
     },
 
     async loadCallRecordings(conversationId) {

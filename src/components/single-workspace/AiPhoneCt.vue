@@ -410,10 +410,10 @@
                   </el-dropdown>
                   
                   <!-- Internal Comments Indicator -->
-                  <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="toggleInlineInternalComments(item.item)">
+                  <!-- <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="toggleInlineInternalComments(item.item)">
                     <el-icon><ChatDotRound /></el-icon>
                     <span class="comments-count">{{ getInternalCommentsCount(item.item.id) }}</span>
-                  </div>
+                  </div> -->
                   <!-- Media attachments -->
                   <div v-if="item.item.mediaFiles && item.item.mediaFiles.length > 0" class="message-media">
                     <div 

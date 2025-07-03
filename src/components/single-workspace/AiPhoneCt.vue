@@ -405,6 +405,10 @@
                         >
                           {{ action.action_name }}
                         </el-dropdown-item>
+                        <el-dropdown-item command="seen-by" divided>Seen by</el-dropdown-item>
+                        <el-dropdown-item v-if="usersWhoHaveSeenMessage(item.item).length" :command="'seen-by-' + item.item.id">
+                          {{ usersWhoHaveSeenMessage(item.item).map(u => u.display_name).join(', ') }}
+                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
@@ -465,13 +469,6 @@
                   
                   <!-- Message timestamp -->
                   <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
-                  <el-tooltip
-                    v-if="usersWhoHaveSeenMessage(item.item).length"
-                    :content="usersWhoHaveSeenMessage(item.item).map(u => u.display_name).join(', ')"
-                    placement="top"
-                  >
-                    <el-icon style="margin-left: 6px; color: #67c23a;"><Check /></el-icon>
-                  </el-tooltip>
 
                   <!-- Inline Internal Comments Thread (moved inside message-content) -->
                   <div v-if="showingInternalCommentsFor.includes(item.item.id)" class="inline-internal-comments">

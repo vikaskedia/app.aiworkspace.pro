@@ -18,7 +18,9 @@
       <el-card v-for="matter in matters" :key="matter.id" class="matter-card">
         <template #header>
           <div class="matter-header">
-            <h3 class="clickable-title" @click="handleCommand('view', matter)">{{ matter.title }}</h3>
+            <a :href="`/single-workspace/${matter.id}`" @click="handleCommand('view', matter)" class="matter-title-link">
+              <h3 class="clickable-title">{{ matter.title }}</h3>
+            </a>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
               <el-button type="primary" link>
                 <el-icon><More /></el-icon>
@@ -40,24 +42,30 @@
         </template>
 
         <div class="matter-stats">
-          <div class="stat-item clickable-stat" @click="navigateToGoals(matter)">
-            <h4>Goals</h4>
-            <div class="stat-numbers">
-              <span>{{ matter.stats?.goals_total || 0 }} Total</span>
-              <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
+          <a :href="`/single-workspace/${matter.id}/goals`" @click="navigateToGoals(matter)" class="stat-link">
+            <div class="stat-item clickable-stat">
+              <h4>Goals</h4>
+              <div class="stat-numbers">
+                <span>{{ matter.stats?.goals_total || 0 }} Total</span>
+                <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
+              </div>
             </div>
-          </div>
-          <div class="stat-item clickable-stat" @click="navigateToTasks(matter)">
-            <h4>Tasks</h4>
-            <div class="stat-numbers">
-              <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
-              <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
+          </a>
+          <a :href="`/single-workspace/${matter.id}/tasks`" @click="navigateToTasks(matter)" class="stat-link">
+            <div class="stat-item clickable-stat">
+              <h4>Tasks</h4>
+              <div class="stat-numbers">
+                <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
+                <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
+              </div>
             </div>
-          </div>
-          <div class="stat-item clickable-stat" @click="navigateToEvents(matter)">
-            <h4>Upcoming Events</h4>
-            <span>{{ matter.stats?.upcoming_events || 0 }}</span>
-          </div>
+          </a>
+          <a :href="`/single-workspace/${matter.id}/events`" @click="navigateToEvents(matter)" class="stat-link">
+            <div class="stat-item clickable-stat">
+              <h4>Upcoming Events</h4>
+              <span>{{ matter.stats?.upcoming_events || 0 }}</span>
+            </div>
+          </a>
         </div>
 
         <div class="matter-description" v-if="matter.description">
@@ -663,5 +671,25 @@ export default {
 
 .clickable-stat:hover h4 {
   color: var(--el-color-primary);
+}
+
+/* Anchor tag styling */
+.matter-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.matter-title-link:hover {
+  text-decoration: none;
+}
+
+.stat-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.stat-link:hover {
+  text-decoration: none;
 }
 </style> 

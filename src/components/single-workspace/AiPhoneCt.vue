@@ -305,8 +305,8 @@
       <div class="chat-panel">
         <div v-if="!selectedConversation" class="no-chat-selected">
           <el-icon class="large-icon"><ChatDotRound /></el-icon>
-          <h3>Select a conversation</h3>
-          <p>Choose a conversation from the left to start messaging</p>
+          <h3 class="no-chat-selected-title">Select a conversation</h3>
+          <p class="no-chat-selected-title">Choose a conversation from the left to start messaging</p>
         </div>
 
         <div v-else class="active-chat">
@@ -723,25 +723,17 @@
               </template>
             </div>
             <!-- Contact Name -->
-            <h2 v-if="!editingContact" class="contact-name-large redesigned-name" @click="startEditContact('name')">{{ selectedContactDetails.name }}</h2>
+            <template v-if="editingField === 'name'">
+              <el-input ref="nameInput" v-model="editableContact.name" size="small" @blur="saveEditContact('name')" @keydown="handleContactFieldKeydown($event, 'name')" />
+            </template>
+            <h2 v-else class="contact-name-large redesigned-name" @click="startEditContact('name')">{{ selectedContactDetails.name }}</h2>
             <!-- Details List -->
             <div class="contact-details-list">
-              <div v-if="editingContact" class="detail-row">
-                <el-icon><User /></el-icon><span>Name</span>
-                <div class="detail-value" >
-                  <template v-if="editingContact">
-                    <el-input ref="nameInput" data-field="name" v-model="editableContact.name" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'name')" />
-                  </template>
-                  <template v-else>
-                    {{ selectedContactDetails.name }}
-                  </template>
-                </div>
-              </div>
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Briefcase /></el-icon><span class="contact-detail-label">Company</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="companyInput" v-model="editableContact.company" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'company')" />
+                  <template v-if="editingField === 'company'">
+                    <el-input ref="companyInput" v-model="editableContact.company" size="small" @blur="saveEditContact('company')" @keydown="handleContactFieldKeydown($event, 'company')" />
                   </template>
                   <template v-else>
                     <span @click="startEditContact('company')">{{ selectedContactDetails.company || 'Set a company...' }}</span>
@@ -751,8 +743,8 @@
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><User /></el-icon><span class="contact-detail-label">Role</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="roleInput" v-model="editableContact.role" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'role')" />
+                  <template v-if="editingField === 'role'">
+                    <el-input ref="roleInput" v-model="editableContact.role" size="small" @blur="saveEditContact('role')" @keydown="handleContactFieldKeydown($event, 'role')" />
                   </template>
                   <template v-else>
                     <span @click="startEditContact('role')">{{ selectedContactDetails.role || 'Set a role...' }}</span>
@@ -762,19 +754,19 @@
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Phone /></el-icon><span class="contact-detail-label">Phone</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="phoneInput" v-model="editableContact.phone_number" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'phone')" />
+                  <template v-if="editingField === 'phone_number'">
+                    <el-input ref="phone_numberInput" v-model="editableContact.phone_number" size="small" @blur="saveEditContact('phone_number')" @keydown="handleContactFieldKeydown($event, 'phone_number')" />
                   </template>
                   <template v-else>
-                    <span @click="startEditContact('phone')">{{ formatPhone(selectedContactDetails.phone_number) || 'Set a phone...' }}</span>
+                    <span @click="startEditContact('phone_number')">{{ formatPhone(selectedContactDetails.phone_number) || 'Set a phone...' }}</span>
                   </template>
                 </div>
               </div>
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Message /></el-icon><span class="contact-detail-label">Email</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="emailInput" v-model="editableContact.email" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'email')" />
+                  <template v-if="editingField === 'email'">
+                    <el-input ref="emailInput" v-model="editableContact.email" size="small" @blur="saveEditContact('email')" @keydown="handleContactFieldKeydown($event, 'email')" />
                   </template>
                   <template v-else>
                     <span @click="startEditContact('email')">{{ selectedContactDetails.email || 'Set an email...' }}</span>
@@ -784,19 +776,19 @@
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Document /></el-icon><span class="contact-detail-label">Matter</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="matterInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'matter')" />
+                  <template v-if="editingField === 'matter_text'">
+                    <el-input ref="matter_textInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact('matter_text')" @keydown="handleContactFieldKeydown($event, 'matter_text')" />
                   </template>
                   <template v-else>
-                    <span @click="startEditContact('matter')">{{ selectedContactDetails.matter_text || 'Set a matter...' }}</span>
+                    <span @click="startEditContact('matter_text')">{{ selectedContactDetails.matter_text || 'Set a matter...' }}</span>
                   </template>
                 </div>
               </div>
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><List /></el-icon><span class="contact-detail-label">Tags</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-select ref="tagsInput" v-model="editableContact.tags" multiple filterable allow-create default-first-option size="small" style="width: 100%" @blur="saveEditContact">
+                  <template v-if="editingField === 'tags'">
+                    <el-select ref="tagsInput" v-model="editableContact.tags" multiple filterable allow-create default-first-option size="small" style="width: 100%" @blur="saveEditContact('tags')">
                       <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
                     </el-select>
                   </template>
@@ -813,15 +805,18 @@
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Location /></el-icon><span class="contact-detail-label">Address</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingContact">
-                    <el-input ref="addressInput" v-model="editableContact.address" size="small" @blur="saveEditContact" @keydown="handleContactFieldKeydown($event, 'address')" />
+                  <template v-if="editingField === 'address'">
+                    <el-input ref="addressInput" v-model="editableContact.address" size="small" @blur="saveEditContact('address')" @keydown="handleContactFieldKeydown($event, 'address')" />
                   </template>
                   <template v-else>
                     <span @click="startEditContact('address')">{{ selectedContactDetails.address || 'Set an address...' }}</span>
                   </template>
                 </div>
               </div>
-              <div class="detail-row"><el-icon size="15" color="#69696b"><UserFilled /></el-icon><span class="contact-detail-label">Creator</span><div class="detail-value"><span>{{ selectedContactDetails.creator_name || 'Unknown' }}</span></div></div>
+              <div class="detail-row">
+                <el-icon size="15" color="#69696b"><UserFilled /></el-icon><span class="contact-detail-label">Creator</span>
+                <div class="detail-value"><span>{{ selectedContactDetails.creator_name || 'Unknown' }}</span></div>
+              </div>
             </div>
             <hr>
             <!-- Contact Notes -->
@@ -864,7 +859,7 @@
           <!-- Placeholder if no contact is selected -->
           <div v-else class="no-contact-found">
             <el-icon class="large-icon"><User /></el-icon>
-            <h3>No Contact Selected</h3>
+            <h3 class="no-contact-selected-title">No contact selected</h3>
             <p>Select a contact to view details.</p>
           </div>
         </div>
@@ -1879,6 +1874,7 @@ export default {
       lastSeenUsers: {}, // { [conversationId]: users[] }
       loadingLastSeen: {}, // { [conversationId]: boolean }
       conversationReadStatus: [], // Array of { user_id, last_read_at, display_name }
+      editingField: null, // Track which field is being edited
     };
   },
   computed: {
@@ -4042,111 +4038,72 @@ export default {
       return phone;
     },
     startEditContact(field = null) {
-      this.editingContact = true;
-      this.editableContact = { ...this.selectedContactDetails };
-      
-      // Focus on specific field after next tick to ensure DOM is updated
+      this.editingField = field;
       if (field) {
-        this.focusInputField(field);
+        this.editableContact = { ...this.selectedContactDetails };
+        this.$nextTick(() => {
+          const refName = field + 'Input';
+          if (this.$refs[refName] && this.$refs[refName].focus) {
+            this.$refs[refName].focus();
+          }
+        });
       }
     },
     cancelEditContact() {
-      this.editingContact = false;
+      this.editingField = null;
       this.editableContact = {};
     },
-    async saveEditContact() {
-      // Prevent multiple saves
-      if (this.savingContact) return;
-      
-      // Clear any existing timeout
-      if (this.saveTimeout) {
-        clearTimeout(this.saveTimeout);
-      }
-      
-      // Debounce the save to prevent immediate saves
-      this.saveTimeout = setTimeout(async () => {
-        this.savingContact = true;
-        
+    async saveEditContact(field = null) {
+      if (!field) return;
+      if (!this.selectedContactDetails) return;
+
+      // If no id, insert instead of update
+      if (!this.selectedContactDetails.id) {
         try {
-          let profilePictureUrl = this.editableContact.profile_picture_url;
-          // Only upload if the image is base64 (newly selected and not already a Gitea URL)
-          if (profilePictureUrl && profilePictureUrl.startsWith('data:image/')) {
-            // Prepare upload to Gitea
-            const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
-            const giteaHost = import.meta.env.VITE_GITEA_HOST;
-            const timestamp = Date.now();
-            const extMatch = profilePictureUrl.match(/^data:image\/(\w+);/);
-            const ext = extMatch ? extMatch[1] : 'png';
-            const uniqueName = `profile_${timestamp}.${ext}`;
-            const uploadPath = `contacts/profiles/${uniqueName}`;
-            // Remove base64 prefix
-            const base64Content = profilePictureUrl.split(',')[1];
-            // Upload to Gitea
-            const response = await fetch(
-              `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `token ${giteaToken}`,
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'Cache-Control': 'no-cache'
-                },
-                body: JSON.stringify({
-                  message: `Upload avatar`,
-                  content: base64Content,
-                  branch: 'main'
-                })
-              }
-            );
-            if (!response.ok) {
-              throw new Error('Failed to upload avatar to Gitea');
-            }
-            const giteaData = await response.json();
-            // Use the authenticated download URL
-            profilePictureUrl = this.getAuthenticatedDownloadUrl(giteaData.content.download_url);
-          }
-          const updateFields = (({ name, company, role, phone_number, email, matter_text, tags, address }) => ({ name, company, role, phone_number, email, matter_text, tags, address }))(this.editableContact);
-          // Add the (possibly new) profile_picture_url
-          updateFields.profile_picture_url = profilePictureUrl;
-          if (this.selectedContactDetails && this.selectedContactDetails.id) {
-            // Update existing contact
-            const { error } = await supabase
-              .from('contacts')
-              .update(updateFields)
-              .eq('id', this.selectedContactDetails.id);
-            if (error) throw error;
-            this.$message.success('Contact updated successfully');
-          } else {
-            // Insert new contact
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data, error } = await supabase
-              .from('contacts')
-              .insert({
-                ...updateFields,
-                matter_id: this.currentMatter.id,
-                created_by: user.id
-              })
-              .select()
-              .single();
-            if (error) throw error;
-            this.$message.success('Contact added successfully');
-            // Optionally select the new contact
-            this.selectedContactDetails = { ...data, creator_name: user.email?.split('@')[0] || 'You' };
-          }
-          this.editingContact = false;
+          const { data: { user } } = await supabase.auth.getUser();
+          // Remove creator_name if present
+          const contactToInsert = { ...this.editableContact };
+          delete contactToInsert.creator_name;
+          const { data, error } = await supabase
+            .from('contacts')
+            .insert({
+              ...contactToInsert,
+              matter_id: this.currentMatter.id,
+              created_by: user.id
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          this.$message.success('Contact created successfully');
           await this.loadWorkspaceContacts();
-          // Refresh details
-          if (this.selectedContactDetails && this.selectedContactDetails.id) {
-            const updated = this.workspaceContacts.find(c => c.id === this.selectedContactDetails.id);
-            if (updated) this.selectedContactDetails = { ...updated, creator_name: this.selectedContactDetails.creator_name };
-          }
+          this.selectedContactDetails = data;
+          this.editingField = null;
         } catch (error) {
-          this.$message.error(error.message || 'Failed to save contact');
-        } finally {
-          this.savingContact = false;
+          this.$message.error(error.message || 'Failed to create contact');
         }
-      }, 500); // 500ms delay
+        return;
+      }
+
+      // Only update the specific field
+      const updateFields = {};
+      updateFields[field] = this.editableContact[field];
+      try {
+        const { error } = await supabase
+          .from('contacts')
+          .update(updateFields)
+          .eq('id', this.selectedContactDetails.id);
+        if (error) throw error;
+        this.$message.success('Contact updated successfully');
+        await this.loadWorkspaceContacts();
+        // Update selectedContactDetails to reflect the latest data
+        if (this.selectedContactDetails && this.selectedContactDetails.id) {
+          const updated = this.workspaceContacts.find(c => c.id === this.selectedContactDetails.id);
+          if (updated) this.selectedContactDetails = { ...updated, creator_name: this.selectedContactDetails.creator_name };
+        }
+        this.editingField = null;
+      } catch (error) {
+        this.$message.error(error.message || 'Failed to save contact');
+      }
     },
     handleAvatarUpload(file) {
       // Implement avatar upload logic or use a placeholder for now
@@ -4521,12 +4478,9 @@ export default {
     
     handleContactFieldKeydown(event, field) {
       if (event.key === 'Enter') {
-        event.preventDefault();
-        // Clear the timeout and save immediately
-        if (this.saveTimeout) {
-          clearTimeout(this.saveTimeout);
-        }
-        this.saveEditContact();
+        this.saveEditContact(field);
+      } else if (event.key === 'Escape') {
+        this.cancelEditContact();
       }
     },
     
@@ -5066,8 +5020,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #666;
-  gap: 1rem;
+  gap: -1rem;
 }
 
 .large-icon {
@@ -6710,7 +6663,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1.5rem auto;
+  margin: 0 auto 0.5rem auto;
   font-size: 2rem;
 }
 
@@ -7762,5 +7715,11 @@ export default {
   color: #69696b;
   font-size: 13px;
   font-weight: 425;
+}
+.no-chat-selected-title,.no-contact-selected-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #69696b;
+  margin-bottom: 0;
 }
 </style>

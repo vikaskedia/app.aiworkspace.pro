@@ -462,6 +462,13 @@
                   
                   <!-- Message timestamp -->
                   <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
+                  <el-tooltip
+                    v-if="usersWhoHaveSeenMessage(item.item).length"
+                    :content="usersWhoHaveSeenMessage(item.item).map(u => u.display_name).join(', ')"
+                    placement="top"
+                  >
+                    <el-icon style="margin-left: 6px; color: #67c23a;"><Check /></el-icon>
+                  </el-tooltip>
 
                   <!-- Inline Internal Comments Thread (moved inside message-content) -->
                   <div v-if="showingInternalCommentsFor.includes(item.item.id)" class="inline-internal-comments">
@@ -1868,6 +1875,7 @@ export default {
       // Last Seen Users
       lastSeenUsers: {}, // { [conversationId]: users[] }
       loadingLastSeen: {}, // { [conversationId]: boolean }
+      conversationReadStatus: [], // Array of { user_id, last_read_at, display_name }
     };
   },
   computed: {
@@ -2589,6 +2597,8 @@ export default {
           }
         }
       }
+      // Load conversation read status for per-message read info
+      await this.loadConversationReadStatus(conversation.id);
     },
 
     async loadCallRecordings(conversationId) {
@@ -4680,7 +4690,44 @@ export default {
         case 3: return 'rd';
         default: return 'th';
       }
-    }
+    },
+    async loadConversationReadStatus(conversationId) {
+      // Load conversation_read_status and user display names
+      const { data: readStatus, error } = await supabase
+        .from('conversation_read_status')
+        .select('user_id, last_read_at')
+        .eq('conversation_id', conversationId);
+      if (error) {
+        console.error('Error loading read status:', error);
+        this.conversationReadStatus = [];
+        return;
+      }
+      if (!readStatus.length) {
+        this.conversationReadStatus = [];
+        return;
+      }
+      // Get user info for display names
+      const userIds = readStatus.map(r => r.user_id);
+      const { data: userInfo, error: userError } = await supabase
+        .rpc('get_user_info_for_matter', {
+          user_ids: userIds,
+          matter_id_param: this.currentMatter.id
+        });
+      const userInfoMap = {};
+      (userInfo || []).forEach(user => {
+        userInfoMap[user.user_id] = user.display_name;
+      });
+      this.conversationReadStatus = readStatus.map(r => ({
+        ...r,
+        display_name: userInfoMap[r.user_id] || 'Unknown User'
+      }));
+    },
+    usersWhoHaveSeenMessage(message) {
+      // Returns array of { user_id, display_name }
+      return this.conversationReadStatus.filter(status => {
+        return new Date(status.last_read_at) >= new Date(message.timestamp);
+      });
+    },
   }
 };
 </script>
@@ -5224,8 +5271,7 @@ export default {
   border-top: 1px solid #e0e0e0;
   background: white;
   transition: all 0.2s ease;
-  position: relative;
-  outline: none; /* Remove focus outline since this is primarily for paste events */
+  position: relative; /* Remove focus outline since this is primarily for paste events */
 }
 
 .message-input-area.drag-over {

@@ -10,10 +10,6 @@
       "maxDuration": 60
     }
   },
-  "crons": [{
-    "path": "/api/process-emails",
-    "schedule": "0 1 * * *"
-  }],
   "headers": [
     {
       "source": "/index.html",

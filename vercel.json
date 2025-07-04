@@ -24,10 +24,6 @@
     "api/external-task-comment.js": {
       "memory": 1024,
       "maxDuration": 30
-    },
-    "api/test-external-sharing.js": {
-      "memory": 512,
-      "maxDuration": 10
     }
   },
   "headers": [

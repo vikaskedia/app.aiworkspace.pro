@@ -726,13 +726,10 @@ export default {
   text-decoration: none;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  background: rgba(0, 123, 255, 0.1);
-  border: 1px solid rgba(0, 123, 255, 0.2);
   margin: 0.25rem;
 }
 
 .description-content :deep(.file-link:hover) {
-  background: rgba(0, 123, 255, 0.2);
   text-decoration: none;
 }
 
@@ -808,13 +805,10 @@ export default {
   text-decoration: none;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  background: rgba(0, 123, 255, 0.1);
-  border: 1px solid rgba(0, 123, 255, 0.2);
   margin: 0.25rem;
 }
 
 .comment-content :deep(.file-link:hover) {
-  background: rgba(0, 123, 255, 0.2);
   text-decoration: none;
 }
 

@@ -997,6 +997,14 @@
                 
                 <el-button 
                   v-if="externalShareLink"
+                  type="success"
+                  @click="handleCopyExternalLink">
+                  <el-icon><DocumentCopy /></el-icon>
+                  Copy Link
+                </el-button>
+                
+                <el-button 
+                  v-if="externalShareLink"
                   type="danger"
                   @click="handleRevokeExternalShareLink"
                   :loading="revokingExternalLink">

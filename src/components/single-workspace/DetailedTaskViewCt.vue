@@ -2582,7 +2582,8 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         
         // Send email through your backend service
-        const response = await fetch('/api/share-task', {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/share-task' : '/api/share-task';
+        const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -4157,7 +4158,8 @@ ${comment.content}
         this.generatingExternalLink = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const response = await fetch('/api/generate-external-share-link', {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/generate-external-share-link' : '/api/generate-external-share-link';
+        const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -4198,7 +4200,8 @@ ${comment.content}
         this.revokingExternalLink = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const response = await fetch('/api/revoke-external-share-link', {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/revoke-external-share-link' : '/api/revoke-external-share-link';
+        const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -4234,7 +4237,8 @@ ${comment.content}
         this.revokingExternalLink = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const response = await fetch('/api/revoke-external-share-link', {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/revoke-external-share-link' : '/api/revoke-external-share-link';
+        const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -4290,7 +4294,8 @@ ${comment.content}
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        const response = await fetch(`/api/get-external-share-history?taskId=${this.task.id}&userId=${user.id}`);
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/get-external-share-history' : '/api/get-external-share-history';
+        const response = await fetch(`${apiUrl}?taskId=${this.task.id}&userId=${user.id}`);
         if (!response.ok) throw new Error('Failed to load external share history');
         
         const data = await response.json();

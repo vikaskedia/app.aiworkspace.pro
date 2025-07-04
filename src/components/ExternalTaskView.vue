@@ -239,8 +239,8 @@ export default {
         this.loading = true;
         this.error = null;
 
-        // Verify the share link and get task data
-        const response = await fetch(`/api/external-task-access?shareId=${this.shareId}&token=${this.token}`, {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/external-task-access' : '/api/external-task-access';
+        const response = await fetch(`${apiUrl}?shareId=${this.shareId}&token=${this.token}`, {
           headers: {
             'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
           }
@@ -269,7 +269,8 @@ export default {
       try {
         this.addingComment = true;
 
-        const response = await fetch('/api/external-task-comment', {
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/external-task-comment' : '/api/external-task-comment';
+        const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

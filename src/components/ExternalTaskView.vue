@@ -48,9 +48,13 @@
       <span>Loading task details...</span>
       <div v-if="loadingAttempts > 1" class="loading-actions">
         <el-button @click="refreshTaskData" size="small" type="primary">
-          Refresh
+          Try Again
         </el-button>
-        <p class="loading-hint">Taking longer than usual? Try refreshing.</p>
+        <p class="loading-hint">
+          <span v-if="loadingAttempts === 2">Taking longer than usual? </span>
+          <span v-else>Still having trouble? </span>
+          Check your internet connection and try refreshing.
+        </p>
       </div>
     </div>
 
@@ -61,6 +65,16 @@
         type="error"
         :closable="false"
         show-icon>
+        <template #default>
+          <div class="error-actions">
+            <el-button @click="refreshTaskData" type="primary" size="small">
+              Retry
+            </el-button>
+            <el-button @click="$router.go(-1)" size="small">
+              Go Back
+            </el-button>
+          </div>
+        </template>
       </el-alert>
     </div>
 
@@ -223,7 +237,10 @@ export default {
       fileList: [],
       uploadingFiles: false,
       matter: null,
-      loadingAttempts: 0
+      loadingAttempts: 0,
+      lastVisibilityChange: 0,
+      isInitialLoad: true,
+      loadingController: null
     };
   },
   async created() {
@@ -234,6 +251,7 @@ export default {
     if (!this.shareId || !this.token) {
       this.error = 'Invalid share link';
       this.loading = false;
+      this.isInitialLoad = false;
       return;
     }
 
@@ -258,12 +276,15 @@ export default {
       await this.loadTaskData();
     } else {
       this.loading = false;
+      this.isInitialLoad = false;
     }
 
     // Listen for auth changes
     supabase.auth.onAuthStateChange(async (event, session) => {
       this.user = session?.user || null;
       if (event === 'SIGNED_IN' && this.user) {
+        // Reset loading state for new authentication
+        this.isInitialLoad = true;
         await this.loadTaskData();
       }
     });
@@ -275,6 +296,12 @@ export default {
   beforeUnmount() {
     // Clean up event listeners
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    
+    // Cancel any pending loading operations
+    if (this.loadingController) {
+      this.loadingController.abort();
+      this.loadingController = null;
+    }
   },
   computed: {
     filteredComments() {
@@ -283,18 +310,38 @@ export default {
   },
   methods: {
     handleVisibilityChange() {
-      // When the page becomes visible again, check if we're in a loading state
-      // with existing task data (indicating the loading got stuck)
-      if (!document.hidden && this.loading && this.task) {
-        console.log('Page became visible with stuck loading state, resetting...');
-        this.loading = false;
-      }
+      const now = Date.now();
       
-      // If page becomes visible and we don't have task data but should have it
-      // (user is authenticated or in development mode), try to reload
-      if (!document.hidden && !this.loading && !this.task && !this.error && (this.user || this.isDevelopment)) {
-        console.log('Page became visible without task data, reloading...');
-        this.loadTaskData();
+      // Debounce visibility changes to prevent rapid successive calls
+      if (now - this.lastVisibilityChange < 1000) {
+        return;
+      }
+      this.lastVisibilityChange = now;
+
+      // Only handle visibility changes after initial load is complete
+      if (this.isInitialLoad) {
+        return;
+      }
+
+      if (!document.hidden) {
+        console.log('Page became visible', { 
+          hasTask: !!this.task, 
+          isLoading: this.loading, 
+          hasError: !!this.error,
+          isAuthenticated: !!(this.user || this.isDevelopment)
+        });
+
+        // If we're currently loading, don't trigger another load
+        if (this.loading) {
+          console.log('Already loading, skipping visibility change reload');
+          return;
+        }
+
+        // Only reload if we don't have task data and should have it
+        if (!this.task && !this.error && (this.user || this.isDevelopment)) {
+          console.log('No task data on visibility change, reloading...');
+          this.loadTaskData();
+        }
       }
     },
 
@@ -337,6 +384,14 @@ export default {
     },
 
     async loadTaskData() {
+      // Cancel any existing loading operation
+      if (this.loadingController) {
+        this.loadingController.abort();
+      }
+
+      // Create new AbortController for this request
+      this.loadingController = new AbortController();
+
       try {
         this.loadingAttempts++;
         console.log(`Loading task data - attempt ${this.loadingAttempts}`, { 
@@ -348,18 +403,33 @@ export default {
         this.loading = true;
         this.error = null;
 
-        // Add timeout protection to prevent hanging
+        // Shorter timeout for better UX (15 seconds instead of 30)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Loading timed out')), 30000); // 30 second timeout
+          setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000);
         });
 
+        // Add abort signal to prevent race conditions
         const loadPromise = (async () => {
+          if (this.loadingController.signal.aborted) {
+            throw new Error('Request was cancelled');
+          }
+
           const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
+          
+          if (this.loadingController.signal.aborted) {
+            throw new Error('Request was cancelled');
+          }
+
           this.task = shareData.tasks;
           this.matter = shareData.tasks.matters;
           
           // Load comments for the task
           const commentsData = await this.getTaskComments(shareData.task_id);
+          
+          if (this.loadingController.signal.aborted) {
+            throw new Error('Request was cancelled');
+          }
+
           this.comments = commentsData;
           
           console.log('Task data loaded successfully', { 
@@ -370,17 +440,26 @@ export default {
 
         await Promise.race([loadPromise, timeoutPromise]);
 
+        // Mark initial load as complete
+        this.isInitialLoad = false;
+
       } catch (error) {
-        console.error('Error loading task data:', error);
-        this.error = error.message;
+        // Don't show error if request was cancelled (user switched tabs quickly)
+        if (error.message !== 'Request was cancelled') {
+          console.error('Error loading task data:', error);
+          this.error = error.message;
+        }
       } finally {
         this.loading = false;
+        this.loadingController = null;
         console.log('Loading finished', { loading: this.loading, hasTask: !!this.task });
       }
     },
 
     async refreshTaskData() {
       console.log('Manually refreshing task data...');
+      // Reset loading attempts counter for manual refresh
+      this.loadingAttempts = 0;
       await this.loadTaskData();
     },
 
@@ -736,6 +815,13 @@ export default {
   margin-top: 0.5rem;
   font-size: 0.9rem;
   color: #666;
+}
+
+.error-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  align-items: center;
 }
 
 .external-task-content {

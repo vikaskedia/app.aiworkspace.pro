@@ -192,7 +192,8 @@ export function useExternalTaskShare() {
             updated_at,
             matters:matter_id (
               id,
-              title
+              title,
+              git_repo
             )
           )
         `)

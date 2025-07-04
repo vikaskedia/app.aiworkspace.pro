@@ -37,7 +37,7 @@
           <el-tag v-if="isDevelopment" type="warning" size="small" style="margin-left: 8px;">
             Development Mode
           </el-tag>
-          <el-button v-if="!isDevelopment" type="text" @click="signOut" size="small">Sign Out</el-button>
+          <el-button v-if="!isDevelopment" type="primary" @click="signOut" size="small">Sign Out</el-button>
         </div>
       </div>
     </div>
@@ -77,7 +77,7 @@
 
       <div class="task-description" v-if="task.description">
         <h3>Description</h3>
-        <div class="description-content" v-html="formatContent(task.description)"></div>
+        <div class="description-content" v-html="formatCommentContent(task.description)"></div>
       </div>
 
       <!-- Comments Section -->
@@ -97,13 +97,43 @@
                 show-word-limit
               />
             </el-form-item>
+            
+            <!-- File Upload Section -->
+            <el-form-item>
+              <div class="file-upload-section">
+                <el-upload
+                  ref="fileUpload"
+                  :file-list="fileList"
+                  :auto-upload="false"
+                  :on-change="handleFileChange"
+                  :on-remove="handleFileRemove"
+                  :before-upload="beforeFileUpload"
+                  multiple
+                  :show-file-list="true"
+                  action="#"
+                  :limit="5">
+                  <el-button size="small" type="primary">
+                    <el-icon><Paperclip /></el-icon>
+                    Attach Files
+                  </el-button>
+                </el-upload>
+              </div>
+            </el-form-item>
+            
             <el-form-item>
               <el-button 
                 type="primary" 
                 @click="addComment"
                 :loading="addingComment"
-                :disabled="!newComment.trim()">
+                :disabled="!newComment.trim() && fileList.length === 0">
                 Add Comment
+              </el-button>
+              <el-button 
+                v-if="fileList.length > 0"
+                @click="clearFiles"
+                size="small"
+                type="primary">
+                Clear Files
               </el-button>
             </el-form-item>
           </el-form>
@@ -135,7 +165,7 @@
               </div>
               <span class="comment-time">{{ formatCommentTime(comment.created_at) }}</span>
             </div>
-            <div class="comment-content" v-html="formatContent(comment.content)"></div>
+            <div class="comment-content" v-html="formatCommentContent(comment.content)"></div>
           </div>
           
           <div v-if="!filteredComments.length" class="no-comments">
@@ -153,7 +183,7 @@
 </template>
 
 <script>
-import { User, Loading } from '@element-plus/icons-vue';
+import { User, Loading, Paperclip } from '@element-plus/icons-vue';
 import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
 import { useExternalTaskShare } from '../composables/useExternalTaskShare';
@@ -162,7 +192,8 @@ export default {
   name: 'ExternalTaskView',
   components: {
     User,
-    Loading
+    Loading,
+    Paperclip
   },
   setup() {
     const externalShare = useExternalTaskShare();
@@ -182,7 +213,10 @@ export default {
       addingComment: false,
       shareId: null,
       token: null,
-      isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+      fileList: [],
+      uploadingFiles: false,
+      matter: null
     };
   },
   async created() {
@@ -278,6 +312,7 @@ export default {
 
         const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
         this.task = shareData.tasks;
+        this.matter = shareData.tasks.matters;
         
         // Load comments for the task
         const commentsData = await this.getTaskComments(shareData.task_id);
@@ -291,24 +326,146 @@ export default {
       }
     },
 
+    // File upload methods
+    handleFileChange(file, fileList) {
+      this.fileList = fileList;
+    },
+
+    handleFileRemove(file, fileList) {
+      this.fileList = fileList;
+    },
+
+    beforeFileUpload(file) {
+      const isValidSize = file.size / 1024 / 1024 < 50; // 50MB limit
+      if (!isValidSize) {
+        ElMessage.error('File size must be less than 50MB');
+      }
+      return false; // Prevent auto upload
+    },
+
+    clearFiles() {
+      this.fileList = [];
+      this.$refs.fileUpload.clearFiles();
+    },
+
+    async uploadFiles() {
+      if (!this.fileList.length) return [];
+
+      try {
+        this.uploadingFiles = true;
+        const uploadedFiles = [];
+        
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+
+        if (!giteaToken || !giteaHost) {
+          throw new Error('File upload service is not properly configured');
+        }
+
+        if (!this.matter?.git_repo) {
+          throw new Error('No git repository found for this matter');
+        }
+
+        for (const fileInfo of this.fileList) {
+          const file = fileInfo.raw;
+          const timestamp = Date.now();
+          const fileExtension = file.name.split('.').pop();
+          const baseName = file.name.replace(/\.[^/.]+$/, "");
+          const uniqueName = `${baseName}_${timestamp}.${fileExtension}`;
+          const filePath = `external_comments/${uniqueName}`;
+
+          // Convert file to base64
+          const base64Content = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result.split(',')[1];
+              resolve(base64);
+            };
+            reader.readAsDataURL(file);
+          });
+
+          // Upload to Gitea
+          const response = await fetch(
+            `${giteaHost}/api/v1/repos/associateattorney/${this.matter.git_repo}/contents/${filePath}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `token ${giteaToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: `Upload external comment attachment: ${file.name}`,
+                content: base64Content,
+                branch: 'main'
+              })
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${file.name}`);
+          }
+
+          const giteaData = await response.json();
+          uploadedFiles.push({
+            name: file.name,
+            originalName: file.name,
+            downloadUrl: giteaData.content.download_url,
+            path: giteaData.content.path
+          });
+        }
+
+        return uploadedFiles;
+      } catch (error) {
+        console.error('Error uploading files:', error);
+        throw error;
+      } finally {
+        this.uploadingFiles = false;
+      }
+    },
+
     async addComment() {
-      if (!this.newComment.trim()) return;
+      if (!this.newComment.trim() && this.fileList.length === 0) return;
 
       try {
         this.addingComment = true;
 
+        // Upload files first if any
+        let uploadedFiles = [];
+        if (this.fileList.length > 0) {
+          uploadedFiles = await this.uploadFiles();
+        }
+
+        // Prepare comment content with file links
+        let commentContent = this.newComment.trim();
+        
+        if (uploadedFiles.length > 0) {
+          const fileLinks = uploadedFiles.map(file => 
+            `[${file.originalName}](${file.downloadUrl})`
+          ).join('\n');
+          
+          if (commentContent) {
+            commentContent = `${commentContent}\n\n${fileLinks}`;
+          } else {
+            commentContent = fileLinks;
+          }
+        }
+
         const newCommentData = await this.addExternalComment(
           this.task.id, 
           this.user.email, 
-          this.newComment.trim()
+          commentContent
         );
         
         this.comments.unshift(newCommentData);
         this.newComment = '';
+        this.clearFiles();
 
         ElNotification.success({
           title: 'Success',
-          message: 'Comment added successfully'
+          message: uploadedFiles.length > 0 
+            ? `Comment with ${uploadedFiles.length} file(s) added successfully`
+            : 'Comment added successfully'
         });
 
       } catch (error) {
@@ -317,6 +474,45 @@ export default {
       } finally {
         this.addingComment = false;
       }
+    },
+
+    // Enhanced content formatting with file authentication
+    formatCommentContent(text) {
+      if (!text) return '';
+      
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      
+      // Replace markdown file links with authenticated file links
+      return text.split('\n').map(line => line.trim()).join('<br>').replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g, 
+        (match, fileName, fileUrl) => {
+          let authenticatedUrl = fileUrl;
+          
+          // Only modify URLs that match the Gitea host if both host and token are available
+          if (giteaHost && giteaToken && fileUrl.startsWith(giteaHost)) {
+            try {
+              const url = new URL(fileUrl);
+              
+              // Remove any existing token parameter
+              url.searchParams.delete('token');
+              
+              // Add token as query parameter
+              url.searchParams.set('token', giteaToken);
+              
+              // Remove any duplicate question marks
+              authenticatedUrl = url.toString().replace('??', '?');
+            } catch (error) {
+              console.error('Error creating authenticated URL:', error);
+            }
+          }
+
+          return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">
+            <el-icon><Paperclip /></el-icon>
+            ${fileName}
+          </a>`;
+        }
+      );
     },
 
     formatStatus(status) {
@@ -375,11 +571,6 @@ export default {
       } else {
         return date.toLocaleDateString();
       }
-    },
-
-    formatContent(text) {
-      if (!text) return '';
-      return text.replace(/\n/g, '<br>');
     },
 
     getInitials(email) {
@@ -527,6 +718,24 @@ export default {
   border-left: 4px solid #007bff;
 }
 
+.description-content :deep(.file-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #007bff;
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(0, 123, 255, 0.1);
+  border: 1px solid rgba(0, 123, 255, 0.2);
+  margin: 0.25rem;
+}
+
+.description-content :deep(.file-link:hover) {
+  background: rgba(0, 123, 255, 0.2);
+  text-decoration: none;
+}
+
 .external-comments-section h3 {
   color: #2c3e50;
   margin-bottom: 1rem;
@@ -537,6 +746,18 @@ export default {
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 8px;
+}
+
+.file-upload-section {
+  margin: 0.5rem 0;
+}
+
+.file-upload-section :deep(.el-upload) {
+  width: 100%;
+}
+
+.file-upload-section :deep(.el-upload-list) {
+  margin-top: 0.5rem;
 }
 
 .comments-list {
@@ -577,6 +798,24 @@ export default {
 .comment-content {
   line-height: 1.5;
   color: #444;
+}
+
+.comment-content :deep(.file-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #007bff;
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(0, 123, 255, 0.1);
+  border: 1px solid rgba(0, 123, 255, 0.2);
+  margin: 0.25rem;
+}
+
+.comment-content :deep(.file-link:hover) {
+  background: rgba(0, 123, 255, 0.2);
+  text-decoration: none;
 }
 
 .no-comments {

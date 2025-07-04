@@ -410,13 +410,13 @@ export default {
 
         // Add abort signal to prevent race conditions
         const loadPromise = (async () => {
-          if (this.loadingController.signal.aborted) {
+          if (this.loadingController?.signal.aborted) {
             throw new Error('Request was cancelled');
           }
 
           const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
           
-          if (this.loadingController.signal.aborted) {
+          if (this.loadingController?.signal.aborted) {
             throw new Error('Request was cancelled');
           }
 
@@ -426,7 +426,7 @@ export default {
           // Load comments for the task
           const commentsData = await this.getTaskComments(shareData.task_id);
           
-          if (this.loadingController.signal.aborted) {
+          if (this.loadingController?.signal.aborted) {
             throw new Error('Request was cancelled');
           }
 
@@ -451,7 +451,10 @@ export default {
         }
       } finally {
         this.loading = false;
-        this.loadingController = null;
+        // Clean up the controller reference
+        if (this.loadingController) {
+          this.loadingController = null;
+        }
         console.log('Loading finished', { loading: this.loading, hasTask: !!this.task });
       }
     },
@@ -460,6 +463,8 @@ export default {
       console.log('Manually refreshing task data...');
       // Reset loading attempts counter for manual refresh
       this.loadingAttempts = 0;
+      // Clear any previous error
+      this.error = null;
       await this.loadTaskData();
     },
 

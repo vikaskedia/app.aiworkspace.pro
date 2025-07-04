@@ -721,9 +721,14 @@
                 >
                   <div :class="['comment-content', comment.type === 'activity' ? 'activity' : '']">
                     <div class="comment-header">
-                      <span class="comment-author">
-                        {{ comment.type === 'ai_response' ? comment.metadata?.ai_name || 'AI Attorney' : userEmails[comment.user_id] }}
-                      </span>
+                      <div class="comment-author-section">
+                        <span class="comment-author">
+                          {{ getCommentAuthor(comment) }}
+                        </span>
+                        <el-tag v-if="comment.external_user_email" type="info" size="small" class="external-tag">
+                          External
+                        </el-tag>
+                      </div>
                       <div class="comment-actions">
                         <span class="comment-date">
                           {{ comment.updated_at 
@@ -2205,7 +2210,7 @@ export default {
         const commentsHistory = this.comments.map(comment => {
           const timestamp = comment.updated_at || comment.created_at;
           const formattedDate = new Date(timestamp).toLocaleString();
-          return `[${formattedDate}] ${this.userEmails[comment.user_id]}: ${comment.content}`;
+          return `[${formattedDate}] ${this.getCommentAuthor(comment)}: ${comment.content}`;
         }).join('\n\n');
 
         const taskContext = `Task Title: "${this.task.title}"
@@ -4247,6 +4252,20 @@ ${comment.content}
       }
     },
 
+    getCommentAuthor(comment) {
+      if (comment.type === 'ai_response') {
+        return comment.metadata?.ai_name || 'AI Attorney';
+      } else if (comment.type === 'activity') {
+        return 'System';
+      } else if (comment.external_user_email) {
+        return comment.external_user_email;
+      } else if (comment.user_id) {
+        return this.userEmails[comment.user_id] || 'Team Member';
+      } else {
+        return 'Unknown User';
+      }
+    },
+
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -5197,9 +5216,19 @@ h4 {
   font-size: 0.9em;
 }
 
+.comment-author-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .comment-author {
   font-weight: 500;
   color: #409EFF;
+}
+
+.external-tag {
+  margin-left: 4px;
 }
 
 .comment-date {

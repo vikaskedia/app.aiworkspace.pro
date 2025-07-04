@@ -4,7 +4,7 @@
     <div class="external-header">
       <div class="logo-section">
         <img src="/associate-ai-attorney-logo.svg" alt="AI Attorney" class="logo" />
-        <h1>AI Attorney - Shared Task</h1>
+        <h1>AI Workspace - Shared Task</h1>
       </div>
       
       <div class="auth-section">

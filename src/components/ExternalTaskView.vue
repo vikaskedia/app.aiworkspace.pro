@@ -403,12 +403,6 @@ export default {
       try {
         this.isLoadingInProgress = true;
         this.loadingAttempts++;
-        console.log(`Loading task data - attempt ${this.loadingAttempts}`, { 
-          shareId: this.shareId, 
-          token: this.token ? 'present' : 'missing',
-          userEmail: this.user?.email || 'no user',
-          stackTrace: new Error().stack
-        });
         
         this.loading = true;
         this.error = null;

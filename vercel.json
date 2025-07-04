@@ -4,9 +4,50 @@
     "api/sms/send.js": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/generate-external-share-link.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/revoke-external-share-link.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/get-external-share-history.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/external-task-access.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/external-task-comment.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/test-external-sharing.js": {
+      "memory": 512,
+      "maxDuration": 10
     }
   },
   "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    },
     {
       "source": "/index.html",
       "headers": [

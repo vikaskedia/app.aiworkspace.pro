@@ -982,6 +982,14 @@
               <h4>Generate External Share Link</h4>
               <div class="external-link-controls">
                 <el-button 
+                  type="info"
+                  size="small"
+                  @click="testApiConnection"
+                  :loading="testingApi">
+                  <el-icon><Setting /></el-icon>
+                  Test API
+                </el-button>
+                <el-button 
                   type="primary"
                   :loading="generatingExternalLink"
                   @click="generateExternalShareLink"
@@ -1467,6 +1475,7 @@ export default {
       externalShareHistory: [],
       generatingExternalLink: false,
       revokingExternalLink: false,
+      testingApi: false,
     };
   },
   async created() {
@@ -4158,8 +4167,13 @@ ${comment.content}
         this.generatingExternalLink = true;
         const { data: { user } } = await supabase.auth.getUser();
 
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/generate-external-share-link' : '/api/generate-external-share-link';
-        const response = await fetch(`${apiUrl}`, {
+        // Use production API when running on localhost, otherwise use relative path
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'https://app.aiworkspace.pro/api/generate-external-share-link' 
+          : '/api/generate-external-share-link';
+        
+        console.log('Calling API:', apiUrl);
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -4170,9 +4184,14 @@ ${comment.content}
           })
         });
 
-        if (!response.ok) throw new Error('Failed to generate external share link');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('API Error:', response.status, errorData);
+          throw new Error(errorData.error || `Failed to generate external share link (${response.status})`);
+        }
 
         const data = await response.json();
+        console.log('API Response:', data);
         this.externalShareLink = data.externalShareLink;
         this.externalShareHistory.push({
           id: data.id,
@@ -4303,6 +4322,43 @@ ${comment.content}
         this.externalShareLink = data.activeLink || '';
       } catch (error) {
         console.error('Error loading external share history:', error);
+      }
+    },
+
+    async testApiConnection() {
+      try {
+        this.testingApi = true;
+        
+        const apiUrl = window.location.hostname === 'localhost' 
+          ? 'https://app.aiworkspace.pro/api/test-external-sharing' 
+          : '/api/test-external-sharing';
+        
+        console.log('Testing API connection:', apiUrl);
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(`API test failed (${response.status}): ${errorData.error}`);
+        }
+        
+        const data = await response.json();
+        console.log('API test successful:', data);
+        
+        ElNotification.success({
+          title: 'API Test Successful',
+          message: 'External sharing API is working correctly',
+          duration: 3000
+        });
+        
+      } catch (error) {
+        console.error('API test failed:', error);
+        ElNotification.error({
+          title: 'API Test Failed',
+          message: error.message,
+          duration: 5000
+        });
+      } finally {
+        this.testingApi = false;
       }
     },
 

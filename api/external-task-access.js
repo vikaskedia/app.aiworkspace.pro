@@ -5,16 +5,37 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Check environment variables
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing environment variables:', { 
+        hasUrl: !!supabaseUrl, 
+        hasKey: !!supabaseKey 
+      });
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const { shareId, token } = req.query;
 
     if (!shareId || !token) {
       return res.status(400).json({ error: 'Share ID and token are required' });
     }
+
+    console.log('External task access request:', { shareId, hasToken: !!token });
 
     // Verify the external share link
     const { data: shareRecord, error: shareError } = await supabase
@@ -123,6 +144,14 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('Error accessing external task:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      query: req.query
+    });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }; 

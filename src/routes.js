@@ -199,6 +199,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/external-task/:shareId',
+    name: 'ExternalTaskView',
+    component: () => import('./components/ExternalTaskView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/terms-of-service',
     name: 'TermsOfService',
     component: () => import('./components/legal/TermsOfService.vue'),

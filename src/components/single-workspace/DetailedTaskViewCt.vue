@@ -903,58 +903,174 @@
     <el-dialog
       v-model="shareDialogVisible"
       title="Share Task"
-      width="500px">
-      <div class="share-options">
-        <div class="share-link-section">
-          <h4>Share via Link</h4>
-          <div class="link-input">
-            <el-input
-              v-model="shareLink"
-              readonly>
-              <template #append>
-                <el-button @click="copyLink">
-                  <el-icon><DocumentCopy /></el-icon>
-                  Copy
-                </el-button>
-              </template>
-            </el-input>
-          </div>
-        </div>
+      width="600px"
+      class="share-task-dialog">
+      
+      <el-tabs v-model="activeShareTab" type="border-card">
+        
+        <!-- Internal Tab -->
+        <el-tab-pane label="Internal" name="internal">
+          <div class="share-options">
+            <div class="share-link-section">
+              <h4>Share via Link</h4>
+              <div class="link-input">
+                <el-input
+                  v-model="shareLink"
+                  readonly>
+                  <template #append>
+                    <el-button @click="copyLink">
+                      <el-icon><DocumentCopy /></el-icon>
+                      Copy
+                    </el-button>
+                  </template>
+                </el-input>
+              </div>
+            </div>
 
-        <div class="share-email-section">
-          <h4>Share via Email</h4>
-          <el-form :model="emailShare">
-            <el-form-item>
-              <el-select
-                v-model="emailShare.recipients"
-                multiple
-                filterable
-                placeholder="Select recipients"
+            <div class="share-email-section">
+              <h4>Share via Email</h4>
+              <el-form :model="emailShare">
+                <el-form-item>
+                  <el-select
+                    v-model="emailShare.recipients"
+                    multiple
+                    filterable
+                    placeholder="Select recipients"
+                    style="width: 100%">
+                    <el-option
+                      v-for="user in sortedSharedUsers"
+                      :key="user.id"
+                      :label="user.email"
+                      :value="user.email" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item>
+                  <el-input
+                    v-model="emailShare.message"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="Add a message (optional)" />
+                </el-form-item>
+              </el-form>
+              <el-button
+                type="primary"
+                :disabled="!emailShare.recipients.length"
+                :loading="sending"
+                @click="shareViaEmail">
+                Send Email
+              </el-button>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- External Tab -->
+        <el-tab-pane label="External" name="external">
+          <div class="external-share-options">
+            <div class="external-share-info">
+              <el-alert
+                type="info"
+                :closable="false"
+                show-icon>
+                <template #title>
+                  External Sharing
+                </template>
+                External users will need to authenticate with their Gmail account to access the shared task. They will only have access to this specific task.
+              </el-alert>
+            </div>
+
+            <div class="external-link-section">
+              <h4>Generate External Share Link</h4>
+              <div class="external-link-controls">
+                <el-button 
+                  type="primary"
+                  :loading="generatingExternalLink"
+                  @click="generateExternalShareLink"
+                  :disabled="!!externalShareLink">
+                  <el-icon><Link /></el-icon>
+                  Generate Shareable Link
+                </el-button>
+                
+                <el-button 
+                  v-if="externalShareLink"
+                  type="danger"
+                  @click="revokeExternalShareLink"
+                  :loading="revokingExternalLink">
+                  <el-icon><Delete /></el-icon>
+                  Revoke Link
+                </el-button>
+              </div>
+
+              <div v-if="externalShareLink" class="external-link-display">
+                <el-input
+                  v-model="externalShareLink"
+                  readonly
+                  type="textarea"
+                  :rows="3">
+                  <template #append>
+                    <el-button @click="copyExternalLink">
+                      <el-icon><DocumentCopy /></el-icon>
+                      Copy
+                    </el-button>
+                  </template>
+                </el-input>
+                <div class="external-link-info">
+                  <el-text type="info" size="small">
+                    <el-icon><InfoFilled /></el-icon>
+                    This link allows external users to view and comment on this task after Gmail authentication.
+                  </el-text>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="externalShareHistory.length" class="external-share-history">
+              <h4>Share History</h4>
+              <el-table 
+                :data="externalShareHistory" 
+                size="small"
                 style="width: 100%">
-                <el-option
-                  v-for="user in sortedSharedUsers"
-                  :key="user.id"
-                  :label="user.email"
-                  :value="user.email" />
-              </el-select>
-            </el-form-item>
-            <el-form-item>
-              <el-input
-                v-model="emailShare.message"
-                type="textarea"
-                :rows="3"
-                placeholder="Add a message (optional)" />
-            </el-form-item>
-          </el-form>
-          <el-button
-            type="primary"
-            :disabled="!emailShare.recipients.length"
-            :loading="sending"
-            @click="shareViaEmail">
-            Send Email
-          </el-button>
-        </div>
-      </div>
+                <el-table-column
+                  prop="created_at"
+                  label="Created"
+                  width="120">
+                  <template #default="scope">
+                    {{ formatDate(scope.row.created_at) }}
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="status"
+                  label="Status"
+                  width="80">
+                  <template #default="scope">
+                    <el-tag 
+                      :type="scope.row.status === 'active' ? 'success' : 'danger'"
+                      size="small">
+                      {{ scope.row.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column
+                  prop="access_count"
+                  label="Access Count"
+                  width="100">
+                </el-table-column>
+                <el-table-column
+                  label="Actions">
+                  <template #default="scope">
+                    <el-button 
+                      v-if="scope.row.status === 'active'"
+                      type="danger"
+                      size="small"
+                      @click="revokeSpecificExternalLink(scope.row.id)">
+                      Revoke
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </el-tab-pane>
+        
+      </el-tabs>
     </el-dialog>
 
     <!-- File Selector Dialog -->
@@ -1169,7 +1285,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -1216,7 +1332,8 @@ export default {
     DocumentChecked,
     ChatDotRound,
     List,
-    ReusableOutlineCt
+    ReusableOutlineCt,
+    InfoFilled
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1343,8 +1460,13 @@ export default {
       
       // Tab management
       activeTab: 'comments',
+      activeShareTab: 'internal',
       
-
+      // External sharing
+      externalShareLink: '',
+      externalShareHistory: [],
+      generatingExternalLink: false,
+      revokingExternalLink: false,
     };
   },
   async created() {
@@ -4030,12 +4152,161 @@ ${comment.content}
       return currentContent !== savedContent;
     },
 
+    async generateExternalShareLink() {
+      try {
+        this.generatingExternalLink = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const response = await fetch('/api/generate-external-share-link', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskId: this.task.id,
+            userId: user.id
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate external share link');
+
+        const data = await response.json();
+        this.externalShareLink = data.externalShareLink;
+        this.externalShareHistory.push({
+          id: data.id,
+          status: 'active',
+          access_count: 0
+        });
+
+        ElNotification.success({
+          title: 'Success',
+          message: 'External share link generated successfully'
+        });
+      } catch (error) {
+        console.error('Error generating external share link:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to generate external share link: ' + error.message
+        });
+      } finally {
+        this.generatingExternalLink = false;
+      }
+    },
+
+    async revokeExternalShareLink() {
+      try {
+        this.revokingExternalLink = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const response = await fetch('/api/revoke-external-share-link', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskId: this.task.id,
+            userId: user.id
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to revoke external share link');
+
+        this.externalShareLink = '';
+        this.externalShareHistory = this.externalShareHistory.filter(entry => entry.id !== this.task.id);
+
+        ElNotification.success({
+          title: 'Success',
+          message: 'External share link revoked successfully'
+        });
+      } catch (error) {
+        console.error('Error revoking external share link:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to revoke external share link: ' + error.message
+        });
+      } finally {
+        this.revokingExternalLink = false;
+      }
+    },
+
+    async revokeSpecificExternalLink(entryId) {
+      try {
+        this.revokingExternalLink = true;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const response = await fetch('/api/revoke-external-share-link', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskId: this.task.id,
+            userId: user.id,
+            entryId: entryId
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to revoke specific external share link');
+
+        this.externalShareHistory = this.externalShareHistory.filter(entry => entry.id !== entryId);
+
+        ElNotification.success({
+          title: 'Success',
+          message: 'Specific external share link revoked successfully'
+        });
+      } catch (error) {
+        console.error('Error revoking specific external share link:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to revoke specific external share link: ' + error.message
+        });
+      } finally {
+        this.revokingExternalLink = false;
+      }
+    },
+
+    async copyExternalLink() {
+      try {
+        await navigator.clipboard.writeText(this.externalShareLink);
+        ElNotification.success({
+          title: 'Success',
+          message: 'External share link copied to clipboard'
+        });
+      } catch (error) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to copy external share link'
+        });
+      }
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    },
+
+    async loadExternalShareHistory() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const response = await fetch(`/api/get-external-share-history?taskId=${this.task.id}&userId=${user.id}`);
+        if (!response.ok) throw new Error('Failed to load external share history');
+        
+        const data = await response.json();
+        this.externalShareHistory = data.history || [];
+        this.externalShareLink = data.activeLink || '';
+      } catch (error) {
+        console.error('Error loading external share history:', error);
+      }
+    },
 
   },
   watch: {
     shareDialogVisible(newVal) {
       if (newVal) {
         this.generateShareLink();
+        this.loadExternalShareHistory();
       }
     },
     'task.title': {
@@ -6317,6 +6588,68 @@ table.editor-table {
   .sort-icon,
   .status-settings-icon {
     font-size: 12px;
+  }
+  }
+</style>
+
+<style scoped>
+/* External Share Styles */
+.share-task-dialog .el-tabs__content {
+  padding: 20px;
+}
+
+.external-share-options .external-share-info {
+  margin-bottom: 20px;
+}
+
+.external-link-section {
+  margin-bottom: 30px;
+}
+
+.external-link-section h4 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.external-link-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.external-link-display {
+  margin-top: 15px;
+}
+
+.external-link-info {
+  margin-top: 10px;
+}
+
+.external-link-info .el-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.external-share-history h4 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.external-share-history .el-table {
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .external-link-controls {
+    flex-direction: column;
+  }
+  
+  .external-link-controls .el-button {
+    width: 100%;
   }
 }
 </style>

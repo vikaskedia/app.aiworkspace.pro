@@ -234,10 +234,22 @@ export function useExternalTaskShare() {
   // Add external comment
   const addExternalComment = async (taskId, userEmail, content) => {
     try {
+      // First get the task to get the matter_id
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .select('matter_id')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        throw new Error('Could not find task information')
+      }
+
       const { data, error } = await supabase
         .from('task_comments')
         .insert({
           task_id: taskId,
+          matter_id: task.matter_id,
           user_id: null, // External users don't have user_id
           external_user_email: userEmail,
           content: content,

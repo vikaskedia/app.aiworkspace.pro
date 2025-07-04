@@ -140,9 +140,17 @@ const routes = [
         component: () => import('./components/single-workspace/CommunicationsCt.vue')
       },
       {
-        path: 'ai_phone',
+        path: 'ai_phone/:phoneId?',
         name: 'AiPhonePage',
-        component: () => import('./components/single-workspace/AiPhoneCt.vue')
+        component: () => import('./components/single-workspace/AiPhoneCt.vue'),
+        props: route => ({
+          phoneId: route.params.phoneId,
+          conversationId: route.query.conversation,
+          selectedTag: route.query.tag,
+          searchQuery: route.query.search,
+          showUntagged: route.query.untagged === 'true',
+          chatSearchQuery: route.query.chat_search
+        })
       },
       {
         path: 'contacts',

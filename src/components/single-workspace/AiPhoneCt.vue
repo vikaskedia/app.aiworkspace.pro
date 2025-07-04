@@ -1550,6 +1550,31 @@ Max Tokens: {{ aiDraftDebugData.response.body.debug.maxTokens }}</code></pre>
 </template>
 
 <script>
+/*
+ * AI Phone Component - URL Structure Documentation
+ * 
+ * This component supports URL-based state management for seamless reloads.
+ * 
+ * URL Format: /single-workspace/:matterId/ai_phone/:phoneId?conversation=:conversationId&tag=:tagName&search=:query&untagged=true&chat_search=:chatQuery
+ * 
+ * Examples:
+ * - /single-workspace/123/ai_phone                           → No phone selected
+ * - /single-workspace/123/ai_phone/456                       → Phone 456 selected
+ * - /single-workspace/123/ai_phone/456?conversation=789      → Phone + conversation selected  
+ * - /single-workspace/123/ai_phone/456?tag=urgent           → Phone + tag filter
+ * - /single-workspace/123/ai_phone/456?untagged=true        → Phone + untagged filter
+ * - /single-workspace/123/ai_phone/456?search=hello         → Phone + conversation search
+ * - /single-workspace/123/ai_phone/456?conversation=789&tag=urgent&search=hello&chat_search=message → Full state
+ * 
+ * URL Parameters:
+ * - phoneId: Selected phone number ID (route param)
+ * - conversation: Selected conversation ID (query param)
+ * - tag: Selected tag filter (query param)  
+ * - search: Conversation list search query (query param)
+ * - untagged: Show only untagged conversations (query param, boolean)
+ * - chat_search: Message search within conversation (query param)
+ */
+
 import { 
   Plus, 
   Search, 
@@ -1588,6 +1613,32 @@ import { updateMatterActivity } from '../../utils/matterActivity';
 
 export default {
   name: 'AiPhoneCt',
+  props: {
+    phoneId: {
+      type: String,
+      default: null
+    },
+    conversationId: {
+      type: String,
+      default: null
+    },
+    selectedTag: {
+      type: String,
+      default: null
+    },
+    searchQuery: {
+      type: String,
+      default: ''
+    },
+    showUntagged: {
+      type: Boolean,
+      default: false
+    },
+    chatSearchQuery: {
+      type: String,
+      default: ''
+    }
+  },
   components: {
     Plus,
     Search,
@@ -1636,35 +1687,34 @@ export default {
       realtimeMarkAsRead
     };
   },
-  data() {
-    return {
-      selectedInboxItem: null,
-      selectedConversation: null,
-      searchQuery: '',
-      newMessage: '',
-      
-      // File handling
-      selectedFiles: [],
-      isDragOver: false,
-      uploadingFiles: false,
-      
-      // New Message Dialog
-      showNewMessageDialog: false,
-      newMessageForm: {
-        to: '',
-        message: '',
-        files: []
-      },
-      sendingMessage: false,
-      
-      // Contact integration
-      workspaceContacts: [],
-      selectedRecipient: null,
-      
-      chatSearchQuery: '',
-      
-      // Tag filtering
-      selectedTags: [],
+      data() {
+      return {
+        selectedInboxItem: null,
+        selectedConversation: null,
+        searchQuery: '',
+        chatSearchQuery: '',
+        newMessage: '',
+        
+        // File handling
+        selectedFiles: [],
+        isDragOver: false,
+        uploadingFiles: false,
+        
+        // New Message Dialog
+        showNewMessageDialog: false,
+        newMessageForm: {
+          to: '',
+          message: '',
+          files: []
+        },
+        sendingMessage: false,
+        
+        // Contact integration
+        workspaceContacts: [],
+        selectedRecipient: null,
+        
+        // Tag filtering
+        selectedTags: [],
       
       // Message counts
       messageCounts: {
@@ -2337,11 +2387,8 @@ export default {
     },
   },
   async mounted() {
-    // Auto-select first phone number if available
-    if (this.currentMatter?.phone_numbers?.length > 0) {
-      const firstPhone = this.currentMatter.phone_numbers[0];
-      this.selectedInboxItem = `phone_${firstPhone.id}`;
-    }
+    // Initialize from URL props
+    await this.initializeFromUrl();
 
     // Load workspace contacts when component mounts
     await this.loadWorkspaceContacts();
@@ -2369,9 +2416,251 @@ export default {
         }
       },
       immediate: false
+    },
+    
+    // URL State Watchers
+    selectedInboxItem(newValue) {
+      this.updateUrl();
+    },
+    
+    selectedConversation(newValue) {
+      this.updateUrl();
+    },
+    
+    searchQuery(newValue) {
+      this.updateUrl();
+    },
+    
+    chatSearchQuery(newValue) {
+      this.updateUrl();
+    },
+    
+    selectedTagByPhone: {
+      handler() {
+        this.updateUrl();
+      },
+      deep: true
+    },
+    
+    showUntaggedOnly(newValue) {
+      this.updateUrl();
+    },
+    
+    // Watch for route changes to update component state
+    '$route'(to, from) {
+      if (to.name === 'AiPhonePage' && to.params.matterId === this.currentMatter?.id?.toString()) {
+        this.initializeFromUrl();
+      }
     }
   },
   methods: {
+    // URL Synchronization Methods
+    async initializeFromUrl() {
+      console.log('🚀 Initializing from URL props:', {
+        phoneId: this.phoneId,
+        conversationId: this.conversationId,
+        selectedTag: this.selectedTag,
+        searchQuery: this.$props.searchQuery,
+        showUntagged: this.showUntagged,
+        chatSearchQuery: this.$props.chatSearchQuery
+      });
+
+      // Disable URL updates during initialization to prevent loops
+      this._isInitializing = true;
+      
+      try {
+        // FIX 1: Initialize search queries from URL props (FIXED)
+        if (this.$props.searchQuery) {
+          this.searchQuery = this.$props.searchQuery;
+          console.log('🔍 Set searchQuery from props:', this.$props.searchQuery);
+        }
+        if (this.$props.chatSearchQuery) {
+          this.chatSearchQuery = this.$props.chatSearchQuery;
+          console.log('💭 Set chatSearchQuery from props:', this.$props.chatSearchQuery);
+        }
+        
+        // Initialize phone selection from URL
+        if (this.phoneId) {
+          this.selectedInboxItem = `phone_${this.phoneId}`;
+          console.log('📞 Set selectedInboxItem from URL:', this.selectedInboxItem);
+        } else if (this.currentMatter?.phone_numbers?.length > 0) {
+          // Auto-select first phone number if no URL param
+          const firstPhone = this.currentMatter.phone_numbers[0];
+          this.selectedInboxItem = `phone_${firstPhone.id}`;
+          console.log('📞 Auto-selected first phone:', this.selectedInboxItem);
+        }
+        
+        // Initialize tag filter from URL
+        if (this.selectedTag && this.selectedInboxItem) {
+          this.selectedTagByPhone = { ...this.selectedTagByPhone, [this.selectedInboxItem]: this.selectedTag };
+          console.log('🏷️ Set tag filter from URL:', this.selectedTag);
+          
+          // FIX: Also expand the phone's tags tree when there's a tag filter
+          this.expandedPhoneForTags = this.selectedInboxItem;
+          console.log('📂 Expanded tags tree for phone:', this.selectedInboxItem);
+        }
+        
+        // Initialize untagged filter from URL
+        this.showUntaggedOnly = this.showUntagged;
+        console.log('🔖 Set untagged filter from URL:', this.showUntagged);
+        
+        // FIX 2: Wait for conversations to load before trying to restore conversation
+        if (this.conversationId) {
+          console.log('💬 Waiting for conversations to load for conversation:', this.conversationId);
+          
+          // Wait up to 3 seconds for conversations to load
+          let attempts = 0;
+          while (attempts < 30 && (!this.realtimeConversations || this.realtimeConversations.length === 0)) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          console.log('💬 Conversations loaded, count:', this.realtimeConversations?.length || 0);
+          
+          // Try to find the conversation
+          const conversation = this.realtimeConversations?.find(c => c.id.toString() === this.conversationId);
+          if (conversation) {
+            this.selectedConversation = conversation.id;
+            console.log('💬 ✅ Found and set conversation from URL:', conversation.id);
+            await this.selectConversationWithoutUrlUpdate(conversation);
+            
+            // FIX: Also open contact details panel (4th panel) like normal conversation selection
+            console.log('📋 Opening contact details panel for conversation');
+            await this.openContactDetailsPane(conversation.phoneNumber, conversation.contact);
+          } else {
+            console.warn('💬 ❌ Conversation not found:', this.conversationId, 'Available:', this.realtimeConversations?.map(c => c.id));
+          }
+        }
+      } finally {
+        // Re-enable URL updates
+        this._isInitializing = false;
+        console.log('✅ Initialization complete, calling updateUrl()');
+        // Update URL once after initialization
+        this.updateUrl();
+      }
+    },
+
+    updateUrl() {
+      // Skip URL updates during initialization
+      if (this._isInitializing) {
+        console.log('🔄 Skipping URL update during initialization');
+        return;
+      }
+      
+      console.log('🔗 Updating URL with state:', {
+        selectedInboxItem: this.selectedInboxItem,
+        selectedConversation: this.selectedConversation,
+        searchQuery: this.searchQuery,
+        chatSearchQuery: this.chatSearchQuery,
+        showUntaggedOnly: this.showUntaggedOnly,
+        selectedTagByPhone: this.selectedTagByPhone
+      });
+      
+      const query = {};
+      
+      // Add conversation ID if selected
+      if (this.selectedConversation) {
+        query.conversation = this.selectedConversation.toString();
+      }
+      
+      // Add search queries if present
+      // TODO: Uncomment in future if needed
+      // if (this.searchQuery) {
+      //   query.search = this.searchQuery;
+      // }
+      // if (this.chatSearchQuery) {
+      //   query.chat_search = this.chatSearchQuery;
+      // }
+      
+      // Add tag filter if present
+      const selectedTag = this.selectedTagByPhone[this.selectedInboxItem];
+      if (selectedTag) {
+        query.tag = selectedTag;
+      }
+      
+      // Add untagged filter if active
+      if (this.showUntaggedOnly) {
+        query.untagged = 'true';
+      }
+      
+      // Get phone ID from selectedInboxItem
+      const phoneId = this.selectedInboxItem ? this.selectedInboxItem.replace('phone_', '') : null;
+      
+      if (!this.currentMatter?.id) {
+        console.warn('⚠️ Cannot update URL: currentMatter.id is missing');
+        return;
+      }
+      
+      // Update route
+      const newRoute = {
+        name: 'AiPhonePage',
+        params: {
+          matterId: this.currentMatter.id.toString(),
+          phoneId: phoneId
+        },
+        query: Object.keys(query).length > 0 ? query : undefined
+      };
+      
+      console.log('🚀 Navigating to:', newRoute);
+      
+      // Only update if route actually changed
+      const currentPhoneId = this.$route.params.phoneId;
+      const currentQuery = this.$route.query || {};
+      const newQuery = query || {};
+      
+      if (currentPhoneId !== phoneId || JSON.stringify(currentQuery) !== JSON.stringify(newQuery)) {
+        this.$router.replace(newRoute).then(() => {
+          console.log('✅ URL updated successfully');
+        }).catch((error) => {
+          console.error('❌ Failed to update URL:', error);
+        });
+      } else {
+        console.log('⏭️ URL already matches current state');
+      }
+    },
+
+    async selectConversationWithoutUrlUpdate(conversation) {
+      // This is like selectConversation but doesn't trigger URL updates
+      const originalInitializing = this._isInitializing;
+      this._isInitializing = true;
+      
+      try {
+        // Load messages for this conversation using real-time composable
+        await this.loadMessagesForConversation(conversation.id);
+        
+        // Load internal comments count for messages
+        await this.loadInternalCommentsCount();
+        
+        // Mark conversation as read using real-time composable
+        await this.realtimeMarkAsRead(conversation.id);
+        
+        // Auto-scroll to bottom after loading messages
+        this.$nextTick(() => {
+          const container = this.$refs.messagesContainer;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+        
+        // Open all internal comment threads by default for messages with comments
+        this.showingInternalCommentsFor = [];
+        if (this.currentChat && this.currentChat.messages) {
+          for (const msg of this.currentChat.messages) {
+            if (this.getInternalCommentsCount(msg.id) > 0) {
+              this.showingInternalCommentsFor.push(msg.id);
+              // Load comments for this message
+              this.loadInternalComments(msg.id);
+            }
+          }
+        }
+        
+        // Load conversation read status for per-message read info
+        await this.loadConversationReadStatus(conversation.id);
+      } finally {
+        this._isInitializing = originalInitializing;
+      }
+    },
+
     // Get total message counts for a specific from_phone_number (for left panel tooltips)
     getPhoneNumberMessageCounts(fromPhoneNumber) {
       if (!fromPhoneNumber || !this.contactMessageCounts || !this.contactMessageCounts[fromPhoneNumber]) {

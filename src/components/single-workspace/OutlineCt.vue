@@ -444,10 +444,81 @@ export default {
         }
       };
 
+      // Add global paste handler for images
+      const handlePaste = async (event) => {
+        try {
+          const clipboardData = event.clipboardData || window.clipboardData;
+          
+          if (!clipboardData) {
+            return; // Let default paste behavior happen
+          }
+          
+          const items = Array.from(clipboardData.items);
+          const imageItem = items.find(item => item.type.startsWith('image/'));
+          
+          if (imageItem) {
+            // Only handle paste if we're not in a text input/textarea
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+              return; // Let individual components handle paste
+            }
+            
+            // Prevent default paste behavior for images
+            event.preventDefault();
+            
+            // Get the image file from clipboard
+            const imageFile = imageItem.getAsFile();
+            
+            if (imageFile) {
+              // Generate a filename for the pasted image
+              const timestamp = Date.now();
+              const fileExtension = imageFile.type.split('/')[1] || 'png';
+              const fileName = `pasted-image-${timestamp}.${fileExtension}`;
+              
+              // Create a new File object with the proper name
+              const namedFile = new File([imageFile], fileName, {
+                type: imageFile.type,
+                lastModified: Date.now()
+              });
+              
+              // Add image as a new root-level item
+              const now = new Date().toISOString();
+              const newItem = {
+                id: Date.now().toString(),
+                text: fileName,
+                children: [],
+                fileUrl: await uploadFileToGitea(namedFile, matterId.value),
+                created_at: now,
+                updated_at: now
+              };
+              
+              outline.value.push(newItem);
+              
+              ElNotification({
+                title: 'Image Pasted',
+                message: 'Image has been pasted and uploaded to the outline',
+                type: 'success',
+                duration: 3000
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error handling global paste:', error);
+          ElNotification({
+            title: 'Paste Error',
+            message: 'Failed to paste image: ' + error.message,
+            type: 'error',
+            duration: 5000
+          });
+        }
+      };
+
       document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('paste', handlePaste);
       
-      // Store the handler for cleanup
+      // Store the handlers for cleanup
       window.outlineKeyDownHandler = handleKeyDown;
+      window.outlinePasteHandler = handlePaste;
 
       // Disable aggressive localStorage cross-tab syncing for now
       // This was causing text deletion during typing
@@ -478,6 +549,12 @@ export default {
       if (window.outlineKeyDownHandler) {
         document.removeEventListener('keydown', window.outlineKeyDownHandler);
         delete window.outlineKeyDownHandler;
+      }
+
+      // Remove paste event listener
+      if (window.outlinePasteHandler) {
+        document.removeEventListener('paste', window.outlinePasteHandler);
+        delete window.outlinePasteHandler;
       }
 
       // Clean up real-time subscription
@@ -1547,6 +1624,90 @@ export default {
         
         throw error; // Re-throw for caller handling
       }
+    }
+
+    // Helper function to upload file to Gitea
+    async function uploadFileToGitea(file, matterId) {
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
+      
+      if (!matterId) {
+        throw new Error('No matter ID found');
+      }
+      
+      // Create repo name for the matter
+      const repoName = `Matter_${matterId}_Outline`;
+      
+      // Try to create the repository if it doesn't exist
+      try {
+        await fetch(
+          `${giteaHost}/api/v1/org/associateattorney/repos`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify({
+              name: repoName,
+              description: `Outline files for Workspace ${matterId}`,
+              private: true,
+              auto_init: true,
+              trust_model: 'collaborator'
+            })
+          }
+        );
+      } catch (error) {
+        // Ignore 409 errors (repo already exists)
+        if (!error.message.includes('409')) {
+          throw error;
+        }
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const uniqueFileName = `${timestamp}-${file.name}`;
+      
+      // Convert file to base64
+      const base64Content = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to Gitea
+      const response = await fetch(
+        `${giteaHost}/api/v1/repos/associateattorney/${repoName}/contents/${uniqueFileName}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `token ${giteaToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify({
+            message: `Upload ${uniqueFileName}`,
+            content: base64Content,
+            branch: 'main'
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('File upload response:', data);
+      
+      // Return the raw download URL
+      return data.content.download_url;
     }
 
     // Manual refresh function for user-triggered sync

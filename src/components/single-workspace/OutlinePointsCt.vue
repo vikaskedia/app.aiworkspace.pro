@@ -100,6 +100,7 @@
         @input="autoResize"
         @mouseup="handleTextSelection"
         @keyup="handleTextSelection"
+        @paste="handlePaste"
         class="outline-textarea"
         rows="1"
       ></textarea>
@@ -812,6 +813,48 @@ export default {
       } catch (error) {
         console.error('Error uploading file:', error);
         ElMessage.error('Failed to upload file: ' + error.message);
+      }
+    },
+    async handlePaste(e) {
+      try {
+        const clipboardData = e.clipboardData || window.clipboardData;
+        
+        if (!clipboardData) {
+          return; // Let default paste behavior happen
+        }
+        
+        const items = Array.from(clipboardData.items);
+        const imageItem = items.find(item => item.type.startsWith('image/'));
+        
+        if (imageItem) {
+          // Prevent default paste behavior for images
+          e.preventDefault();
+          
+          // Get the image file from clipboard
+          const imageFile = imageItem.getAsFile();
+          
+          if (imageFile) {
+            // Generate a filename for the pasted image
+            const timestamp = Date.now();
+            const fileExtension = imageFile.type.split('/')[1] || 'png';
+            const fileName = `pasted-image-${timestamp}.${fileExtension}`;
+            
+            // Create a new File object with the proper name
+            const namedFile = new File([imageFile], fileName, {
+              type: imageFile.type,
+              lastModified: Date.now()
+            });
+            
+            // Use the existing file upload logic
+            await this.handleFileDrop(namedFile);
+            
+            ElMessage.success('Image pasted and uploaded successfully');
+          }
+        }
+        // If no image found, let default paste behavior happen for text
+      } catch (error) {
+        console.error('Error handling paste:', error);
+        ElMessage.error('Failed to paste image: ' + error.message);
       }
     },
     isImageFile(text) {

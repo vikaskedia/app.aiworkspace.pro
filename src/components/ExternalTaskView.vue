@@ -46,6 +46,12 @@
     <div v-if="loading" class="loading-container">
       <el-icon class="loading-spinner"><Loading /></el-icon>
       <span>Loading task details...</span>
+      <div v-if="loadingAttempts > 1" class="loading-actions">
+        <el-button @click="refreshTaskData" size="small" type="primary">
+          Refresh
+        </el-button>
+        <p class="loading-hint">Taking longer than usual? Try refreshing.</p>
+      </div>
     </div>
 
     <!-- Error State -->
@@ -216,7 +222,8 @@ export default {
       isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
       fileList: [],
       uploadingFiles: false,
-      matter: null
+      matter: null,
+      loadingAttempts: 0
     };
   },
   async created() {
@@ -260,6 +267,14 @@ export default {
         await this.loadTaskData();
       }
     });
+
+    // Add page visibility event listeners to handle tab switching
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  },
+  beforeUnmount() {
+    // Clean up event listeners
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   },
   computed: {
     filteredComments() {
@@ -267,6 +282,22 @@ export default {
     }
   },
   methods: {
+    handleVisibilityChange() {
+      // When the page becomes visible again, check if we're in a loading state
+      // with existing task data (indicating the loading got stuck)
+      if (!document.hidden && this.loading && this.task) {
+        console.log('Page became visible with stuck loading state, resetting...');
+        this.loading = false;
+      }
+      
+      // If page becomes visible and we don't have task data but should have it
+      // (user is authenticated or in development mode), try to reload
+      if (!document.hidden && !this.loading && !this.task && !this.error && (this.user || this.isDevelopment)) {
+        console.log('Page became visible without task data, reloading...');
+        this.loadTaskData();
+      }
+    },
+
     async signInWithGoogle() {
       try {
         this.signingIn = true;
@@ -307,23 +338,50 @@ export default {
 
     async loadTaskData() {
       try {
+        this.loadingAttempts++;
+        console.log(`Loading task data - attempt ${this.loadingAttempts}`, { 
+          shareId: this.shareId, 
+          token: this.token ? 'present' : 'missing',
+          userEmail: this.user?.email || 'no user'
+        });
+        
         this.loading = true;
         this.error = null;
 
-        const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
-        this.task = shareData.tasks;
-        this.matter = shareData.tasks.matters;
-        
-        // Load comments for the task
-        const commentsData = await this.getTaskComments(shareData.task_id);
-        this.comments = commentsData;
+        // Add timeout protection to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Loading timed out')), 30000); // 30 second timeout
+        });
+
+        const loadPromise = (async () => {
+          const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
+          this.task = shareData.tasks;
+          this.matter = shareData.tasks.matters;
+          
+          // Load comments for the task
+          const commentsData = await this.getTaskComments(shareData.task_id);
+          this.comments = commentsData;
+          
+          console.log('Task data loaded successfully', { 
+            taskId: this.task?.id, 
+            commentsCount: this.comments?.length || 0 
+          });
+        })();
+
+        await Promise.race([loadPromise, timeoutPromise]);
 
       } catch (error) {
         console.error('Error loading task data:', error);
         this.error = error.message;
       } finally {
         this.loading = false;
+        console.log('Loading finished', { loading: this.loading, hasTask: !!this.task });
       }
+    },
+
+    async refreshTaskData() {
+      console.log('Manually refreshing task data...');
+      await this.loadTaskData();
     },
 
     // File upload methods
@@ -667,6 +725,17 @@ export default {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.loading-actions {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.loading-hint {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
 }
 
 .external-task-content {

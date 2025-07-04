@@ -1,5 +1,18 @@
 <template>
   <div class="external-task-view">
+    <!-- Development Notice -->
+    <div v-if="isDevelopment" class="development-notice">
+      <el-alert
+        title="Development Mode"
+        type="warning"
+        :closable="false"
+        show-icon>
+        <template #default>
+          Authentication is bypassed for local development. In production, users must sign in with Gmail.
+        </template>
+      </el-alert>
+    </div>
+
     <!-- Header -->
     <div class="external-header">
       <div class="logo-section">
@@ -8,7 +21,7 @@
       </div>
       
       <div class="auth-section">
-        <div v-if="!user" class="login-prompt">
+        <div v-if="!user && !isDevelopment" class="login-prompt">
           <el-button type="primary" @click="signInWithGoogle" :loading="signingIn">
             <el-icon><User /></el-icon>
             Sign in with Gmail
@@ -21,7 +34,10 @@
             {{ user.email?.charAt(0).toUpperCase() }}
           </el-avatar>
           <span class="user-email">{{ user.email }}</span>
-          <el-button type="text" @click="signOut" size="small">Sign Out</el-button>
+          <el-tag v-if="isDevelopment" type="warning" size="small" style="margin-left: 8px;">
+            Development Mode
+          </el-tag>
+          <el-button v-if="!isDevelopment" type="text" @click="signOut" size="small">Sign Out</el-button>
         </div>
       </div>
     </div>
@@ -43,7 +59,7 @@
     </div>
 
     <!-- Task Content -->
-    <div v-else-if="task && user" class="external-task-content">
+    <div v-else-if="task && (user || isDevelopment)" class="external-task-content">
       <div class="task-header-section">
         <h2 class="task-title">{{ task.title }}</h2>
         <div class="task-metadata">
@@ -130,7 +146,7 @@
     </div>
 
     <!-- Auth Required State -->
-    <div v-else-if="!user" class="auth-required">
+    <div v-else-if="!user && !isDevelopment" class="auth-required">
       <el-empty description="Please sign in with Gmail to access this shared task" />
     </div>
   </div>
@@ -165,7 +181,8 @@ export default {
       newComment: '',
       addingComment: false,
       shareId: null,
-      token: null
+      token: null,
+      isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     };
   },
   async created() {
@@ -176,6 +193,19 @@ export default {
     if (!this.shareId || !this.token) {
       this.error = 'Invalid share link';
       this.loading = false;
+      return;
+    }
+
+    // For local development, bypass authentication
+    if (this.isDevelopment) {
+      // Mock user for development
+      this.user = {
+        email: 'dev@localhost.com',
+        user_metadata: {
+          avatar_url: null
+        }
+      };
+      await this.loadTaskData();
       return;
     }
 
@@ -374,6 +404,12 @@ export default {
 .external-task-view {
   min-height: 100vh;
   background-color: #f5f5f5;
+}
+
+.development-notice {
+  padding: 1rem;
+  background-color: #fff3cd;
+  border-bottom: 1px solid #ffeaa7;
 }
 
 .external-header {

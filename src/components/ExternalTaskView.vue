@@ -286,21 +286,29 @@ export default {
 
     // Listen for auth changes
     supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, 'User:', session?.user?.email);
+      
+      const previousUser = this.user;
       this.user = session?.user || null;
-      if (event === 'SIGNED_IN' && this.user) {
+      
+      // Only reload if this is a genuine new sign-in (not just session refresh)
+      // and we don't already have task data loaded
+      if (event === 'SIGNED_IN' && this.user && !previousUser && !this.task) {
+        console.log('New user signed in, loading task data...');
         // Reset loading state for new authentication
         this.isInitialLoad = true;
+        this.hasInitialLoadCompleted = false;
         await this.loadTaskData();
       }
     });
 
-    // Add page visibility event listeners to handle tab switching
-    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    // Visibility change listener disabled to prevent automatic reloading on tab switch
+    // this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    // document.addEventListener('visibilitychange', this.handleVisibilityChange);
   },
   beforeUnmount() {
-    // Clean up event listeners
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    // Clean up event listeners (currently disabled)
+    // document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     
     // Cancel any pending loading operations
     if (this.loadingController) {
@@ -398,7 +406,8 @@ export default {
         console.log(`Loading task data - attempt ${this.loadingAttempts}`, { 
           shareId: this.shareId, 
           token: this.token ? 'present' : 'missing',
-          userEmail: this.user?.email || 'no user'
+          userEmail: this.user?.email || 'no user',
+          stackTrace: new Error().stack
         });
         
         this.loading = true;

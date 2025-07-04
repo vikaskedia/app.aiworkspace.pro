@@ -107,19 +107,19 @@
                 <span class="author-name">
                   {{ getCommentAuthor(comment) }}
                 </span>
-                <el-tag v-if="comment.comment_type === 'external'" type="info" size="small">
+                <el-tag v-if="comment.external_user_email" type="info" size="small">
                   External
                 </el-tag>
-                <el-tag v-else-if="comment.comment_type === 'system'" type="warning" size="small">
-                  System
-                </el-tag>
-                <el-tag v-else-if="comment.comment_type === 'internal'" type="success" size="small">
+                <el-tag v-else-if="comment.user_id" type="success" size="small">
                   Internal
+                </el-tag>
+                <el-tag v-else type="warning" size="small">
+                  System
                 </el-tag>
               </div>
               <span class="comment-time">{{ formatCommentTime(comment.created_at) }}</span>
             </div>
-            <div class="comment-content" v-html="formatContent(comment.text)"></div>
+            <div class="comment-content" v-html="formatContent(comment.content)"></div>
           </div>
           
           <div v-if="!filteredComments.length" class="no-comments">
@@ -358,10 +358,10 @@ export default {
     },
 
     getCommentAuthor(comment) {
-      if (comment.created_by_email) {
-        return comment.created_by_email;
-      } else if (comment.external_user_email) {
+      if (comment.external_user_email) {
         return comment.external_user_email;
+      } else if (comment.user_id) {
+        return 'Team Member';
       } else {
         return 'System';
       }

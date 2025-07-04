@@ -264,14 +264,7 @@ export function useExternalTaskShare() {
     try {
       const { data, error } = await supabase
         .from('task_comments')
-        .select(`
-          *,
-          users:user_id (
-            id,
-            email,
-            full_name
-          )
-        `)
+        .select('*')
         .eq('task_id', taskId)
         .order('created_at', { ascending: true })
 

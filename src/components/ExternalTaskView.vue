@@ -325,50 +325,18 @@ export default {
   },
   methods: {
     handleVisibilityChange() {
-      const now = Date.now();
-      
-      // Debounce visibility changes to prevent rapid successive calls
-      if (now - this.lastVisibilityChange < 1000) {
-        return;
-      }
-      this.lastVisibilityChange = now;
-
-      // Only handle visibility changes after initial load attempt has been made
-      if (this.isInitialLoad && !this.hasInitialLoadCompleted) {
-        return;
-      }
-
+      // Disabled automatic reloading on tab switch
+      // Only log for debugging purposes
       if (!document.hidden) {
         console.log('Page became visible', { 
           hasTask: !!this.task, 
           isLoading: this.loading, 
           hasError: !!this.error,
-          isAuthenticated: !!(this.user || this.isDevelopment),
-          isLoadingInProgress: this.isLoadingInProgress,
-          hasInitialLoadCompleted: this.hasInitialLoadCompleted
+          isAuthenticated: !!(this.user || this.isDevelopment)
         });
-
-        // If we're currently loading, don't trigger another load
-        if (this.isLoadingInProgress) {
-          console.log('Already loading, skipping visibility change reload');
-          return;
-        }
-
-        // Only reload if there's an actual error or the data was never loaded successfully
-        // Don't reload if we already have task data (preserve user's state)
-        if (this.error && (this.user || this.isDevelopment)) {
-          console.log('Reloading task data due to previous error on visibility change...', {
-            error: this.error
-          });
-          // Reset error state before attempting reload
-          this.error = null;
-          this.loadTaskData();
-        } else if (!this.task && !this.loading && !this.error && (this.user || this.isDevelopment) && this.hasInitialLoadCompleted) {
-          // Only reload if we somehow lost the task data AND we're not currently loading AND no error
-          console.log('Task data missing after initial load, reloading...');
-          this.loadTaskData();
-        }
       }
+      
+      // No automatic reloading - let users manually refresh if needed
     },
 
     async signInWithGoogle() {

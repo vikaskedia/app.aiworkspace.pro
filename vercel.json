@@ -1,10 +1,6 @@
 {
   "version": 2,
   "functions": {
-    "api/process-emails.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    },
     "api/sms/send.js": {
       "memory": 1024,
       "maxDuration": 60

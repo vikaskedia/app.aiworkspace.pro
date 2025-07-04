@@ -43,7 +43,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="loading-container">
+    <div v-if="loading && showLoadingSpinner" class="loading-container">
       <el-icon class="loading-spinner"><Loading /></el-icon>
       <span>Loading task details...</span>
       <div v-if="loadingAttempts > 1" class="loading-actions">
@@ -240,7 +240,11 @@ export default {
       loadingAttempts: 0,
       lastVisibilityChange: 0,
       isInitialLoad: true,
-      loadingController: null
+      loadingController: null,
+      hasInitialLoadCompleted: false,
+      isLoadingInProgress: false,
+      showLoadingSpinner: false,
+      loadingSpinnerTimeout: null
     };
   },
   async created() {
@@ -277,6 +281,7 @@ export default {
     } else {
       this.loading = false;
       this.isInitialLoad = false;
+      this.hasInitialLoadCompleted = true;
     }
 
     // Listen for auth changes
@@ -302,6 +307,16 @@ export default {
       this.loadingController.abort();
       this.loadingController = null;
     }
+    
+    // Reset loading state
+    this.isLoadingInProgress = false;
+    this.loading = false;
+    
+    // Clean up timeouts
+    if (this.loadingSpinnerTimeout) {
+      clearTimeout(this.loadingSpinnerTimeout);
+      this.loadingSpinnerTimeout = null;
+    }
   },
   computed: {
     filteredComments() {
@@ -318,8 +333,8 @@ export default {
       }
       this.lastVisibilityChange = now;
 
-      // Only handle visibility changes after initial load is complete
-      if (this.isInitialLoad) {
+      // Only handle visibility changes after initial load attempt has been made
+      if (this.isInitialLoad && !this.hasInitialLoadCompleted) {
         return;
       }
 
@@ -328,18 +343,26 @@ export default {
           hasTask: !!this.task, 
           isLoading: this.loading, 
           hasError: !!this.error,
-          isAuthenticated: !!(this.user || this.isDevelopment)
+          isAuthenticated: !!(this.user || this.isDevelopment),
+          isLoadingInProgress: this.isLoadingInProgress,
+          hasInitialLoadCompleted: this.hasInitialLoadCompleted
         });
 
         // If we're currently loading, don't trigger another load
-        if (this.loading) {
+        if (this.isLoadingInProgress) {
           console.log('Already loading, skipping visibility change reload');
           return;
         }
 
         // Only reload if we don't have task data and should have it
-        if (!this.task && !this.error && (this.user || this.isDevelopment)) {
-          console.log('No task data on visibility change, reloading...');
+        // Also reload if we have an error (could be a network issue resolved by now)
+        if ((!this.task || this.error) && (this.user || this.isDevelopment)) {
+          console.log('Reloading task data on visibility change...', {
+            reason: !this.task ? 'no task data' : 'error state',
+            error: this.error
+          });
+          // Reset error state before attempting reload
+          this.error = null;
           this.loadTaskData();
         }
       }
@@ -384,6 +407,12 @@ export default {
     },
 
     async loadTaskData() {
+      // Prevent multiple concurrent loads
+      if (this.isLoadingInProgress) {
+        console.log('Load already in progress, skipping duplicate request');
+        return;
+      }
+
       // Cancel any existing loading operation
       if (this.loadingController) {
         this.loadingController.abort();
@@ -393,6 +422,7 @@ export default {
       this.loadingController = new AbortController();
 
       try {
+        this.isLoadingInProgress = true;
         this.loadingAttempts++;
         console.log(`Loading task data - attempt ${this.loadingAttempts}`, { 
           shareId: this.shareId, 
@@ -402,10 +432,22 @@ export default {
         
         this.loading = true;
         this.error = null;
+        
+        // Show loading spinner with a small delay to prevent UI flashing
+        this.loadingSpinnerTimeout = setTimeout(() => {
+          this.showLoadingSpinner = true;
+        }, 300);
 
         // Shorter timeout for better UX (15 seconds instead of 30)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000);
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Request timed out. Please try again.'));
+          }, 15000);
+          
+          // Clear timeout if request is aborted
+          this.loadingController.signal.addEventListener('abort', () => {
+            clearTimeout(timeoutId);
+          });
         });
 
         // Add abort signal to prevent race conditions
@@ -414,7 +456,22 @@ export default {
             throw new Error('Request was cancelled');
           }
 
-          const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
+          // Check if user is offline
+          if (!navigator.onLine) {
+            throw new Error('No internet connection. Please check your connection and try again.');
+          }
+
+          let shareData;
+          try {
+            shareData = await this.getExternalTaskAccess(this.shareId, this.token);
+          } catch (error) {
+            // Handle network errors more gracefully
+            if (error.message.includes('fetch') || error.message.includes('network') || 
+                error.message.includes('Failed to fetch')) {
+              throw new Error('Network connection error. Please check your internet connection and try again.');
+            }
+            throw error;
+          }
           
           if (this.loadingController?.signal.aborted) {
             throw new Error('Request was cancelled');
@@ -424,7 +481,14 @@ export default {
           this.matter = shareData.tasks.matters;
           
           // Load comments for the task
-          const commentsData = await this.getTaskComments(shareData.task_id);
+          let commentsData;
+          try {
+            commentsData = await this.getTaskComments(shareData.task_id);
+          } catch (error) {
+            // If comments fail to load, don't fail the whole operation
+            console.warn('Failed to load comments:', error);
+            commentsData = [];
+          }
           
           if (this.loadingController?.signal.aborted) {
             throw new Error('Request was cancelled');
@@ -442,20 +506,40 @@ export default {
 
         // Mark initial load as complete
         this.isInitialLoad = false;
+        this.hasInitialLoadCompleted = true;
 
       } catch (error) {
+        // Always mark initial load as attempted, even if it failed
+        this.hasInitialLoadCompleted = true;
+        
         // Don't show error if request was cancelled (user switched tabs quickly)
         if (error.message !== 'Request was cancelled') {
           console.error('Error loading task data:', error);
           this.error = error.message;
+          // On error, reset initial load flag so visibility change can retry
+          this.isInitialLoad = false;
         }
       } finally {
         this.loading = false;
+        this.isLoadingInProgress = false;
+        this.showLoadingSpinner = false;
+        
+        // Clean up timeouts
+        if (this.loadingSpinnerTimeout) {
+          clearTimeout(this.loadingSpinnerTimeout);
+          this.loadingSpinnerTimeout = null;
+        }
+        
         // Clean up the controller reference
         if (this.loadingController) {
           this.loadingController = null;
         }
-        console.log('Loading finished', { loading: this.loading, hasTask: !!this.task });
+        console.log('Loading finished', { 
+          loading: this.loading, 
+          hasTask: !!this.task,
+          hasError: !!this.error,
+          isLoadingInProgress: this.isLoadingInProgress
+        });
       }
     },
 
@@ -465,6 +549,9 @@ export default {
       this.loadingAttempts = 0;
       // Clear any previous error
       this.error = null;
+      // Reset loading flags to allow fresh load
+      this.isLoadingInProgress = false;
+      this.hasInitialLoadCompleted = false;
       await this.loadTaskData();
     },
 

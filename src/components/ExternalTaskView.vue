@@ -354,15 +354,18 @@ export default {
           return;
         }
 
-        // Only reload if we don't have task data and should have it
-        // Also reload if we have an error (could be a network issue resolved by now)
-        if ((!this.task || this.error) && (this.user || this.isDevelopment)) {
-          console.log('Reloading task data on visibility change...', {
-            reason: !this.task ? 'no task data' : 'error state',
+        // Only reload if there's an actual error or the data was never loaded successfully
+        // Don't reload if we already have task data (preserve user's state)
+        if (this.error && (this.user || this.isDevelopment)) {
+          console.log('Reloading task data due to previous error on visibility change...', {
             error: this.error
           });
           // Reset error state before attempting reload
           this.error = null;
+          this.loadTaskData();
+        } else if (!this.task && !this.loading && !this.error && (this.user || this.isDevelopment) && this.hasInitialLoadCompleted) {
+          // Only reload if we somehow lost the task data AND we're not currently loading AND no error
+          console.log('Task data missing after initial load, reloading...');
           this.loadTaskData();
         }
       }

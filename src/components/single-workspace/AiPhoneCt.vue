@@ -206,7 +206,7 @@
               <el-icon><Search /></el-icon>
             </template>
           </el-input>
-          <el-select
+          <!-- <el-select
             v-model="selectedTags"
             multiple
             collapse-tags
@@ -225,7 +225,7 @@
                 <span>{{ tag }}</span>
               </div>
             </el-option>
-          </el-select>
+          </el-select> -->
         </div>
 
         <div class="conversations-list">

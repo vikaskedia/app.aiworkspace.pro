@@ -70,21 +70,21 @@ module.exports = async (req, res) => {
     // Create a notification for the task creator and matter members
     try {
       // Get task creator and matter members
-      const { data: matterId } = await supabase
+      const { data: taskData } = await supabase
         .from('tasks')
         .select('created_by, matter_id')
         .eq('id', shareRecord.task_id)
         .single();
 
-      if (matterId) {
+      if (taskData) {
         // Get all users with access to this matter
         const { data: matterUsers, error: matterUsersError } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id')
-          .eq('matter_id', matterId.matter_id);
+          .eq('matter_id', taskData.matter_id);
 
         if (!matterUsersError && matterUsers) {
-          const userIds = new Set([matterId.created_by, ...matterUsers.map(u => u.shared_with_user_id)]);
+          const userIds = new Set([taskData.created_by, ...matterUsers.map(u => u.shared_with_user_id)]);
           
           // Create notifications for all relevant users
           const notifications = Array.from(userIds).map(userId => ({

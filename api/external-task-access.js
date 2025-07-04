@@ -58,7 +58,7 @@ module.exports = async (req, res) => {
         id,
         text,
         created_at,
-        created_by,
+        user_id,
         external_user_email,
         archived
       `)
@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
     }
 
     // Get user emails for internal comments
-    const userIds = comments?.filter(c => c.created_by).map(c => c.created_by) || [];
+    const userIds = comments?.filter(c => c.user_id).map(c => c.user_id) || [];
     let userEmails = {};
 
     if (userIds.length > 0) {
@@ -87,7 +87,10 @@ module.exports = async (req, res) => {
     // Add email information to comments
     const enrichedComments = comments?.map(comment => ({
       ...comment,
-      created_by_email: comment.created_by ? userEmails[comment.created_by] : null
+      created_by_email: comment.user_id ? userEmails[comment.user_id] : null,
+      // Determine comment type for display
+      comment_type: comment.user_id ? 'internal' : 
+                   comment.external_user_email ? 'external' : 'system'
     })) || [];
 
     // Update access count and last accessed time

@@ -102,13 +102,19 @@
             <div class="comment-header">
               <div class="comment-author">
                 <el-avatar size="small">
-                  {{ getInitials(comment.created_by_email || comment.external_user_email) }}
+                  {{ getInitials(getCommentAuthor(comment)) }}
                 </el-avatar>
                 <span class="author-name">
-                  {{ comment.created_by_email || comment.external_user_email }}
+                  {{ getCommentAuthor(comment) }}
                 </span>
-                <el-tag v-if="comment.external_user_email" type="info" size="small">
+                <el-tag v-if="comment.comment_type === 'external'" type="info" size="small">
                   External
+                </el-tag>
+                <el-tag v-else-if="comment.comment_type === 'system'" type="warning" size="small">
+                  System
+                </el-tag>
+                <el-tag v-else-if="comment.comment_type === 'internal'" type="success" size="small">
+                  Internal
                 </el-tag>
               </div>
               <span class="comment-time">{{ formatCommentTime(comment.created_at) }}</span>
@@ -365,6 +371,16 @@ export default {
     getInitials(email) {
       if (!email) return '?';
       return email.charAt(0).toUpperCase();
+    },
+
+    getCommentAuthor(comment) {
+      if (comment.created_by_email) {
+        return comment.created_by_email;
+      } else if (comment.external_user_email) {
+        return comment.external_user_email;
+      } else {
+        return 'System';
+      }
     }
   }
 };

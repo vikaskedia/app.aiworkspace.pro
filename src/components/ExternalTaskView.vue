@@ -140,12 +140,19 @@
 import { User, Loading } from '@element-plus/icons-vue';
 import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
+import { useExternalTaskShare } from '../composables/useExternalTaskShare';
 
 export default {
   name: 'ExternalTaskView',
   components: {
     User,
     Loading
+  },
+  setup() {
+    const externalShare = useExternalTaskShare();
+    return {
+      ...externalShare
+    };
   },
   data() {
     return {
@@ -239,21 +246,12 @@ export default {
         this.loading = true;
         this.error = null;
 
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/external-task-access' : '/api/external-task-access';
-        const response = await fetch(`${apiUrl}?shareId=${this.shareId}&token=${this.token}`, {
-          headers: {
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to load task');
-        }
-
-        const data = await response.json();
-        this.task = data.task;
-        this.comments = data.comments || [];
+        const shareData = await this.getExternalTaskAccess(this.shareId, this.token);
+        this.task = shareData.tasks;
+        
+        // Load comments for the task
+        const commentsData = await this.getTaskComments(shareData.task_id);
+        this.comments = commentsData;
 
       } catch (error) {
         console.error('Error loading task data:', error);
@@ -269,28 +267,13 @@ export default {
       try {
         this.addingComment = true;
 
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/external-task-comment' : '/api/external-task-comment';
-        const response = await fetch(`${apiUrl}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-          },
-          body: JSON.stringify({
-            shareId: this.shareId,
-            token: this.token,
-            comment: this.newComment.trim(),
-            userEmail: this.user.email
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to add comment');
-        }
-
-        const newCommentData = await response.json();
-        this.comments.unshift(newCommentData.comment);
+        const newCommentData = await this.addExternalComment(
+          this.task.id, 
+          this.user.email, 
+          this.newComment.trim()
+        );
+        
+        this.comments.unshift(newCommentData);
         this.newComment = '';
 
         ElNotification.success({

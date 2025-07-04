@@ -992,7 +992,7 @@
                 <el-button 
                   type="primary"
                   :loading="generatingExternalLink"
-                  @click="generateExternalShareLink"
+                  @click="handleGenerateExternalShareLink"
                   :disabled="!!externalShareLink">
                   <el-icon><Link /></el-icon>
                   Generate Shareable Link
@@ -1001,7 +1001,7 @@
                 <el-button 
                   v-if="externalShareLink"
                   type="danger"
-                  @click="revokeExternalShareLink"
+                  @click="handleRevokeExternalShareLink"
                   :loading="revokingExternalLink">
                   <el-icon><Delete /></el-icon>
                   Revoke Link
@@ -1015,7 +1015,7 @@
                   type="textarea"
                   :rows="3">
                   <template #append>
-                    <el-button @click="copyExternalLink">
+                    <el-button @click="handleCopyExternalLink">
                       <el-icon><DocumentCopy /></el-icon>
                       Copy
                     </el-button>
@@ -1306,6 +1306,7 @@ import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
 import { updateMatterActivity } from '../../utils/matterActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
+import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
 
 export default {
   components: {
@@ -1349,10 +1350,14 @@ export default {
     const userStore = useUserStore();
     const { currentMatter } = storeToRefs(matterStore);
     
+    // External sharing composable
+    const externalShareComposable = useExternalTaskShare();
+    
     return { 
       currentMatter, 
       taskStore,
-      userStore
+      userStore,
+      ...externalShareComposable
     };
   },
   data() {
@@ -1471,10 +1476,6 @@ export default {
       activeShareTab: 'internal',
       
       // External sharing
-      externalShareLink: '',
-      externalShareHistory: [],
-      generatingExternalLink: false,
-      revokingExternalLink: false,
       testingApi: false,
     };
   },
@@ -4162,144 +4163,36 @@ ${comment.content}
       return currentContent !== savedContent;
     },
 
-    async generateExternalShareLink() {
+    async handleGenerateExternalShareLink() {
       try {
-        this.generatingExternalLink = true;
         const { data: { user } } = await supabase.auth.getUser();
-
-        // Use production API when running on localhost, otherwise use relative path
-        const apiUrl = window.location.hostname === 'localhost' 
-          ? 'https://app.aiworkspace.pro/api/generate-external-share-link' 
-          : '/api/generate-external-share-link';
-        
-        console.log('Calling API:', apiUrl);
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            taskId: this.task.id,
-            userId: user.id
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('API Error:', response.status, errorData);
-          throw new Error(errorData.error || `Failed to generate external share link (${response.status})`);
-        }
-
-        const data = await response.json();
-        console.log('API Response:', data);
-        this.externalShareLink = data.externalShareLink;
-        this.externalShareHistory.push({
-          id: data.id,
-          status: 'active',
-          access_count: 0
-        });
-
-        ElNotification.success({
-          title: 'Success',
-          message: 'External share link generated successfully'
-        });
+        await this.generateExternalShareLink(this.task.id, user.id);
       } catch (error) {
         console.error('Error generating external share link:', error);
-        ElNotification.error({
-          title: 'Error',
-          message: 'Failed to generate external share link: ' + error.message
-        });
-      } finally {
-        this.generatingExternalLink = false;
       }
     },
 
-    async revokeExternalShareLink() {
+    async handleRevokeExternalShareLink() {
       try {
-        this.revokingExternalLink = true;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/revoke-external-share-link' : '/api/revoke-external-share-link';
-        const response = await fetch(`${apiUrl}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            taskId: this.task.id,
-            userId: user.id
-          })
-        });
-
-        if (!response.ok) throw new Error('Failed to revoke external share link');
-
-        this.externalShareLink = '';
-        this.externalShareHistory = this.externalShareHistory.filter(entry => entry.id !== this.task.id);
-
-        ElNotification.success({
-          title: 'Success',
-          message: 'External share link revoked successfully'
-        });
+        await this.revokeExternalShareLink(this.task.id);
       } catch (error) {
         console.error('Error revoking external share link:', error);
-        ElNotification.error({
-          title: 'Error',
-          message: 'Failed to revoke external share link: ' + error.message
-        });
-      } finally {
-        this.revokingExternalLink = false;
       }
     },
 
-    async revokeSpecificExternalLink(entryId) {
+    async handleRevokeSpecificExternalLink(shareId) {
       try {
-        this.revokingExternalLink = true;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/revoke-external-share-link' : '/api/revoke-external-share-link';
-        const response = await fetch(`${apiUrl}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            taskId: this.task.id,
-            userId: user.id,
-            entryId: entryId
-          })
-        });
-
-        if (!response.ok) throw new Error('Failed to revoke specific external share link');
-
-        this.externalShareHistory = this.externalShareHistory.filter(entry => entry.id !== entryId);
-
-        ElNotification.success({
-          title: 'Success',
-          message: 'Specific external share link revoked successfully'
-        });
+        await this.revokeSpecificExternalShareLink(shareId);
       } catch (error) {
         console.error('Error revoking specific external share link:', error);
-        ElNotification.error({
-          title: 'Error',
-          message: 'Failed to revoke specific external share link: ' + error.message
-        });
-      } finally {
-        this.revokingExternalLink = false;
       }
     },
 
-    async copyExternalLink() {
+    async handleCopyExternalLink() {
       try {
-        await navigator.clipboard.writeText(this.externalShareLink);
-        ElNotification.success({
-          title: 'Success',
-          message: 'External share link copied to clipboard'
-        });
+        await this.copyExternalLink();
       } catch (error) {
-        ElNotification.error({
-          title: 'Error',
-          message: 'Failed to copy external share link'
-        });
+        console.error('Error copying external link:', error);
       }
     },
 
@@ -4309,17 +4202,9 @@ ${comment.content}
       return date.toLocaleDateString();
     },
 
-    async loadExternalShareHistory() {
+    async handleLoadExternalShareHistory() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/get-external-share-history' : '/api/get-external-share-history';
-        const response = await fetch(`${apiUrl}?taskId=${this.task.id}&userId=${user.id}`);
-        if (!response.ok) throw new Error('Failed to load external share history');
-        
-        const data = await response.json();
-        this.externalShareHistory = data.history || [];
-        this.externalShareLink = data.activeLink || '';
+        await this.loadExternalShareHistory(this.task.id);
       } catch (error) {
         console.error('Error loading external share history:', error);
       }
@@ -4367,7 +4252,7 @@ ${comment.content}
     shareDialogVisible(newVal) {
       if (newVal) {
         this.generateShareLink();
-        this.loadExternalShareHistory();
+        this.handleLoadExternalShareHistory();
       }
     },
     'task.title': {

@@ -174,13 +174,19 @@
       <div class="chats-panel">
         <div class="panel-header">
           <div class="panel-header-title">
-            <el-tooltip 
-              v-if="conversationHeaderTitle.tooltip" 
-              :content="conversationHeaderTitle.tooltip" 
-              placement="top">
-              <h3>{{ conversationHeaderTitle.title }}</h3>
-            </el-tooltip>
-            <h3 v-else>{{ conversationHeaderTitle.title }}</h3>
+            <div style="display: flex; align-items: center;">
+              <el-tooltip 
+                v-if="conversationHeaderTitle.tooltip" 
+                :content="conversationHeaderTitle.tooltip" 
+                placement="top">
+                <h3>{{ conversationHeaderTitle.title }}</h3>
+              </el-tooltip>
+              <h3 v-else>{{ conversationHeaderTitle.title }}</h3>
+              <!-- Selected tags need to be shown here -->
+              <div v-if="selectedInboxItem && selectedTagByPhone[selectedInboxItem]" class="selected-tags">
+                &nbsp;<el-tag type="primary" effect="plain" round size="small">{{ selectedTagByPhone[selectedInboxItem] }}</el-tag>
+              </div>
+            </div>            
             <el-button 
               v-if="showNewMessageButton"
               size="small" 

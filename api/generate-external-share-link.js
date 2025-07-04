@@ -1,36 +1,39 @@
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 module.exports = async (req, res) => {
-  // Add CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
+    // Add CORS headers first
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Initialize Supabase client inside the function
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
     // Check environment variables
     if (!supabaseUrl || !supabaseKey) {
       console.error('Missing environment variables:', { 
         hasUrl: !!supabaseUrl, 
-        hasKey: !!supabaseKey 
+        hasKey: !!supabaseKey,
+        env: process.env.NODE_ENV
       });
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    const { taskId, userId } = req.body;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { taskId, userId } = req.body || {};
 
     if (!taskId || !userId) {
       return res.status(400).json({ error: 'Task ID and user ID are required' });
@@ -105,9 +108,21 @@ module.exports = async (req, res) => {
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      body: req.body
+      body: req.body,
+      hasSupabase: typeof createClient !== 'undefined',
+      hasCrypto: typeof crypto !== 'undefined'
     });
-    res.status(500).json({ 
+    
+    // Ensure CORS headers are set even on error
+    try {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    } catch (corsError) {
+      console.error('CORS header error:', corsError);
+    }
+    
+    return res.status(500).json({ 
       error: 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });

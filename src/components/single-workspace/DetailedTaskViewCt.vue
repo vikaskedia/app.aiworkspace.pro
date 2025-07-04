@@ -987,14 +987,6 @@
               <h4>Generate External Share Link</h4>
               <div class="external-link-controls">
                 <el-button 
-                  type="info"
-                  size="small"
-                  @click="testApiConnection"
-                  :loading="testingApi">
-                  <el-icon><Setting /></el-icon>
-                  Test API
-                </el-button>
-                <el-button 
                   type="primary"
                   :loading="generatingExternalLink"
                   @click="handleGenerateExternalShareLink"
@@ -1043,16 +1035,14 @@
                 style="width: 100%">
                 <el-table-column
                   prop="created_at"
-                  label="Created"
-                  width="120">
+                  label="Created">
                   <template #default="scope">
                     {{ formatDate(scope.row.created_at) }}
                   </template>
                 </el-table-column>
                 <el-table-column
                   prop="status"
-                  label="Status"
-                  width="80">
+                  label="Status">
                   <template #default="scope">
                     <el-tag 
                       :type="scope.row.status === 'active' ? 'success' : 'danger'"
@@ -1061,11 +1051,11 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column
+                <!--el-table-column
                   prop="access_count"
                   label="Access Count"
                   width="100">
-                </el-table-column>
+                </el-table-column-->
                 <el-table-column
                   label="Actions">
                   <template #default="scope">
@@ -4212,43 +4202,6 @@ ${comment.content}
         await this.loadExternalShareHistory(this.task.id);
       } catch (error) {
         console.error('Error loading external share history:', error);
-      }
-    },
-
-    async testApiConnection() {
-      try {
-        this.testingApi = true;
-        
-        const apiUrl = window.location.hostname === 'localhost' 
-          ? 'https://app.aiworkspace.pro/api/test-external-sharing' 
-          : '/api/test-external-sharing';
-        
-        console.log('Testing API connection:', apiUrl);
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(`API test failed (${response.status}): ${errorData.error}`);
-        }
-        
-        const data = await response.json();
-        console.log('API test successful:', data);
-        
-        ElNotification.success({
-          title: 'API Test Successful',
-          message: 'External sharing API is working correctly',
-          duration: 3000
-        });
-        
-      } catch (error) {
-        console.error('API test failed:', error);
-        ElNotification.error({
-          title: 'API Test Failed',
-          message: error.message,
-          duration: 5000
-        });
-      } finally {
-        this.testingApi = false;
       }
     },
 

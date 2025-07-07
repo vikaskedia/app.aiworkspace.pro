@@ -1,6 +1,6 @@
 <script>
 import { supabase } from '../supabase';
-import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage } from 'element-plus';
+import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage, ElAlert, ElButton } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
 import { useMatterStore } from '../store/matter';
@@ -16,7 +16,9 @@ export default {
     ElAvatar,
     CaretBottom,
     MatterSelector,
-    ElDialog
+    ElDialog,
+    ElAlert,
+    ElButton
   },
   data: function () {
     return {
@@ -28,7 +30,11 @@ export default {
       userEmails: {},
       loading: false,
       commitHash: __SHORT_COMMIT_HASH__,
-      fullCommitHash: __COMMIT_HASH__
+      fullCommitHash: __COMMIT_HASH__,
+      showUpdateAlert: false,
+      latestCommitHash: null,
+      versionCheckInterval: null,
+      checkingVersion: false
     };
   },
   computed: {
@@ -104,10 +110,15 @@ export default {
     }
     this.loadNotifications();
     this.setupRealtimeSubscription();
+    this.checkForUpdates();
+    this.startVersionChecking();
   },
   beforeUnmount() {
     if (this.subscription) {
       this.subscription.unsubscribe();
+    }
+    if (this.versionCheckInterval) {
+      clearInterval(this.versionCheckInterval);
     }
   },
   methods: {
@@ -321,6 +332,57 @@ export default {
         console.error('Failed to copy commit hash:', error);
         ElMessage.error('Failed to copy commit hash');
       }
+    },
+    async checkForUpdates() {
+      if (this.checkingVersion) return;
+      
+      this.checkingVersion = true;
+      try {
+        // Add cache busting parameter to ensure we get the latest version
+        const cacheBuster = Date.now();
+        const response = await fetch(`/version.json?t=${cacheBuster}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch version info');
+        }
+        
+        const versionData = await response.json();
+        this.latestCommitHash = versionData.fullCommitHash;
+        
+        // Compare current hash with latest hash
+        if (this.fullCommitHash !== this.latestCommitHash) {
+          this.showUpdateAlert = true;
+          MP.track('Version Mismatch Detected', {
+            currentVersion: this.fullCommitHash,
+            latestVersion: this.latestCommitHash,
+            serverBuildTime: versionData.buildTime
+          });
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        // Silently fail version checks to not disturb user experience
+      } finally {
+        this.checkingVersion = false;
+      }
+    },
+    startVersionChecking() {
+      // Check for updates every 30 seconds
+      this.versionCheckInterval = setInterval(() => {
+        this.checkForUpdates();
+      }, 30 * 1000); // 30 seconds
+    },
+    reloadPage() {
+      MP.track('User Reloaded for Update', {
+        currentVersion: this.fullCommitHash,
+        latestVersion: this.latestCommitHash
+      });
+      window.location.reload();
+    },
+    dismissUpdateAlert() {
+      this.showUpdateAlert = false;
+      MP.track('Update Alert Dismissed', {
+        currentVersion: this.fullCommitHash,
+        latestVersion: this.latestCommitHash
+      });
     }
   },
   emits: ['logo-click']
@@ -450,6 +512,32 @@ export default {
       </el-dropdown>
     </div>
   </header>
+
+  <!-- Update Alert -->
+  <el-alert
+    v-if="showUpdateAlert"
+    title="New Version Available!"
+    type="warning"
+    :closable="true"
+    @close="dismissUpdateAlert"
+    show-icon
+    class="update-alert"
+  >
+    <template #default>
+      <div class="update-content">
+        <p>A new version of the application is available. Please reload to get the latest updates and features.</p>
+        <div class="update-actions">
+          <el-button type="primary" size="small" @click="reloadPage">
+            Reload Now
+          </el-button>
+          <el-button size="small" @click="dismissUpdateAlert">
+            Dismiss
+          </el-button>
+        </div>
+      </div>
+    </template>
+  </el-alert>
+
   <el-dialog
     v-model="showNotificationsDialog"
     title="Notifications"
@@ -778,5 +866,48 @@ export default {
 
 .version-hash:hover {
   background: rgba(64, 158, 255, 0.2);
+}
+
+/* Update Alert Styles */
+.update-alert {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  margin: 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+.update-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.update-content p {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .update-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .update-actions {
+    justify-content: center;
+  }
 }
 </style>

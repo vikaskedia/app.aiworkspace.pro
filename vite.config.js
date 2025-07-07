@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { execSync } from 'child_process';
+import { writeFileSync } from 'fs';
+import { resolve } from 'path';
 
 // Function to get current git commit hash
 function getGitCommitHash() {
@@ -10,6 +12,35 @@ function getGitCommitHash() {
     console.warn('Could not get git commit hash:', error.message);
     return 'unknown';
   }
+}
+
+// Plugin to generate version.json file
+function generateVersionFile() {
+  return {
+    name: 'generate-version-file',
+    buildStart() {
+      const commitHash = getGitCommitHash();
+      const shortCommitHash = commitHash.substring(0, 7);
+      
+      const versionData = {
+        fullCommitHash: commitHash,
+        shortCommitHash: shortCommitHash,
+        timestamp: new Date().toISOString(),
+        buildTime: new Date().toISOString()
+      };
+
+      // Write to public directory so it's accessible as a static file
+      const publicDir = resolve(process.cwd(), 'public');
+      const versionFilePath = resolve(publicDir, 'version.json');
+      
+      try {
+        writeFileSync(versionFilePath, JSON.stringify(versionData, null, 2));
+        console.log('✅ Generated version.json with hash:', shortCommitHash);
+      } catch (error) {
+        console.error('❌ Failed to generate version.json:', error);
+      }
+    }
+  };
 }
 
 export default defineConfig(({ mode }) => {
@@ -27,7 +58,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      vue()
+      vue(),
+      generateVersionFile()
     ],
     base: "/",
     define: {

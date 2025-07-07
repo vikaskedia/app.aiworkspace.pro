@@ -1442,8 +1442,9 @@ export default {
   }
 
   .header-content {
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     width: 100%;
   }
@@ -1451,8 +1452,7 @@ export default {
   .logo-section {
     flex-direction: row;
     align-items: center;
-    justify-content: center;
-    width: 100%;
+    flex: 1;
   }
 
   .logo {
@@ -1468,9 +1468,7 @@ export default {
   }
 
   .auth-section {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    flex-shrink: 0;
   }
 
   .login-prompt {
@@ -1479,43 +1477,43 @@ export default {
   }
 
   .user-info {
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 0.75rem;
-    width: 100%;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .user-profile {
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   .user-details {
-    align-items: center;
-    text-align: center;
-    width: 100%;
+    align-items: flex-start;
+    min-width: 0;
+    flex: 1;
   }
 
   .user-email {
-    font-size: 0.9rem;
-    word-break: break-all;
-    line-height: 1.3;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .user-tags {
     flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 0.25rem;
+    justify-content: flex-start;
   }
 
   .sign-out-btn {
     margin-left: 0;
     font-size: 0.8rem;
-    padding: 0.4rem 1rem;
-    width: auto;
-    min-width: 80px;
+    padding: 0.5rem 0.75rem;
+    flex-shrink: 0;
   }
 
   .external-task-content {
@@ -1678,17 +1676,17 @@ export default {
   }
 
   .user-profile {
-    gap: 0.5rem;
+    gap: 0.25rem;
   }
 
   .user-email {
-    font-size: 0.8rem;
-    max-width: none;
+    font-size: 0.7rem;
+    max-width: 120px;
   }
 
   .sign-out-btn {
     font-size: 0.7rem;
-    padding: 0.3rem 0.8rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .auth-button-text {

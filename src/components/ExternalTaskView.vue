@@ -15,181 +15,250 @@
 
     <!-- Header -->
     <div class="external-header">
-      <div class="logo-section">
-        <img src="/associate-ai-attorney-logo.svg" alt="AI Attorney" class="logo" />
-        <h1>AI Workspace - Shared Task</h1>
-      </div>
-      
-      <div class="auth-section">
-        <div v-if="!user && !isDevelopment" class="login-prompt">
-          <el-button type="primary" @click="signInWithGoogle" :loading="signingIn">
-            <el-icon><User /></el-icon>
-            Sign in with Gmail
-          </el-button>
-          <p class="auth-info">Please sign in with Gmail to view and comment on this task</p>
+      <div class="header-content">
+        <div class="logo-section">
+          <img src="/associate-ai-attorney-logo.svg" alt="AI Attorney" class="logo" />
+          <div class="header-text">
+            <h1>AI Workspace</h1>
+            <p class="subtitle">Shared Task</p>
+          </div>
         </div>
         
-        <div v-else class="user-info">
-          <el-avatar :src="user.user_metadata?.avatar_url" size="small">
-            {{ user.email?.charAt(0).toUpperCase() }}
-          </el-avatar>
-          <span class="user-email">{{ user.email }}</span>
-          <el-tag v-if="isDevelopment" type="warning" size="small" style="margin-left: 8px;">
-            Development Mode
-          </el-tag>
-          <el-button v-if="!isDevelopment" type="primary" @click="signOut" size="small">Sign Out</el-button>
+        <div class="auth-section">
+          <div v-if="!user && !isDevelopment" class="login-prompt">
+            <el-button type="primary" @click="signInWithGoogle" :loading="signingIn" size="large">
+              <el-icon><User /></el-icon>
+              <span class="auth-button-text">Sign in with Gmail</span>
+            </el-button>
+            <p class="auth-info">Please sign in to view and comment</p>
+          </div>
+          
+          <div v-else class="user-info">
+            <div class="user-profile">
+              <el-avatar :src="user.user_metadata?.avatar_url" size="default">
+                {{ user.email?.charAt(0).toUpperCase() }}
+              </el-avatar>
+              <div class="user-details">
+                <span class="user-email">{{ user.email }}</span>
+                <div class="user-tags">
+                  <el-tag v-if="isDevelopment" type="warning" size="small">
+                    Development Mode
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <el-button v-if="!isDevelopment" @click="signOut" size="default" class="sign-out-btn">
+              Sign Out
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading && showLoadingSpinner" class="loading-container">
-      <el-icon class="loading-spinner"><Loading /></el-icon>
-      <span>Loading task details...</span>
-      <div v-if="loadingAttempts > 1" class="loading-actions">
-        <el-button @click="refreshTaskData" size="small" type="primary">
-          Try Again
-        </el-button>
-        <p class="loading-hint">
-          <span v-if="loadingAttempts === 2">Taking longer than usual? </span>
-          <span v-else>Still having trouble? </span>
-          Check your internet connection and try refreshing.
-        </p>
+      <div class="loading-content">
+        <el-icon class="loading-spinner"><Loading /></el-icon>
+        <h3>Loading task details...</h3>
+        <div v-if="loadingAttempts > 1" class="loading-actions">
+          <el-button @click="refreshTaskData" size="large" type="primary">
+            Try Again
+          </el-button>
+          <p class="loading-hint">
+            <span v-if="loadingAttempts === 2">Taking longer than usual? </span>
+            <span v-else>Still having trouble? </span>
+            Check your connection and try refreshing.
+          </p>
+        </div>
       </div>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="error-container">
-      <el-alert
-        :title="error"
-        type="error"
-        :closable="false"
-        show-icon>
-        <template #default>
-          <div class="error-actions">
-            <el-button @click="refreshTaskData" type="primary" size="small">
-              Retry
-            </el-button>
-            <el-button @click="$router.go(-1)" size="small">
-              Go Back
-            </el-button>
-          </div>
-        </template>
-      </el-alert>
+      <div class="error-content">
+        <el-alert
+          :title="error"
+          type="error"
+          :closable="false"
+          show-icon>
+          <template #default>
+            <div class="error-actions">
+              <el-button @click="refreshTaskData" type="primary" size="large">
+                Retry
+              </el-button>
+              <el-button @click="$router.go(-1)" size="large">
+                Go Back
+              </el-button>
+            </div>
+          </template>
+        </el-alert>
+      </div>
     </div>
 
     <!-- Task Content -->
     <div v-else-if="task && (user || isDevelopment)" class="external-task-content">
-      <div class="task-header-section">
-        <h2 class="task-title">{{ task.title }}</h2>
-        <div class="task-metadata">
-          <el-tag :type="getStatusType(task.status)" size="small">
-            {{ formatStatus(task.status) }}
-          </el-tag>
-          <el-tag :type="getPriorityType(task.priority)" size="small">
-            Priority: {{ task.priority }}
-          </el-tag>
-          <span v-if="task.due_date" class="due-date">
-            Due: {{ formatDueDate(task.due_date) }}
-          </span>
-        </div>
-      </div>
-
-      <div class="task-description" v-if="task.description">
-        <h3>Description</h3>
-        <div class="description-content" v-html="formatCommentContent(task.description)"></div>
-      </div>
-
-      <!-- Comments Section -->
-      <div class="external-comments-section">
-        <h3>Comments</h3>
-        
-        <!-- Add Comment Form -->
-        <div class="add-comment-form">
-          <el-form @submit.prevent="addComment">
-            <el-form-item>
-              <el-input
-                v-model="newComment"
-                type="textarea"
-                :rows="4"
-                placeholder="Add a comment..."
-                maxlength="2000"
-                show-word-limit
-              />
-            </el-form-item>
-            
-            <!-- File Upload Section -->
-            <el-form-item>
-              <div class="file-upload-section">
-                <el-upload
-                  ref="fileUpload"
-                  :file-list="fileList"
-                  :auto-upload="false"
-                  :on-change="handleFileChange"
-                  :on-remove="handleFileRemove"
-                  :before-upload="beforeFileUpload"
-                  multiple
-                  :show-file-list="true"
-                  action="#"
-                  :limit="5">
-                  <el-button size="small" type="primary">
-                    <el-icon><Paperclip /></el-icon>
-                    Attach Files
-                  </el-button>
-                </el-upload>
-              </div>
-            </el-form-item>
-            
-            <el-form-item>
-              <el-button 
-                type="primary" 
-                @click="addComment"
-                :loading="addingComment"
-                :disabled="!newComment.trim() && fileList.length === 0">
-                Add Comment
-              </el-button>
-              <el-button 
-                v-if="fileList.length > 0"
-                @click="clearFiles"
-                size="small"
-                type="primary">
-                Clear Files
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-
-        <!-- Comments List -->
-        <div class="comments-list">
-          <div
-            v-for="comment in filteredComments"
-            :key="comment.id"
-            class="comment-item">
-            <div class="comment-header">
-              <div class="comment-author">
-                <el-avatar size="small">
-                  {{ getInitials(getCommentAuthor(comment)) }}
-                </el-avatar>
-                <span class="author-name">
-                  {{ getCommentAuthor(comment) }}
-                </span>
-                <el-tag v-if="comment.external_user_email" type="info" size="small">
-                  External
-                </el-tag>
-                <el-tag v-else-if="comment.user_id" type="success" size="small">
-                  Internal
-                </el-tag>
-                <el-tag v-else type="warning" size="small">
-                  System
-                </el-tag>
-              </div>
-              <span class="comment-time">{{ formatCommentTime(comment.created_at) }}</span>
+      <div class="container">
+        <!-- Task Header Section -->
+        <div class="task-header-section">
+          <h2 class="task-title">{{ task.title }}</h2>
+          <div class="task-metadata">
+            <div class="metadata-row">
+              <el-tag :type="getStatusType(task.status)" size="default" class="status-tag">
+                {{ formatStatus(task.status) }}
+              </el-tag>
+              <el-tag :type="getPriorityType(task.priority)" size="default" class="priority-tag">
+                Priority: {{ task.priority }}
+              </el-tag>
             </div>
-            <div class="comment-content" v-html="formatCommentContent(comment.content)"></div>
+            <div v-if="task.due_date" class="due-date-row">
+              <el-icon class="date-icon"><Calendar /></el-icon>
+              <span class="due-date">Due: {{ formatDueDate(task.due_date) }}</span>
+            </div>
           </div>
+        </div>
+
+        <!-- Task Description -->
+        <div class="task-description" v-if="task.description">
+          <h3>Description</h3>
+          <div class="description-content" v-html="formatCommentContent(task.description)"></div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="external-comments-section">
+          <h3>Comments</h3>
           
-          <div v-if="!filteredComments.length" class="no-comments">
-            <el-empty description="No comments yet. Be the first to add one!" />
+          <!-- Add Comment Form -->
+          <div class="add-comment-form">
+            <div class="form-header">
+              <h4>Add a Comment</h4>
+            </div>
+            <el-form @submit.prevent="addComment">
+              <el-form-item>
+                                 <el-input
+                   v-model="newComment"
+                   type="textarea"
+                   :rows="3"
+                   placeholder="Write your comment here..."
+                   maxlength="2000"
+                   show-word-limit
+                   class="comment-textarea"
+                 />
+              </el-form-item>
+              
+                                            <!-- File Upload Section -->
+               <el-form-item>
+                 <div class="file-upload-section">
+                   <div class="upload-container">
+                     <div class="upload-area">
+                       <el-upload
+                         ref="fileUpload"
+                         :file-list="fileList"
+                         :auto-upload="false"
+                         :on-change="handleFileChange"
+                         :on-remove="handleFileRemove"
+                         :before-upload="beforeFileUpload"
+                         multiple
+                         :show-file-list="false"
+                         action="#"
+                         :limit="5"
+                         class="custom-upload">
+                         <el-button size="default" type="primary" plain class="upload-btn">
+                           <el-icon><Paperclip /></el-icon>
+                           <span>Attach Files</span>
+                         </el-button>
+                       </el-upload>
+                       <div class="upload-info">
+                         <span class="file-count" v-if="fileList.length > 0">
+                           {{ fileList.length }} file{{ fileList.length > 1 ? 's' : '' }} selected
+                         </span>
+                         <span v-else class="upload-hint">Max 5 files, 50MB each</span>
+                       </div>
+                     </div>
+                     
+                     <!-- File List Display -->
+                     <div v-if="fileList.length > 0" class="selected-files">
+                       <div 
+                         v-for="(file, index) in fileList" 
+                         :key="index" 
+                         class="file-item">
+                         <div class="file-info">
+                           <el-icon class="file-icon"><Document /></el-icon>
+                           <span class="file-name">{{ file.name }}</span>
+                           <span class="file-size">({{ formatFileSize(file.size) }})</span>
+                         </div>
+                         <el-button 
+                           @click="removeFile(index)"
+                           size="small" 
+                           type="danger" 
+                           text
+                           class="remove-file-btn">
+                           <el-icon><Close /></el-icon>
+                         </el-button>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </el-form-item>
+              
+                             <el-form-item class="form-actions">
+                 <el-button 
+                   type="primary" 
+                   @click="addComment"
+                   :loading="addingComment"
+                   :disabled="!newComment.trim() && fileList.length === 0"
+                   size="large"
+                   class="submit-btn">
+                   <el-icon><ChatDotRound /></el-icon>
+                   Add Comment
+                 </el-button>
+               </el-form-item>
+            </el-form>
+          </div>
+
+          <!-- Comments List -->
+          <div class="comments-list">
+            <div class="comments-header">
+              <h4>
+                {{ filteredComments.length }} 
+                {{ filteredComments.length === 1 ? 'Comment' : 'Comments' }}
+              </h4>
+            </div>
+            
+            <div
+              v-for="comment in filteredComments"
+              :key="comment.id"
+              class="comment-item">
+              <div class="comment-header">
+                <div class="comment-author">
+                  <el-avatar size="default" class="author-avatar">
+                    {{ getInitials(getCommentAuthor(comment)) }}
+                  </el-avatar>
+                  <div class="author-info">
+                    <span class="author-name">
+                      {{ getCommentAuthor(comment) }}
+                    </span>
+                    <div class="author-tags">
+                      <el-tag v-if="comment.external_user_email" type="info" size="small">
+                        External
+                      </el-tag>
+                      <el-tag v-else-if="comment.user_id" type="success" size="small">
+                        Internal
+                      </el-tag>
+                      <el-tag v-else type="warning" size="small">
+                        System
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+                <span class="comment-time">{{ formatCommentTime(comment.created_at) }}</span>
+              </div>
+              <div class="comment-content" v-html="formatCommentContent(comment.content)"></div>
+            </div>
+            
+            <div v-if="!filteredComments.length" class="no-comments">
+              <el-empty description="No comments yet" />
+              <p class="empty-hint">Be the first to add a comment!</p>
+            </div>
           </div>
         </div>
       </div>
@@ -197,13 +266,20 @@
 
     <!-- Auth Required State -->
     <div v-else-if="!user && !isDevelopment" class="auth-required">
-      <el-empty description="Please sign in with Gmail to access this shared task" />
+      <div class="auth-content">
+        <el-empty description="Authentication Required" />
+        <p class="auth-message">Please sign in with Gmail to access this shared task</p>
+        <el-button type="primary" @click="signInWithGoogle" :loading="signingIn" size="large">
+          <el-icon><User /></el-icon>
+          Sign in with Gmail
+        </el-button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { User, Loading, Paperclip } from '@element-plus/icons-vue';
+import { User, Loading, Paperclip, Calendar, ChatDotRound, Document, Close } from '@element-plus/icons-vue';
 import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
 import { useExternalTaskShare } from '../composables/useExternalTaskShare';
@@ -213,7 +289,11 @@ export default {
   components: {
     User,
     Loading,
-    Paperclip
+    Paperclip,
+    Calendar,
+    ChatDotRound,
+    Document,
+    Close
   },
   setup() {
     const externalShare = useExternalTaskShare();
@@ -551,6 +631,23 @@ export default {
       this.$refs.fileUpload.clearFiles();
     },
 
+    removeFile(index) {
+      this.fileList.splice(index, 1);
+      // Update the upload component's file list
+      this.$refs.fileUpload.clearFiles();
+      this.fileList.forEach(file => {
+        this.$refs.fileUpload.handleStart(file.raw);
+      });
+    },
+
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
     async uploadFiles() {
       if (!this.fileList.length) return [];
 
@@ -797,7 +894,8 @@ export default {
 <style scoped>
 .external-task-view {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
 }
 
 .development-notice {
@@ -810,10 +908,17 @@ export default {
   background: white;
   padding: 1rem 2rem;
   border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
 }
 
 .logo-section {
@@ -827,10 +932,27 @@ export default {
   width: auto;
 }
 
-.logo-section h1 {
+.header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-text h1 {
   font-size: 1.5rem;
   margin: 0;
   color: #2c3e50;
+}
+
+.header-text .subtitle {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .auth-section .login-prompt {
@@ -841,6 +963,18 @@ export default {
   margin-top: 0.5rem;
   color: #666;
   font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-button-text {
+  margin-left: 0.5rem;
+}
+
+.auth-message {
+  font-size: 1rem;
+  color: #666;
+  margin: 1rem 0;
+  text-align: center;
 }
 
 .user-info {
@@ -849,8 +983,29 @@ export default {
   gap: 0.5rem;
 }
 
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
 .user-email {
   font-weight: 500;
+}
+
+.user-tags {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.sign-out-btn {
+  margin-left: 1rem;
 }
 
 .loading-container, .error-container, .auth-required {
@@ -860,6 +1015,14 @@ export default {
   flex-direction: column;
   min-height: 50vh;
   gap: 1rem;
+}
+
+.loading-content, .error-content, .auth-content {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .loading-spinner {
@@ -872,43 +1035,49 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-.loading-actions {
-  margin-top: 1rem;
-  text-align: center;
-}
-
-.loading-hint {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.error-actions {
+.loading-actions, .error-actions {
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   margin-top: 1rem;
   align-items: center;
 }
 
+.loading-hint, .empty-hint {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
 .external-task-content {
-  max-width: 800px;
-  margin: 2rem auto;
+  max-width: 1000px;
+  margin: 1rem auto;
   background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  backdrop-filter: blur(10px);
+  min-height: calc(100vh - 200px);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .task-header-section {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #e0e0e0;
 }
 
 .task-title {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   margin-bottom: 1rem;
   color: #2c3e50;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .task-metadata {
@@ -918,18 +1087,41 @@ export default {
   flex-wrap: wrap;
 }
 
+.metadata-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.status-tag, .priority-tag {
+  flex-shrink: 0;
+}
+
+.due-date-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.date-icon {
+  font-size: 1.1rem;
+  color: #666;
+}
+
 .due-date {
   color: #666;
   font-size: 0.9rem;
 }
 
 .task-description {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .task-description h3 {
   color: #2c3e50;
   margin-bottom: 1rem;
+  margin-top: 0;
 }
 
 .description-content {
@@ -957,38 +1149,228 @@ export default {
 .external-comments-section h3 {
   color: #2c3e50;
   margin-bottom: 1rem;
+  margin-top: 0;
 }
 
 .add-comment-form {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   padding: 1rem;
   background: #f8f9fa;
   border-radius: 8px;
 }
 
+.form-header {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.form-header h4 {
+  font-size: 1.2rem;
+  margin: 0;
+  color: #2c3e50;
+}
+
 .file-upload-section {
-  margin: 0.5rem 0;
+  margin: 0.5rem 0 0 0;
+}
+
+.upload-container {
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.upload-container:hover {
+  border-color: #409eff;
+  background: #f0f9ff;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.upload-btn {
+  flex-shrink: 0;
+}
+
+.upload-btn span {
+  margin-left: 0.5rem;
+}
+
+.upload-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.file-count {
+  font-weight: 500;
+  color: #409eff;
+  font-size: 0.9rem;
+}
+
+.upload-hint {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.selected-files {
+  margin-top: 1rem;
+  border-top: 1px solid #e8eaed;
+  padding-top: 0.75rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #e8eaed;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: #f8f9fa;
+  border-color: #d0d7de;
+}
+
+.file-item:last-child {
+  margin-bottom: 0;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-icon {
+  color: #606266;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.file-size {
+  color: #909399;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.remove-file-btn {
+  padding: 0.25rem;
+  min-height: auto;
+  width: auto;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.custom-upload :deep(.el-upload) {
+  width: auto;
 }
 
 .file-upload-section :deep(.el-upload) {
-  width: 100%;
+  width: auto;
 }
 
 .file-upload-section :deep(.el-upload-list) {
-  margin-top: 0.5rem;
+  display: none;
+}
+
+.form-actions {
+  margin-top: 1rem;
+}
+
+.submit-btn {
+  width: 100%;
+  min-height: 40px;
+  font-weight: 500;
+}
+
+.comment-textarea :deep(.el-textarea__inner) {
+  min-height: 80px !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  border-radius: 8px !important;
+  resize: vertical !important;
+}
+
+.comment-textarea :deep(.el-input__count) {
+  font-size: 0.8rem;
+  color: #999;
 }
 
 .comments-list {
-  max-height: 600px;
+  max-height: 70vh;
   overflow-y: auto;
+  padding-right: 4px;
+}
+
+.comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.comments-header h4 {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin: 0;
 }
 
 .comment-item {
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
   margin-bottom: 1rem;
-  background: white;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.comment-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: #dadce0;
 }
 
 .comment-header {
@@ -1004,8 +1386,23 @@ export default {
   gap: 0.5rem;
 }
 
+.author-avatar {
+  flex-shrink: 0;
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+}
+
 .author-name {
   font-weight: 500;
+}
+
+.author-tags {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .comment-time {
@@ -1022,15 +1419,16 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: #007bff;
+  color: #1976d2;
   text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  margin: 0.25rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .comment-content :deep(.file-link:hover) {
   text-decoration: none;
+  transform: translateY(-1px);
 }
 
 .no-comments {
@@ -1040,23 +1438,298 @@ export default {
 
 @media (max-width: 768px) {
   .external-header {
-    flex-direction: column;
-    gap: 1rem;
     padding: 1rem;
   }
-  
+
+  .header-content {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .logo-section {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+  }
+
+  .logo {
+    height: 32px;
+  }
+
+  .header-text h1 {
+    font-size: 1.1rem;
+  }
+
+  .header-text .subtitle {
+    font-size: 0.8rem;
+  }
+
+  .auth-section {
+    flex-shrink: 0;
+  }
+
+  .login-prompt {
+    width: 100%;
+    text-align: center;
+  }
+
+  .user-info {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .user-profile {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-details {
+    align-items: flex-start;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .user-email {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-tags {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .sign-out-btn {
+    margin-left: 0;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    flex-shrink: 0;
+  }
+
   .external-task-content {
-    margin: 1rem;
+    margin: 0.5rem;
     padding: 1rem;
+    border-radius: 8px;
+  }
+
+  .container {
+    gap: 0.5rem;
   }
   
   .task-title {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
+    text-align: center;
   }
   
   .task-metadata {
     flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .metadata-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .status-tag, .priority-tag {
+    width: auto;
+    min-width: 100px;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .due-date-row {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .date-icon {
+    font-size: 1rem;
+  }
+
+  .task-description h3,
+  .external-comments-section h3 {
+    font-size: 1.2rem;
+    text-align: center;
+  }
+
+  .add-comment-form {
+    padding: 0.75rem;
+    border-radius: 8px;
+  }
+
+  .form-header h4 {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+
+  .upload-container {
+    padding: 0.75rem;
+  }
+
+  .upload-area {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .upload-info {
+    justify-content: center;
+  }
+
+  .file-name {
+    max-width: 150px;
+  }
+
+  .submit-btn {
+    font-size: 1rem;
+  }
+
+  .comments-header {
+    text-align: center;
+  }
+
+  .comments-header h4 {
+    font-size: 1rem;
+  }
+
+  .comment-item {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .comment-header {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .comment-author {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .author-info {
+    flex: 1;
+  }
+
+  .comment-time {
+    font-size: 0.8rem;
+    align-self: flex-end;
+  }
+
+  .comment-content {
+    margin-top: 0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .no-comments {
+    padding: 1.5rem;
+  }
+
+  .empty-hint {
+    font-size: 0.9rem;
+  }
+
+  .loading-content, .error-content, .auth-content {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .external-header {
+    padding: 0.75rem;
+  }
+
+  .header-content {
+    gap: 0.5rem;
+  }
+
+  .logo {
+    height: 28px;
+  }
+
+  .header-text h1 {
+    font-size: 0.9rem;
+  }
+
+  .header-text .subtitle {
+    font-size: 0.7rem;
+  }
+
+  .user-profile {
+    gap: 0.25rem;
+  }
+
+  .user-email {
+    font-size: 0.7rem;
+    max-width: 120px;
+  }
+
+  .sign-out-btn {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .auth-button-text {
+    display: none;
+  }
+
+  .external-task-content {
+    margin: 0.25rem;
+    padding: 0.75rem;
+  }
+
+  .container {
+    gap: 0.5rem;
+  }
+
+  .task-title {
+    font-size: 1.2rem;
+  }
+
+  .add-comment-form {
+    padding: 0.5rem;
+  }
+
+  .comment-textarea :deep(.el-textarea__inner) {
+    font-size: 16px !important;
+    min-height: 70px !important;
+  }
+
+  .comment-item {
+    padding: 0.75rem;
+  }
+
+  .upload-container {
+    padding: 0.5rem;
+  }
+
+  .file-name {
+    max-width: 120px;
+  }
+
+  .submit-btn {
+    min-height: 42px;
+    font-size: 0.9rem;
   }
 }
 </style> 

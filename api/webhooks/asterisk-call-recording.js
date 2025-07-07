@@ -17,13 +17,25 @@ const GITEA_USERNAME = 'associateattorney'
 // Webhook authentication
 const ASTERISK_WEBHOOK_SECRET = process.env.ASTERISK_WEBHOOK_SECRET
 
+// Ensure upload directory exists
+const uploadDir = '/tmp/uploads/'
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true })
+  console.log(`📁 Created upload directory: ${uploadDir}`)
+}
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
-    destination: '/tmp/uploads/',
+    destination: (req, file, cb) => {
+      console.log(`📂 Setting destination to: ${uploadDir}`)
+      cb(null, uploadDir)
+    },
     filename: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname))
+      const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)
+      console.log(`📄 Generated filename: ${filename}`)
+      cb(null, filename)
     }
   }),
   limits: {
@@ -302,9 +314,46 @@ export default async function handler(req, res) {
       const giteaPath = `call_recordings/asterisk/${year}/${month}/${day}/${uniqueFileName}`
 
       console.log(`⬆️ Uploading to Gitea: ${giteaPath}`)
+      console.log(`📁 File details:`, {
+        originalname: audioFile.originalname,
+        filename: audioFile.filename,
+        path: audioFile.path,
+        size: audioFile.size,
+        mimetype: audioFile.mimetype
+      })
+
+      // Check if temporary file exists and has content
+      if (!fs.existsSync(audioFile.path)) {
+        throw new Error(`Temporary file not found: ${audioFile.path}`)
+      }
+
+      // Wait a moment to ensure file is fully written (especially in serverless environments)
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      const fileStats = fs.statSync(audioFile.path)
+      console.log(`📊 File stats:`, {
+        size: fileStats.size,
+        exists: true
+      })
+
+      if (fileStats.size === 0) {
+        throw new Error(`Temporary file is empty (0 bytes): ${audioFile.path}`)
+      }
+
+      // Double-check file size matches what multer reported
+      if (fileStats.size !== audioFile.size) {
+        console.warn(`⚠️ File size mismatch - Multer: ${audioFile.size}, Actual: ${fileStats.size}`)
+      }
 
       // Read file and convert to base64 for Gitea
+      console.log(`📖 Reading file from: ${audioFile.path}`)
       const fileContent = fs.readFileSync(audioFile.path, { encoding: 'base64' })
+      
+      console.log(`📦 Base64 content length: ${fileContent.length} characters`)
+      
+      if (!fileContent || fileContent.length === 0) {
+        throw new Error('Failed to read file content or file is empty')
+      }
 
       // Upload to Gitea
       const giteaResponse = await fetch(
@@ -335,6 +384,20 @@ export default async function handler(req, res) {
       const publicUrl = getAuthenticatedDownloadUrl(giteaData.content.download_url)
 
       console.log(`✅ Uploaded to Gitea successfully`)
+      console.log(`🔗 Gitea response:`, {
+        path: giteaData.content.path,
+        size: giteaData.content.size,
+        sha: giteaData.content.sha,
+        download_url: giteaData.content.download_url
+      })
+
+      // Verify the uploaded file size
+      if (giteaData.content.size === 0) {
+        console.error(`❌ Gitea file size is 0 - something went wrong with the upload`)
+        throw new Error('Uploaded file to Gitea has 0 bytes')
+      }
+
+      console.log(`📏 Original: ${audioFile.size} bytes → Base64: ${fileContent.length} chars → Gitea: ${giteaData.content.size} bytes`)
 
       // Clean up temporary file
       if (fs.existsSync(audioFile.path)) {

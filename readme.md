@@ -25,7 +25,7 @@
     1. element-io
     2. Vue
     3. Vite
-    4. Drizzle
+    4. Drizzle.
 
 # How to run on local?
 1. in root folder of this repo do npm install

@@ -1,7 +1,7 @@
 <template>
   <div class="external-task-view">
     <!-- Development Notice -->
-    <div v-if="isDevelopment" class="development-notice">
+    <!--div v-if="isDevelopment" class="development-notice">
       <el-alert
         title="Development Mode"
         type="warning"
@@ -11,7 +11,7 @@
           Authentication is bypassed for local development. In production, users must sign in with Gmail.
         </template>
       </el-alert>
-    </div>
+    </div-->
 
     <!-- Header -->
     <div class="external-header">

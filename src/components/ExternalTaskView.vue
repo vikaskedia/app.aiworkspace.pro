@@ -47,8 +47,11 @@
                 </div>
               </div>
             </div>
-            <el-button v-if="!isDevelopment" @click="signOut" size="default" class="sign-out-btn">
+            <el-button v-if="!isDevelopment" @click="signOut" size="default" class="sign-out-btn sign-out-desktop">
               Sign Out
+            </el-button>
+            <el-button v-if="!isDevelopment" @click="signOut" size="small" class="sign-out-btn sign-out-mobile" circle>
+              <el-icon><SwitchButton /></el-icon>
             </el-button>
           </div>
         </div>
@@ -279,7 +282,7 @@
 </template>
 
 <script>
-import { User, Loading, Paperclip, Calendar, ChatDotRound, Document, Close } from '@element-plus/icons-vue';
+import { User, Loading, Paperclip, Calendar, ChatDotRound, Document, Close, SwitchButton } from '@element-plus/icons-vue';
 import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
 import { useExternalTaskShare } from '../composables/useExternalTaskShare';
@@ -293,7 +296,8 @@ export default {
     Calendar,
     ChatDotRound,
     Document,
-    Close
+    Close,
+    SwitchButton
   },
   setup() {
     const externalShare = useExternalTaskShare();
@@ -1008,6 +1012,14 @@ export default {
   margin-left: 1rem;
 }
 
+.sign-out-mobile {
+  display: none;
+}
+
+.sign-out-desktop {
+  display: inline-flex;
+}
+
 .loading-container, .error-container, .auth-required {
   display: flex;
   justify-content: center;
@@ -1516,6 +1528,17 @@ export default {
     flex-shrink: 0;
   }
 
+  .sign-out-desktop {
+    display: none;
+  }
+
+  .sign-out-mobile {
+    display: inline-flex;
+    padding: 0.5rem;
+    width: 32px;
+    height: 32px;
+  }
+
   .external-task-content {
     margin: 0.5rem;
     padding: 1rem;
@@ -1687,6 +1710,12 @@ export default {
   .sign-out-btn {
     font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
+  }
+
+  .sign-out-mobile {
+    width: 28px;
+    height: 28px;
+    padding: 0.25rem;
   }
 
   .auth-button-text {

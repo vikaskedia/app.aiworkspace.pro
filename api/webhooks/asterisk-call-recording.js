@@ -31,11 +31,23 @@ const upload = multer({
     files: 1 // Only one audio file expected
   },
   fileFilter: (req, file, cb) => {
-    // Accept audio files only
-    if (file.mimetype.startsWith('audio/')) {
+    console.log('🔍 File validation:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    })
+    
+    // Accept audio files by MIME type or file extension
+    const isAudioMimeType = file.mimetype && file.mimetype.startsWith('audio/')
+    const hasAudioExtension = file.originalname && /\.(wav|mp3|mp4|m4a|aac|ogg|flac|wma)$/i.test(file.originalname)
+    const isOctetStream = file.mimetype === 'application/octet-stream' // Common for unknown binary files
+    
+    if (isAudioMimeType || hasAudioExtension || isOctetStream) {
+      console.log('✅ File accepted for upload')
       cb(null, true)
     } else {
-      cb(new Error('Only audio files are allowed'), false)
+      console.log('❌ File rejected - not an audio file')
+      cb(new Error(`File type not supported. MIME: ${file.mimetype}, Extension: ${path.extname(file.originalname)}`), false)
     }
   }
 })

@@ -26,10 +26,81 @@
         
         <div class="auth-section">
           <div v-if="!user && !isDevelopment" class="login-prompt">
-            <el-button type="primary" @click="signInWithGoogle" :loading="signingIn" size="large">
-              <el-icon><User /></el-icon>
-              <span class="auth-button-text">Sign in with Gmail</span>
-            </el-button>
+            <!-- Email/Password Form -->
+            <div class="email-auth-form">
+              <el-form 
+                :model="loginForm" 
+                :rules="loginRules"
+                ref="loginFormRef"
+                @submit.prevent="handleEmailLogin">
+                <el-form-item prop="email">
+                  <el-input 
+                    v-model="loginForm.email"
+                    placeholder="Email"
+                    type="email"
+                    size="large">
+                    <template #prefix>
+                      <i class="fas fa-envelope"></i>
+                    </template>
+                  </el-input>
+                </el-form-item>
+                <el-form-item prop="password">
+                  <el-input 
+                    v-model="loginForm.password"
+                    placeholder="Password"
+                    type="password"
+                    size="large"
+                    show-password>
+                    <template #prefix>
+                      <i class="fas fa-lock"></i>
+                    </template>
+                  </el-input>
+                </el-form-item>
+                <el-form-item>
+                  <el-button 
+                    type="primary" 
+                    @click="handleEmailLogin"
+                    :loading="emailSigningIn"
+                    size="large"
+                    class="email-signin-btn">
+                    Sign In
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- Divider -->
+            <div class="auth-divider">
+              <span>Or continue with</span>
+            </div>
+
+            <!-- OAuth Buttons -->
+            <div class="auth-buttons">
+              <el-button 
+                @click="signInWithProvider('google')" 
+                :loading="signingIn" 
+                size="large"
+                class="auth-btn google">
+                <i class="fab fa-google"></i>
+                <span class="auth-button-text">Google</span>
+              </el-button>
+              <el-button 
+                @click="signInWithProvider('github')" 
+                :loading="signingIn" 
+                size="large"
+                class="auth-btn github">
+                <i class="fab fa-github"></i>
+                <span class="auth-button-text">GitHub</span>
+              </el-button>
+              <el-button 
+                @click="signInWithProvider('twitter')" 
+                :loading="signingIn" 
+                size="large"
+                class="auth-btn twitter">
+                <i class="fab fa-twitter"></i>
+                <span class="auth-button-text">X</span>
+              </el-button>
+            </div>
             <p class="auth-info">Please sign in to view and comment</p>
           </div>
           
@@ -271,11 +342,83 @@
     <div v-else-if="!user && !isDevelopment" class="auth-required">
       <div class="auth-content">
         <el-empty description="Authentication Required" />
-        <p class="auth-message">Please sign in with Gmail to access this shared task</p>
-        <el-button type="primary" @click="signInWithGoogle" :loading="signingIn" size="large">
-          <el-icon><User /></el-icon>
-          Sign in with Gmail
-        </el-button>
+        <p class="auth-message">Please sign in to access this shared task</p>
+        
+        <!-- Email/Password Form -->
+        <div class="email-auth-form-center">
+          <el-form 
+            :model="loginForm" 
+            :rules="loginRules"
+            ref="loginFormRef"
+            @submit.prevent="handleEmailLogin">
+            <el-form-item prop="email">
+              <el-input 
+                v-model="loginForm.email"
+                placeholder="Email"
+                type="email"
+                size="large">
+                <template #prefix>
+                  <i class="fas fa-envelope"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item prop="password">
+              <el-input 
+                v-model="loginForm.password"
+                placeholder="Password"
+                type="password"
+                size="large"
+                show-password>
+                <template #prefix>
+                  <i class="fas fa-lock"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button 
+                type="primary" 
+                @click="handleEmailLogin"
+                :loading="emailSigningIn"
+                size="large"
+                class="email-signin-btn">
+                Sign In
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- Divider -->
+        <div class="auth-divider-center">
+          <span>Or continue with</span>
+        </div>
+
+        <!-- OAuth Buttons -->
+        <div class="auth-buttons-center">
+          <el-button 
+            @click="signInWithProvider('google')" 
+            :loading="signingIn" 
+            size="large"
+            class="auth-btn google">
+            <i class="fab fa-google"></i>
+            Google
+          </el-button>
+          <el-button 
+            @click="signInWithProvider('github')" 
+            :loading="signingIn" 
+            size="large"
+            class="auth-btn github">
+            <i class="fab fa-github"></i>
+            GitHub
+          </el-button>
+          <el-button 
+            @click="signInWithProvider('twitter')" 
+            :loading="signingIn" 
+            size="large"
+            class="auth-btn twitter">
+            <i class="fab fa-twitter"></i>
+            X
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -313,6 +456,7 @@ export default {
       loading: true,
       error: null,
       signingIn: false,
+      emailSigningIn: false,
       newComment: '',
       addingComment: false,
       shareId: null,
@@ -328,7 +472,21 @@ export default {
       hasInitialLoadCompleted: false,
       isLoadingInProgress: false,
       showLoadingSpinner: false,
-      loadingSpinnerTimeout: null
+      loadingSpinnerTimeout: null,
+      loginForm: {
+        email: '',
+        password: ''
+      },
+      loginRules: {
+        email: [
+          { required: true, message: 'Please enter your email', trigger: 'blur' },
+          { type: 'email', message: 'Please enter a valid email', trigger: 'blur' }
+        ],
+        password: [
+          { required: true, message: 'Please enter your password', trigger: 'blur' },
+          { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
+        ]
+      }
     };
   },
   async created() {
@@ -431,27 +589,58 @@ export default {
       // No automatic reloading - let users manually refresh if needed
     },
 
-    async signInWithGoogle() {
+    async signInWithProvider(provider) {
       try {
         this.signingIn = true;
         
+        const options = {
+          redirectTo: window.location.href
+        };
+
+        // Add provider-specific options
+        if (provider === 'google') {
+          options.queryParams = {
+            access_type: 'offline',
+            prompt: 'consent',
+          };
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
-            },
-            redirectTo: window.location.href
-          }
+          provider: provider,
+          options: options
         });
 
         if (error) throw error;
       } catch (error) {
-        console.error('Error signing in:', error);
-        ElMessage.error('Failed to sign in with Google: ' + error.message);
+        console.error(`Error signing in with ${provider}:`, error);
+        ElMessage.error(`Failed to sign in with ${provider}: ` + error.message);
       } finally {
         this.signingIn = false;
+      }
+    },
+
+    async handleEmailLogin() {
+      if (!this.$refs.loginFormRef) return;
+      
+      try {
+        await this.$refs.loginFormRef.validate();
+        this.emailSigningIn = true;
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: this.loginForm.email,
+          password: this.loginForm.password
+        });
+
+        if (error) throw error;
+
+        ElMessage.success('Login successful');
+        // Auth state change will trigger loadTaskData automatically
+        
+      } catch (error) {
+        console.error('Error signing in with email:', error);
+        ElMessage.error('Login failed: ' + error.message);
+      } finally {
+        this.emailSigningIn = false;
       }
     },
 
@@ -961,6 +1150,143 @@ export default {
 
 .auth-section .login-prompt {
   text-align: center;
+}
+
+.email-auth-form {
+  max-width: 300px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.email-auth-form-center {
+  max-width: 400px;
+  margin: 1.5rem auto;
+}
+
+.email-signin-btn {
+  width: 100%;
+  font-weight: 500;
+}
+
+.auth-divider, .auth-divider-center {
+  text-align: center;
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.auth-divider::before,
+.auth-divider::after,
+.auth-divider-center::before,
+.auth-divider-center::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 60px);
+  height: 1px;
+  background-color: #dcdfe6;
+}
+
+.auth-divider::before,
+.auth-divider-center::before {
+  left: 0;
+}
+
+.auth-divider::after,
+.auth-divider-center::after {
+  right: 0;
+}
+
+.auth-divider span,
+.auth-divider-center span {
+  background-color: white;
+  padding: 0 1rem;
+  color: #909399;
+  font-size: 0.9rem;
+}
+
+.email-auth-form :deep(.el-input__wrapper),
+.email-auth-form-center :deep(.el-input__wrapper) {
+  padding-left: 0;
+}
+
+.email-auth-form :deep(.el-input__prefix),
+.email-auth-form-center :deep(.el-input__prefix) {
+  margin-right: 8px;
+}
+
+.email-auth-form :deep(.el-form-item),
+.email-auth-form-center :deep(.el-form-item) {
+  margin-bottom: 1rem;
+}
+
+.email-auth-form :deep(.el-form-item:last-child),
+.email-auth-form-center :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.auth-buttons-center {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.auth-btn {
+  border-radius: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 100px;
+}
+
+.auth-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.auth-btn i {
+  font-size: 1.1rem;
+}
+
+.auth-btn.google {
+  background-color: #fff;
+  color: #606266;
+  border: 1px solid #dcdfe6;
+}
+
+.auth-btn.google:hover {
+  background-color: #f5f7fa;
+  border-color: #c0c4cc;
+}
+
+.auth-btn.github {
+  background-color: #24292e;
+  color: #fff;
+  border: none;
+}
+
+.auth-btn.github:hover {
+  background-color: #2f363d;
+}
+
+.auth-btn.twitter {
+  background-color: #1da1f2;
+  color: #fff;
+  border: none;
+}
+
+.auth-btn.twitter:hover {
+  background-color: #1a91da;
 }
 
 .auth-info {
@@ -1488,6 +1814,36 @@ export default {
     text-align: center;
   }
 
+  .email-auth-form {
+    max-width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .email-auth-form-center {
+    max-width: 100%;
+    margin: 1rem auto;
+  }
+
+  .auth-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .auth-buttons-center {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .auth-btn {
+    width: 100%;
+    justify-content: center;
+    min-width: auto;
+  }
+
+  .auth-button-text {
+    display: inline;
+  }
+
   .user-info {
     flex-direction: row;
     align-items: center;
@@ -1720,6 +2076,31 @@ export default {
 
   .auth-button-text {
     display: none;
+  }
+
+  .auth-buttons {
+    gap: 0.5rem;
+  }
+
+  .auth-buttons-center {
+    gap: 0.5rem;
+  }
+
+  .auth-btn {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+
+  .email-auth-form :deep(.el-input) {
+    margin-bottom: 0.5rem;
+  }
+
+  .email-auth-form-center :deep(.el-input) {
+    margin-bottom: 0.5rem;
+  }
+
+  .email-signin-btn {
+    font-size: 0.9rem;
   }
 
   .external-task-content {

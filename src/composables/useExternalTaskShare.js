@@ -15,14 +15,50 @@ export function useExternalTaskShare() {
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
   }
 
+  // Generate short ID for URL shortening (6 characters, alphanumeric)
+  const generateShortId = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let result = ''
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return result
+  }
+
   // Generate external share link
   const generateExternalShareLink = async (taskId, userId) => {
     try {
       generatingExternalLink.value = true
 
-      // Generate secure token
+      // Generate secure token and short ID
       const token = generateSecureToken()
       const shareId = crypto.randomUUID()
+      
+      // Generate unique short ID (retry if collision)
+      let shortId
+      let attempts = 0
+      const maxAttempts = 10
+      
+      while (attempts < maxAttempts) {
+        shortId = generateShortId()
+        
+        // Check if short ID already exists
+        const { data: existingShare } = await supabase
+          .from('task_external_shares')
+          .select('id')
+          .eq('short_id', shortId)
+          .single()
+        
+        if (!existingShare) {
+          break // Short ID is unique
+        }
+        
+        attempts++
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Failed to generate unique short ID after multiple attempts')
+      }
 
       // Create external share record
       const { data, error } = await supabase
@@ -32,6 +68,7 @@ export function useExternalTaskShare() {
           task_id: taskId,
           shared_by: userId,
           token: token,
+          short_id: shortId,
           status: 'active',
           access_count: 0,
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
@@ -44,15 +81,16 @@ export function useExternalTaskShare() {
         throw new Error(error.message)
       }
 
-      // Generate the external URL
+      // Generate the short URL
       const baseUrl = window.location.origin
-      const generatedLink = `${baseUrl}/external-task/${shareId}?token=${token}`
+      const generatedLink = `${baseUrl}/share-task/${shortId}`
       
       externalShareLink.value = generatedLink
       
       // Add to history
       externalShareHistory.value.push({
         id: data.id,
+        short_id: data.short_id,
         created_at: data.created_at,
         status: data.status,
         access_count: data.access_count,
@@ -149,9 +187,9 @@ export function useExternalTaskShare() {
       
       // Find active link
       const activeLink = data?.find(share => share.status === 'active')
-      if (activeLink) {
+      if (activeLink && activeLink.short_id) {
         const baseUrl = window.location.origin
-        externalShareLink.value = `${baseUrl}/external-task/${activeLink.id}?token=${activeLink.token}`
+        externalShareLink.value = `${baseUrl}/share-task/${activeLink.short_id}`
       } else {
         externalShareLink.value = ''
       }

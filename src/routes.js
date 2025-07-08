@@ -213,6 +213,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/share-task/:shortId',
+    name: 'ShareTaskRedirect',
+    component: () => import('./components/ShareTaskRedirect.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/terms-of-service',
     name: 'TermsOfService',
     component: () => import('./components/legal/TermsOfService.vue'),

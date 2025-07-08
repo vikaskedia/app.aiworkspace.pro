@@ -1071,7 +1071,7 @@
                       v-if="scope.row.status === 'active'"
                       type="danger"
                       size="small"
-                      @click="revokeSpecificExternalLink(scope.row.id)">
+                      @click="handleRevokeSpecificExternalLink(scope.row.id)">
                       Revoke
                     </el-button>
                   </template>

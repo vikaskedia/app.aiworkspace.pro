@@ -394,88 +394,83 @@
                 
                 <!-- Message Display -->
                 <div v-if="item.type === 'message'" class="message-content" @mouseenter="setHoveredMessage(item.item.id)" @mouseleave="setHoveredMessage(null)">
-                  <!-- Settings Dropdown Menu -->
-                  <el-dropdown @command="handleMessageMenuCommand($event, item.item)" style="float: right;bottom: 10px;left: 10px;">
-                    <el-icon class="message-settings-icon" style="vertical-align: middle;"><More /></el-icon>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item command="upload-before">Upload phone call recording</el-dropdown-item>
-                        <el-dropdown-item command="comment-internal">Comment in internal thread</el-dropdown-item>
-                        <el-dropdown-item command="details">See message details</el-dropdown-item>
-                        <el-dropdown-item v-if="phoneTextActions.length" disabled divided>Text Message Actions</el-dropdown-item>
-                        <el-dropdown-item
-                          v-for="action in phoneTextActions"
-                          :key="'action-' + action.id"
-                          :command="'action-' + action.id"
-                          :loading="loadingPhoneTextActions"
-                        >
-                          {{ action.action_name }}
-                        </el-dropdown-item>
-                        <el-dropdown-item command="seen-by" divided>Seen by</el-dropdown-item>
-                        <el-dropdown-item v-if="usersWhoHaveSeenMessage(item.item).length" :command="'seen-by-' + item.item.id">
-                          {{ usersWhoHaveSeenMessage(item.item).map(u => u.display_name).join(', ') }}
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                  
-                  <!-- Internal Comments Indicator -->
-                  <!-- <div v-if="getInternalCommentsCount(item.item.id) > 0" class="internal-comments-indicator" @click="toggleInlineInternalComments(item.item)">
-                    <el-icon><ChatDotRound /></el-icon>
-                    <span class="comments-count">{{ getInternalCommentsCount(item.item.id) }}</span>
-                  </div> -->
-                  <!-- Media attachments -->
-                  <div v-if="item.item.mediaFiles && item.item.mediaFiles.length > 0" class="message-media">
-                    <div 
-                      v-for="media in item.item.mediaFiles" 
-                      :key="media.id"
-                      class="media-item">
-                      
-                      <!-- Debug: Log media object -->
-                      <!-- {{ console.log('🖼️ Media object:', media) }} -->
-                      
-                      <!-- Image -->
-                      <img 
-                        v-if="(media.mimetype && media.mimetype.startsWith('image/')) || (media.type && media.type.startsWith('image/'))"
-                        :src="media.public_url"
-                        :alt="media.filename"
-                        class="media-image"
-                        @click="openMediaViewer(media)"
-                        loading="lazy" />
-                      
-                      <!-- Video -->
-                      <video 
-                        v-else-if="media.mimetype && media.mimetype.startsWith('video/')"
-                        :src="media.public_url"
-                        controls
-                        class="media-video"
-                        preload="metadata">
-                        Your browser does not support video playback.
-                      </video>
-                      
-                      <!-- Other file types -->
-                      <div v-else class="media-file">
-                        <el-icon class="file-icon"><Document /></el-icon>
-                        <div class="file-info">
-                          <span class="file-name">{{ media.filename }}</span>
-                          <span class="file-size">{{ formatFileSize(media.size) }}</span>
+                  <div class="message-content-container">
+                    <!-- Settings Dropdown Menu -->
+                    <el-dropdown @command="handleMessageMenuCommand($event, item.item)" style="float: right;bottom: 10px;left: 10px;">
+                      <el-icon class="message-settings-icon" style="vertical-align: middle;"><More /></el-icon>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="upload-before">Upload phone call recording</el-dropdown-item>
+                          <el-dropdown-item command="comment-internal">Comment in internal thread</el-dropdown-item>
+                          <el-dropdown-item command="details">See message details</el-dropdown-item>
+                          <el-dropdown-item v-if="phoneTextActions.length" disabled divided>Text Message Actions</el-dropdown-item>
+                          <el-dropdown-item
+                            v-for="action in phoneTextActions"
+                            :key="'action-' + action.id"
+                            :command="'action-' + action.id"
+                            :loading="loadingPhoneTextActions"
+                          >
+                            {{ action.action_name }}
+                          </el-dropdown-item>
+                          <el-dropdown-item command="seen-by" divided>Seen by</el-dropdown-item>
+                          <el-dropdown-item v-if="usersWhoHaveSeenMessage(item.item).length" :command="'seen-by-' + item.item.id">
+                            {{ usersWhoHaveSeenMessage(item.item).map(u => u.display_name).join(', ') }}
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                    <!-- Media attachments -->
+                    <div v-if="item.item.mediaFiles && item.item.mediaFiles.length > 0" class="message-media">
+                      <div 
+                        v-for="media in item.item.mediaFiles" 
+                        :key="media.id"
+                        class="media-item">
+                        
+                        <!-- Debug: Log media object -->
+                        <!-- {{ console.log('🖼️ Media object:', media) }} -->
+                        
+                        <!-- Image -->
+                        <img 
+                          v-if="(media.mimetype && media.mimetype.startsWith('image/')) || (media.type && media.type.startsWith('image/'))"
+                          :src="media.public_url"
+                          :alt="media.filename"
+                          class="media-image"
+                          @click="openMediaViewer(media)"
+                          loading="lazy" />
+                        
+                        <!-- Video -->
+                        <video 
+                          v-else-if="media.mimetype && media.mimetype.startsWith('video/')"
+                          :src="media.public_url"
+                          controls
+                          class="media-video"
+                          preload="metadata">
+                          Your browser does not support video playback.
+                        </video>
+                        
+                        <!-- Other file types -->
+                        <div v-else class="media-file">
+                          <el-icon class="file-icon"><Document /></el-icon>
+                          <div class="file-info">
+                            <span class="file-name">{{ media.filename }}</span>
+                            <span class="file-size">{{ formatFileSize(media.size) }}</span>
+                          </div>
+                          <el-button 
+                            size="small" 
+                            type="primary" 
+                            @click="downloadFile(media)">
+                            Download
+                          </el-button>
                         </div>
-                        <el-button 
-                          size="small" 
-                          type="primary" 
-                          @click="downloadFile(media)">
-                          Download
-                        </el-button>
                       </div>
                     </div>
+                    
+                    <!-- Message text -->
+                    <p v-if="item.item.text" class="message-text" v-html="highlightSearch(item.item.text)"></p>
+                    
+                    <!-- Message timestamp -->
+                    <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
                   </div>
-                  
-                  <!-- Message text -->
-                  <p v-if="item.item.text" class="message-text" v-html="highlightSearch(item.item.text)"></p>
-                  
-                  <!-- Message timestamp -->
-                  <span class="message-time">{{ formatFullTimeWithZone(item.item.timestamp) }}</span>
-
                   <!-- Inline Internal Comments Thread (moved inside message-content) -->
                   <div v-if="showingInternalCommentsFor.includes(item.item.id)" class="inline-internal-comments">
                     <!-- Internal Comments List -->
@@ -483,17 +478,19 @@
                       <el-icon class="no-comments-icon"><ChatDotRound /></el-icon>
                       <p>No internal comments yet. Start the conversation!</p>
                     </div>
-                    <div
-                      v-for="comment in internalCommentsMap[item.item.id] || []"
-                      :key="comment.id"
-                      class="internal-comment-item compact-comment"
-                    >
-                      <el-tooltip :content="formatFullTimeWithZone(comment.created_at)" placement="right">
-                        <div class="comment-bubble">
-                          <span class="comment-author">{{ comment.author_name }}</span>
-                          <span class="comment-content">{{ comment.content }}</span>
-                        </div>
-                      </el-tooltip>
+                    <div class="internal-comments-list" >
+                      <div
+                        v-for="comment in internalCommentsMap[item.item.id] || []"
+                        :key="comment.id"
+                        class="internal-comment-item compact-comment"
+                      >
+                        <el-tooltip :content="formatFullTimeWithZone(comment.created_at)" placement="right">
+                          <div class="comment-bubble">
+                            <span class="comment-author">{{ comment.author_name }}</span>
+                            <span class="comment-content">{{ comment.content }}</span>
+                          </div>
+                        </el-tooltip>
+                      </div>
                     </div>
                     <!-- Add New Comment -->
                     <div class="comment-input-bar">
@@ -5433,22 +5430,25 @@ export default {
 
 .message-content {
   max-width: 70%;
-  padding: 0.75rem 1rem;
-  border-radius: 1rem;
   position: relative; /* Ensure relative positioning for absolute children */
 }
 
-.message.outbound .message-content {
+.message.outbound .message-content .message-content-container {
   background: #1976d2;
   color: white;
   border-bottom-right-radius: 0.25rem;
 }
 
-.message.inbound .message-content {
+.message.inbound .message-content .message-content-container {
   background: white;
   color: #333;
   border: 1px solid #e0e0e0;
   border-bottom-left-radius: 0.25rem;
+}
+
+.message-content-container {
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
 }
 
 .message-content .message-text {
@@ -6863,7 +6863,7 @@ export default {
 }
 
 .inline-internal-comments {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
@@ -6871,6 +6871,47 @@ export default {
   border: 1px solid #e0e0e0;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+}
+
+.outbound > .message-content > .inline-internal-comments {
+  margin-inline-start: -30px;
+}
+
+.inbound > .message-content > .inline-internal-comments {
+  margin-inline-start: 30px;
+}
+
+/* Floating upside-down 'L' hook for outbound (right) */
+.outbound > .message-content > .inline-internal-comments::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -30px;
+  width: 20px;
+  height: 30px;
+  border: 3px solid #ededed;
+  border-top: none;
+  border-left: none;
+  border-radius: 0 0 10px 0;
+  background: none;
+  z-index: 2;
+}
+
+/* Floating upside-down 'L' hook for inbound (left) */
+.inbound > .message-content > .inline-internal-comments::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -30px;
+  width: 20px;
+  height: 30px;
+  border: 3px solid #ededed;
+  border-top: none;
+  border-right: none;
+  border-radius: 0 0 0 10px;
+  background: none;
+  z-index: 2;
 }
 
 /* Add compact, pill-shaped, yellow comment styles */

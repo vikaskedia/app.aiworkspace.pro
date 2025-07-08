@@ -26,82 +26,11 @@
         
         <div class="auth-section">
           <div v-if="!user && !isDevelopment" class="login-prompt">
-            <!-- Email/Password Form -->
-            <div class="email-auth-form">
-              <el-form 
-                :model="loginForm" 
-                :rules="loginRules"
-                ref="loginFormRef"
-                @submit.prevent="handleEmailLogin">
-                <el-form-item prop="email">
-                  <el-input 
-                    v-model="loginForm.email"
-                    placeholder="Email"
-                    type="email"
-                    size="large">
-                    <template #prefix>
-                      <i class="fas fa-envelope"></i>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                  <el-input 
-                    v-model="loginForm.password"
-                    placeholder="Password"
-                    type="password"
-                    size="large"
-                    show-password>
-                    <template #prefix>
-                      <i class="fas fa-lock"></i>
-                    </template>
-                  </el-input>
-                </el-form-item>
-                <el-form-item>
-                  <el-button 
-                    type="primary" 
-                    @click="handleEmailLogin"
-                    :loading="emailSigningIn"
-                    size="large"
-                    class="email-signin-btn">
-                    Sign In
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </div>
-
-            <!-- Divider -->
-            <div class="auth-divider">
-              <span>Or continue with</span>
-            </div>
-
-            <!-- OAuth Buttons -->
-            <div class="auth-buttons">
-              <el-button 
-                @click="signInWithProvider('google')" 
-                :loading="signingIn" 
-                size="large"
-                class="auth-btn google">
-                <i class="fab fa-google"></i>
-                <span class="auth-button-text">Google</span>
-              </el-button>
-              <el-button 
-                @click="signInWithProvider('github')" 
-                :loading="signingIn" 
-                size="large"
-                class="auth-btn github">
-                <i class="fab fa-github"></i>
-                <span class="auth-button-text">GitHub</span>
-              </el-button>
-              <el-button 
-                @click="signInWithProvider('twitter')" 
-                :loading="signingIn" 
-                size="large"
-                class="auth-btn twitter">
-                <i class="fab fa-twitter"></i>
-                <span class="auth-button-text">X</span>
-              </el-button>
-            </div>
-            <p class="auth-info">Please sign in to view and comment</p>
+            <el-button type="primary" @click="scrollToAuth" size="large" class="simple-signin-btn">
+              <el-icon><User /></el-icon>
+              <span>Sign In</span>
+            </el-button>
+            <!--p class="auth-info">Please sign in to view and comment</p-->
           </div>
           
           <div v-else class="user-info">
@@ -339,13 +268,18 @@
     </div>
 
     <!-- Auth Required State -->
-    <div v-else-if="!user && !isDevelopment" class="auth-required">
+    <div v-else-if="!user && !isDevelopment" class="auth-required" id="auth-section">
       <div class="auth-content">
-        <el-empty description="Authentication Required" />
-        <p class="auth-message">Please sign in to access this shared task</p>
+        <div class="auth-header">
+          <div class="auth-icon">
+            <i class="fas fa-lock"></i>
+          </div>
+          <h3>{{ isSignupMode ? 'Create Account' : 'Sign In Required' }}</h3>
+          <p class="auth-message">{{ isSignupMode ? 'Create an account to access this shared task' : 'Please sign in to access this shared task' }}</p>
+        </div>
         
-        <!-- Email/Password Form -->
-        <div class="email-auth-form-center">
+        <!-- Login Form -->
+        <div v-if="!isSignupMode" class="email-auth-form-center">
           <el-form 
             :model="loginForm" 
             :rules="loginRules"
@@ -387,6 +321,72 @@
           </el-form>
         </div>
 
+        <!-- Signup Form -->
+        <div v-else class="email-auth-form-center">
+          <el-form 
+            :model="signupForm" 
+            :rules="signupRules"
+            ref="signupFormRef"
+            @submit.prevent="handleEmailSignup">
+            <el-form-item prop="fullName">
+              <el-input 
+                v-model="signupForm.fullName"
+                placeholder="Full Name"
+                type="text"
+                size="large">
+                <template #prefix>
+                  <i class="fas fa-user"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item prop="email">
+              <el-input 
+                v-model="signupForm.email"
+                placeholder="Email"
+                type="email"
+                size="large">
+                <template #prefix>
+                  <i class="fas fa-envelope"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item prop="password">
+              <el-input 
+                v-model="signupForm.password"
+                placeholder="Password"
+                type="password"
+                size="large"
+                show-password>
+                <template #prefix>
+                  <i class="fas fa-lock"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item prop="confirmPassword">
+              <el-input 
+                v-model="signupForm.confirmPassword"
+                placeholder="Confirm Password"
+                type="password"
+                size="large"
+                show-password>
+                <template #prefix>
+                  <i class="fas fa-lock"></i>
+                </template>
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button 
+                type="primary" 
+                @click="handleEmailSignup"
+                :loading="emailSigningIn"
+                size="large"
+                class="email-signin-btn">
+                Create Account
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
         <!-- Divider -->
         <div class="auth-divider-center">
           <span>Or continue with</span>
@@ -418,6 +418,22 @@
             <i class="fab fa-twitter"></i>
             X
           </el-button>
+        </div>
+
+        <!-- Toggle between login and signup -->
+        <div class="auth-toggle">
+          <span v-if="!isSignupMode">
+            Don't have an account? 
+            <el-button type="text" @click="isSignupMode = true" class="toggle-btn">
+              Sign up
+            </el-button>
+          </span>
+          <span v-else>
+            Already have an account? 
+            <el-button type="text" @click="isSignupMode = false" class="toggle-btn">
+              Sign in
+            </el-button>
+          </span>
         </div>
       </div>
     </div>
@@ -461,7 +477,8 @@ export default {
       addingComment: false,
       shareId: null,
       token: null,
-      isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+      //isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+      isDevelopment: false,
       fileList: [],
       uploadingFiles: false,
       matter: null,
@@ -473,9 +490,16 @@ export default {
       isLoadingInProgress: false,
       showLoadingSpinner: false,
       loadingSpinnerTimeout: null,
+      isSignupMode: false,
       loginForm: {
         email: '',
         password: ''
+      },
+      signupForm: {
+        fullName: '',
+        email: '',
+        password: '',
+        confirmPassword: ''
       },
       loginRules: {
         email: [
@@ -485,6 +509,33 @@ export default {
         password: [
           { required: true, message: 'Please enter your password', trigger: 'blur' },
           { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
+        ]
+      },
+      signupRules: {
+        fullName: [
+          { required: true, message: 'Please enter your full name', trigger: 'blur' },
+          { min: 2, message: 'Name must be at least 2 characters', trigger: 'blur' }
+        ],
+        email: [
+          { required: true, message: 'Please enter your email', trigger: 'blur' },
+          { type: 'email', message: 'Please enter a valid email', trigger: 'blur' }
+        ],
+        password: [
+          { required: true, message: 'Please enter your password', trigger: 'blur' },
+          { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' },
+          { 
+            validator: (rule, value, callback) => {
+              if (!/[A-Za-z]/.test(value) || !/[0-9]/.test(value)) {
+                callback(new Error('Password must contain both letters and numbers'));
+              } else {
+                callback();
+              }
+            },
+            trigger: 'blur'
+          }
+        ],
+        confirmPassword: [
+          { required: true, message: 'Please confirm your password', trigger: 'blur' }
         ]
       }
     };
@@ -641,6 +692,60 @@ export default {
         ElMessage.error('Login failed: ' + error.message);
       } finally {
         this.emailSigningIn = false;
+      }
+    },
+
+    async handleEmailSignup() {
+      if (!this.$refs.signupFormRef) return;
+      
+      try {
+        // Check password matching before validation
+        if (this.signupForm.password !== this.signupForm.confirmPassword) {
+          ElMessage.error('Passwords do not match');
+          return;
+        }
+        
+        await this.$refs.signupFormRef.validate();
+        this.emailSigningIn = true;
+
+        const { data, error } = await supabase.auth.signUp({
+          email: this.signupForm.email,
+          password: this.signupForm.password,
+          options: {
+            data: {
+              full_name: this.signupForm.fullName
+            },
+            emailRedirectTo: window.location.href
+          }
+        });
+
+        if (error) throw error;
+
+        ElMessage.success('Signup successful! Please check your email to confirm your account.');
+        
+        // Clear form
+        this.signupForm = {
+          fullName: '',
+          email: '',
+          password: '',
+          confirmPassword: ''
+        };
+        
+        // Switch to login mode
+        this.isSignupMode = false;
+        
+      } catch (error) {
+        console.error('Error signing up:', error);
+        ElMessage.error('Signup failed: ' + error.message);
+      } finally {
+        this.emailSigningIn = false;
+      }
+    },
+
+    scrollToAuth() {
+      const authElement = document.getElementById('auth-section');
+      if (authElement) {
+        authElement.scrollIntoView({ behavior: 'smooth' });
       }
     },
 
@@ -1152,6 +1257,30 @@ export default {
   text-align: center;
 }
 
+.simple-signin-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-toggle {
+  text-align: center;
+  margin-top: 1rem;
+  color: #606266;
+  font-size: 0.9rem;
+}
+
+.toggle-btn {
+  color: #409eff;
+  font-weight: 500;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.toggle-btn:hover {
+  color: #337ecc;
+}
+
 .email-auth-form {
   max-width: 300px;
   margin: 0 auto 1.5rem auto;
@@ -1159,7 +1288,7 @@ export default {
 
 .email-auth-form-center {
   max-width: 400px;
-  margin: 1.5rem auto;
+  margin: 0 auto 1.5rem auto;
 }
 
 .email-signin-btn {
@@ -1169,7 +1298,7 @@ export default {
 
 .auth-divider, .auth-divider-center {
   text-align: center;
-  margin: 1.5rem 0;
+  margin: 1.25rem 0;
   position: relative;
 }
 
@@ -1205,12 +1334,24 @@ export default {
 
 .email-auth-form :deep(.el-input__wrapper),
 .email-auth-form-center :deep(.el-input__wrapper) {
-  padding-left: 0;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .email-auth-form :deep(.el-input__prefix),
 .email-auth-form-center :deep(.el-input__prefix) {
-  margin-right: 8px;
+  margin-right: 12px;
+  margin-left: 4px;
+}
+
+.email-auth-form :deep(.el-input__prefix i),
+.email-auth-form-center :deep(.el-input__prefix i) {
+  color: #909399;
+  font-size: 16px;
+}
+
+.el-button+.el-button {
+  margin-left: 0;
 }
 
 .email-auth-form :deep(.el-form-item),
@@ -1236,7 +1377,7 @@ export default {
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 1.5rem;
+  margin: 0 0 1.25rem 0;
 }
 
 .auth-btn {
@@ -1353,14 +1494,51 @@ export default {
   flex-direction: column;
   min-height: 50vh;
   gap: 1rem;
+  padding: 2rem 1rem;
 }
 
 .loading-content, .error-content, .auth-content {
   text-align: center;
   padding: 2rem;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+}
+
+.auth-header {
+  margin-bottom: 2rem;
+}
+
+.auth-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
+}
+
+.auth-icon i {
+  font-size: 24px;
+  color: white;
+}
+
+.auth-header h3 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+}
+
+.auth-message {
+  color: #666;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .loading-spinner {
@@ -2030,6 +2208,35 @@ export default {
   .loading-content, .error-content, .auth-content {
     margin: 1rem;
     padding: 1.5rem;
+    max-width: 100%;
+  }
+
+  .auth-required {
+    padding: 1rem 0.5rem;
+    min-height: 40vh;
+  }
+
+  .auth-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .auth-icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 0.75rem;
+  }
+
+  .auth-icon i {
+    font-size: 20px;
+  }
+
+  .auth-header h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .auth-message {
+    font-size: 0.9rem;
   }
 }
 
@@ -2101,6 +2308,11 @@ export default {
 
   .email-signin-btn {
     font-size: 0.9rem;
+  }
+
+  .auth-toggle {
+    font-size: 0.8rem;
+    margin-top: 1rem;
   }
 
   .external-task-content {

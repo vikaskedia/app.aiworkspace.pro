@@ -900,6 +900,153 @@
               />
             </div>
           </el-tab-pane>
+
+          <!-- E-sign Tab -->
+          <el-tab-pane label="E-sign" name="esign">
+            <template #label>
+              <span class="tab-label">
+                <el-icon><Document /></el-icon>
+                E-sign
+                <el-badge 
+                  v-if="esignDocuments.length" 
+                  :value="esignDocuments.length" 
+                  class="tab-badge"
+                />
+              </span>
+            </template>
+            
+            <div class="tab-content">
+              <!-- Loading indicator for e-sign -->
+              <div v-if="esignLoading" class="loading-message">
+                <el-icon class="loading-spinner"><Loading /></el-icon>
+                <span>Loading documents...</span>
+              </div>
+              
+              <!-- Upload Section -->
+              <div v-else class="esign-upload-section">
+                <div class="upload-header">
+                  <h4>Upload PDF for Signature</h4>
+                  <p class="upload-description">
+                    Upload a PDF document that external users can sign when accessing the shared task.
+                  </p>
+                </div>
+                
+                <el-upload
+                  ref="pdfUpload"
+                  :file-list="uploadFileList"
+                  :auto-upload="false"
+                  :on-change="handlePdfFileChange"
+                  :on-remove="handlePdfFileRemove"
+                  :before-upload="beforePdfUpload"
+                  accept=".pdf"
+                  :limit="1"
+                  class="pdf-upload">
+                  <el-button type="primary" :disabled="uploadingPdf">
+                    <el-icon><Upload /></el-icon>
+                    <span>Select PDF File</span>
+                  </el-button>
+                  <template #tip>
+                    <div class="el-upload__tip">
+                      Only PDF files are supported. Max file size: 50MB
+                    </div>
+                  </template>
+                </el-upload>
+                
+                <div v-if="uploadFileList.length > 0" class="upload-actions">
+                  <el-button 
+                    type="success" 
+                    @click="uploadPdfDocument"
+                    :loading="uploadingPdf"
+                    :disabled="!uploadFileList.length">
+                    <el-icon><Upload /></el-icon>
+                    Upload Document
+                  </el-button>
+                </div>
+              </div>
+
+              <!-- Documents List -->
+              <div class="esign-documents-section" v-if="esignDocuments.length > 0">
+                <div class="documents-header">
+                  <h4>Documents for Signature</h4>
+                </div>
+                
+                <div class="documents-list">
+                  <div 
+                    v-for="document in esignDocuments" 
+                    :key="document.id"
+                    class="document-item">
+                    <div class="document-info">
+                      <div class="document-icon">
+                        <el-icon><Document /></el-icon>
+                      </div>
+                      <div class="document-details">
+                        <div class="document-name-container">
+                          <h5 class="document-name">{{ document.name }}</h5>
+                          <p class="document-meta">
+                            <span>{{ formatFileSize(document.size) }}</span>
+                            <span class="separator">•</span>
+                            <span>{{ formatDate(document.created_at) }}</span>
+                          </p>
+                          <div class="signature-status">
+                            <el-tag 
+                              :type="getSignatureStatusType(document.signature_status)"
+                              size="small">
+                              {{ formatSignatureStatus(document.signature_status) }}
+                            </el-tag>
+                            <span v-if="document.signed_by" class="signed-by">
+                              Signed by {{ document.signed_by }}
+                            </span>
+                          </div>
+                        </div>
+                        <!-- Add this below the signature-status div -->
+                        <div v-if="document.signature_status === 'signed' && document.signatures && document.signatures.length">
+                          <h5>Signature:</h5>
+                          <img
+                            v-for="sig in document.signatures"
+                            :key="sig.id"
+                            :src="sig.signature_image"
+                            alt="Signature"
+                            style="max-height: 50px; border: 1px solid #ccc; margin-bottom: 8px; display: block;" />
+
+                            <div v-for="sig in document.signatures" :key="sig.id">
+                              {{ sig.full_name }}
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="document-actions">
+                      <el-button 
+                        type="primary" 
+                        @click="viewDocument(document)"
+                        size="small">
+                        <el-icon><View /></el-icon>
+                        View
+                      </el-button>
+                      <el-button 
+                        type="danger" 
+                        @click="deleteDocument(document)"
+                        size="small"
+                        :loading="deletingDocument === document.id">
+                        <el-icon><Delete /></el-icon>
+                        Delete
+                      </el-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="!esignLoading" class="esign-empty-state">
+                <el-empty description="No documents uploaded yet">
+                  <el-button type="primary" @click="$refs.pdfUpload.$el.querySelector('input').click()">
+                    <el-icon><Upload /></el-icon>
+                    Upload First Document
+                  </el-button>
+                </el-empty>
+              </div>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
     </div>
@@ -1296,14 +1443,14 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
-import { ElNotification } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
@@ -1345,7 +1492,8 @@ export default {
     ChatDotRound,
     List,
     ReusableOutlineCt,
-    InfoFilled
+    InfoFilled,
+    Upload
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1480,6 +1628,11 @@ export default {
       
       // External sharing
       testingApi: false,
+      esignDocuments: [],
+      esignLoading: false,
+      uploadingPdf: false,
+      uploadFileList: [],
+      deletingDocument: null,
     };
   },
   async created() {
@@ -1495,7 +1648,8 @@ export default {
         await Promise.all([
           this.loadSharedUsers(),
           this.refreshTaskCache(),
-          this.loadTaskOutline()
+          this.loadTaskOutline(),
+          this.loadEsignDocuments()
         ]);
     
     this.setupRealtimeSubscription();
@@ -1808,6 +1962,19 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+
+    formatFileSize(bytes) {
+      // Handle null, undefined, or non-numeric values
+      if (!bytes || typeof bytes !== 'number' || isNaN(bytes)) {
+        return '0 Bytes';
+      }
+      
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
 
     getInitials(email) {
@@ -4227,6 +4394,204 @@ ${comment.content}
       }
     },
 
+         async loadEsignDocuments() {
+       try {
+         this.esignLoading = true;
+         const { data: documents, error } = await supabase
+           .from('task_documents')
+           .select('*')
+           .eq('task_id', this.task.id)
+           .eq('requires_signature', true);
+
+         if (error) throw error;
+
+         this.esignDocuments = documents || [];
+         // Fetch signatures for each document
+         for (const doc of this.esignDocuments) {
+           doc.signatures = await this.fetchSignaturesForDocument(doc.id);
+         }
+       } catch (error) {
+         console.error('Error loading e-sign documents:', error);
+         this.esignDocuments = [];
+       } finally {
+         this.esignLoading = false;
+       }
+     },
+
+    handlePdfFileChange(file, fileList) {
+      this.uploadFileList = fileList;
+    },
+
+    handlePdfFileRemove(file, fileList) {
+      this.uploadFileList = fileList;
+    },
+
+    beforePdfUpload(file) {
+      const isPdf = file.type === 'application/pdf';
+      if (!isPdf) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'Please upload a PDF file'
+        });
+      }
+      return isPdf;
+    },
+
+         async uploadPdfDocument() {
+       if (!this.uploadFileList.length) return;
+       
+       try {
+         this.uploadingPdf = true;
+         const { data: { user } } = await supabase.auth.getUser();
+         const file = this.uploadFileList[0].raw;
+
+         // Upload file to storage first
+         const fileExt = file.name.split('.').pop();
+         const fileName = `${Date.now()}.${fileExt}`;
+         const filePath = `task_documents/${this.task.id}/${fileName}`;
+
+         const { data: uploadData, error: uploadError } = await supabase.storage
+           .from('task-files')
+           .upload(filePath, file);
+
+         if (uploadError) throw uploadError;
+
+         // Get public URL
+         const { data: urlData } = supabase.storage
+           .from('task-files')
+           .getPublicUrl(filePath);
+
+         // Insert document record
+         const { data, error } = await supabase
+           .from('task_documents')
+           .insert([
+             {
+               task_id: this.task.id,
+               name: file.name,
+               original_filename: file.name,
+               file_path: filePath,
+               download_url: urlData.publicUrl,
+               size: file.size,
+               mime_type: file.type,
+               requires_signature: true,
+               signature_status: 'pending',
+               created_by_user_id: user.id
+             }
+           ])
+           .select();
+
+         if (error) throw error;
+
+         this.uploadFileList = [];
+         await this.loadEsignDocuments();
+         
+         ElNotification.success({
+           title: 'Success',
+           message: 'PDF uploaded successfully'
+         });
+       } catch (error) {
+         console.error('Error uploading PDF:', error);
+         ElNotification.error({
+           title: 'Error',
+           message: 'Failed to upload PDF: ' + error.message
+         });
+       } finally {
+         this.uploadingPdf = false;
+       }
+     },
+
+    getSignatureStatusType(status) {
+      switch (status) {
+        case 'signed': return 'success';
+        case 'pending': return 'warning';
+        case 'rejected': return 'danger';
+        default: return 'info';
+      }
+    },
+
+    formatSignatureStatus(status) {
+      switch (status) {
+        case 'signed': return 'Signed';
+        case 'pending': return 'Pending';
+        case 'rejected': return 'Rejected';
+        default: return 'Unknown';
+      }
+    },
+
+         async viewDocument(document) {
+       try {
+         // Open document in a new tab
+         if (document.download_url) {
+           window.open(document.download_url, '_blank');
+         } else {
+           throw new Error('Document URL not available');
+         }
+       } catch (error) {
+         console.error('Error viewing document:', error);
+         ElNotification.error({
+           title: 'Error',
+           message: 'Failed to view document: ' + error.message
+         });
+       }
+     },
+
+         async deleteDocument(document) {
+       try {
+         await ElMessageBox.confirm('Are you sure you want to delete this document?', 'Confirm Delete', {
+           confirmButtonText: 'Delete',
+           cancelButtonText: 'Cancel',
+           type: 'warning'
+         });
+
+         this.deletingDocument = document.id;
+         
+         // Delete from storage if file_path exists
+         if (document.file_path) {
+           await supabase.storage
+             .from('task-files')
+             .remove([document.file_path]);
+         }
+
+         // Delete from database
+         const { error } = await supabase
+           .from('task_documents')
+           .delete()
+           .eq('id', document.id);
+
+         if (error) throw error;
+
+         await this.loadEsignDocuments();
+         
+         ElNotification.success({
+           title: 'Success',
+           message: 'Document deleted successfully'
+         });
+       } catch (error) {
+         if (error === 'cancel') return;
+         
+         console.error('Error deleting document:', error);
+         ElNotification.error({
+           title: 'Error',
+           message: 'Failed to delete document: ' + error.message
+         });
+       } finally {
+         this.deletingDocument = null;
+       }
+     },
+
+    // 1. Add a method to fetch signatures for a document
+    async fetchSignaturesForDocument(documentId) {
+      const { data, error } = await supabase
+        .from('task_signatures')
+        .select('*')
+        .eq('document_id', documentId);
+      if (error) {
+        console.error('Error fetching signatures:', error);
+        return [];
+      }
+      return data;
+    },
+
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -4738,7 +5103,10 @@ ${comment.content}
   align-items: center;
   gap: 8px;
 }
-
+.document-details {
+    display: flex;
+    gap: 2rem;
+}
 @media (max-width: 768px) {
   .metadata-grid {
     display: flex;
@@ -6587,6 +6955,112 @@ table.editor-table {
   .external-link-controls .el-button {
     width: 100%;
   }
+}
+</style>
+
+<style scoped>
+/* E-sign Tab Styles */
+.esign-upload-section {
+  margin-bottom: 2rem;
+}
+
+.esign-upload-section .upload-header {
+  margin-bottom: 1rem;
+}
+
+.esign-upload-section .upload-header h4 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.esign-upload-section .upload-description {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.esign-upload-section .upload-actions {
+  margin-top: 1rem;
+}
+
+.esign-documents-section .documents-header {
+  margin-bottom: 1.5rem;
+}
+
+.esign-documents-section .documents-header h4 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.esign-documents-section .documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.esign-documents-section .document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+}
+
+.esign-documents-section .document-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.esign-documents-section .document-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.esign-documents-section .document-icon {
+  font-size: 2rem;
+  color: #409eff;
+}
+
+.esign-documents-section .document-details h5 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.esign-documents-section .document-meta {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.esign-documents-section .document-meta .separator {
+  margin: 0 0.5rem;
+}
+
+.esign-documents-section .signature-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.esign-documents-section .signed-by {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.esign-documents-section .document-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.esign-empty-state {
+  text-align: center;
+  padding: 2rem;
 }
 </style>
 

@@ -126,9 +126,25 @@
           <div class="description-content" v-html="formatCommentContent(task.description)"></div>
         </div>
 
-        <!-- Comments Section -->
-        <div class="external-comments-section">
-          <h3>Comments</h3>
+        <!-- Tabs Section -->
+        <div class="external-tabs-section">
+          <el-tabs v-model="activeTab" class="external-tabs">
+            <!-- Comments Tab -->
+            <el-tab-pane label="Comments" name="comments">
+              <template #label>
+                <span class="tab-label">
+                  <el-icon><ChatDotRound /></el-icon>
+                  Comments
+                  <el-badge 
+                    v-if="filteredComments.length" 
+                    :value="filteredComments.length" 
+                    class="tab-badge"
+                  />
+                </span>
+              </template>
+              
+              <div class="external-comments-section">
+                <h3>Comments</h3>
           
           <!-- Add Comment Form -->
           <div class="add-comment-form">
@@ -264,7 +280,92 @@
             </div>
           </div>
         </div>
-      </div>
+      </el-tab-pane>
+
+      <!-- E-sign Tab -->
+      <el-tab-pane label="E-sign" name="esign">
+        <template #label>
+          <span class="tab-label">
+            <el-icon><Document /></el-icon>
+            E-sign
+            <el-badge 
+              v-if="esignDocuments.length" 
+              :value="esignDocuments.length" 
+              class="tab-badge"
+            />
+          </span>
+        </template>
+        
+        <div class="external-esign-section">
+          <!-- Loading indicator for e-sign -->
+          <div v-if="esignLoading" class="loading-message">
+            <el-icon class="loading-spinner"><Loading /></el-icon>
+            <span>Loading documents...</span>
+          </div>
+          
+          <!-- Documents List for Signing -->
+          <div v-else-if="esignDocuments.length > 0" class="esign-documents-section">
+            <div class="documents-header">
+              <h3>Documents to Sign</h3>
+              <p class="sign-description">
+                Review and sign the documents below. Your signature will be legally binding.
+              </p>
+            </div>
+            
+            <div class="documents-list">
+              <div 
+                v-for="document in esignDocuments" 
+                :key="document.id"
+                class="document-item">
+                <div class="document-info">
+                  <div class="document-icon">
+                    <el-icon><Document /></el-icon>
+                  </div>
+                  <div class="document-details">
+                    <h4 class="document-name">{{ document.name }}</h4>
+                    <p class="document-meta">
+                      <span>{{ formatFileSize(document.size) }}</span>
+                      <span class="separator">•</span>
+                      <span>{{ formatDate(document.created_at) }}</span>
+                    </p>
+                    <div class="signature-status">
+                      <el-tag 
+                        :type="getSignatureStatusType(document.signature_status)"
+                        size="default">
+                        {{ formatSignatureStatus(document.signature_status) }}
+                      </el-tag>
+                      <span v-if="document.signed_by" class="signed-by">
+                        Signed by {{ document.signed_by }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="document-actions">
+                  <el-button 
+                    type="primary" 
+                    @click="viewAndSignDocument(document)"
+                    size="default"
+                    :disabled="document.signature_status === 'signed'">
+                    <el-icon><Document /></el-icon>
+                    {{ document.signature_status === 'signed' ? 'View Signed' : 'View & Sign' }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State for E-sign -->
+          <div v-else-if="!esignLoading" class="esign-empty-state">
+            <el-empty description="No documents available for signature">
+              <p class="empty-hint">Documents for signing will appear here when shared by the team.</p>
+            </el-empty>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
+    </div>
+    </div>
     </div>
 
     <!-- Auth Required State -->
@@ -437,6 +538,14 @@
         </div>
       </div>
     </div>
+
+    <!-- PDF Signature Modal -->
+    <PdfSignatureModal
+      v-model="showSignatureModal"
+      :document="signingDocument"
+      :user-email="user?.email"
+      @close="showSignatureModal = false"
+      @signed="handleDocumentSigned" />
   </div>
 </template>
 
@@ -445,6 +554,7 @@ import { User, Loading, Paperclip, Calendar, ChatDotRound, Document, Close, Swit
 import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
 import { useExternalTaskShare } from '../composables/useExternalTaskShare';
+import PdfSignatureModal from './common/PdfSignatureModal.vue';
 
 export default {
   name: 'ExternalTaskView',
@@ -456,7 +566,8 @@ export default {
     ChatDotRound,
     Document,
     Close,
-    SwitchButton
+    SwitchButton,
+    PdfSignatureModal
   },
   setup() {
     const externalShare = useExternalTaskShare();
@@ -501,6 +612,11 @@ export default {
         password: '',
         confirmPassword: ''
       },
+      activeTab: 'comments',
+      esignDocuments: [],
+      esignLoading: false,
+      showSignatureModal: false,
+      signingDocument: null,
       loginRules: {
         email: [
           { required: true, message: 'Please enter your email', trigger: 'blur' },
@@ -848,6 +964,13 @@ export default {
 
           this.comments = commentsData;
           
+          // Load e-sign documents
+          try {
+            await this.loadEsignDocuments(shareData.task_id);
+          } catch (error) {
+            console.warn('Failed to load e-sign documents:', error);
+          }
+          
           console.log('Task data loaded successfully', { 
             taskId: this.task?.id, 
             commentsCount: this.comments?.length || 0 
@@ -1184,7 +1307,87 @@ export default {
       } else {
         return 'System';
       }
-    }
+    },
+
+    async loadEsignDocuments(taskId) {
+      try {
+        this.esignLoading = true;
+        const { data: documents, error } = await supabase
+          .from('task_documents')
+          .select('*')
+          .eq('task_id', taskId)
+          .eq('requires_signature', true);
+        if (error) throw error;
+        this.esignDocuments = documents || [];
+      } catch (error) {
+        console.error('Error loading e-sign documents:', error);
+        this.esignDocuments = [];
+      } finally {
+        this.esignLoading = false;
+      }
+    },
+
+    getSignatureStatusType(status) {
+      switch (status) {
+        case 'signed': return 'success';
+        case 'pending': return 'warning';
+        case 'rejected': return 'danger';
+        default: return 'info';
+      }
+    },
+
+    formatSignatureStatus(status) {
+      switch (status) {
+        case 'signed': return 'Signed';
+        case 'pending': return 'Pending';
+        case 'rejected': return 'Rejected';
+        default: return 'Unknown';
+      }
+    },
+
+    formatDate(dateString) {
+      if (!dateString) return '';
+      return new Date(dateString).toLocaleDateString();
+    },
+
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    async viewAndSignDocument(document) {
+      try {
+        // Open the PDF signing modal or redirect to signing page
+        if (document.signature_status === 'signed') {
+          // Just view the signed document
+          window.open(document.download_url, '_blank');
+        } else {
+          // Open PDF for signing
+          this.openSigningModal(document);
+        }
+      } catch (error) {
+        console.error('Error viewing document:', error);
+        ElMessage.error('Failed to open document: ' + error.message);
+      }
+    },
+
+         openSigningModal(document) {
+       this.signingDocument = document;
+       this.showSignatureModal = true;
+     },
+
+     handleDocumentSigned(signature) {
+       // Refresh the documents list to show updated status
+       this.loadEsignDocuments(this.task.id);
+       
+       ElNotification.success({
+         title: 'Document Signed',
+         message: 'Your signature has been recorded successfully.'
+       });
+     }
   }
 };
 </script>
@@ -1574,6 +1777,116 @@ export default {
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   backdrop-filter: blur(10px);
   min-height: calc(100vh - 200px);
+}
+
+.external-tabs-section {
+  margin-top: 1.5rem;
+}
+
+.external-tabs .tab-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.external-tabs .tab-badge {
+  margin-left: 0.25rem;
+}
+
+.external-esign-section {
+  margin-top: 1rem;
+}
+
+.esign-documents-section .documents-header {
+  margin-bottom: 1.5rem;
+}
+
+.esign-documents-section .documents-header h3 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.esign-documents-section .sign-description {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.esign-documents-section .documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.esign-documents-section .document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+}
+
+.esign-documents-section .document-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.esign-documents-section .document-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.esign-documents-section .document-icon {
+  font-size: 2rem;
+  color: #409eff;
+}
+
+.esign-documents-section .document-details h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.esign-documents-section .document-meta {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.esign-documents-section .document-meta .separator {
+  margin: 0 0.5rem;
+}
+
+.esign-documents-section .signature-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.esign-documents-section .signed-by {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.esign-documents-section .document-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.esign-empty-state {
+  text-align: center;
+  padding: 2rem;
+}
+
+.esign-empty-state .empty-hint {
+  margin-top: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
 }
 
 .container {

@@ -96,7 +96,7 @@ function parseAsteriskFilename(filename) {
       timestamp: match[5],
       from_phone_number: match[2],
       to_phone_number: match[1],
-      recorded_at: parseAsteriskDate(match[3], match[4])
+      recorded_at: new Date(parseInt(match[5]) * 1000).toISOString()
     };
   } else if ((match = filename.match(outbound))) {
     direction = 'outbound';
@@ -109,7 +109,7 @@ function parseAsteriskFilename(filename) {
       timestamp: match[5],
       from_phone_number: match[2],
       to_phone_number: match[1],
-      recorded_at: parseAsteriskDate(match[3], match[4])
+      recorded_at: new Date(parseInt(match[5]) * 1000).toISOString()
     };
   }
   return null;

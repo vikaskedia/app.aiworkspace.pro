@@ -390,7 +390,7 @@
           <div class="messages-area" ref="messagesContainer">
             <template v-for="group in groupedChatMessages" :key="group.date">
               <div class="date-header">{{ group.date }}</div>
-              <div v-for="item in group.items" :key="item.type === 'message' ? item.item.id : item.item.id" :class="['message', item.type === 'message' ? item.item.direction : (item.associatedMessageDirection || 'inbound')]">
+              <div v-for="item in group.items" :key="item.type === 'message' ? item.item.id : item.item.id" :class="['message', item.type === 'message' ? item.item.direction : getCallRecordingDirection(item)]">
                 
                 <!-- Message Display -->
                 <div v-if="item.type === 'message'" class="message-content" @mouseenter="setHoveredMessage(item.item.id)" @mouseleave="setHoveredMessage(null)">
@@ -523,6 +523,15 @@
                     <span class="call-title">
                       Call Recording
                     </span>
+                    <!-- Show filename for Asterisk recordings -->
+                    <span v-if="item.item.filename" class="call-filename">
+                      {{ item.item.filename }}
+                    </span>
+                    <!-- Show direction for Asterisk recordings -->
+                    <!-- <span v-if="item.item.filename && (item.item.filename.startsWith('external-') || item.item.filename.startsWith('out-'))" 
+                          class="call-direction">
+                      {{ item.item.filename.startsWith('external-') ? 'Incoming' : 'Outgoing' }}
+                    </span> -->
                   </div>
                   
                   <div class="call-recording-player">
@@ -537,19 +546,27 @@
                   
                   <div class="call-recording-info">
                     <span class="call-size">{{ formatFileSize(item.item.file_size) }}</span>&nbsp;&nbsp;
-                    <span class="call-date">{{ formatDate(item.item.recorded_at) }}</span>
+                    <!-- <span class="call-date">{{ formatDate(item.item.recorded_at) }}</span>&nbsp;&nbsp; -->
+                    <span class="call-time">{{ formatFullTimeWithZone(item.item.created_at) }}</span>
                   </div>
                   
-                  <!-- Collapsible Summary Section -->
-                  <el-collapse v-model="summaryCollapse[item.item.id]" class="call-summary-collapse">
+                  <!-- Collapsible Summary Section - only show if summary/transcript exists -->
+                  <el-collapse v-if="item.item.recording_summary || item.item.recording_transcript" 
+                              v-model="summaryCollapse[item.item.id]" 
+                              class="call-summary-collapse">
                     <el-collapse-item name="summary">
                       <template #title>
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                           <span>Summary</span>
                         </div>
                       </template>
-                      <div v-html="renderMarkdown(item.item.recording_summary)"></div>
-                      <p class="transcript-link" style="float: right;margin-right: 10px;" @click.stop="openTranscriptDialog(item.item.recording_transcript)">Show transcript</p>
+                      <div v-if="item.item.recording_summary" v-html="renderMarkdown(item.item.recording_summary)"></div>
+                      <p v-if="item.item.recording_transcript" 
+                         class="transcript-link" 
+                         style="float: right;margin-right: 10px;" 
+                         @click.stop="openTranscriptDialog(item.item.recording_transcript)">
+                        Show transcript
+                      </p>
                     </el-collapse-item>
                   </el-collapse>
                 </div>
@@ -2114,32 +2131,42 @@ export default {
         });
       });
       
-      // Add call recordings with their position logic
-      // Use full message list (not filtered) to find associated messages
+      // Add call recordings
       const allMessages = this.currentChat?.messages || [];
       this.callRecordings.forEach(recording => {
-        const associatedMessage = allMessages.find(msg => msg.id === recording.message_id);
+        let recordingTime;
         
-        if (associatedMessage) {
-          const messageTime = new Date(associatedMessage.timestamp);
-          let recordingTime;
+        if (recording.message_id) {
+          // Recording associated with a specific message
+          const associatedMessage = allMessages.find(msg => msg.id === recording.message_id);
           
-          if (recording.position === 'before') {
-            // Place recording slightly before the message
-            recordingTime = new Date(messageTime.getTime() - 1000);
+          if (associatedMessage) {
+            const messageTime = new Date(associatedMessage.timestamp);
+            
+            if (recording.position === 'before') {
+              // Place recording slightly before the message
+              recordingTime = new Date(messageTime.getTime() - 1000);
+            } else {
+              // Place recording slightly after the message
+              recordingTime = new Date(messageTime.getTime() + 1000);
+            }
           } else {
-            // Place recording slightly after the message
-            recordingTime = new Date(messageTime.getTime() + 1000);
+            // Fallback to recording's own timestamp
+            recordingTime = new Date(recording.created_at);
           }
-          
-          timelineItems.push({
-            type: 'recording',
-            item: recording,
-            timestamp: recordingTime,
-            associatedMessageId: recording.message_id,
-            associatedMessageDirection: associatedMessage.direction
-          });
+        } else {
+          // Standalone recording (like Asterisk recordings) - use created_at
+          recordingTime = new Date(recording.created_at);
         }
+        
+        timelineItems.push({
+          type: 'recording',
+          item: recording,
+          timestamp: recordingTime,
+          associatedMessageId: recording.message_id,
+          associatedMessageDirection: recording.message_id ? 
+            allMessages.find(msg => msg.id === recording.message_id)?.direction : null
+        });
       });
       
       // Sort all items by timestamp
@@ -2457,6 +2484,25 @@ export default {
     }
   },
   methods: {
+    // Call Recording Direction Helper
+    getCallRecordingDirection(item) {
+      if (item.type !== 'recording') return 'inbound';
+      
+      const recording = item.item;
+      
+      // Check if it's an Asterisk recording by filename pattern
+      if (recording.filename) {
+        if (recording.filename.startsWith('out-')) {
+          return 'outbound';
+        } else if (recording.filename.startsWith('external-')) {
+          return 'inbound';
+        }
+      }
+      
+      // Fallback to associated message direction or default
+      return item.associatedMessageDirection || 'inbound';
+    },
+
     // URL Synchronization Methods
     async initializeFromUrl() {
       console.log('🚀 Initializing from URL props:', {
@@ -2861,6 +2907,9 @@ export default {
       // Load messages for this conversation using real-time composable
       await this.loadMessagesForConversation(conversation.id);
       
+      // Load call recordings for this conversation
+      await this.loadCallRecordingsForConversation(conversation.id);
+      
       // Load internal comments count for messages
       await this.loadInternalCommentsCount();
       
@@ -2895,7 +2944,7 @@ export default {
           .from('call_recordings')
           .select('*')
           .eq('conversation_id', conversationId)
-          .order('recorded_at', { ascending: true });
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
 
@@ -5951,7 +6000,7 @@ export default {
 }
 
 .call-recording-content {
-  width: 70%;
+  width: 40%;
   padding: 1rem;
   border-radius: 1rem;
   background: #f8f9fa;
@@ -5998,6 +6047,26 @@ export default {
   color: white;
 }
 
+.call-direction {
+  background: #67c23a;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+.call-filename {
+  color: #666;
+  font-size: 0.8rem;
+  font-family: monospace;
+  background: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
 .call-recording-info {
   display: flex;
   justify-content: space-between;
@@ -6024,6 +6093,15 @@ export default {
 }
 
 .message.outbound .call-date {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.call-time {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.message.outbound .call-time {
   color: rgba(255, 255, 255, 0.8);
 }
 

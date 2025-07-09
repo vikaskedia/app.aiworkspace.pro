@@ -78,181 +78,53 @@ function getAuthenticatedDownloadUrl(downloadUrl) {
   }
 }
 
-// Helper function to normalize phone numbers
-function normalizePhoneNumber(phoneNumber) {
-  if (!phoneNumber) return null;
-  
-  // Remove all non-digit characters
-  const digits = phoneNumber.replace(/\D/g, '');
-  
-  // Add +1 if it's a 10-digit US number
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  } else if (digits.length === 11 && digits.startsWith('1')) {
-    return `+${digits}`;
+// Helper to parse filename and extract call info
+function parseAsteriskFilename(filename) {
+  // Example: external-8158-6502040547-20250709-063905-1752068345.0.wav
+  // Example: out-6502040547-8158-20250709-064211-1752068531.6.wav
+  const inbound = /^external-(\d{4})-(\d{10,})-(\d{8})-(\d{6})-(\d+)\./;
+  const outbound = /^out-(\d{10,})-(\d{4})-(\d{8})-(\d{6})-(\d+)\./;
+  let match, direction;
+  if ((match = filename.match(inbound))) {
+    direction = 'inbound';
+    return {
+      direction,
+      office_last4: match[1],
+      other_number: match[2],
+      date: match[3],
+      time: match[4],
+      timestamp: match[5],
+      from_phone_number: match[2],
+      to_phone_number: match[1],
+      recorded_at: parseAsteriskDate(match[3], match[4])
+    };
+  } else if ((match = filename.match(outbound))) {
+    direction = 'outbound';
+    return {
+      direction,
+      other_number: match[1],
+      office_last4: match[2],
+      date: match[3],
+      time: match[4],
+      timestamp: match[5],
+      from_phone_number: match[2],
+      to_phone_number: match[1],
+      recorded_at: parseAsteriskDate(match[3], match[4])
+    };
   }
-  
-  return `+${digits}`;
+  return null;
 }
 
-// Helper function to extract phone numbers from filename
-function extractPhoneNumbersFromFilename(filename) {
-  console.log(`🔍 Attempting to extract phone numbers from filename: ${filename}`)
-  
-  // Common Asterisk filename patterns:
-  // recording_15551234567_15551234568.wav
-  // call_5551234567-5551234568_timestamp.wav
-  // out_15551234567_15551234568.wav
-  // in_15551234567_15551234568.wav
-  
-  const patterns = [
-    // Pattern: recording_caller_called.ext
-    /recording[_-](\d{10,11})[_-](\d{10,11})/i,
-    // Pattern: call_caller-called_timestamp.ext
-    /call[_-](\d{10,11})[_-](\d{10,11})/i,
-    // Pattern: out_caller_called.ext
-    /out[_-](\d{10,11})[_-](\d{10,11})/i,
-    // Pattern: in_caller_called.ext
-    /in[_-](\d{10,11})[_-](\d{10,11})/i,
-    // Pattern: caller_called_anything.ext
-    /^(\d{10,11})[_-](\d{10,11})/,
-    // Pattern: anything_caller_called.ext
-    /[_-](\d{10,11})[_-](\d{10,11})/
-  ]
-  
-  for (const pattern of patterns) {
-    const match = filename.match(pattern)
-    if (match) {
-      const caller = normalizePhoneNumber(match[1])
-      const called = normalizePhoneNumber(match[2])
-      console.log(`✅ Extracted phone numbers: ${caller} -> ${called}`)
-      return { caller, called }
-    }
-  }
-  
-  console.log(`❌ Could not extract phone numbers from filename`)
-  return null
-}
-
-// Helper function to get default matter (first matter or configured default)
-async function getDefaultMatter() {
-  try {
-    // Try to get matter ID from environment variable first
-    const defaultMatterId = process.env.ASTERISK_DEFAULT_MATTER_ID
-    if (defaultMatterId) {
-      const { data: matter, error } = await supabase
-        .from('matters')
-        .select('id, phone_numbers, git_repo')
-        .eq('id', parseInt(defaultMatterId))
-        .single()
-      
-      if (!error && matter) {
-        console.log(`✅ Using configured default matter: ${matter.id}`)
-        return matter
-      }
-    }
-    
-    // Fallback: get the first available matter
-    const { data: matters, error } = await supabase
-      .from('matters')
-      .select('id, phone_numbers, git_repo')
-      .not('phone_numbers', 'is', null)
-      .limit(1)
-    
-    if (error || !matters?.length) {
-      throw new Error('No matters found in database')
-    }
-    
-    console.log(`⚠️ Using first available matter as fallback: ${matters[0].id}`)
-    return matters[0]
-    
-  } catch (error) {
-    console.error('Error getting default matter:', error)
-    throw error
-  }
-}
-
-// Helper function to find or create conversation
-async function findOrCreateConversation(matterId, fromPhone, toPhone, callStartTime) {
-  try {
-    // Try to find existing conversation (check both directions)
-    let { data: conversation, error: findError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('matter_id', matterId)
-      .or(`and(from_phone_number.eq.${fromPhone},to_phone_number.eq.${toPhone}),and(from_phone_number.eq.${toPhone},to_phone_number.eq.${fromPhone})`)
-      .order('last_message_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (findError && findError.code !== 'PGRST116') {
-      throw findError
-    }
-
-    if (conversation) {
-      console.log(`📞 Found existing conversation: ${conversation.id}`)
-      
-      // Update last message time
-      await supabase
-        .from('conversations')
-        .update({
-          last_message_at: callStartTime,
-          last_message_preview: '📞 Call recording'
-        })
-        .eq('id', conversation.id)
-        
-      return conversation
-    }
-
-    // Create new conversation if not found
-    console.log(`📞 Creating new conversation for ${fromPhone} <-> ${toPhone}`)
-    
-    const { data: newConversation, error: createError } = await supabase
-      .from('conversations')
-      .insert({
-        matter_id: matterId,
-        from_phone_number: fromPhone,
-        to_phone_number: toPhone,
-        contact_name: null,
-        last_message_at: callStartTime,
-        last_message_preview: '📞 Call recording'
-      })
-      .select()
-      .single()
-
-    if (createError) throw createError
-
-    console.log(`✅ Created new conversation: ${newConversation.id}`)
-    return newConversation
-
-  } catch (error) {
-    console.error('Error finding/creating conversation:', error)
-    throw error
-  }
-}
-
-// Helper function to find matter by phone number
-async function findMatterByPhoneNumber(phoneNumber) {
-  try {
-    const { data: matters, error } = await supabase
-      .from('matters')
-      .select('id, phone_numbers, git_repo')
-      .not('phone_numbers', 'is', null)
-
-    if (error) throw error
-
-    for (const matter of matters || []) {
-      const phoneNumbers = matter.phone_numbers || []
-      if (phoneNumbers.some(p => p.number === phoneNumber)) {
-        return matter
-      }
-    }
-
-    return null
-  } catch (error) {
-    console.error('Error finding matter by phone number:', error)
-    throw error
-  }
+function parseAsteriskDate(dateStr, timeStr) {
+  // dateStr: YYYYMMDD, timeStr: HHMMSS
+  if (!dateStr || !timeStr) return null;
+  const y = dateStr.slice(0, 4);
+  const m = dateStr.slice(4, 6);
+  const d = dateStr.slice(6, 8);
+  const h = timeStr.slice(0, 2);
+  const min = timeStr.slice(2, 4);
+  const s = timeStr.slice(4, 6);
+  return `${y}-${m}-${d} ${h}:${min}:${s}+00`;
 }
 
 // Main webhook handler
@@ -302,6 +174,24 @@ export default async function handler(req, res) {
       if (!audioFile) {
         return res.status(400).json({ error: 'audio_file is required' })
       }
+
+      // Parse filename
+      const parsed = parseAsteriskFilename(audioFile.originalname);
+      if (!parsed) {
+        return res.status(400).json({ error: 'Could not parse filename for call info' });
+      }
+
+      // Query conversations table
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
+        .select('id, matter_id')
+        .or(`and(from_phone_number.like.%${parsed.from_phone_number}%,to_phone_number.like.%${parsed.to_phone_number}%),and(from_phone_number.like.%${parsed.to_phone_number}%,to_phone_number.like.%${parsed.from_phone_number}%)`)
+        .limit(1);
+      if (convError) throw convError;
+      if (!conversations || conversations.length === 0) {
+        return res.status(404).json({ error: 'No conversation found for these phone numbers' });
+      }
+      const conversation = conversations[0];
 
       // Generate unique filename for Gitea
       const timestamp = Date.now()
@@ -383,12 +273,32 @@ export default async function handler(req, res) {
       const giteaData = await giteaResponse.json()
       const publicUrl = getAuthenticatedDownloadUrl(giteaData.content.download_url)
 
+      // Insert into call_recordings
+      const { error: insertError } = await supabase
+        .from('call_recordings')
+        .insert({
+          matter_id: conversation.matter_id,
+          conversation_id: conversation.id,
+          filename: audioFile.originalname,
+          file_size: audioFile.size,
+          mime_type: audioFile.mimetype,
+          gitea_path: giteaPath,
+          public_url: publicUrl,
+          git_sha: giteaData.content.sha,
+          recorded_at: parsed.recorded_at
+        });
+      if (insertError) {
+        console.error('❌ Failed to insert call_recording:', insertError);
+        return res.status(500).json({ error: 'Failed to insert call_recording', details: insertError.message });
+      }
+
       console.log(`✅ Uploaded to Gitea successfully`)
       console.log(`🔗 Gitea response:`, {
         path: giteaData.content.path,
         size: giteaData.content.size,
         sha: giteaData.content.sha,
-        download_url: giteaData.content.download_url
+        download_url: giteaData.content.download_url,
+        public_url: publicUrl
       })
 
       // Verify the uploaded file size
@@ -407,13 +317,15 @@ export default async function handler(req, res) {
       // Return success response
       return res.status(200).json({
         success: true,
-        message: 'Call recording uploaded successfully',
+        message: 'Call recording uploaded and recorded successfully',
         data: {
           filename: audioFile.originalname,
           file_size: audioFile.size,
           gitea_path: giteaPath,
           public_url: publicUrl,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
+          conversation_id: conversation.id,
+          matter_id: conversation.matter_id
         }
       })
 

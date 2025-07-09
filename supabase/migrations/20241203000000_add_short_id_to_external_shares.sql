@@ -6,4 +6,4 @@ ADD COLUMN short_id VARCHAR(8) UNIQUE;
 CREATE INDEX idx_task_external_shares_short_id ON task_external_shares(short_id);
 
 -- Add comment for documentation
-COMMENT ON COLUMN task_external_shares.short_id IS 'Short identifier used for creating short URLs (e.g., /share-task/abc123)'; 
+COMMENT ON COLUMN task_external_shares.short_id IS 'Short identifier used for creating short URLs (e.g., /short-link/abc123)'; 

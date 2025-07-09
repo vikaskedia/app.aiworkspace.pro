@@ -83,7 +83,7 @@ export function useExternalTaskShare() {
 
       // Generate the short URL
       const baseUrl = window.location.origin
-      const generatedLink = `${baseUrl}/share-task/${shortId}`
+      const generatedLink = `${baseUrl}/short-link/${shortId}`
       
       externalShareLink.value = generatedLink
       
@@ -189,7 +189,7 @@ export function useExternalTaskShare() {
       const activeLink = data?.find(share => share.status === 'active')
       if (activeLink && activeLink.short_id) {
         const baseUrl = window.location.origin
-        externalShareLink.value = `${baseUrl}/share-task/${activeLink.short_id}`
+        externalShareLink.value = `${baseUrl}/short-link/${activeLink.short_id}`
       } else {
         externalShareLink.value = ''
       }

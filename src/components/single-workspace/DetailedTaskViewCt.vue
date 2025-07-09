@@ -2762,7 +2762,7 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         
         // Send email through your backend service
-        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/share-task' : '/api/share-task';
+        const apiUrl = window.location.hostname === 'localhost' ? 'https://app.aiworkspace.pro/api/short-link' : '/api/short-link';
         const response = await fetch(`${apiUrl}`, {
           method: 'POST',
           headers: {

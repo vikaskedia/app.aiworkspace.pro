@@ -38,6 +38,7 @@
     "moment": "^2.29.4",
     "multer": "^2.0.1",
     "node-imap": "^0.9.6",
+    "pdf-lib": "^1.17.1",
     "pinia": "^2.3.0",
     "pinia-plugin-persistedstate": "4.2.0",
     "sass": "^1.83.0",

@@ -7,10 +7,13 @@ The E-Sign feature allows internal users to upload PDF documents that require si
 ## Features
 
 - **PDF Document Upload**: Internal users can upload PDF documents requiring signatures
-- **Digital Signatures**: External users can sign documents using a digital signature pad
-- **Signature Tracking**: Complete audit trail of who signed when and where
+- **In-PDF Digital Signatures**: External users can sign directly inside the PDF document by placing signature areas
+- **Multi-Step Signing Process**: Guided workflow for document review, signature placement, and signing
+- **PDF Manipulation**: Signatures are embedded directly into the PDF using PDF-lib for legal compliance
+- **Signature Tracking**: Complete audit trail of who signed when and where with signature positioning
 - **Legal Compliance**: Signatures include IP address, timestamp, and user agent for legal validity
 - **Status Tracking**: Real-time status updates (pending, signed, rejected)
+- **Enhanced Viewing**: Internal users can see signed PDFs with embedded signatures and detailed signature information
 
 ## How It Works
 
@@ -26,9 +29,11 @@ The E-Sign feature allows internal users to upload PDF documents that require si
 1. **Access Shared Task**: Use the shared link provided by the task owner
 2. **Authenticate**: Sign in using Gmail, GitHub, or Twitter authentication
 3. **View E-Sign Tab**: Click the "E-sign" tab to see documents requiring signatures
-4. **Review Document**: View the PDF document in the embedded viewer
-5. **Provide Signature**: Use the signature pad to create a digital signature
-6. **Submit**: Complete the signing process with legal acknowledgment
+4. **Review Document**: Step 1 - View and review the PDF document with zoom and navigation controls
+5. **Place Signature Areas**: Step 2 - Click on the document where signatures are needed to place signature boxes
+6. **Sign Document**: Step 3 - Draw signatures in the signature areas using the built-in signature pad
+7. **Submit**: Complete the signing process with signer information and legal acknowledgment
+8. **Receive Confirmation**: Get confirmation that the signed PDF has been saved with embedded signatures
 
 ## Database Schema
 
@@ -80,12 +85,23 @@ The E-Sign feature allows internal users to upload PDF documents that require si
 ## Components
 
 ### Internal View Components
-- **DetailedTaskViewCt.vue**: Main task view with E-sign tab
-- **E-sign Tab**: Upload interface and document management
+- **DetailedTaskViewCt.vue**: Main task view with enhanced E-sign tab and signature display
+- **E-sign Tab**: Upload interface, document management, and enhanced signature viewing
+- **Enhanced Signature Display**: Shows embedded signatures with signer details and timestamps
 
 ### External View Components
 - **ExternalTaskView.vue**: External user task view with E-sign tab
-- **PdfSignatureModal.vue**: Modal for viewing and signing PDFs
+- **PdfSignatureModal.vue**: Complete in-PDF signing modal with multi-step workflow
+  - PDF.js rendering for accurate document display
+  - Interactive signature placement with click-to-place functionality
+  - Built-in signature pad with touch and mouse support
+  - Real-time signature preview and positioning
+  - PDF-lib integration for embedding signatures directly into the PDF
+
+### Technical Components
+- **PDF.js Integration**: Client-side PDF rendering and manipulation
+- **PDF-lib Integration**: Server-side PDF modification and signature embedding
+- **Canvas API**: Signature drawing and PDF overlay functionality
 
 ## Security Features
 
@@ -139,15 +155,25 @@ const signatureData = {
 await submitSignature(signatureData);
 ```
 
+## Implemented Features
+
+- ✅ **In-PDF Signature Placement**: Users can click directly on the PDF to place signature areas
+- ✅ **Multi-Step Signing Process**: Guided workflow with document review, placement, and signing
+- ✅ **PDF Manipulation**: Direct embedding of signatures into PDFs using PDF-lib
+- ✅ **Enhanced Signature Display**: Rich signature information display for internal users
+- ✅ **Mobile-Responsive Design**: Optimized for both desktop and mobile devices
+
 ## Future Enhancements
 
-- **Multiple signature fields** per document
-- **Advanced PDF annotation** capabilities
-- **Signature templates** for common document types
-- **Bulk signing** for multiple documents
-- **Integration with DocuSign** or similar services
-- **Mobile app** optimization
-- **Certificate-based signatures** for enhanced security
+- **Pre-defined signature fields** with document templates
+- **Advanced PDF annotation** capabilities (text, highlights, etc.)
+- **Signature templates** for common document types and repeated signers
+- **Bulk signing** for multiple documents at once
+- **Integration with DocuSign** or similar third-party services
+- **Certificate-based signatures** for enhanced security and legal compliance
+- **Signature validation** and verification tools
+- **Document versioning** and change tracking
+- **API endpoints** for external integrations
 
 ## Browser Compatibility
 

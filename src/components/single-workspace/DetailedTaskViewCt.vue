@@ -998,19 +998,27 @@
                             </span>
                           </div>
                         </div>
-                        <!-- Add this below the signature-status div -->
-                        <div v-if="document.signature_status === 'signed' && document.signatures && document.signatures.length">
-                          <h5>Signature:</h5>
-                          <img
-                            v-for="sig in document.signatures"
-                            :key="sig.id"
-                            :src="sig.signature_image"
-                            alt="Signature"
-                            style="max-height: 50px; border: 1px solid #ccc; margin-bottom: 8px; display: block;" />
-
-                            <div v-for="sig in document.signatures" :key="sig.id">
-                              {{ sig.full_name }}
+                        <!-- Enhanced signature display for signed documents -->
+                        <div v-if="document.signature_status === 'signed' && document.signatures && document.signatures.length" class="signatures-section">
+                          <h5>Digital Signatures</h5>
+                          <div v-for="sig in document.signatures" :key="sig.id" class="signature-item">
+                            <div class="signature-details">
+                              <img
+                                :src="sig.signature_image"
+                                alt="Digital Signature"
+                                class="signature-image" />
+                              <div class="signature-info">
+                                <div class="signer-name">{{ sig.full_name }}</div>
+                                <div class="signer-email">{{ sig.user_email }}</div>
+                                <div class="signature-date">
+                                  Signed: {{ formatDate(sig.signature_date) }}
+                                </div>
+                                <div class="signature-location" v-if="sig.ip_address && sig.ip_address !== 'unknown'">
+                                  IP: {{ sig.ip_address }}
+                                </div>
+                              </div>
                             </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4520,6 +4528,19 @@ ${comment.content}
 
          async viewDocument(document) {
        try {
+         // For signed documents, show additional information in a notification
+         if (document.signature_status === 'signed' && document.signatures?.length > 0) {
+           const signatures = document.signatures;
+           const signatureCount = signatures.length;
+           
+           ElNotification({
+             title: `Viewing Signed Document`,
+             message: `This document contains ${signatureCount} digital signature${signatureCount > 1 ? 's' : ''} and has been legally executed.`,
+             type: 'success',
+             duration: 5000
+           });
+         }
+
          // Open document in a new tab
          if (document.download_url) {
            window.open(document.download_url, '_blank');
@@ -7061,6 +7082,90 @@ table.editor-table {
 .esign-empty-state {
   text-align: center;
   padding: 2rem;
+}
+
+/* Enhanced signature display styles */
+/*.signatures-section {
+  padding: 0.75rem;
+  background: #f8fbff;
+  border: 1px solid #e8f4ff;
+  border-radius: 6px;
+}*/
+
+.signatures-section h5 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.signature-item {
+  margin-bottom: 1rem;
+}
+
+.signature-item:last-child {
+  margin-bottom: 0;
+}
+
+.signature-details {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #e8eaed;
+  border-radius: 4px;
+}
+
+.signature-image {
+  max-height: 60px;
+  max-width: 120px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  flex-shrink: 0;
+}
+
+.signature-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.signer-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.signer-email {
+  color: #666;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.signature-date {
+  color: #409eff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.signature-location {
+  color: #999;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+@media (max-width: 768px) {
+  .signature-details {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .signature-image {
+    align-self: center;
+  }
 }
 </style>
 

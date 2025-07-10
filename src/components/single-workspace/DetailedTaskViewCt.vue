@@ -1134,7 +1134,7 @@
                 <template #title>
                   External Sharing
                 </template>
-                External users will need to authenticate with their Gmail account to access the shared task. They will only have access to this specific task.
+                External users will need to login to access the shared task. They will only have access to this specific task.
               </el-alert>
             </div>
 

@@ -1138,60 +1138,34 @@
               </el-alert>
             </div>
 
-            <div class="external-link-section">
-              <h4>Generate External Share Link</h4>
+            <!-- Generate button when no history exists -->
+            <div v-if="!externalShareHistory.length" class="external-link-section">
               <div class="external-link-controls">
                 <el-button 
                   type="primary"
                   :loading="generatingExternalLink"
                   @click="handleGenerateExternalShareLink"
-                  :disabled="!!externalShareLink">
+                  :disabled="hasActiveShare">
                   <el-icon><Link /></el-icon>
                   Generate Shareable Link
                 </el-button>
-                
-                <el-button 
-                  v-if="externalShareLink"
-                  type="success"
-                  @click="handleCopyExternalLink">
-                  <el-icon><DocumentCopy /></el-icon>
-                  Copy Link
-                </el-button>
-                
-                <el-button 
-                  v-if="externalShareLink"
-                  type="danger"
-                  @click="handleRevokeExternalShareLink"
-                  :loading="revokingExternalLink">
-                  <el-icon><Delete /></el-icon>
-                  Revoke Link
-                </el-button>
-              </div>
-
-              <div v-if="externalShareLink" class="external-link-display">
-                <el-input
-                  v-model="externalShareLink"
-                  readonly
-                  type="textarea"
-                  :rows="3">
-                  <template #append>
-                    <el-button @click="handleCopyExternalLink">
-                      <el-icon><DocumentCopy /></el-icon>
-                      Copy
-                    </el-button>
-                  </template>
-                </el-input>
-                <div class="external-link-info">
-                  <el-text type="info" size="small">
-                    <el-icon><InfoFilled /></el-icon>
-                    This link allows external users to view and comment on this task after Gmail authentication.
-                  </el-text>
-                </div>
               </div>
             </div>
 
+            <!-- Share history with generate button -->
             <div v-if="externalShareHistory.length" class="external-share-history">
-              <h4>Share History</h4>
+              <div class="share-history-header">
+                <h4>Share History</h4>
+                <el-button 
+                  type="primary"
+                  size="small"
+                  :loading="generatingExternalLink"
+                  @click="handleGenerateExternalShareLink"
+                  :disabled="hasActiveShare">
+                  <el-icon><Link /></el-icon>
+                  Generate Shareable Link
+                </el-button>
+              </div>
               <el-table 
                 :data="externalShareHistory" 
                 size="small"
@@ -1222,13 +1196,22 @@
                 <el-table-column
                   label="Actions">
                   <template #default="scope">
-                    <el-button 
-                      v-if="scope.row.status === 'active'"
-                      type="danger"
-                      size="small"
-                      @click="handleRevokeSpecificExternalLink(scope.row.id)">
-                      Revoke
-                    </el-button>
+                    <div class="action-buttons">
+                      <el-button 
+                        v-if="scope.row.status === 'active'"
+                        type="success"
+                        size="small"
+                        @click="handleCopySpecificExternalLink(scope.row.short_id)">
+                        Copy Link
+                      </el-button>
+                      <el-button 
+                        v-if="scope.row.status === 'active'"
+                        type="danger"
+                        size="small"
+                        @click="handleRevokeSpecificExternalLink(scope.row.id)">
+                        Revoke
+                      </el-button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -1458,7 +1441,7 @@ import { useMatterStore } from '../../store/matter';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
-import { ElNotification, ElMessageBox } from 'element-plus';
+import { ElNotification, ElMessageBox, ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
@@ -4374,6 +4357,18 @@ ${comment.content}
       }
     },
 
+    async handleCopySpecificExternalLink(shortId) {
+      try {
+        const baseUrl = window.location.origin;
+        const linkToCopy = `${baseUrl}/short-link/${shortId}`;
+        await navigator.clipboard.writeText(linkToCopy);
+        ElMessage.success('External share link copied to clipboard');
+      } catch (error) {
+        console.error('Error copying specific external link:', error);
+        ElMessage.error('Failed to copy external share link');
+      }
+    },
+
     formatDate(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
@@ -4648,6 +4643,9 @@ ${comment.content}
   computed: { 
     displayedHoursLogs() {
     return this.showAllLogs ? this.hoursLogs : this.hoursLogs.slice(0, 3);
+  },
+  hasActiveShare() {
+    return this.externalShareHistory.some(share => share.status === 'active');
   },
     isTaskStarred() {
     return this.task?.task_stars?.some(star => star.user_id === this.currentUser?.id) || false;
@@ -6968,12 +6966,42 @@ table.editor-table {
   font-size: 14px;
 }
 
+.share-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.share-history-header h4 {
+  margin: 0;
+}
+
 @media (max-width: 768px) {
   .external-link-controls {
     flex-direction: column;
   }
   
   .external-link-controls .el-button {
+    width: 100%;
+  }
+  
+  .share-history-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .share-history-header .el-button {
+    width: 100%;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .action-buttons .el-button {
     width: 100%;
   }
 }

@@ -274,7 +274,7 @@ export default async function handler(req, res) {
       const publicUrl = getAuthenticatedDownloadUrl(giteaData.content.download_url)
 
       // Insert into call_recordings
-      const { error: insertError } = await supabase
+      const { data: insertedRecording, error: insertError } = await supabase
         .from('call_recordings')
         .insert({
           matter_id: conversation.matter_id,
@@ -285,12 +285,31 @@ export default async function handler(req, res) {
           gitea_path: giteaPath,
           public_url: publicUrl,
           git_sha: giteaData.content.sha,
-          recorded_at: parsed.recorded_at
-        });
+          recorded_at: parsed.recorded_at,
+          processing_status: 'pending' // Will be processed by cron job
+        })
+        .select('id')
+        .single();
       if (insertError) {
         console.error('❌ Failed to insert call_recording:', insertError);
         return res.status(500).json({ error: 'Failed to insert call_recording', details: insertError.message });
       }
+
+      // Start background transcription and summary generation
+      console.log('🎤 Starting background transcription and summary generation...');
+      fetch('https://app.aiworkspace.pro/api/transcribe-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioUrl: publicUrl,
+          callRecordingId: insertedRecording.id, // Pass the actual call recording ID
+        })
+      }).catch(error => {
+        console.error('❌ Failed to start transcription:', error);
+        // Don't fail the webhook if transcription fails
+      });
 
       console.log(`✅ Uploaded to Gitea successfully`)
       console.log(`🔗 Gitea response:`, {

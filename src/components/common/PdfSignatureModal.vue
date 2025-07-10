@@ -3,6 +3,7 @@
     v-model="visible"
     title="Sign Document"
     width="95%"
+    style="margin-top: 2vh;"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     class="pdf-signature-modal">
@@ -151,7 +152,7 @@
       <el-dialog
         v-model="showSignatureDrawer"
         :title="selectedSignatureArea?.signatureImage ? 'Edit Your Signature' : 'Draw Your Signature'"
-        width="600px"
+        width="95%"
         :close-on-click-modal="false">
         
         <div class="signature-drawer">
@@ -519,7 +520,8 @@ export default {
         const canvas = this.$refs.signatureCanvas;
         if (!canvas) return;
 
-        canvas.width = 500;
+        const containerWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 500;
+        canvas.width = containerWidth;
         canvas.height = 200;
 
         const ctx = canvas.getContext('2d');
@@ -932,6 +934,10 @@ export default {
   border-bottom: 1px solid #ddd;
 }
 
+.pdf-signature-modal {
+  margin-top: 2vh !important;
+}
+
 .page-controls {
   display: flex;
   align-items: center;
@@ -1165,6 +1171,35 @@ export default {
 
   .dialog-footer .el-button {
     width: 100%;
+  }
+
+  /* Prevent step titles from breaking awkwardly and enable horizontal scrolling */
+  .instructions-header {
+    overflow-x: auto;
+  }
+
+  /* Deep selectors so styles apply to Element Plus inner elements */
+  .instructions-header :deep(.el-steps--simple) {
+    min-width: 480px; /* ensure enough width for three steps */
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  .instructions-header :deep(.el-step__title) {
+    font-size: 0.7rem; /* smaller font on mobile */
+    white-space: nowrap; /* keep titles on one line */
+    line-height: 1.2;
+  }
+
+  /* Reduce padding between steps and shrink icons */
+  .instructions-header :deep(.el-steps--simple .el-step) {
+    padding: 0 4px; /* tighter spacing */
+  }
+
+  .instructions-header :deep(.el-step__icon) {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
   }
 }
 </style> 

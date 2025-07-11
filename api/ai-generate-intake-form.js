@@ -45,11 +45,22 @@ export default async function handler(req, res) {
       layer entirely and lets us query information_schema safely.
     */
 
-    const supabaseHost = process.env.SUPABASE_HOST;
+    let supabaseHost = process.env.SUPABASE_HOST;
     const supabaseDbPassword = process.env.SUPABASE_DB_PASSWORD;
 
-    if (!supabaseHost || !supabaseDbPassword) {
-      return res.status(500).json({ error: 'SUPABASE_HOST or SUPABASE_DB_PASSWORD env vars are not configured' });
+    if (!supabaseDbPassword) {
+      return res.status(500).json({ error: 'SUPABASE_DB_PASSWORD env var is not configured' });
+    }
+
+    // If SUPABASE_HOST is not provided fall back to the host derived from VITE_SUPABASE_URL
+    if (!supabaseHost) {
+      try {
+        const urlObj = new URL(supabaseUrl);
+        const projectRef = urlObj.hostname.split('.')[0];
+        supabaseHost = `db.${projectRef}.supabase.co`;
+      } catch {
+        return res.status(500).json({ error: 'Unable to derive database host from VITE_SUPABASE_URL – please set SUPABASE_HOST env var explicitly.' });
+      }
     }
 
     // Lazily import pg so it’s only bundled server-side
@@ -60,7 +71,8 @@ export default async function handler(req, res) {
       port: 5432,
       user: 'postgres',
       password: supabaseDbPassword,
-      database: 'postgres'
+      database: 'postgres',
+      ssl: { rejectUnauthorized: false }
     });
 
     await pgClient.connect();

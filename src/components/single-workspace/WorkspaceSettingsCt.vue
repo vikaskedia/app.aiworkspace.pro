@@ -569,8 +569,6 @@ export default {
             // Get Telnyx phone number ID
             const phoneNumber = this.editingPhone.number;
             const apiKey = import.meta.env.VITE_TELNYX_API_KEY;
-            console.log('apiKey available:', !!apiKey);
-            console.log('apiKey length:', apiKey ? apiKey.length : 0);
             if (!apiKey) {
               throw new Error('Telnyx API key not configured');
             }
@@ -592,8 +590,10 @@ export default {
             if (data.data && data.data.length > 0) {
               const telnyxPhoneNumberId = data.data[0].id;
               console.log('Telnyx phone number ID:', telnyxPhoneNumberId);
-              
               // Update CNAM listing
+              const cnamListingEnabled = this.editingPhone.caller_id_name && this.editingPhone.caller_id_name.trim() !== '' ? true : false;
+              const cnamListingDetails = this.editingPhone.caller_id_name ? this.editingPhone.caller_id_name.trim() : '';
+              
               const cnamResponse = await fetch(`https://api.telnyx.com/v2/phone_numbers/${telnyxPhoneNumberId}/voice`, {
                 method: 'PATCH',
                 headers: {
@@ -603,8 +603,8 @@ export default {
                 },
                 body: JSON.stringify({
                   cnam_listing: {
-                    cnam_listing_enabled: true,
-                    cnam_listing_details: this.editingPhone.caller_id_name
+                    cnam_listing_enabled: cnamListingEnabled,
+                    cnam_listing_details: cnamListingDetails
                   }
                 })
               });

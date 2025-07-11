@@ -189,7 +189,7 @@ export default async function handler(req, res) {
         .limit(1);
       if (convError) throw convError;
       if (!conversations || conversations.length === 0) {
-        return res.status(404).json({ error: 'No conversation found for these phone numbers' });
+        return res.status(404).json({ error: 'No conversation found for these phone numbers from this audio file: ' + audioFile.originalname });
       }
       const conversation = conversations[0];
 

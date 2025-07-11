@@ -33,29 +33,47 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured' });
     }
 
-    // Lazily import to avoid unnecessary bundle size in client
-    const { createClient } = await import('@supabase/supabase-js');
+    /*
+      PostgREST (used by supabase-js) only exposes the schemas configured in
+      supabase/config.toml → api.schemas (typically just "public" and
+      "graphql_public"). That means we cannot query information_schema via the
+      normal supabase client – the request will always fail with
+      "schema must be one of the following: public, graphql_public".
 
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseServiceRoleKey,
-      {
-        db: { schema: 'public' }
-      }
+      Instead we'll open a direct Postgres connection using the service DB
+      credentials (SUPABASE_HOST + SUPABASE_DB_PASSWORD).  This avoids the RLS
+      layer entirely and lets us query information_schema safely.
+    */
+
+    const supabaseHost = process.env.SUPABASE_HOST;
+    const supabaseDbPassword = process.env.SUPABASE_DB_PASSWORD;
+
+    if (!supabaseHost || !supabaseDbPassword) {
+      return res.status(500).json({ error: 'SUPABASE_HOST or SUPABASE_DB_PASSWORD env vars are not configured' });
+    }
+
+    // Lazily import pg so it’s only bundled server-side
+    const { Client } = await import('pg');
+
+    const pgClient = new Client({
+      host: supabaseHost,
+      port: 5432,
+      user: 'postgres',
+      password: supabaseDbPassword,
+      database: 'postgres'
+    });
+
+    await pgClient.connect();
+
+    const { rows: columns } = await pgClient.query(
+      `SELECT column_name, data_type, is_nullable, ordinal_position
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1
+       ORDER BY ordinal_position`,
+      [tableName]
     );
 
-    // Retrieve table structure from information_schema
-    const { data: columns, error: colErr } = await supabaseAdmin
-      .from('information_schema.columns')
-      .select('column_name, data_type, is_nullable, ordinal_position')
-      .eq('table_schema', 'public')
-      .eq('table_name', tableName)
-      .order('ordinal_position');
-
-    if (colErr) {
-      console.error('Error fetching table structure', colErr);
-      return res.status(500).json({ error: 'Failed to fetch table structure', details: colErr.message });
-    }
+    await pgClient.end();
 
     if (!columns || columns.length === 0) {
       return res.status(404).json({ error: `No columns found for table ${tableName}` });

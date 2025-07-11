@@ -52,7 +52,8 @@
     "vue-pdf-embed": "^2.1.1",
     "vue-router": "^4.2.2",
     "vue3-cookies": "^1.0.6",
-    "vuedraggable": "^4.1.0"
+    "vuedraggable": "^4.1.0",
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.1",

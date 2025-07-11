@@ -569,11 +569,12 @@ export default {
             // Get Telnyx phone number ID
             const phoneNumber = this.editingPhone.number;
             let apiKey = import.meta.env.VITE_TELNYX_API_KEY;
-            //if url is app.aiworkspace.com, then use the api key from the environment variable
-            if (window.location.hostname === 'app.aiworkspace.com') {
+            // Try alternative environment variable names for production
+            if (!apiKey) {
               apiKey = import.meta.env.TELNYX_API_KEY;
             }
-            console.log('apiKey length', apiKey.length);
+            console.log('apiKey available:', !!apiKey);
+            console.log('apiKey length:', apiKey ? apiKey.length : 0);
             if (!apiKey) {
               throw new Error('Telnyx API key not configured');
             }

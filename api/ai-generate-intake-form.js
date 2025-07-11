@@ -66,14 +66,19 @@ export default async function handler(req, res) {
     // Lazily import pg so it’s only bundled server-side
     const { Client } = await import('pg');
 
-    const pgClient = new Client({
-      host: supabaseHost,
-      port: 5432,
-      user: 'postgres',
-      password: supabaseDbPassword,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false }
-    });
+    // Prefer DATABASE_URL if provided – easier to keep consistent across envs
+    const connectionString = process.env.DATABASE_URL;
+
+    const pgClient = connectionString
+      ? new Client({ connectionString, ssl: { rejectUnauthorized: false } })
+      : new Client({
+          host: supabaseHost || process.env.PGHOST,
+          port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+          user: process.env.PGUSER || 'postgres',
+          password: supabaseDbPassword || process.env.PGPASSWORD,
+          database: process.env.PGDATABASE || 'postgres',
+          ssl: { rejectUnauthorized: false }
+        });
 
     await pgClient.connect();
 

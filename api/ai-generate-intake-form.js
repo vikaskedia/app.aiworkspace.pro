@@ -56,8 +56,14 @@ export default async function handler(req, res) {
     if (!supabaseHost) {
       try {
         const urlObj = new URL(supabaseUrl);
-        const projectRef = urlObj.hostname.split('.')[0];
-        supabaseHost = `db.${projectRef}.supabase.co`;
+        //if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
+          // Local Supabase dev server – default Postgres port is 54322 (per supabase CLI)
+        //  supabaseHost = 'localhost';
+        //  process.env.PGPORT = process.env.PGPORT || '54322';
+        //} else {
+          const projectRef = urlObj.hostname.split('.')[0];
+          supabaseHost = `db.${projectRef}.supabase.co`;
+        //}
       } catch {
         return res.status(500).json({ error: 'Unable to derive database host from VITE_SUPABASE_URL – please set SUPABASE_HOST env var explicitly.' });
       }

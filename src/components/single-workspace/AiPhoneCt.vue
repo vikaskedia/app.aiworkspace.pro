@@ -527,11 +527,6 @@
                     <span v-if="item.item.filename" class="call-filename">
                       {{ item.item.filename }}
                     </span>
-                    <!-- Show direction for Asterisk recordings -->
-                    <!-- <span v-if="item.item.filename && (item.item.filename.startsWith('external-') || item.item.filename.startsWith('out-'))" 
-                          class="call-direction">
-                      {{ item.item.filename.startsWith('external-') ? 'Incoming' : 'Outgoing' }}
-                    </span> -->
                   </div>
                   
                   <div class="call-recording-player">

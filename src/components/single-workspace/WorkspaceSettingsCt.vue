@@ -3,6 +3,7 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { EditPen, Delete} from '@element-plus/icons-vue';
 
 export default {
   name: 'WorkspaceSettingsCt',
@@ -71,8 +72,10 @@ export default {
       editingPhone: {
         id: null,
         label: '',
-        number: ''
+        number: '',
+        caller_id_name: ''
       },
+      originalPhoneData: null, // Store original phone data for comparison
       // Phone text message actions
       phoneTextActions: [],
       newPhoneTextAction: {
@@ -87,6 +90,10 @@ export default {
         post_url: ''
       },
     };
+  },
+  components: {
+    EditPen,
+    Delete
   },
   watch: {
     currentMatter: {
@@ -494,7 +501,8 @@ export default {
         const newPhone = {
           id: Date.now(), // Simple ID for frontend use
           label: this.newPhoneNumber.label,
-          number: this.newPhoneNumber.number
+          number: this.newPhoneNumber.number,
+          caller_id_name: 'Not Available'
         };
 
         const updatedPhoneNumbers = [...this.phoneNumbers, newPhone];
@@ -545,15 +553,78 @@ export default {
 
     editPhoneNumber(phone) {
       this.editingPhone = { ...phone };
+      this.originalPhoneData = { ...phone }; // Store original data for comparison
       this.showEditPhoneModal = true;
     },
 
     async savePhoneEdit() {
       try {
+        // Check if caller_id_name has changed
+        const callerIdNameChanged = this.originalPhoneData && 
+          this.originalPhoneData.caller_id_name !== this.editingPhone.caller_id_name;
+        
+        if (callerIdNameChanged) {
+          console.log('Caller ID Name has changed from:', this.originalPhoneData.caller_id_name, 'to:', this.editingPhone.caller_id_name);
+          try {
+            // Get Telnyx phone number ID
+            const phoneNumber = this.editingPhone.number;
+            const apiKey = import.meta.env.VITE_TELNYX_API_KEY;            
+            const response = await fetch(`https://api.telnyx.com/v2/phone_numbers?filter[phone_number]=${encodeURIComponent(phoneNumber)}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Telnyx API response:', data);
+
+            if (data.data && data.data.length > 0) {
+              const telnyxPhoneNumberId = data.data[0].id;
+              console.log('Telnyx phone number ID:', telnyxPhoneNumberId);
+              
+              // Update CNAM listing
+              const cnamResponse = await fetch(`https://api.telnyx.com/v2/phone_numbers/${telnyxPhoneNumberId}/voice`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                  cnam_listing: {
+                    cnam_listing_enabled: true,
+                    cnam_listing_details: this.editingPhone.caller_id_name
+                  }
+                })
+              });
+
+              if (!cnamResponse.ok) {
+                const cnamError = await cnamResponse.json();
+                console.error('CNAM update error:', cnamError);
+                throw new Error(`CNAM update failed: ${cnamResponse.status}`);
+              }
+
+              const cnamData = await cnamResponse.json();
+              console.log('CNAM update successful:', cnamData);
+              
+            } else {
+              console.log('No phone number found in Telnyx for:', phoneNumber);
+            }
+          } catch (error) {
+            console.error('Error fetching Telnyx phone number ID:', error);
+            ElMessage.error('Error fetching phone number details from Telnyx');
+          }
+        }
         const updatedPhoneNumbers = this.phoneNumbers.map(p => 
           p.id === this.editingPhone.id ? this.editingPhone : p
         );
-
+        
         const { data, error } = await supabase
           .from('matters')
           .update({ phone_numbers: updatedPhoneNumbers })
@@ -829,6 +900,7 @@ export default {
           <el-table :data="phoneNumbers">
             <el-table-column prop="label" label="Label" />
             <el-table-column prop="number" label="Phone Number" />
+            <el-table-column prop="caller_id_name" label="Caller ID Name" />
             <el-table-column label="Actions" width="160" align="right">
               <template #default="{ row }">
                 <el-button 
@@ -836,13 +908,13 @@ export default {
                   size="small"
                   @click="editPhoneNumber(row)"
                   style="margin-right: 8px;">
-                  Edit
+                  <el-icon><EditPen /></el-icon>
                 </el-button>
                 <el-button 
                   type="danger" 
                   size="small"
                   @click="removePhoneNumber(row.id)">
-                  Remove
+                  <el-icon><Delete /></el-icon>
                 </el-button>
               </template>
             </el-table-column>
@@ -866,6 +938,12 @@ export default {
                 v-model="editingPhone.number" 
                 placeholder="Enter phone number"
                 type="tel" />
+            </el-form-item>
+
+            <el-form-item label="Caller ID Name">
+              <el-input 
+                v-model="editingPhone.caller_id_name" 
+                placeholder="Enter caller ID name" />
             </el-form-item>
           </el-form>
           

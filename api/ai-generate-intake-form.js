@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      return res.status(500).json({ error: 'VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured' });
+      return res.status(500).json({ error: 'VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured.' });
     }
 
     /*

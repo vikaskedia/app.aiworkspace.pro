@@ -568,7 +568,8 @@ export default {
           try {
             // Get Telnyx phone number ID
             const phoneNumber = this.editingPhone.number;
-            const apiKey = import.meta.env.VITE_TELNYX_API_KEY;            
+            //const apiKey = import.meta.env.VITE_TELNYX_API_KEY;           
+            const apiKey = import.meta.env.TELNYX_API_KEY;           
             const response = await fetch(`https://api.telnyx.com/v2/phone_numbers?filter[phone_number]=${encodeURIComponent(phoneNumber)}`, {
               method: 'GET',
               headers: {

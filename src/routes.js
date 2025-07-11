@@ -218,6 +218,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/intake-share/:shareId',
+    name: 'IntakeShareView',
+    component: () => import('./components/IntakeShareView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/short-link/:shortId',
     name: 'ShareTaskRedirect',
     component: () => import('./components/ShareTaskRedirect.vue'),

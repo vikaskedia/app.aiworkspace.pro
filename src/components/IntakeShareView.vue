@@ -9,35 +9,52 @@
     </div>
 
     <div v-else-if="formDefinition" class="form-container">
-      <div class="form-header">
-        <h2>{{ formTitle || 'Patient Intake Form' }}</h2>
-        <p class="form-description">Please fill out the form below to submit your information.</p>
+      <div class="form-header" :style="formHeaderStyle">
+        <h2>{{ formDefinition.title || 'Patient Intake Form' }}</h2>
+        <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
       </div>
 
       <el-form :model="formData" label-width="160px" @submit.prevent="handleSubmit">
-        <template v-for="field in formDefinition" :key="field.name">
-          <!-- Checkboxes / booleans rendered differently -->
-          <el-form-item v-if="isCheckbox(field)" :label="''">
-            <el-checkbox v-model="formData[field.name]">{{ field.label }}</el-checkbox>
-          </el-form-item>
+        <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
+          <!-- Section Header -->
+          <div class="form-section">
+            <h4 v-if="section.title" class="section-title">{{ section.title }}</h4>
+            <p v-if="section.description" class="section-description">{{ section.description }}</p>
+            
+            <!-- Section Fields -->
+            <div :class="getSectionLayoutClass(section.layout)">
+              <template v-for="field in section.fields" :key="field.name">
+                <div :class="getFieldClass(section.layout)">
+                  <!-- Checkboxes / booleans rendered differently -->
+                  <el-form-item v-if="isCheckbox(field)" :label="''" class="checkbox-item">
+                    <el-checkbox v-model="formData[field.name]" :required="field.required">
+                      {{ field.label }}
+                    </el-checkbox>
+                  </el-form-item>
 
-          <el-form-item v-else :label="field.label">
-            <component
-              :is="inputComponent(field)"
-              v-model="formData[field.name]"
-              v-bind="inputProps(field)"
-            >
-              <!-- Options for select -->
-              <template v-if="field.type === 'select'" #default>
-                <el-option
-                  v-for="opt in field.options || []"
-                  :key="opt"
-                  :label="opt"
-                  :value="opt"
-                />
+                  <el-form-item v-else :label="field.label" :required="field.required">
+                    <component
+                      :is="inputComponent(field)"
+                      v-model="formData[field.name]"
+                      v-bind="inputProps(field)"
+                      :placeholder="field.placeholder"
+                      :class="getInputClass(field)"
+                    >
+                      <!-- Options for select -->
+                      <template v-if="field.type === 'select'" #default>
+                        <el-option
+                          v-for="opt in field.options || []"
+                          :key="opt"
+                          :label="opt"
+                          :value="opt"
+                        />
+                      </template>
+                    </component>
+                  </el-form-item>
+                </div>
               </template>
-            </component>
-          </el-form-item>
+            </div>
+          </div>
         </template>
 
         <el-form-item>
@@ -59,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../supabase.js';
@@ -95,8 +112,10 @@ async function loadIntakeForm() {
 
       // Initialize formData with empty values
       Object.keys(formData).forEach(k => delete formData[k]);
-      (formDefinition.value || []).forEach(f => {
-        formData[f.name] = f.type === 'checkbox' || f.type === 'boolean' ? false : '';
+      (formDefinition.value.sections || []).forEach(section => {
+        (section.fields || []).forEach(field => {
+          formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
+        });
       });
     }
   } catch (err) {
@@ -169,8 +188,55 @@ function inputProps(field) {
     base.type = 'date';
     base.placeholder = 'Select date';
   }
+  if (field.validation?.pattern) {
+    base.pattern = field.validation.pattern;
+  }
   return base;
 }
+
+// Helper: get section layout class
+function getSectionLayoutClass(layout) {
+  switch (layout) {
+    case 'two-column':
+      return 'section-two-column';
+    case 'grid':
+      return 'section-grid';
+    default:
+      return 'section-single-column';
+  }
+}
+
+// Helper: get field class based on section layout
+function getFieldClass(sectionLayout) {
+  switch (sectionLayout) {
+    case 'two-column':
+      return 'field-half';
+    case 'grid':
+      return 'field-grid';
+    default:
+      return 'field-full';
+  }
+}
+
+// Helper: get input class
+function getInputClass(field) {
+  const classes = ['form-input'];
+  if (field.validation?.pattern) {
+    classes.push('has-validation');
+  }
+  return classes.join(' ');
+}
+
+// Computed: form header style
+const formHeaderStyle = computed(() => {
+  if (!formDefinition.value?.styling) return {};
+  return {
+    backgroundColor: formDefinition.value.styling.backgroundColor || '#f8f9fa',
+    borderRadius: formDefinition.value.styling.borderRadius || '8px',
+    padding: formDefinition.value.styling.spacing || '16px',
+    marginBottom: formDefinition.value.styling.spacing || '16px'
+  };
+});
 
 onMounted(loadIntakeForm);
 </script>
@@ -217,6 +283,79 @@ onMounted(loadIntakeForm);
   margin-top: 2rem;
 }
 
+/* Form Sections */
+.form-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.section-title {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.section-description {
+  margin: 0 0 1rem 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Layout Classes */
+.section-single-column {
+  display: block;
+}
+
+.section-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.field-full {
+  width: 100%;
+}
+
+.field-half {
+  width: 100%;
+}
+
+.field-grid {
+  width: 100%;
+}
+
+/* Form Inputs */
+.form-input {
+  width: 100%;
+}
+
+.checkbox-item {
+  margin-bottom: 1rem;
+}
+
+.checkbox-item .el-checkbox {
+  width: 100%;
+}
+
+/* Validation Styles */
+.has-validation:invalid {
+  border-color: #f56c6c;
+}
+
+.has-validation:valid {
+  border-color: #67c23a;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .intake-share-view {
@@ -225,6 +364,14 @@ onMounted(loadIntakeForm);
   
   .form-container {
     padding: 1rem;
+  }
+  
+  .section-two-column {
+    grid-template-columns: 1fr;
+  }
+  
+  .section-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style> 

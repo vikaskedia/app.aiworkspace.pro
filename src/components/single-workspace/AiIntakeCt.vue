@@ -35,38 +35,80 @@
       </el-table-column>
     </el-table>
 
-    <!-- Render generated form -->
+    <!-- Render generated form with complete UI design -->
     <div v-if="result" class="generated-form mt-4">
-      <h3>Patient Intake <span v-if="currentTitle">({{ currentTitle }})</span></h3>
+      <div class="form-header" :style="formHeaderStyle">
+        <h3>{{ result.title || 'Patient Intake Form' }}</h3>
+        <p v-if="result.description" class="form-description">{{ result.description }}</p>
+      </div>
 
-      <el-form :model="formData" label-width="160px">
-        <template v-for="field in result" :key="field.name">
-          <!-- Checkboxes / booleans rendered differently -->
-          <el-form-item v-if="isCheckbox(field)" :label="''">
-            <el-checkbox v-model="formData[field.name]">{{ field.label }}</el-checkbox>
-          </el-form-item>
+      <el-form 
+        :model="formData" 
+        label-width="160px"
+        :class="formClass"
+        :style="formStyle"
+      >
+        <template v-for="(section, sectionIndex) in result.sections" :key="sectionIndex">
+          <!-- Section Header -->
+          <div class="form-section" :style="sectionStyle">
+            <h4 v-if="section.title" class="section-title">{{ section.title }}</h4>
+            <p v-if="section.description" class="section-description">{{ section.description }}</p>
+            
+            <!-- Section Fields -->
+            <div :class="getSectionLayoutClass(section.layout)">
+              <template v-for="field in section.fields" :key="field.name">
+                <div :class="getFieldClass(section.layout)">
+                  <!-- Checkboxes / booleans rendered differently -->
+                  <el-form-item 
+                    v-if="isCheckbox(field)" 
+                    :label="''"
+                    :class="{ 'checkbox-item': true }"
+                  >
+                    <el-checkbox 
+                      v-model="formData[field.name]"
+                      :required="field.required"
+                    >
+                      {{ field.label }}
+                    </el-checkbox>
+                  </el-form-item>
 
-          <el-form-item v-else :label="field.label">
-            <component
-              :is="inputComponent(field)"
-              v-model="formData[field.name]"
-              v-bind="inputProps(field)"
-            >
-              <!-- Options for select -->
-              <template v-if="field.type === 'select'" #default>
-                <el-option
-                  v-for="opt in field.options || []"
-                  :key="opt"
-                  :label="opt"
-                  :value="opt"
-                />
+                  <el-form-item 
+                    v-else 
+                    :label="field.label"
+                    :required="field.required"
+                  >
+                    <component
+                      :is="inputComponent(field)"
+                      v-model="formData[field.name]"
+                      v-bind="inputProps(field)"
+                      :placeholder="field.placeholder"
+                      :class="getInputClass(field)"
+                    >
+                      <!-- Options for select -->
+                      <template v-if="field.type === 'select'" #default>
+                        <el-option
+                          v-for="opt in field.options || []"
+                          :key="opt"
+                          :label="opt"
+                          :value="opt"
+                        />
+                      </template>
+                    </component>
+                  </el-form-item>
+                </div>
               </template>
-            </component>
-          </el-form-item>
+            </div>
+          </div>
         </template>
 
-        <el-form-item>
-          <el-button type="primary" @click="handleSubmit">Submit</el-button>
+        <el-form-item class="submit-section">
+          <el-button 
+            :type="result.submitButton?.style || 'primary'"
+            @click="handleSubmit"
+            size="large"
+          >
+            {{ result.submitButton?.text || 'Submit' }}
+          </el-button>
         </el-form-item>
       </el-form>
 
@@ -113,17 +155,19 @@ async function generateForm() {
     if (data.success) {
       result.value = data.formDefinition;
 
-      // Initialise formData with empty values
+      // Initialize formData with empty values
       Object.keys(formData).forEach(k => delete formData[k]);
-      (result.value || []).forEach(f => {
-        formData[f.name] = f.type === 'checkbox' || f.type === 'boolean' ? false : '';
+      (result.value.sections || []).forEach(section => {
+        (section.fields || []).forEach(field => {
+          formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
+        });
       });
 
       // Persist definition to Supabase
       const { data: insertData, error: insertErr } = await supabase
         .from('intake_forms')
         .insert({
-          title: `Intake ${new Date().toLocaleString()}`,
+          title: result.value.title || `Intake ${new Date().toLocaleString()}`,
           table_name: 'sc_patient_intake',
           definition: result.value
         })
@@ -166,10 +210,12 @@ function loadForm(row) {
   currentTitle.value = row.title || '';
   result.value = row.definition;
 
-  // setup formData
+  // Setup formData
   Object.keys(formData).forEach(k => delete formData[k]);
-  (result.value || []).forEach(f => {
-    formData[f.name] = f.type === 'checkbox' || f.type === 'boolean' ? false : '';
+  (result.value.sections || []).forEach(section => {
+    (section.fields || []).forEach(field => {
+      formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
+    });
   });
 }
 
@@ -187,12 +233,47 @@ const formattedResult = computed({
   set: () => {}
 });
 
-// Helper: determine if field is checkbox/boolean
+// Styling computed properties
+const formHeaderStyle = computed(() => {
+  if (!result.value?.styling) return {};
+  return {
+    backgroundColor: result.value.styling.backgroundColor || '#f8f9fa',
+    borderRadius: result.value.styling.borderRadius || '8px',
+    padding: result.value.styling.spacing || '16px',
+    marginBottom: result.value.styling.spacing || '16px'
+  };
+});
+
+const formStyle = computed(() => {
+  if (!result.value?.styling) return {};
+  return {
+    '--primary-color': result.value.styling.primaryColor || '#409eff',
+    '--border-radius': result.value.styling.borderRadius || '8px',
+    '--spacing': result.value.styling.spacing || '16px'
+  };
+});
+
+const formClass = computed(() => {
+  const theme = result.value?.theme || 'modern';
+  return `form-${theme}`;
+});
+
+const sectionStyle = computed(() => {
+  if (!result.value?.styling) return {};
+  return {
+    marginBottom: result.value.styling.spacing || '16px',
+    padding: result.value.styling.spacing || '16px',
+    border: `1px solid #e4e7ed`,
+    borderRadius: result.value.styling.borderRadius || '8px',
+    backgroundColor: '#fff'
+  };
+});
+
+// Helper functions
 function isCheckbox(field) {
   return field.type === 'checkbox' || field.type === 'boolean';
 }
 
-// Helper: map field type to Element-Plus component name
 function inputComponent(field) {
   switch (field.type) {
     case 'textarea':
@@ -201,12 +282,13 @@ function inputComponent(field) {
       return 'el-date-picker';
     case 'select':
       return 'el-select';
+    case 'file':
+      return 'el-upload';
     default:
       return 'el-input';
   }
 }
 
-// Helper: extra props per input component
 function inputProps(field) {
   const base = {};
   if (field.type === 'textarea') {
@@ -220,7 +302,46 @@ function inputProps(field) {
     base.type = 'date';
     base.placeholder = 'Select date';
   }
+  if (field.type === 'email') {
+    base.type = 'email';
+  }
+  if (field.type === 'phone') {
+    base.type = 'tel';
+  }
+  if (field.validation?.pattern) {
+    base.pattern = field.validation.pattern;
+  }
   return base;
+}
+
+function getSectionLayoutClass(layout) {
+  switch (layout) {
+    case 'two-column':
+      return 'section-two-column';
+    case 'grid':
+      return 'section-grid';
+    default:
+      return 'section-single-column';
+  }
+}
+
+function getFieldClass(sectionLayout) {
+  switch (sectionLayout) {
+    case 'two-column':
+      return 'field-half';
+    case 'grid':
+      return 'field-grid';
+    default:
+      return 'field-full';
+  }
+}
+
+function getInputClass(field) {
+  const classes = ['form-input'];
+  if (field.validation?.pattern) {
+    classes.push('has-validation');
+  }
+  return classes.join(' ');
 }
 
 function handleSubmit() {
@@ -233,30 +354,172 @@ onMounted(loadForms);
 
 <style scoped>
 .ai-intake-ct {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
+
 .result textarea {
   font-family: monospace;
 }
+
 .mb-3 {
   margin-bottom: 1rem;
 }
+
 .mt-3 {
   margin-top: 1rem;
 }
+
 .mt-4 {
   margin-top: 1.5rem;
 }
+
 .controls {
   display: flex;
   align-items: center;
 }
+
 .controls .ml-2 {
   margin-left: 0.75rem;
   flex: 1;
 }
+
 .generated-form {
   margin-top: 1.5rem;
+}
+
+/* Form Header */
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-header h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+}
+
+.form-description {
+  margin: 0;
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+/* Form Sections */
+.form-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.section-description {
+  margin: 0 0 1rem 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Layout Classes */
+.section-single-column {
+  display: block;
+}
+
+.section-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.field-full {
+  width: 100%;
+}
+
+.field-half {
+  width: 100%;
+}
+
+.field-grid {
+  width: 100%;
+}
+
+/* Form Themes */
+.form-modern {
+  --primary-color: #409eff;
+  --border-radius: 8px;
+  --spacing: 16px;
+}
+
+.form-professional {
+  --primary-color: #2c3e50;
+  --border-radius: 4px;
+  --spacing: 20px;
+}
+
+.form-medical {
+  --primary-color: #27ae60;
+  --border-radius: 12px;
+  --spacing: 18px;
+}
+
+.form-minimal {
+  --primary-color: #6c757d;
+  --border-radius: 2px;
+  --spacing: 12px;
+}
+
+/* Form Inputs */
+.form-input {
+  width: 100%;
+}
+
+.checkbox-item {
+  margin-bottom: 1rem;
+}
+
+.checkbox-item .el-checkbox {
+  width: 100%;
+}
+
+/* Submit Section */
+.submit-section {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e4e7ed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .section-two-column {
+    grid-template-columns: 1fr;
+  }
+  
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ai-intake-ct {
+    max-width: 100%;
+    padding: 0 1rem;
+  }
+}
+
+/* Validation Styles */
+.has-validation:invalid {
+  border-color: #f56c6c;
+}
+
+.has-validation:valid {
+  border-color: #67c23a;
 }
 </style>

@@ -39,6 +39,7 @@ export default {
       if (path.includes('/outlines')) return 'outlines'
       if (path.includes('/contacts')) return 'contacts'
       if (path.includes('/ai_phone')) return 'ai-phone'
+      if (path.includes('/ai_intake')) return 'ai-intake'
       return 'dashboard'
     }
   },
@@ -97,6 +98,10 @@ export default {
 }
 
 .matter-content.matter-content--ai-phone {
+    max-width: 100%;
+}
+
+.matter-content.matter-content--ai-intake {
     max-width: 100%;
 }
 </style>

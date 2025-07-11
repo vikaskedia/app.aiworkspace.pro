@@ -55,6 +55,7 @@ export default {
       if (path.includes('/contacts')) return 'Contacts';
       if (path.includes('/communications')) return 'Communications';
       if (path.includes('/ai_phone')) return 'AI Phone';
+      if (path.includes('/ai_intake')) return 'AI Intake';
       if (path.includes('/settings')) return 'Settings';
       if (path.includes('/dashboard')) return 'Dashboard';
       if (path.includes('/all-workspace')) {
@@ -445,6 +446,7 @@ export default {
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/communications`">Communications</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_phone`">AI Phone</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_intake`">AI Intake</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/contacts`">Contacts</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/settings`">Settings</a></el-dropdown-item>
               </template>

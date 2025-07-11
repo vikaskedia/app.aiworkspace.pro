@@ -153,6 +153,11 @@ const routes = [
         })
       },
       {
+        path: 'ai_intake',
+        name: 'AiIntakePage',
+        component: () => import('./components/single-workspace/AiIntakeCt.vue')
+      },
+      {
         path: 'contacts',
         name: 'ContactsPage',
         component: ContactsCt

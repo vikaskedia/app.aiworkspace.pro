@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     }
 
     const openaiApiKey = process.env.OPENAI_API_KEY;
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!openaiApiKey) {
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      return res.status(500).json({ error: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured' });
+      return res.status(500).json({ error: 'VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured' });
     }
 
     // Lazily import to avoid unnecessary bundle size in client

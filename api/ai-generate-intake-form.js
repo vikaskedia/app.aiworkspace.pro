@@ -67,21 +67,60 @@ export default async function handler(req, res) {
       });
     }
 
-    // Old Postgres-introspection logic removed – we now rely on the manually
-    // supplied table definition.
+    // Build prompts for OpenAI to generate complete form with UI design
+    const systemPrompt = `You are a senior full-stack developer specializing in Vue.js and modern UI design. Your task is to create a complete form definition with UI design, layout, and styling. 
 
-    // Build prompts for OpenAI
-    const systemPrompt = `You are a senior full-stack developer. Your task is to design a JSON definition for an intake form that will be auto-generated on the front-end. Follow these rules strictly:
-1. Only output valid minified JSON (no markdown, no comments).
-2. The JSON must be an array where each object represents one field that maps to a column in the database table.
-3. Each object MUST have: "name" (exact column name), "label" (human readable), and "type" (text|number|date|boolean|textarea|select|email|phone|checkbox).
-4. Infer sensible field types from the Postgres data types.
-5. For enum-like or foreign-key columns return "options": ["option1", "option2", ...] when obvious.
-6. Use the incoming table structure to cover every column except typical metadata columns like id, created_at, updated_at.
-7. Keep labels Title Cased and user friendly.
-If you cannot infer anything - make your best reasonable assumption.`;
+Generate a JSON object with the following structure:
+{
+  "title": "Form title",
+  "description": "Form description",
+  "layout": "single-column|two-column|grid",
+  "theme": "modern|professional|medical|minimal",
+  "sections": [
+    {
+      "title": "Section title",
+      "description": "Section description",
+      "layout": "single-column|two-column|grid",
+      "fields": [
+        {
+          "name": "exact_column_name",
+          "label": "Human readable label",
+          "type": "text|number|date|boolean|textarea|select|email|phone|checkbox|file",
+          "required": true|false,
+          "placeholder": "Placeholder text",
+          "validation": {
+            "pattern": "regex pattern",
+            "message": "Validation message"
+          },
+          "options": ["option1", "option2"] // for select fields
+        }
+      ]
+    }
+  ],
+  "styling": {
+    "primaryColor": "#hex",
+    "backgroundColor": "#hex",
+    "borderRadius": "8px",
+    "spacing": "16px"
+  },
+  "submitButton": {
+    "text": "Submit",
+    "style": "primary|secondary|success"
+  }
+}
 
-    const userPrompt = `Here is the Postgres table structure for ${tableName}: ${effectiveTableStructure}\n\nGenerate the JSON form definition now:`;
+Rules:
+1. Only output valid JSON (no markdown, no comments)
+2. Map every relevant column to a field (exclude id, created_at, updated_at, etc.)
+3. Group related fields into logical sections
+4. Use appropriate field types based on data types
+5. Add validation where appropriate
+6. Create a professional, modern design
+7. Include responsive layout considerations`;
+
+    const userPrompt = `Here is the Postgres table structure for ${tableName}: ${effectiveTableStructure}
+
+Generate a complete form definition with UI design, layout, and styling. Focus on creating a professional medical intake form with logical grouping of fields.`;
 
     // Call OpenAI Chat Completion
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -97,7 +136,7 @@ If you cannot infer anything - make your best reasonable assumption.`;
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 800
+        max_tokens: 1500
       })
     });
 
@@ -114,7 +153,7 @@ If you cannot infer anything - make your best reasonable assumption.`;
       return res.status(500).json({ error: 'Empty response from OpenAI' });
     }
 
-    // Try to parse JSON from the AI response – some models may wrap in markdown
+    // Try to parse JSON from the AI response
     let formDefinition;
     try {
       formDefinition = JSON.parse(aiContent);

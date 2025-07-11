@@ -571,8 +571,9 @@ export default {
             let apiKey = import.meta.env.VITE_TELNYX_API_KEY;
             //if url is app.aiworkspace.com, then use the api key from the environment variable
             if (window.location.hostname === 'app.aiworkspace.com') {
-              apiKey = process.env.TELNYX_API_KEY;
+              apiKey = process.env.VITE_TELNYX_API_KEY;
             }
+            console.log('apiKey', apiKey);
             const response = await fetch(`https://api.telnyx.com/v2/phone_numbers?filter[phone_number]=${encodeURIComponent(phoneNumber)}`, {
               method: 'GET',
               headers: {

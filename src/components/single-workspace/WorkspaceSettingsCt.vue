@@ -568,11 +568,7 @@ export default {
           try {
             // Get Telnyx phone number ID
             const phoneNumber = this.editingPhone.number;
-            let apiKey = import.meta.env.VITE_TELNYX_API_KEY;
-            // Try alternative environment variable names for production
-            if (!apiKey) {
-              apiKey = import.meta.env.TELNYX_API_KEY;
-            }
+            const apiKey = import.meta.env.VITE_TELNYX_API_KEY;
             console.log('apiKey available:', !!apiKey);
             console.log('apiKey length:', apiKey ? apiKey.length : 0);
             if (!apiKey) {

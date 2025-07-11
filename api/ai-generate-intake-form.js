@@ -46,8 +46,7 @@ export default async function handler(req, res) {
 
     // Retrieve table structure from information_schema
     const { data: columns, error: colErr } = await supabaseAdmin
-      .schema('information_schema')
-      .from('columns')
+      .from('information_schema.columns')
       .select('column_name, data_type, is_nullable, ordinal_position')
       .eq('table_schema', 'public')
       .eq('table_name', tableName)

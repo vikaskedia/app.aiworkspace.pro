@@ -15,94 +15,60 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tableName = 'sc_patient_intake' } = req.body || {};
+    const { tableName = 'sc_patient_intake', tableStructure } = req.body || {};
 
     if (!tableName) {
       return res.status(400).json({ error: 'tableName is required in the request body' });
     }
 
     const openaiApiKey = process.env.OPENAI_API_KEY;
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!openaiApiKey) {
       return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' });
     }
 
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      return res.status(500).json({ error: 'VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured.' });
+    // ─────────────────────────────────────────────────────────────
+    // Manual table structure support
+    // 1. Retrieve the column list from Supabase (see instructions below).
+    // 2. Paste it between the backticks in MANUAL_TABLE_STRUCTURE **OR**
+    //    send it in the POST body as `tableStructure`.
+    // ─────────────────────────────────────────────────────────────
+    const MANUAL_TABLE_STRUCTURE = `
+    id,bigint,NO,1
+    server_side_row_uuid,uuid,YES,2
+    ptuuid,uuid,YES,3
+    first_name,character varying,YES,4
+    last_name,character varying,YES,5
+    gender,character varying,YES,6
+    dob,date,YES,7
+    email,character varying,YES,8
+    phone_number,character varying,YES,9
+    insurance_details,text,YES,10
+    cc_name,character varying,YES,11
+    cc_number,character varying,YES,12
+    cc_expiry_month,character varying,YES,13
+    cc_expiry_year,character varying,YES,14
+    cc_cvv,character varying,YES,15
+    provider_uuid,uuid,YES,16
+    billing_zip_code,character varying,YES,17
+    how_can_we_help,text,YES,18
+    status,text,YES,19
+    added_by,uuid,NO,20
+    added_on,timestamp with time zone,YES,21
+    ibook_status,text,YES,22
+    is_coverage_checking_done,text,YES,23
+    `;
+
+    const effectiveTableStructure = (tableStructure || MANUAL_TABLE_STRUCTURE).trim();
+
+    if (!effectiveTableStructure) {
+      return res.status(400).json({
+        error: 'tableStructure is required (either supply it in the POST body or paste into MANUAL_TABLE_STRUCTURE).'
+      });
     }
 
-    /*
-      PostgREST (used by supabase-js) only exposes the schemas configured in
-      supabase/config.toml → api.schemas (typically just "public" and
-      "graphql_public"). That means we cannot query information_schema via the
-      normal supabase client – the request will always fail with
-      "schema must be one of the following: public, graphql_public".
-
-      Instead we'll open a direct Postgres connection using the service DB
-      credentials (SUPABASE_HOST + SUPABASE_DB_PASSWORD).  This avoids the RLS
-      layer entirely and lets us query information_schema safely.
-    */
-
-    let supabaseHost = process.env.SUPABASE_HOST;
-    const supabaseDbPassword = process.env.SUPABASE_DB_PASSWORD;
-
-    if (!supabaseDbPassword) {
-      return res.status(500).json({ error: 'SUPABASE_DB_PASSWORD env var is not configured' });
-    }
-
-    // If SUPABASE_HOST is not provided fall back to the host derived from VITE_SUPABASE_URL
-    if (!supabaseHost) {
-      try {
-        const urlObj = new URL(supabaseUrl);
-        //if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
-          // Local Supabase dev server – default Postgres port is 54322 (per supabase CLI)
-        //  supabaseHost = 'localhost';
-        //  process.env.PGPORT = process.env.PGPORT || '54322';
-        //} else {
-          const projectRef = urlObj.hostname.split('.')[0];
-          supabaseHost = `db.${projectRef}.supabase.co`;
-        //}
-      } catch {
-        return res.status(500).json({ error: 'Unable to derive database host from VITE_SUPABASE_URL – please set SUPABASE_HOST env var explicitly.' });
-      }
-    }
-
-    // Lazily import pg so it’s only bundled server-side
-    const { Client } = await import('pg');
-
-    // Prefer DATABASE_URL if provided – easier to keep consistent across envs
-    const connectionString = process.env.DATABASE_URL;
-
-    const pgClient = connectionString
-      ? new Client({ connectionString, ssl: { rejectUnauthorized: false } })
-      : new Client({
-          host: supabaseHost || process.env.PGHOST,
-          port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
-          user: process.env.PGUSER || 'postgres',
-          password: supabaseDbPassword || process.env.PGPASSWORD,
-          database: process.env.PGDATABASE || 'postgres',
-          ssl: { rejectUnauthorized: false }
-        });
-
-    await pgClient.connect();
-
-    const { rows: columns } = await pgClient.query(
-      `SELECT column_name, data_type, is_nullable, ordinal_position
-       FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name = $1
-       ORDER BY ordinal_position`,
-      [tableName]
-    );
-
-    await pgClient.end();
-
-    if (!columns || columns.length === 0) {
-      return res.status(404).json({ error: `No columns found for table ${tableName}` });
-    }
-
-    const tableStructure = columns.map(col => `${col.column_name} (${col.data_type}${col.is_nullable === 'YES' ? ', nullable' : ''})`).join(', ');
+    // Old Postgres-introspection logic removed – we now rely on the manually
+    // supplied table definition.
 
     // Build prompts for OpenAI
     const systemPrompt = `You are a senior full-stack developer. Your task is to design a JSON definition for an intake form that will be auto-generated on the front-end. Follow these rules strictly:
@@ -113,9 +79,9 @@ export default async function handler(req, res) {
 5. For enum-like or foreign-key columns return "options": ["option1", "option2", ...] when obvious.
 6. Use the incoming table structure to cover every column except typical metadata columns like id, created_at, updated_at.
 7. Keep labels Title Cased and user friendly.
-If you cannot infer anything – make your best reasonable assumption.`;
+If you cannot infer anything - make your best reasonable assumption.`;
 
-    const userPrompt = `Here is the Postgres table structure for ${tableName}: ${tableStructure}\n\nGenerate the JSON form definition now:`;
+    const userPrompt = `Here is the Postgres table structure for ${tableName}: ${effectiveTableStructure}\n\nGenerate the JSON form definition now:`;
 
     // Call OpenAI Chat Completion
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -170,7 +136,7 @@ If you cannot infer anything – make your best reasonable assumption.`;
     return res.status(200).json({
       success: true,
       tableName,
-      columns,
+      tableStructure: effectiveTableStructure,
       formDefinition,
       debug: {
         systemPrompt,

@@ -206,7 +206,7 @@ async function fetchFormDesignAndIntakes() {
 }
 
 function copyShareLink(row) {
-  const link = `${window.location.origin}/intake-share/${row.server_side_row_uuid}`;
+  const link = `${window.location.origin}/intake-share/${workspaceId}/${row.server_side_row_uuid}`;
   navigator.clipboard.writeText(link);
   ElMessage.success('Share link copied!');
 }

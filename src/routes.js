@@ -218,7 +218,7 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/intake-share/:shareId',
+    path: '/intake-share/:workspaceId/:shareId',
     name: 'IntakeShareView',
     component: () => import('./components/IntakeShareView.vue'),
     meta: { requiresAuth: false }

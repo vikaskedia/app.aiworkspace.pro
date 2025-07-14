@@ -15,6 +15,12 @@
       </div>
 
       <el-form :model="formData" label-width="160px" @submit.prevent="handleSubmit">
+
+
+        <!-- Hidden fields for server_side_row_uuid and ptuuid -->
+        <input type="hidden" v-model="formData.server_side_row_uuid" />
+        <input type="hidden" v-model="formData.ptuuid" />
+        
         <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
           <div class="form-section">
@@ -81,6 +87,8 @@ import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../supabase.js';
 
+
+
 const route = useRoute();
 const loading = ref(true);
 const error = ref(null);
@@ -91,14 +99,34 @@ const submitting = ref(false);
 const submitted = ref(false);
 
 async function loadIntakeForm() {
+  const workspaceId = route.params.workspaceId;
   const shareId = route.params.shareId;
   
   try {
+    const { data: designData, error: designError } = await supabase
+      .from('intake_form_design_for_ws')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (designError) {
+      error.value = 'Intake form design not found';
+      return;
+    }
+
+    if (designData) {
+      console.log('designData', designData);
+      formDefinition.value = designData.cache_of_empty_form_html;
+      // formTitle.value = designData.title;
+      formTitle.value = 'Intake Form';
+      console.log('formDefinition', formDefinition.value);
+    }
+
     // Load the intake form by share_uuid
     const { data, error: loadError } = await supabase
-      .from('intake_forms')
+      .from('intake_for_ws_' + workspaceId)
       .select('*')
-      .eq('share_uuid', shareId)
+      .eq('server_side_row_uuid', shareId)
       .single();
 
     if (loadError) {
@@ -107,16 +135,17 @@ async function loadIntakeForm() {
     }
 
     if (data) {
-      formDefinition.value = data.definition;
-      formTitle.value = data.title;
-
-      // Initialize formData with empty values
+      // Clear previous formData
       Object.keys(formData).forEach(k => delete formData[k]);
+      // Populate formData with values from the row
       (formDefinition.value.sections || []).forEach(section => {
         (section.fields || []).forEach(field => {
-          formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
+          formData[field.name] = data[field.name] ?? (field.type === 'checkbox' || field.type === 'boolean' ? false : '');
         });
       });
+      // Also set hidden fields if needed
+      formData.server_side_row_uuid = data.server_side_row_uuid;
+      formData.ptuuid = data.ptuuid;
     }
   } catch (err) {
     error.value = 'Error loading intake form';

@@ -135,6 +135,8 @@ export default async function handler(req, res) {
 
     let conversation;
     let matterId;
+    let fullFromPhone = parsed.from_phone_number;
+    let fullToPhone = parsed.to_phone_number;
 
     if (!conversations || conversations.length === 0) {
       // No conversation found, try to find a matching matter
@@ -145,10 +147,10 @@ export default async function handler(req, res) {
         .not('phone_numbers', 'is', null);
       if (matterError) throw matterError;
       matterId = null;
+      let matchedMatter = null;
       for (const matter of matters) {
         if (matter.phone_numbers && Array.isArray(matter.phone_numbers)) {
           const phoneMatch = matter.phone_numbers.find(phone => {
-            // Match full number or last 4 digits
             const phoneNum = phone.number;
             return (
               phoneNum === parsed.from_phone_number ||
@@ -159,6 +161,7 @@ export default async function handler(req, res) {
           });
           if (phoneMatch) {
             matterId = matter.id;
+            matchedMatter = matter;
             break;
           }
         }
@@ -168,12 +171,21 @@ export default async function handler(req, res) {
         console.log('❌ No matter matches for these phone numbers to create new conversation');
         return res.status(400).json({ error: 'No matter matches for these phone numbers to create new conversation' });
       }
+      // Replace 4-digit phone numbers with full numbers from matter
+      if (parsed.from_phone_number && parsed.from_phone_number.length === 4) {
+        const match = matchedMatter.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.from_phone_number);
+        if (match) fullFromPhone = match.number;
+      }
+      if (parsed.to_phone_number && parsed.to_phone_number.length === 4) {
+        const match = matchedMatter.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.to_phone_number);
+        if (match) fullToPhone = match.number;
+      }
       const { data: newConversation, error: createConvError } = await supabase
         .from('conversations')
         .insert({
           matter_id: matterId,
-          from_phone_number: parsed.from_phone_number,
-          to_phone_number: parsed.to_phone_number
+          from_phone_number: fullFromPhone,
+          to_phone_number: fullToPhone
         })
         .select('id, matter_id')
         .single();

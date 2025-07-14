@@ -134,6 +134,14 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase.js';
 
+import { useMatterStore } from '../../store/matter';
+import { storeToRefs } from 'pinia';
+
+const matterStore = useMatterStore();
+const { currentMatter } = storeToRefs(matterStore);
+const workspaceId = currentMatter.value.id;
+console.log('workspaceId', workspaceId);
+
 const loading = ref(false);
 const error = ref(null);
 const formDefinition = ref(null); // The JSON structure for the form
@@ -152,7 +160,7 @@ async function fetchFormDesignAndIntakes() {
     let { data: designRow, error: designErr } = await supabase
       .from('intake_form_design_for_ws')
       .select('*')
-      .eq('workspace_id', 19)
+      .eq('workspace_id', workspaceId)
       .single();
     if (designErr) throw designErr;
 
@@ -161,14 +169,15 @@ async function fetchFormDesignAndIntakes() {
       const prompt = designRow.prompt_to_generate_dynamic_form;
       const { data: aiData } = await axios.post('https://app.aiworkspace.pro/api/ai-generate-intake-form', {
         userPrompt: prompt,
-        tableName: 'intake_for_ws_19'
+        tableName: 'intake_for_ws_' + workspaceId,
+        workspace_id: workspaceId
       });
       if (!aiData.success) throw new Error(aiData.error || 'AI form generation failed');
       // Save to DB
       const { error: updateErr } = await supabase
         .from('intake_form_design_for_ws')
         .update({ cache_of_empty_form_html: aiData.formDefinition })
-        .eq('workspace_id', 19);
+        .eq('workspace_id', workspaceId);
       if (updateErr) throw updateErr;
       formDefinition.value = aiData.formDefinition;
     } else {
@@ -179,7 +188,7 @@ async function fetchFormDesignAndIntakes() {
 
     // Fetch all intakes
     const { data: allIntakes, error: intakesErr } = await supabase
-      .from('intake_for_ws_19')
+      .from('intake_for_ws_' + workspaceId)
       .select('*')
       .order('added_on', { ascending: false });
     if (intakesErr) throw intakesErr;
@@ -205,7 +214,7 @@ async function generateForm() {
   try {
     // Insert a new row (empty/default)
     const { data: insertData, error: insertErr } = await supabase
-      .from('intake_for_ws_19')
+      .from('intake_for_ws_' + workspaceId)
       .insert({ added_by: user.id, server_side_row_uuid: crypto.randomUUID() , ptuuid: crypto.randomUUID()})
       .select()
       .single();
@@ -224,7 +233,7 @@ async function generateForm() {
 // Fetch all intakes
 async function fetchIntakes() {
   const { data: allIntakes, error: intakesErr } = await supabase
-    .from('intake_for_ws_19')
+    .from('intake_for_ws_' + workspaceId)
     .select('*')
     .order('added_on', { ascending: false });
   if (!intakesErr) intakes.value = allIntakes || [];
@@ -239,7 +248,7 @@ async function openIntake(row) {
 // 3. Load the row data for a given UUID
 async function loadIntakeRow(uuid) {
   const { data: row, error: rowErr } = await supabase
-    .from('intake_for_ws_19')
+    .from('intake_for_ws_' + workspaceId)
     .select('*')
     .eq('server_side_row_uuid', uuid)
     .single();
@@ -269,7 +278,7 @@ async function handleSubmit() {
       });
     });
     const { error: updateErr } = await supabase
-      .from('intake_for_ws_19')
+      .from('intake_for_ws_' + workspaceId)
       .update(updateObj)
       .eq('server_side_row_uuid', serverSideRowUuid.value);
     if (updateErr) throw updateErr;

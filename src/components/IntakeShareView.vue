@@ -20,7 +20,7 @@
         <!-- Hidden fields for server_side_row_uuid and ptuuid -->
         <input type="hidden" v-model="formData.server_side_row_uuid" />
         <input type="hidden" v-model="formData.ptuuid" />
-        
+
         <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
           <div class="form-section">
@@ -156,23 +156,36 @@ async function loadIntakeForm() {
 }
 
 async function handleSubmit() {
+  const workspaceId = route.params.workspaceId;
+  const serverSideRowUuid = route.params.shareId;
   submitting.value = true;
   
   try {
-    // Submit the form data to your API or database
-    const { data, error: submitError } = await supabase
-      .from('sc_patient_intake')
-      .insert({
-        ...formData,
-        submitted_at: new Date().toISOString(),
-        share_id: route.params.shareId
+    
+    const updateObj = {};
+    
+    // Include all form fields including hidden ones
+    updateObj.server_side_row_uuid = formData.server_side_row_uuid;
+    updateObj.ptuuid = formData.ptuuid;
+    
+    (formDefinition.value.sections || []).forEach(section => {
+      (section.fields || []).forEach(field => {
+        updateObj[field.name] = formData[field.name];
       });
+    });
 
-    if (submitError) {
-      ElMessage.error('Error submitting form');
-      console.error('Submit error:', submitError);
-      return;
+    // if dob is not set then set it null
+    if (!formData.dob) {
+      updateObj.dob = null;
     }
+    
+    const { error: updateErr } = await supabase
+      .from('intake_for_ws_' + workspaceId)
+      .update(updateObj)
+      .eq('server_side_row_uuid', formData.server_side_row_uuid);
+    if (updateErr) throw updateErr;
+    // await fetchIntakes();
+    // ElMessage.success('Form submitted!');
 
     submitted.value = true;
     ElMessage.success('Form submitted successfully!');

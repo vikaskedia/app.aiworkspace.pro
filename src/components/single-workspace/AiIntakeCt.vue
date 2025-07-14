@@ -35,7 +35,7 @@
     </el-table>
 
     <!-- Render generated form with complete UI design -->
-    <div v-if="formDefinition && serverSideRowUuid" class="generated-form mt-4">
+    <div v-if="formDefinition && formData.server_side_row_uuid" class="generated-form mt-4">
       <div class="form-header" :style="formHeaderStyle">
         <h3>{{ formDefinition.title || 'Patient Intake Form' }}</h3>
         <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
@@ -47,6 +47,10 @@
         :class="formClass"
         :style="formStyle"
       >
+        <!-- Hidden fields for server_side_row_uuid and ptuuid -->
+        <input type="hidden" v-model="formData.server_side_row_uuid" />
+        <input type="hidden" v-model="formData.ptuuid" />
+        
         <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
           <div class="form-section" :style="sectionStyle">
@@ -148,7 +152,7 @@ const formDefinition = ref(null); // The JSON structure for the form
 const formData = reactive({}); // The data for the current intake row
 const showJson = ref(false);
 const currentIntakeRow = ref(null); // The current row from intake_for_ws_19
-const serverSideRowUuid = ref(null);
+
 const intakes = ref([]); // All rows from intake_for_ws_19
 
 // 1. On page load, fetch the form design and all intakes
@@ -219,8 +223,8 @@ async function generateForm() {
       .select()
       .single();
     if (insertErr) throw insertErr;
-    serverSideRowUuid.value = insertData.server_side_row_uuid;
-    await loadIntakeRow(serverSideRowUuid.value);
+
+    await loadIntakeRow(insertData.server_side_row_uuid);
     await fetchIntakes();
     ElMessage.success('New intake started!');
   } catch (err) {
@@ -241,8 +245,7 @@ async function fetchIntakes() {
 
 // Open an intake row in the form
 async function openIntake(row) {
-  serverSideRowUuid.value = row.server_side_row_uuid;
-  await loadIntakeRow(serverSideRowUuid.value);
+  await loadIntakeRow(row.server_side_row_uuid);
 }
 
 // 3. Load the row data for a given UUID
@@ -257,8 +260,14 @@ async function loadIntakeRow(uuid) {
     return;
   }
   currentIntakeRow.value = row;
-  // Populate formData
+  // Populate formData including hidden fields
   Object.keys(formData).forEach(k => delete formData[k]);
+  
+  // Set hidden fields
+  formData.server_side_row_uuid = row.server_side_row_uuid;
+  formData.ptuuid = row.ptuuid;
+  
+  // Populate form fields from definition
   (formDefinition.value.sections || []).forEach(section => {
     (section.fields || []).forEach(field => {
       formData[field.name] = row[field.name] ?? (field.type === 'checkbox' || field.type === 'boolean' ? false : '');
@@ -268,19 +277,30 @@ async function loadIntakeRow(uuid) {
 
 // 4. On submit, update the row in intake_for_ws_19
 async function handleSubmit() {
-  if (!serverSideRowUuid.value) return;
+  if (!formData.server_side_row_uuid) return;
   loading.value = true;
   try {
     const updateObj = {};
+    
+    // Include all form fields including hidden ones
+    updateObj.server_side_row_uuid = formData.server_side_row_uuid;
+    updateObj.ptuuid = formData.ptuuid;
+    
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {
         updateObj[field.name] = formData[field.name];
       });
     });
+
+    // if dob is not set then set it null
+    if (!formData.dob) {
+      updateObj.dob = null;
+    }
+    
     const { error: updateErr } = await supabase
       .from('intake_for_ws_' + workspaceId)
       .update(updateObj)
-      .eq('server_side_row_uuid', serverSideRowUuid.value);
+      .eq('server_side_row_uuid', formData.server_side_row_uuid);
     if (updateErr) throw updateErr;
     await fetchIntakes();
     ElMessage.success('Form submitted!');

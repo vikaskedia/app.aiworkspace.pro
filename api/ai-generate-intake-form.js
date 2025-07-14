@@ -15,7 +15,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { tableName = 'sc_patient_intake', tableStructure } = req.body || {};
+    // const { tableName = 'intake_for_ws_19', tableStructure } = req.body || {};
+    // get the userPromp from post params
+    const { tableName, userPrompt } = req.body || {};
 
     if (!tableName) {
       return res.status(400).json({ error: 'tableName is required in the request body' });
@@ -25,46 +27,6 @@ export default async function handler(req, res) {
 
     if (!openaiApiKey) {
       return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' });
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Manual table structure support
-    // 1. Retrieve the column list from Supabase (see instructions below).
-    // 2. Paste it between the backticks in MANUAL_TABLE_STRUCTURE **OR**
-    //    send it in the POST body as `tableStructure`.
-    // ─────────────────────────────────────────────────────────────
-    const MANUAL_TABLE_STRUCTURE = `
-    id,bigint,NO,1
-    server_side_row_uuid,uuid,YES,2
-    ptuuid,uuid,YES,3
-    first_name,character varying,YES,4
-    last_name,character varying,YES,5
-    gender,character varying,YES,6
-    dob,date,YES,7
-    email,character varying,YES,8
-    phone_number,character varying,YES,9
-    insurance_details,text,YES,10
-    cc_name,character varying,YES,11
-    cc_number,character varying,YES,12
-    cc_expiry_month,character varying,YES,13
-    cc_expiry_year,character varying,YES,14
-    cc_cvv,character varying,YES,15
-    provider_uuid,uuid,YES,16
-    billing_zip_code,character varying,YES,17
-    how_can_we_help,text,YES,18
-    status,text,YES,19
-    added_by,uuid,NO,20
-    added_on,timestamp with time zone,YES,21
-    ibook_status,text,YES,22
-    is_coverage_checking_done,text,YES,23
-    `;
-
-    const effectiveTableStructure = (tableStructure || MANUAL_TABLE_STRUCTURE).trim();
-
-    if (!effectiveTableStructure) {
-      return res.status(400).json({
-        error: 'tableStructure is required (either supply it in the POST body or paste into MANUAL_TABLE_STRUCTURE).'
-      });
     }
 
     // Build prompts for OpenAI to generate complete form with UI design
@@ -117,10 +79,6 @@ Rules:
 5. Add validation where appropriate
 6. Create a professional, modern design
 7. Include responsive layout considerations`;
-
-    const userPrompt = `Here is the Postgres table structure for ${tableName}: ${effectiveTableStructure}
-
-Generate a complete form definition with UI design, layout, and styling. Focus on creating a professional medical intake form with logical grouping of fields.`;
 
     // Call OpenAI Chat Completion
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -175,7 +133,7 @@ Generate a complete form definition with UI design, layout, and styling. Focus o
     return res.status(200).json({
       success: true,
       tableName,
-      tableStructure: effectiveTableStructure,
+      //tableStructure: effectiveTableStructure,
       formDefinition,
       debug: {
         systemPrompt,

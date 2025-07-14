@@ -36,10 +36,10 @@
     </el-table>
 
     <!-- Render generated form with complete UI design -->
-    <div v-if="result" class="generated-form mt-4">
+    <div v-if="formDefinition" class="generated-form mt-4">
       <div class="form-header" :style="formHeaderStyle">
-        <h3>{{ result.title || 'Patient Intake Form' }}</h3>
-        <p v-if="result.description" class="form-description">{{ result.description }}</p>
+        <h3>{{ formDefinition.title || 'Patient Intake Form' }}</h3>
+        <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
       </div>
 
       <el-form 
@@ -48,7 +48,7 @@
         :class="formClass"
         :style="formStyle"
       >
-        <template v-for="(section, sectionIndex) in result.sections" :key="sectionIndex">
+        <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
           <div class="form-section" :style="sectionStyle">
             <h4 v-if="section.title" class="section-title">{{ section.title }}</h4>
@@ -103,11 +103,11 @@
 
         <el-form-item class="submit-section">
           <el-button 
-            :type="result.submitButton?.style || 'primary'"
+            :type="formDefinition.submitButton?.style || 'primary'"
             @click="handleSubmit"
             size="large"
           >
-            {{ result.submitButton?.text || 'Submit' }}
+            {{ formDefinition.submitButton?.text || 'Submit' }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -137,56 +137,115 @@ import { supabase } from '../../supabase.js';
 
 const loading = ref(false);
 const error = ref(null);
-const result = ref(null);
-const formData = reactive({});
+const formDefinition = ref(null); // The JSON structure for the form
+const formData = reactive({}); // The data for the current intake row
 const showJson = ref(false);
-const forms = ref([]);
-const search = ref('');
-const currentTitle = ref('');
+const currentIntakeRow = ref(null); // The current row from intake_for_ws_19
+const serverSideRowUuid = ref(null);
 
+// 1. On page load, fetch the form design for workspace 19
+async function fetchFormDesign() {
+  loading.value = true;
+  error.value = null;
+  try {
+    // Fetch the design row
+    let { data: designRow, error: designErr } = await supabase
+      .from('intake_form_design_for_ws')
+      .select('*')
+      .eq('workspace_id', 19)
+      .single();
+    if (designErr) throw designErr;
+
+    // If cache_of_empty_form_html is empty, generate and cache it
+    if (!designRow.cache_of_empty_form_html) {
+      const prompt = designRow.prompt_to_generate_dynamic_form;
+      const { data: aiData } = await axios.post('https://app.aiworkspace.pro/api/ai-generate-intake-form', {
+        userPrompt: prompt,
+        tableName: 'intake_for_ws_19'
+      });
+      if (!aiData.success) throw new Error(aiData.error || 'AI form generation failed');
+      // Save to DB
+      const { error: updateErr } = await supabase
+        .from('intake_form_design_for_ws')
+        .update({ cache_of_empty_form_html: aiData.formDefinition })
+        .eq('workspace_id', 19);
+      if (updateErr) throw updateErr;
+      formDefinition.value = aiData.formDefinition;
+    } else {
+      formDefinition.value = typeof designRow.cache_of_empty_form_html === 'string'
+        ? JSON.parse(designRow.cache_of_empty_form_html)
+        : designRow.cache_of_empty_form_html;
+    }
+  } catch (err) {
+    error.value = err.message || 'Failed to load form design';
+    formDefinition.value = null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 2. On 'New Intake' click, create a new row and bind form
 async function generateForm() {
   loading.value = true;
   error.value = null;
-  result.value = null;
   try {
-    const { data } = await axios.post('https://app.aiworkspace.pro/api/ai-generate-intake-form', {
-      tableName: 'sc_patient_intake'
-    });
-    if (data.success) {
-      result.value = data.formDefinition;
-
-      // Initialize formData with empty values
-      Object.keys(formData).forEach(k => delete formData[k]);
-      (result.value.sections || []).forEach(section => {
-        (section.fields || []).forEach(field => {
-          formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
-        });
-      });
-
-      // Persist definition to Supabase
-      const { data: insertData, error: insertErr } = await supabase
-        .from('intake_forms')
-        .insert({
-          title: result.value.title || `Intake ${new Date().toLocaleString()}`,
-          table_name: 'sc_patient_intake',
-          definition: result.value
-        })
-        .select()
-        .single();
-
-      if (insertErr) {
-        console.error(insertErr);
-      } else {
-        forms.value.unshift(insertData);
-        currentTitle.value = insertData.title;
-      }
-
-      ElMessage.success('Form generated & saved!');
-    } else {
-      error.value = data.error || 'Unknown error';
-    }
+    // Insert a new row (empty/default)
+    const { data: insertData, error: insertErr } = await supabase
+      .from('intake_for_ws_19')
+      .insert({})
+      .select()
+      .single();
+    if (insertErr) throw insertErr;
+    serverSideRowUuid.value = insertData.server_side_row_uuid;
+    await loadIntakeRow(serverSideRowUuid.value);
+    ElMessage.success('New intake started!');
   } catch (err) {
-    error.value = err.response?.data?.error || err.message;
+    error.value = err.message || 'Failed to create new intake row';
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 3. Load the row data for a given UUID
+async function loadIntakeRow(uuid) {
+  const { data: row, error: rowErr } = await supabase
+    .from('intake_for_ws_19')
+    .select('*')
+    .eq('server_side_row_uuid', uuid)
+    .single();
+  if (rowErr) {
+    error.value = rowErr.message;
+    return;
+  }
+  currentIntakeRow.value = row;
+  // Populate formData
+  Object.keys(formData).forEach(k => delete formData[k]);
+  (formDefinition.value.sections || []).forEach(section => {
+    (section.fields || []).forEach(field => {
+      formData[field.name] = row[field.name] ?? (field.type === 'checkbox' || field.type === 'boolean' ? false : '');
+    });
+  });
+}
+
+// 4. On submit, update the row in intake_for_ws_19
+async function handleSubmit() {
+  if (!serverSideRowUuid.value) return;
+  loading.value = true;
+  try {
+    const updateObj = {};
+    (formDefinition.value.sections || []).forEach(section => {
+      (section.fields || []).forEach(field => {
+        updateObj[field.name] = formData[field.name];
+      });
+    });
+    const { error: updateErr } = await supabase
+      .from('intake_for_ws_19')
+      .update(updateObj)
+      .eq('server_side_row_uuid', serverSideRowUuid.value);
+    if (updateErr) throw updateErr;
+    ElMessage.success('Form submitted!');
+  } catch (err) {
+    error.value = err.message || 'Failed to submit form';
   } finally {
     loading.value = false;
   }
@@ -229,42 +288,42 @@ const filteredForms = computed(() => {
 });
 
 const formattedResult = computed({
-  get: () => (result.value ? JSON.stringify(result.value, null, 2) : ''),
+  get: () => (formDefinition.value ? JSON.stringify(formDefinition.value, null, 2) : ''),
   set: () => {}
 });
 
 // Styling computed properties
 const formHeaderStyle = computed(() => {
-  if (!result.value?.styling) return {};
+  if (!formDefinition.value?.styling) return {};
   return {
-    backgroundColor: result.value.styling.backgroundColor || '#f8f9fa',
-    borderRadius: result.value.styling.borderRadius || '8px',
-    padding: result.value.styling.spacing || '16px',
-    marginBottom: result.value.styling.spacing || '16px'
+    backgroundColor: formDefinition.value.styling.backgroundColor || '#f8f9fa',
+    borderRadius: formDefinition.value.styling.borderRadius || '8px',
+    padding: formDefinition.value.styling.spacing || '16px',
+    marginBottom: formDefinition.value.styling.spacing || '16px'
   };
 });
 
 const formStyle = computed(() => {
-  if (!result.value?.styling) return {};
+  if (!formDefinition.value?.styling) return {};
   return {
-    '--primary-color': result.value.styling.primaryColor || '#409eff',
-    '--border-radius': result.value.styling.borderRadius || '8px',
-    '--spacing': result.value.styling.spacing || '16px'
+    '--primary-color': formDefinition.value.styling.primaryColor || '#409eff',
+    '--border-radius': formDefinition.value.styling.borderRadius || '8px',
+    '--spacing': formDefinition.value.styling.spacing || '16px'
   };
 });
 
 const formClass = computed(() => {
-  const theme = result.value?.theme || 'modern';
+  const theme = formDefinition.value?.theme || 'modern';
   return `form-${theme}`;
 });
 
 const sectionStyle = computed(() => {
-  if (!result.value?.styling) return {};
+  if (!formDefinition.value?.styling) return {};
   return {
-    marginBottom: result.value.styling.spacing || '16px',
-    padding: result.value.styling.spacing || '16px',
+    marginBottom: formDefinition.value.styling.spacing || '16px',
+    padding: formDefinition.value.styling.spacing || '16px',
     border: `1px solid #e4e7ed`,
-    borderRadius: result.value.styling.borderRadius || '8px',
+    borderRadius: formDefinition.value.styling.borderRadius || '8px',
     backgroundColor: '#fff'
   };
 });
@@ -344,12 +403,7 @@ function getInputClass(field) {
   return classes.join(' ');
 }
 
-function handleSubmit() {
-  console.log('Submitted data:', JSON.parse(JSON.stringify(formData)));
-  ElMessage.success('Form submitted! (check console for payload)');
-}
-
-onMounted(loadForms);
+onMounted(fetchFormDesign);
 </script>
 
 <style scoped>

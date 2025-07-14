@@ -92,27 +92,30 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required metadata (filename, bucket, path)' });
   }
 
-  // Check if file exists in Supabase Storage and get metadata
+  // Since files are stored in the root of the bucket, use filename directly
+  const filenameOnly = filePath.includes('/') ? filePath.split('/').pop() : filePath;
+
+  // List the root of the bucket and search for the filename
   const { data: fileInfo, error: fileError } = await supabase
     .storage
     .from(bucket)
     .list('', {
-      search: filePath
+      search: filenameOnly
     });
 
-  if (fileError || !fileInfo || fileInfo.length === 0) {
+  const fileMeta = fileInfo && fileInfo.find(f => f.name === filenameOnly);
+  if (fileError || !fileMeta) {
     console.error('❌ File not found in Supabase Storage:', fileError, 'fileInfo:', fileInfo, 'filePath:', filePath);
     return res.status(404).json({ error: 'File not found in Supabase Storage' });
   }
 
-  // Get file size from metadata if available, or use a default
-  const fileSize = fileInfo[0]?.metadata?.size || 0;
+  const fileSize = fileMeta?.metadata?.size || 0;
   if (fileSize === 0) {
     return res.status(400).json({ error: 'File size is 0 bytes' });
   }
 
-  // Generate Supabase public URL
-  const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  // Generate Supabase public URL (use filenameOnly for the path)
+  const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filenameOnly);
   const publicUrl = publicUrlData?.publicUrl;
 
   try {

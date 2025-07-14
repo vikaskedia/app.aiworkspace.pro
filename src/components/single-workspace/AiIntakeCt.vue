@@ -10,33 +10,32 @@
           <span v-else>Generating…</span>
         </template>
       </el-button>
-
-      <el-input v-model="search" placeholder="Search…" class="ml-2" clearable />
     </div>
 
     <el-alert v-if="error" type="error" :title="error" class="mb-3" />
 
     <!-- Table of existing intakes -->
     <el-table
-      v-if="forms.length"
-      :data="filteredForms"
+      v-if="intakes.length"
+      :data="intakes"
       border
       style="width: 100%"
       class="mb-4"
     >
-      <el-table-column prop="title" label="Title" sortable />
-      <el-table-column prop="table_name" label="Table" width="180" sortable />
-      <el-table-column prop="created_at" label="Created" sortable />
-      <el-table-column label="Actions" width="220">
+      <el-table-column prop="first_name" label="First Name" />
+      <el-table-column prop="last_name" label="Last Name" />
+      <el-table-column prop="email" label="Email" />
+      <el-table-column prop="added_on" label="Created" />
+      <el-table-column label="Actions" width="120">
         <template #default="{ row }">
-          <el-button size="small" @click="loadForm(row)">Open</el-button>
-          <el-button size="small" @click="copyShareLink(row)" type="primary">Copy Link</el-button>
+            <el-button size="small" @click="openIntake(row)">Open</el-button>
+            <el-button size="small" @click="copyShareLink(row)">Copy Share Link</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- Render generated form with complete UI design -->
-    <div v-if="formDefinition" class="generated-form mt-4">
+    <div v-if="formDefinition && serverSideRowUuid" class="generated-form mt-4">
       <div class="form-header" :style="formHeaderStyle">
         <h3>{{ formDefinition.title || 'Patient Intake Form' }}</h3>
         <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
@@ -142,9 +141,10 @@ const formData = reactive({}); // The data for the current intake row
 const showJson = ref(false);
 const currentIntakeRow = ref(null); // The current row from intake_for_ws_19
 const serverSideRowUuid = ref(null);
+const intakes = ref([]); // All rows from intake_for_ws_19
 
-// 1. On page load, fetch the form design for workspace 19
-async function fetchFormDesign() {
+// 1. On page load, fetch the form design and all intakes
+async function fetchFormDesignAndIntakes() {
   loading.value = true;
   error.value = null;
   try {
@@ -176,34 +176,64 @@ async function fetchFormDesign() {
         ? JSON.parse(designRow.cache_of_empty_form_html)
         : designRow.cache_of_empty_form_html;
     }
+
+    // Fetch all intakes
+    const { data: allIntakes, error: intakesErr } = await supabase
+      .from('intake_for_ws_19')
+      .select('*')
+      .order('added_on', { ascending: false });
+    if (intakesErr) throw intakesErr;
+    intakes.value = allIntakes || [];
   } catch (err) {
-    error.value = err.message || 'Failed to load form design';
+    error.value = err.message || 'Failed to load form design or intakes';
     formDefinition.value = null;
   } finally {
     loading.value = false;
   }
 }
 
-// 2. On 'New Intake' click, create a new row and bind form
+function copyShareLink(row) {
+  const link = `${window.location.origin}/intake-share/${row.server_side_row_uuid}`;
+  navigator.clipboard.writeText(link);
+  ElMessage.success('Share link copied!');
+}
+// 2. On 'New Intake' click, create a new row and open the form
 async function generateForm() {
+  const { data: { user } } = await supabase.auth.getUser();
   loading.value = true;
   error.value = null;
   try {
     // Insert a new row (empty/default)
     const { data: insertData, error: insertErr } = await supabase
       .from('intake_for_ws_19')
-      .insert({})
+      .insert({ added_by: user.id, server_side_row_uuid: crypto.randomUUID() , ptuuid: crypto.randomUUID()})
       .select()
       .single();
     if (insertErr) throw insertErr;
     serverSideRowUuid.value = insertData.server_side_row_uuid;
     await loadIntakeRow(serverSideRowUuid.value);
+    await fetchIntakes();
     ElMessage.success('New intake started!');
   } catch (err) {
     error.value = err.message || 'Failed to create new intake row';
   } finally {
     loading.value = false;
   }
+}
+
+// Fetch all intakes
+async function fetchIntakes() {
+  const { data: allIntakes, error: intakesErr } = await supabase
+    .from('intake_for_ws_19')
+    .select('*')
+    .order('added_on', { ascending: false });
+  if (!intakesErr) intakes.value = allIntakes || [];
+}
+
+// Open an intake row in the form
+async function openIntake(row) {
+  serverSideRowUuid.value = row.server_side_row_uuid;
+  await loadIntakeRow(serverSideRowUuid.value);
 }
 
 // 3. Load the row data for a given UUID
@@ -243,6 +273,7 @@ async function handleSubmit() {
       .update(updateObj)
       .eq('server_side_row_uuid', serverSideRowUuid.value);
     if (updateErr) throw updateErr;
+    await fetchIntakes();
     ElMessage.success('Form submitted!');
   } catch (err) {
     error.value = err.message || 'Failed to submit form';
@@ -250,42 +281,6 @@ async function handleSubmit() {
     loading.value = false;
   }
 }
-
-async function loadForms() {
-  const { data, error: loadErr } = await supabase
-    .from('intake_forms')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (!loadErr && data) forms.value = data;
-}
-
-function copyShareLink(row) {
-  const link = `${window.location.origin}/intake-share/${row.share_uuid}`;
-  navigator.clipboard.writeText(link);
-  ElMessage.success('Share link copied!');
-}
-
-function loadForm(row) {
-  currentTitle.value = row.title || '';
-  result.value = row.definition;
-
-  // Setup formData
-  Object.keys(formData).forEach(k => delete formData[k]);
-  (result.value.sections || []).forEach(section => {
-    (section.fields || []).forEach(field => {
-      formData[field.name] = field.type === 'checkbox' || field.type === 'boolean' ? false : '';
-    });
-  });
-}
-
-const filteredForms = computed(() => {
-  if (!search.value) return forms.value;
-  const q = search.value.toLowerCase();
-  return forms.value.filter(f =>
-    (f.title || '').toLowerCase().includes(q) ||
-    (f.table_name || '').toLowerCase().includes(q)
-  );
-});
 
 const formattedResult = computed({
   get: () => (formDefinition.value ? JSON.stringify(formDefinition.value, null, 2) : ''),
@@ -403,7 +398,7 @@ function getInputClass(field) {
   return classes.join(' ');
 }
 
-onMounted(fetchFormDesign);
+onMounted(fetchFormDesignAndIntakes);
 </script>
 
 <style scoped>

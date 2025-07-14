@@ -101,7 +101,7 @@ export default async function handler(req, res) {
     });
 
   if (fileError || !fileInfo || fileInfo.length === 0) {
-    console.error('❌ File not found in Supabase Storage:', fileError);
+    console.error('❌ File not found in Supabase Storage:', fileError, 'fileInfo:', fileInfo, 'filePath:', filePath);
     return res.status(404).json({ error: 'File not found in Supabase Storage' });
   }
 

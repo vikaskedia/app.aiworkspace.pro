@@ -12,7 +12,7 @@
       <div class="header-actions">
         <el-button 
           type="info"
-          @click="shareDialogVisible = true" 
+          @click="shareDialogVisible = true"
           size="small"
           class="share-task-btn">
           <el-icon><Share /></el-icon>
@@ -114,44 +114,44 @@
               <div class="task-parent-condensed">
                 <template v-if="task.parent_task_id">
                   <div class="parent-label">Parent Task:</div>
-                  <el-select
-                    v-model="task.parent_task_id"
-                    filterable
-                    placeholder="Select parent task"
-                    @change="updateParentTask"
+              <el-select
+                v-model="task.parent_task_id"
+                filterable 
+                placeholder="Select parent task"
+                @change="updateParentTask"
                     size="small"
                     class="parent-select-condensed"
-                  >
-                    <el-option
-                      v-for="parentTask in flattenedTasks"
-                      :key="parentTask.id ?? 'no-parent'"
-                      :label="parentTask.title"
-                      :value="parentTask.id ?? ''"
-                    />
-                  </el-select>
-                  <el-button
-                    v-if="task.parent_task_id"
-                    type="primary"
-                    link
+              >
+                <el-option
+                  v-for="parentTask in flattenedTasks"
+                  :key="parentTask.id ?? 'no-parent'"
+                  :label="parentTask.title"
+                  :value="parentTask.id ?? ''"
+                />
+              </el-select>
+              <el-button
+                v-if="task.parent_task_id"
+                type="primary"
+                link
                     class="view-parent-btn-condensed"
-                    @click="navigateToTask(task.parent_task_id)"
+                @click="navigateToTask(task.parent_task_id)"
                     size="small"
-                  >
-                    <el-icon><View /></el-icon>
-                  </el-button>
+              >
+                <el-icon><View /></el-icon>
+              </el-button>
                 </template>
                 <template v-else>
                   <el-button type="text" size="small" class="set-parent-link" @click="showParentSelector = true">
                     <el-icon><Plus /></el-icon> Set Parent Task
                   </el-button>
                 </template>
-              </div>
+            </div>
               <!-- If there are no child tasks, show Add Child Task button below parent section -->
               <div v-if="!sortedChildTasks.length" class="add-child-task-row">
                 <el-button type="text" size="small" class="set-parent-link" @click="createChildTaskDialogVisible = true">
                   <el-icon><Plus /></el-icon> Add Child Task
                 </el-button>
-              </div>
+          </div>
             </template>
           </template>
           <!-- Always render the Set Parent Task dialog so it works in all cases -->
@@ -196,11 +196,11 @@
                 </div>
                 <div class="column-status sortable-column" @click="sortBy('status')" :class="{ 'active': sortColumn === 'status' }">
                   <span class="column-title">Status</span>
-                  <el-icon v-if="sortColumn === 'status'" class="sort-icon">
-                    <ArrowUp v-if="sortDirection === 'asc'" />
-                    <ArrowDown v-else />
-                  </el-icon>
-                </div>
+                    <el-icon v-if="sortColumn === 'status'" class="sort-icon">
+                      <ArrowUp v-if="sortDirection === 'asc'" />
+                      <ArrowDown v-else />
+                    </el-icon>
+                        </div>
                 <div class="column-priority sortable-column" @click="sortBy('priority')" :class="{ 'active': sortColumn === 'priority' }">
                   Priority
                   <el-icon v-if="sortColumn === 'priority'" class="sort-icon">
@@ -226,16 +226,16 @@
                 </div>
                 <div class="column-status">
                   <el-tag :type="getStatusType(childTask)" size="small">
-                    {{ formatStatus(childTask.status) }}
-                  </el-tag>
+                        {{ formatStatus(childTask.status) }}
+                        </el-tag>
                 </div>
                 <div class="column-priority">
                   <el-tag :type="getPriorityType(childTask)" size="small">
-                    {{ formatPriority(childTask.priority) }}
-                  </el-tag>
+                        {{ formatPriority(childTask.priority) }}
+                        </el-tag>
+                      </div>
+                    </div>
                 </div>
-              </div>
-            </div>
           </div>
 
 
@@ -269,17 +269,84 @@
               <div class="metadata-item-compact">
                 <el-icon><CircleCheck /></el-icon>
                 <span>Status</span>
-                <el-tag size="small">{{ formatStatus(task?.status) }}</el-tag>
+                <el-popover
+                  placement="bottom-start"
+                  trigger="click"
+                  :width="180"
+                  popper-class="metadata-popover-compact"
+                >
+                  <template #reference>
+                    <el-tag size="small" class="clickable-tag-compact">{{ formatStatus(task?.status) }}</el-tag>
+                  </template>
+                  <div class="metadata-options-compact">
+                    <div 
+                      v-for="option in statusOptions" 
+                      :key="option.value"
+                      class="metadata-option-compact"
+                      :class="{ 'selected': task?.status === option.value }"
+                      @click="handleStatusChange(option.value)"
+                    >
+                      <el-tag :type="getStatusType({ status: option.value })" size="small">
+                        {{ option.label }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </el-popover>
               </div>
               <div class="metadata-item-compact">
                 <el-icon><Warning /></el-icon>
                 <span>Priority</span>
-                <el-tag size="small">{{ formatPriority(task?.priority) }}</el-tag>
+                <el-popover
+                  placement="bottom-start"
+                  trigger="click"
+                  :width="180"
+                  popper-class="metadata-popover-compact"
+                >
+                  <template #reference>
+                    <el-tag size="small" class="clickable-tag-compact">{{ formatPriority(task?.priority) }}</el-tag>
+                  </template>
+                  <div class="metadata-options-compact">
+                    <div 
+                      v-for="option in priorityOptions" 
+                      :key="option.value"
+                      class="metadata-option-compact"
+                      :class="{ 'selected': task?.priority === option.value }"
+                      @click="handlePriorityChange(option.value)"
+                    >
+                      <el-tag :type="getPriorityType({ priority: option.value })" size="small">
+                        {{ option.label }}
+                      </el-tag>
+                    </div>
+                  </div>
+                </el-popover>
               </div>
               <div class="metadata-item-compact">
                 <el-icon><Calendar /></el-icon>
                 <span>Due Date</span>
-                <span class="meta-value">{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
+                <el-popover
+                  placement="bottom"
+                  trigger="click"
+                  :width="200"
+                  popper-class="due-date-popover-compact"
+                  @show="initializeTempDueDate"
+                >
+                  <template #reference>
+                    <span class="meta-value clickable-tag-compact">{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
+                  </template>
+                  <div class="due-date-editor-compact">
+                    <el-date-picker
+                      v-model="tempDueDate"
+                      type="date"
+                      placeholder="Select due date"
+                      style="width: 100%"
+                      size="small"
+                      @change="handleDueDateChange"
+                    />
+                    <div class="due-date-actions-compact">
+                      <el-button @click="clearDueDate" link size="small">Clear</el-button>
+                    </div>
+                  </div>
+                </el-popover>
               </div>
               <div class="metadata-item-compact">
                 <el-icon><User /></el-icon>
@@ -7202,5 +7269,51 @@ table.editor-table {
 }
 .task-tabs-section .el-tabs__header {
     margin-bottom: 0;
+}
+</style>
+
+<style scoped>
+.metadata-popover-compact {
+  padding: 8px !important;
+}
+.metadata-options-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metadata-option-compact {
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+.metadata-option-compact.selected {
+  background-color: var(--el-fill-color-light);
+}
+.metadata-option-compact:hover {
+  background-color: var(--el-fill-color-lighter);
+}
+.clickable-tag-compact {
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #e0e0e0;
+  background: #f9f9f9;
+  transition: box-shadow 0.2s;
+}
+.clickable-tag-compact:hover {
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.08);
+  background: #f0f8ff;
+}
+.due-date-popover-compact {
+  padding: 10px !important;
+}
+.due-date-editor-compact {
+  padding: 4px 0;
+}
+.due-date-actions-compact {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 </style>

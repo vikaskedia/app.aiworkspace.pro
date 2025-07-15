@@ -12,7 +12,8 @@
       <div class="header-actions">
         <el-button 
           type="info"
-          @click="shareDialogVisible = true"
+          @click="shareDialogVisible = true" 
+          size="small"
           class="share-task-btn">
           <el-icon><Share /></el-icon>
           <span class="share-task-text">Share Task</span>
@@ -20,6 +21,7 @@
         <el-button 
           type="warning"
           @click="logHoursDialogVisible = true"
+          size="small"
           class="log-hours-btn">
           <el-icon><Clock /></el-icon>
           <span class="log-hours-text">Log Hours</span>
@@ -5266,7 +5268,7 @@ ${comment.content}
   cursor: default;
 }
 .single-task-view {
-  padding: 20px;
+  padding: 0 20px 20px 20px;
 }
 
 .back-link {
@@ -5296,7 +5298,7 @@ ${comment.content}
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .task-content {
@@ -5856,7 +5858,6 @@ table.editor-table {
   gap: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
 }
 
 /*.task-main-content {

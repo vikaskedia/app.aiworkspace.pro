@@ -2792,34 +2792,34 @@ export default {
       
       const giteaHost = import.meta.env.VITE_GITEA_HOST;
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      // Regex for markdown links: [filename](url)
+      const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      // Image extensions to recognize
+      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
       
-      // Replace markdown file links with authenticated file links
       return text.split('\n').map(line => line.trim()).join('<br>').replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g, 
+        markdownLinkRegex,
         (match, fileName, fileUrl) => {
           let authenticatedUrl = fileUrl;
-          
           // Only modify URLs that match the Gitea host
           if (fileUrl.startsWith(giteaHost)) {
             try {
               const url = new URL(fileUrl);
-              
-              // Remove any existing token parameter
               url.searchParams.delete('token');
-              
-              // Add token as query parameter
               url.searchParams.set('token', giteaToken);
-              
-              // Remove any duplicate question marks
               authenticatedUrl = url.toString().replace('??', '?');
             } catch (error) {
               console.error('Error creating authenticated URL:', error);
             }
           }
-
-          return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">
-            ${fileName}
-          </a>`;
+          // Check if the file is an image
+          const ext = fileName.split('.').pop().toLowerCase();
+          if (imageExtensions.includes(ext)) {
+            // Render a thumbnail image, clickable to open full image
+            return `<a class="file-link image-link" href="${authenticatedUrl}" target="_blank" title="Click to view image"><img src="${authenticatedUrl}" alt="${fileName}" style="max-width:120px;max-height:120px;object-fit:contain;border-radius:4px;border:1px solid #eee;margin:4px 0;display:inline-block;vertical-align:middle;" /></a>`;
+          }
+          // Otherwise, render as a normal file link
+          return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">${fileName}</a>`;
         }
       );
     },

@@ -6063,12 +6063,12 @@ table.editor-table {
 
 <style scoped>
 /* Add to existing styles */
-.comments-header {
+/*.comments-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-}
+}*/
 
 .comment-item.archived {
   opacity: 0.7;

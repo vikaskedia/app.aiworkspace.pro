@@ -96,104 +96,110 @@
             </div>
           </div>
 
-          <!-- Add this after the task title section -->
-          <div class="task-parent" v-if="!loading">
-            <h4>Parent Task</h4>
-            <div class="parent-task-selector">
-              <el-select
-                v-model="task.parent_task_id"
-                style="width: 100%" 
-                filterable 
-                placeholder="Select parent task"
-                @change="updateParentTask"
-              >
-                <el-option
-                  v-for="parentTask in flattenedTasks"
-                  :key="parentTask.id ?? 'no-parent'"
-                  :label="parentTask.title"
-                  :value="parentTask.id ?? ''"
-                />
-              </el-select>
-              <el-button
-                v-if="task.parent_task_id"
-                type="primary"
-                link
-                class="view-parent-btn"
-                @click="navigateToTask(task.parent_task_id)"
-              >
-                <el-icon><View /></el-icon>
-              </el-button>
-            </div>
-          </div>
-
-          <!-- Child Tasks Section -->
-          <div class="task-children" v-if="!loading">
-            <div class="child-tasks-header-section">
-              <h4>Child Tasks</h4>
+          <!-- Parent/Child Buttons Condensed Row -->
+          <template v-if="!loading">
+            <template v-if="!task.parent_task_id && !sortedChildTasks.length">
+              <div class="parent-child-actions-row">
+                <el-button type="text" size="small" class="set-parent-link" @click="showParentSelector = true">
+                  <el-icon><Plus /></el-icon> Set Parent Task
+                </el-button>
+                <el-button type="text" size="small" class="set-parent-link" @click="createChildTaskDialogVisible = true">
+                  <el-icon><Plus /></el-icon> Add Child Task
+                </el-button>
+              </div>
+            </template>
+            <template v-else>
+              <div class="task-parent-condensed">
+                <template v-if="task.parent_task_id">
+                  <div class="parent-label">Parent Task:</div>
+                  <el-select
+                    v-model="task.parent_task_id"
+                    filterable
+                    placeholder="Select parent task"
+                    @change="updateParentTask"
+                    size="small"
+                    class="parent-select-condensed"
+                  >
+                    <el-option
+                      v-for="parentTask in flattenedTasks"
+                      :key="parentTask.id ?? 'no-parent'"
+                      :label="parentTask.title"
+                      :value="parentTask.id ?? ''"
+                    />
+                  </el-select>
+                  <el-button
+                    v-if="task.parent_task_id"
+                    type="primary"
+                    link
+                    class="view-parent-btn-condensed"
+                    @click="navigateToTask(task.parent_task_id)"
+                    size="small"
+                  >
+                    <el-icon><View /></el-icon>
+                  </el-button>
+                </template>
+                <template v-else>
+                  <el-button type="text" size="small" class="set-parent-link" @click="showParentSelector = true">
+                    <el-icon><Plus /></el-icon> Set Parent Task
+                  </el-button>
+                </template>
+              </div>
+              <!-- If there are no child tasks, show Add Child Task button below parent section -->
+              <div v-if="!sortedChildTasks.length" class="add-child-task-row">
+                <el-button type="text" size="small" class="set-parent-link" @click="createChildTaskDialogVisible = true">
+                  <el-icon><Plus /></el-icon> Add Child Task
+                </el-button>
+              </div>
+            </template>
+          </template>
+          <!-- Always render the Set Parent Task dialog so it works in all cases -->
+          <el-dialog v-model="showParentSelector" title="Set Parent Task" width="400px">
+            <el-select
+              v-model="task.parent_task_id"
+              filterable
+              placeholder="Select parent task"
+              @change="updateParentTask"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="parentTask in flattenedTasks"
+                :key="parentTask.id ?? 'no-parent'"
+                :label="parentTask.title"
+                :value="parentTask.id ?? ''"
+              />
+            </el-select>
+          </el-dialog>
+          <!-- Child Tasks Section (Condensed) -->
+          <div class="task-children-condensed" v-if="!loading && sortedChildTasks.length">
+            <div class="child-tasks-header-section-condensed">
+              <span class="child-tasks-title">Child Tasks</span>
               <el-button 
                 type="primary" 
                 size="small"
                 @click="createChildTaskDialogVisible = true"
-                class="create-child-btn"
+                class="create-child-btn-condensed"
                 :loading="creatingChildTask">
                 <el-icon><Plus /></el-icon>
-                Create Child Task
+                Add
               </el-button>
             </div>
-            <div v-if="sortedChildTasks.length" class="child-tasks-table">
-              <div class="child-tasks-header">
-                <div 
-                  class="column-description sortable-column" 
-                  @click="sortBy('title')"
-                  :class="{ 'active': sortColumn === 'title' }"
-                >
+            <div class="child-tasks-table-condensed">
+              <div class="child-tasks-header-condensed">
+                <div class="column-description sortable-column" @click="sortBy('title')" :class="{ 'active': sortColumn === 'title' }">
                   Description
                   <el-icon v-if="sortColumn === 'title'" class="sort-icon">
                     <ArrowUp v-if="sortDirection === 'asc'" />
                     <ArrowDown v-else />
                   </el-icon>
                 </div>
-                <div 
-                  class="column-status sortable-column" 
-                  @click="sortBy('status')"
-                  :class="{ 'active': sortColumn === 'status' }"
-                >
+                <div class="column-status sortable-column" @click="sortBy('status')" :class="{ 'active': sortColumn === 'status' }">
                   <span class="column-title">Status</span>
-                  <div class="column-controls">
-                    <el-icon v-if="sortColumn === 'status'" class="sort-icon">
-                      <ArrowUp v-if="sortDirection === 'asc'" />
-                      <ArrowDown v-else />
-                    </el-icon>
-                    <el-popover
-                      placement="bottom-start"
-                      trigger="click"
-                      :width="200"
-                      popper-class="status-settings-popover"
-                      @click.stop
-                    >
-                      <template #reference>
-                        <el-icon class="status-settings-icon" @click.stop>
-                          <Setting />
-                        </el-icon>
-                      </template>
-                      <div class="status-settings">
-                        <div class="status-setting-item">
-                          <el-switch
-                            v-model="showCompletedTasks"
-                            size="small"
-                            active-text="Show completed tasks"
-                            @change="onShowCompletedChange"
-                          />
-                        </div>
-                      </div>
-                    </el-popover>
-                  </div>
+                  <el-icon v-if="sortColumn === 'status'" class="sort-icon">
+                    <ArrowUp v-if="sortDirection === 'asc'" />
+                    <ArrowDown v-else />
+                  </el-icon>
                 </div>
-                <div 
-                  class="column-priority sortable-column" 
-                  @click="sortBy('priority')"
-                  :class="{ 'active': sortColumn === 'priority' }"
-                >
+                <div class="column-priority sortable-column" @click="sortBy('priority')" :class="{ 'active': sortColumn === 'priority' }">
                   Priority
                   <el-icon v-if="sortColumn === 'priority'" class="sort-icon">
                     <ArrowUp v-if="sortDirection === 'asc'" />
@@ -204,7 +210,7 @@
               <div 
                 v-for="childTask in sortedChildTasks" 
                 :key="childTask.id" 
-                class="child-task-row"
+                class="child-task-row-condensed"
                 :class="{ 'updating': updatingChildTasks.has(childTask.id) }"
               >
                 <div class="column-description">
@@ -217,71 +223,16 @@
                   </a>
                 </div>
                 <div class="column-status">
-                  <el-popover
-                    v-model:visible="childTaskPopoverVisibility.status[childTask.id]"
-                    placement="bottom-start"
-                    trigger="click"
-                    :width="200"
-                    popper-class="metadata-popover"
-                  >
-                    <template #reference>
-                      <el-tag :type="getStatusType(childTask)" size="small" class="clickable-tag">
-                        {{ formatStatus(childTask.status) }}
-                      </el-tag>
-                    </template>
-                    <div class="metadata-options">
-                      <div 
-                        v-for="option in statusOptions" 
-                        :key="option.value"
-                        class="metadata-option"
-                        :class="{ 'selected': childTask.status === option.value }"
-                        @click="handleChildTaskStatusChange(childTask, option.value)"
-                      >
-                        <el-tag :type="getStatusType({ status: option.value })" size="small">
-                          {{ option.label }}
-                        </el-tag>
-                      </div>
-                    </div>
-                  </el-popover>
+                  <el-tag :type="getStatusType(childTask)" size="small">
+                    {{ formatStatus(childTask.status) }}
+                  </el-tag>
                 </div>
                 <div class="column-priority">
-                  <el-popover
-                    v-model:visible="childTaskPopoverVisibility.priority[childTask.id]"
-                    placement="bottom-start"
-                    trigger="click"
-                    :width="200"
-                    popper-class="metadata-popover"
-                  >
-                    <template #reference>
-                      <el-tag :type="getPriorityType(childTask)" size="small" class="clickable-tag">
-                        {{ formatPriority(childTask.priority) }}
-                      </el-tag>
-                    </template>
-                    <div class="metadata-options">
-                      <div 
-                        v-for="option in priorityOptions" 
-                        :key="option.value"
-                        class="metadata-option"
-                        :class="{ 'selected': childTask.priority === option.value }"
-                        @click="handleChildTaskPriorityChange(childTask, option.value)"
-                      >
-                        <el-tag :type="getPriorityType({ priority: option.value })" size="small">
-                          {{ option.label }}
-                        </el-tag>
-                      </div>
-                    </div>
-                  </el-popover>
+                  <el-tag :type="getPriorityType(childTask)" size="small">
+                    {{ formatPriority(childTask.priority) }}
+                  </el-tag>
                 </div>
               </div>
-            </div>
-            <div v-else class="no-child-tasks">
-              <p>No child tasks yet. Create one to get started!</p>
-            </div>
-            
-            <!-- Loading message when creating child task -->
-            <div v-if="creatingChildTask" class="creating-child-task-message">
-              <el-icon class="loading-spinner"><Loading /></el-icon>
-              <span>Creating child task...</span>
             </div>
           </div>
 
@@ -310,184 +261,61 @@
             </div>
           </div>
 
-          <div class="task-metadata" v-if="!loading">
-            <div class="metadata-grid">
-              <!-- Status Column -->
-              <div class="metadata-item status-item">
-                <div class="metadata-label">
-                  <div class="label-header">
-                    <el-icon><CircleCheck /></el-icon>
-                    <span class="status-label">Status</span>
-                  </div>
-                  <div class="status-content">
-                    <el-popover
-                      ref="statusPopover"
-                      placement="bottom-start"
-                      trigger="click"
-                      :width="200"
-                      popper-class="metadata-popover"
-                    >
-                      <template #reference>
-                        <div class="status-display" :class="[statusBackgroundClass, { 'updating': updatingStatus }]">
-                          <span class="status-text">{{ formatStatus(task?.status) }}</span>
-                          <el-icon v-if="!updatingStatus" class="edit-icon"><Edit /></el-icon>
-                          <el-icon v-else class="loading-icon"><Loading /></el-icon>
-                        </div>
-                      </template>
-                      <div class="metadata-options">
-                        <div 
-                          v-for="option in statusOptions" 
-                          :key="option.value"
-                          class="metadata-option"
-                          :class="{ 'selected': task?.status === option.value }"
-                          @click="handleStatusChange(option.value)"
-                        >
-                          <el-tag :type="getStatusType({ status: option.value })" size="small">
-                            {{ option.label }}
-                          </el-tag>
-                        </div>
-                      </div>
-                    </el-popover>
-                  </div>
-                </div>
+          <!-- Compact Task Metadata Section -->
+          <div class="task-metadata-compact" v-if="!loading">
+            <div class="metadata-row-compact">
+              <div class="metadata-item-compact">
+                <el-icon><CircleCheck /></el-icon>
+                <span>Status</span>
+                <el-tag size="small">{{ formatStatus(task?.status) }}</el-tag>
               </div>
-
-              <!-- Priority Column -->
-              <div class="metadata-item priority-item">
-                <div class="metadata-label">
-                  <div class="label-header">
-                    <el-icon><Warning /></el-icon>
-                    <span class="status-label">Priority</span>
-                  </div>
-                  <div class="status-content">
-                    <el-popover
-                      ref="priorityPopover"
-                      placement="bottom-start"
-                      trigger="click"
-                      :width="200"
-                      popper-class="metadata-popover"
-                    >
-                      <template #reference>
-                        <div class="status-display" :class="[priorityBackgroundClass, { 'updating': updatingPriority }]">
-                          <span class="status-text">{{ formatPriority(task?.priority) }}</span>
-                          <el-icon v-if="!updatingPriority" class="edit-icon"><Edit /></el-icon>
-                          <el-icon v-else class="loading-icon"><Loading /></el-icon>
-                        </div>
-                      </template>
-                      <div class="metadata-options">
-                        <div 
-                          v-for="option in priorityOptions" 
-                          :key="option.value"
-                          class="metadata-option"
-                          :class="{ 'selected': task?.priority === option.value }"
-                          @click="handlePriorityChange(option.value)"
-                        >
-                          <el-tag :type="getPriorityType({ priority: option.value })" size="small">
-                            {{ option.label }}
-                          </el-tag>
-                        </div>
-                      </div>
-                    </el-popover>
-                  </div>
-                </div>
+              <div class="metadata-item-compact">
+                <el-icon><Warning /></el-icon>
+                <span>Priority</span>
+                <el-tag size="small">{{ formatPriority(task?.priority) }}</el-tag>
               </div>
-
-              <!-- Due Date Column -->
-              <div class="metadata-item due-date-item">
-                <div class="metadata-label">
-                  <div class="label-header">
-                    <el-icon><Calendar /></el-icon>
-                    <span class="status-label">Due Date</span>
-                  </div>
-                  <div class="status-content">
-                    <el-popover
-                      placement="bottom"
-                      trigger="click"
-                      :width="240"
-                      popper-class="due-date-popover"
-                      @show="initializeTempDueDate">
-                      <template #reference>
-                        <div class="status-display">
-                          <span class="status-text">
-                            {{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}
-                          </span>
-                          <el-icon class="edit-icon"><Edit /></el-icon>
-                        </div>
-                      </template>
-                      <template #default>
-                        <div class="due-date-editor">
-                          <el-date-picker
-                            v-model="tempDueDate"
-                            type="date"
-                            placeholder="Select due date"
-                            style="width: 100%"
-                            size="small"
-                            @change="handleDueDateChange"
-                          />
-                          <div class="due-date-actions">
-                            <el-button @click="clearDueDate" link size="small">Clear</el-button>
-                          </div>
-                        </div>
-                      </template>
-                    </el-popover>
-                  </div>
-                </div>
+              <div class="metadata-item-compact">
+                <el-icon><Calendar /></el-icon>
+                <span>Due Date</span>
+                <span class="meta-value">{{ task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date' }}</span>
               </div>
-
-              
-              <!-- Assigned To Column -->
-              <div class="metadata-item assigned-to-item">
-                <div class="metadata-label">
-                  <div class="label-header">
-                    <el-icon><User /></el-icon>
-                    <span class="status-label">Assigned To</span>
-                  </div>
-                  <div class="status-content">
-                                  <el-select
-                v-model="task.assignee"
-                placeholder="Select assignee"
-                filterable
-                clearable
-                @change="handleAssigneeChange"
-                class="assignee-select"
-                :loading="updatingAssignee"
-              >
-                      <el-option
-                        v-for="user in sortedSharedUsers"
-                        :key="user.id"
-                        :label="user.email"
-                        :value="user.id"
-                      >
-                        <div class="user-option">
-                          <el-avatar :size="20">{{ getInitials(user.email) }}</el-avatar>
-                          <span>{{ user.email }}</span>
-                        </div>
-                      </el-option>
-                                      </el-select>
-                  
-                  <!-- Loading message when updating assignee -->
-                  <div v-if="updatingAssignee" class="updating-assignee-message">
-                    <el-icon class="loading-spinner"><Loading /></el-icon>
-                    <span>Updating assignee...</span>
-                  </div>
-                </div>
+              <div class="metadata-item-compact">
+                <el-icon><User /></el-icon>
+                <span>Assigned To</span>
+                <el-select
+                  v-model="task.assignee"
+                  placeholder="Select assignee"
+                  filterable
+                  clearable
+                  @change="handleAssigneeChange"
+                  size="small"
+                  class="assignee-select-compact"
+                >
+                  <el-option
+                    v-for="user in sortedSharedUsers"
+                    :key="user.id"
+                    :label="user.email"
+                    :value="user.id"
+                  />
+                </el-select>
               </div>
-            </div>
             </div>
           </div>
-          <div class="description-wrapper" v-if="!loading">
-            <div class="description-header">
-              <h3>Description</h3>
+          <!-- Compact Description Box -->
+          <div class="description-wrapper-compact" v-if="!loading">
+            <div class="description-header-compact">
+              <span class="desc-title">Description</span>
               <el-button 
                 v-if="!isEditingDescription" 
                 link 
                 @click="startDescriptionEdit"
+                size="small"
+                class="desc-edit-btn"
               >
                 <el-icon><Edit /></el-icon>
                 Edit
               </el-button>
             </div>
-
             <div v-if="isEditingDescription" class="description-edit">
               <TiptapEditor
                 v-model="editingDescription"
@@ -512,7 +340,6 @@
                 </el-button>
               </div>
             </div>
-
             <p 
               v-else 
               class="description" 
@@ -1624,6 +1451,7 @@ export default {
       uploadingPdf: false,
       uploadFileList: [],
       deletingDocument: null,
+      showParentSelector: false,
     };
   },
   async created() {
@@ -6031,7 +5859,7 @@ table.editor-table {
   padding: 1rem;
 }
 
-.task-main-content {
+/*.task-main-content {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
@@ -6039,7 +5867,7 @@ table.editor-table {
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
-}
+}*/
 
 .task-tabs-section {
   background: white;
@@ -6083,12 +5911,12 @@ table.editor-table {
     margin: 0;
   }
 
-  .task-main-content {
+  /*.task-main-content {
     width: 100%;
     padding: 1rem;
     border-radius: 0;
     box-shadow: none;
-  }
+  }*/
 
   .task-main-info {
     padding: 12px; /* Reduced from 24px to 12px */
@@ -7194,6 +7022,179 @@ table.editor-table {
   .signature-image {
     align-self: center;
   }
+}
+
+/* Condensed Parent Task Section */
+.task-parent-condensed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  min-height: 32px;
+}
+.parent-label {
+  color: #888;
+  font-size: 13px;
+  margin-right: 4px;
+}
+.parent-select-condensed {
+  min-width: 160px;
+  max-width: 220px;
+}
+.set-parent-link {
+  color: #409EFF;
+  font-size: 13px;
+  padding: 0 4px;
+  min-width: 0;
+}
+.view-parent-btn-condensed {
+  padding: 0 4px;
+  min-width: 0;
+}
+
+/* Condensed Child Tasks Section */
+.task-children-condensed {
+  margin: 0 0 8px 0;
+  padding: 0;
+  background: none;
+  border: none;
+}
+.child-tasks-header-section-condensed {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.child-tasks-title {
+  font-weight: 500;
+  color: #333;
+}
+.create-child-btn-condensed {
+  font-size: 13px;
+  padding: 2px 8px;
+  min-width: 0;
+}
+.child-tasks-table-condensed {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0;
+}
+.child-tasks-header-condensed {
+  display: grid;
+  grid-template-columns: 1fr 90px 80px;
+  background: #fafbfc;
+  font-size: 13px;
+  color: #666;
+  padding: 4px 0;
+}
+.child-tasks-header-condensed > div {
+  padding: 6px 8px;
+}
+.child-task-row-condensed {
+  display: grid;
+  grid-template-columns: 1fr 90px 80px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+}
+.child-task-row-condensed:last-child {
+  border-bottom: none;
+}
+.child-task-row-condensed > div {
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+}
+.no-child-tasks-condensed {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 32px;
+  padding: 0;
+}
+
+.parent-child-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+/* Compact Task Metadata Section */
+.task-metadata-compact {
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  padding: 10px 16px;
+  margin: 10px 0 0 0;
+  background: #fff;
+}
+.metadata-row-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: flex-start;
+}
+.metadata-item-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 140px;
+}
+.meta-value {
+  color: #888;
+  font-size: 13px;
+}
+.assignee-select-compact {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+/* Compact Description Box */
+.description-wrapper-compact {
+  margin-top: 12px;
+  background: #fafbfc;
+  border-radius: 6px;
+  padding: 12px 16px;
+  border: 1px solid #eee;
+}
+.description-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.desc-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #222;
+}
+.desc-edit-btn {
+  font-size: 12px;
+  color: #409EFF;
+  padding: 0 4px;
+}
+.description-wrapper-compact > p.description {
+  padding-left: 8px;
+  border-left: 2px solid var(--el-color-primary-light-5);
+  font-size: 14px;
+  margin: 0;
+  color: #444;
+  background: none;
+}
+
+.add-child-task-row {
+  margin: 8px 0 0 0;
+  display: flex;
+  align-items: center;
+}
+.description-wrapper-compact > p.description > p {
+    margin: 0;
+    line-height: 20px;
 }
 </style>
 

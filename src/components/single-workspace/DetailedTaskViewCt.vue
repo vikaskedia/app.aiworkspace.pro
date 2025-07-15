@@ -1161,7 +1161,7 @@
                   size="small"
                   :loading="generatingExternalLink"
                   @click="handleGenerateExternalShareLink"
-                  :disabled="hasActiveShare">
+                  v-if="!hasActiveShare">
                   <el-icon><Link /></el-icon>
                   Generate Shareable Link
                 </el-button>

@@ -19,7 +19,7 @@
 
         <!-- Hidden fields for server_side_row_uuid and ptuuid -->
         <input type="hidden" v-model="formData.server_side_row_uuid" />
-        <input type="hidden" v-model="formData.ptuuid" />
+        <!-- <input type="hidden" v-model="formData.ptuuid" /> -->
 
         <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
@@ -82,12 +82,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../supabase.js';
-
-
 
 const route = useRoute();
 const loading = ref(true);
@@ -97,6 +95,7 @@ const formTitle = ref('');
 const formData = reactive({});
 const submitting = ref(false);
 const submitted = ref(false);
+const realtimeSubscription = ref(null);
 
 async function loadIntakeForm() {
   const workspaceId = route.params.workspaceId;
@@ -117,7 +116,6 @@ async function loadIntakeForm() {
     if (designData) {
       console.log('designData', designData);
       formDefinition.value = designData.cache_of_empty_form_html;
-      // formTitle.value = designData.title;
       formTitle.value = 'Intake Form';
       console.log('formDefinition', formDefinition.value);
     }
@@ -135,18 +133,11 @@ async function loadIntakeForm() {
     }
 
     if (data) {
-      // Clear previous formData
-      Object.keys(formData).forEach(k => delete formData[k]);
-      // Populate formData with values from the row
-      (formDefinition.value.sections || []).forEach(section => {
-        (section.fields || []).forEach(field => {
-          formData[field.name] = data[field.name] ?? (field.type === 'checkbox' || field.type === 'boolean' ? false : '');
-        });
-      });
-      // Also set hidden fields if needed
-      formData.server_side_row_uuid = data.server_side_row_uuid;
-      formData.ptuuid = data.ptuuid;
+      populateFormData(data);
     }
+
+    // Set up real-time subscription
+    setupRealtimeSubscription(workspaceId, shareId);
   } catch (err) {
     error.value = 'Error loading intake form';
     console.error('Error loading intake form:', err);
@@ -155,18 +146,70 @@ async function loadIntakeForm() {
   }
 }
 
+// Populate form data from row
+function populateFormData(data) {
+  // Clear previous formData
+  Object.keys(formData).forEach(k => delete formData[k]);
+  
+  // Populate formData with values from the row
+  (formDefinition.value.sections || []).forEach(section => {
+    (section.fields || []).forEach(field => {
+      formData[field.name] = data[field.name] ?? (field.type === 'checkbox' || field.type === 'boolean' ? false : '');
+    });
+  });
+  
+  // Also set hidden fields if needed
+  formData.server_side_row_uuid = data.server_side_row_uuid;
+  //formData.ptuuid = data.ptuuid;
+}
+
+// Set up real-time subscription
+function setupRealtimeSubscription(workspaceId, shareId) {
+  // Clean up existing subscription
+  if (realtimeSubscription.value) {
+    supabase.removeChannel(realtimeSubscription.value);
+  }
+
+  // Create new subscription
+  realtimeSubscription.value = supabase
+    .channel(`intake-form-${shareId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: `intake_for_ws_${workspaceId}`,
+        filter: `server_side_row_uuid=eq.${shareId}`
+      },
+      (payload) => {
+        console.log('Real-time update received:', payload);
+        if (payload.new) {
+          populateFormData(payload.new);
+          ElMessage.info('Form data updated from another session');
+        }
+      }
+    )
+    .subscribe();
+}
+
+// Clean up subscription on component unmount
+onUnmounted(() => {
+  if (realtimeSubscription.value) {
+    supabase.removeChannel(realtimeSubscription.value);
+  }
+});
+
 async function handleSubmit() {
   const workspaceId = route.params.workspaceId;
   const serverSideRowUuid = route.params.shareId;
   submitting.value = true;
   
   try {
-    
     const updateObj = {};
     
     // Include all form fields including hidden ones
     updateObj.server_side_row_uuid = formData.server_side_row_uuid;
-    updateObj.ptuuid = formData.ptuuid;
+    //updateObj.ptuuid = formData.ptuuid;
     
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {
@@ -184,8 +227,6 @@ async function handleSubmit() {
       .update(updateObj)
       .eq('server_side_row_uuid', formData.server_side_row_uuid);
     if (updateErr) throw updateErr;
-    // await fetchIntakes();
-    // ElMessage.success('Form submitted!');
 
     submitted.value = true;
     ElMessage.success('Form submitted successfully!');

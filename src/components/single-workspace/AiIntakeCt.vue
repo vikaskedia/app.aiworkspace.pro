@@ -49,7 +49,7 @@
       >
         <!-- Hidden fields for server_side_row_uuid and ptuuid -->
         <input type="hidden" v-model="formData.server_side_row_uuid" />
-        <input type="hidden" v-model="formData.ptuuid" />
+        <!-- <input type="hidden" v-model="formData.ptuuid" /> -->
         
         <template v-for="(section, sectionIndex) in formDefinition.sections" :key="sectionIndex">
           <!-- Section Header -->
@@ -219,7 +219,7 @@ async function generateForm() {
     // Insert a new row (empty/default)
     const { data: insertData, error: insertErr } = await supabase
       .from('intake_for_ws_' + workspaceId)
-      .insert({ added_by: user.id, server_side_row_uuid: crypto.randomUUID() , ptuuid: crypto.randomUUID()})
+      .insert({ added_by: user.id, server_side_row_uuid: crypto.randomUUID()})
       .select()
       .single();
     if (insertErr) throw insertErr;
@@ -265,7 +265,7 @@ async function loadIntakeRow(uuid) {
   
   // Set hidden fields
   formData.server_side_row_uuid = row.server_side_row_uuid;
-  formData.ptuuid = row.ptuuid;
+  // formData.ptuuid = row.ptuuid;
   
   // Populate form fields from definition
   (formDefinition.value.sections || []).forEach(section => {
@@ -284,7 +284,7 @@ async function handleSubmit() {
     
     // Include all form fields including hidden ones
     updateObj.server_side_row_uuid = formData.server_side_row_uuid;
-    updateObj.ptuuid = formData.ptuuid;
+    // updateObj.ptuuid = formData.ptuuid;
     
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {

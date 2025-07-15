@@ -543,6 +543,7 @@
     <PdfSignatureModal
       v-model="showSignatureModal"
       :document="signingDocument"
+      :fixedSignaturePositions="signingDocument && signingDocument.fixedSignaturePositions ? signingDocument.fixedSignaturePositions : null"
       :user-email="user?.email"
       @close="showSignatureModal = false"
       @signed="handleDocumentSigned" />
@@ -1375,9 +1376,26 @@ export default {
     },
 
          openSigningModal(document) {
-       this.signingDocument = document;
-       this.showSignatureModal = true;
-     },
+      console.log('Opening signing modal for document:', {
+        documentName: document.name,
+        documentId: document.id,
+        metadata: document.metadata,
+        esign_positions: document.metadata && document.metadata.esign_positions ? document.metadata.esign_positions : 'NOT FOUND'
+      });
+      
+      // If esign_positions exist in metadata, pass them as fixedSignaturePositions
+      this.signingDocument = {
+        ...document,
+        fixedSignaturePositions: document.metadata && document.metadata.esign_positions ? document.metadata.esign_positions : null
+      };
+      
+      console.log('Final signingDocument:', {
+        name: this.signingDocument.name,
+        fixedSignaturePositions: this.signingDocument.fixedSignaturePositions
+      });
+      
+      this.showSignatureModal = true;
+    },
 
      handleDocumentSigned(signature) {
        // Refresh the documents list to show updated status

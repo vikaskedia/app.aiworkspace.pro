@@ -1323,6 +1323,13 @@
         </span>
       </template>
     </el-dialog>
+
+    <PdfSignatureModal
+      v-model="showSignaturePositionModal"
+      :document="pendingPdfFile ? { name: pendingPdfFileName, download_url: pendingPdfFile } : null"
+      :positionOnlyMode="true"
+      @positions-set="handleSignaturePositionsSet"
+    />
   </div>
   <div v-else class="loading-state">
     <el-skeleton :rows="3" animated />
@@ -1344,6 +1351,7 @@ import { emailNotification } from '../../utils/notificationHelpers';
 import { updateMatterActivity } from '../../utils/matterActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
 import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
+import PdfSignatureModal from '../common/PdfSignatureModal.vue';
 
 export default {
   components: {
@@ -1380,7 +1388,8 @@ export default {
     List,
     ReusableOutlineCt,
     InfoFilled,
-    Upload
+    Upload,
+    PdfSignatureModal,
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1521,6 +1530,11 @@ export default {
       uploadFileList: [],
       deletingDocument: null,
       showParentSelector: false,
+      showSignaturePositionModal: false,
+      pendingPdfFile: null,
+      pendingPdfFileName: '',
+      pendingPdfFileObj: null,
+      pendingSignaturePositions: [],
     };
   },
   async created() {
@@ -4339,65 +4353,12 @@ ${comment.content}
 
          async uploadPdfDocument() {
        if (!this.uploadFileList.length) return;
-       
-       try {
-         this.uploadingPdf = true;
-         const { data: { user } } = await supabase.auth.getUser();
-         const file = this.uploadFileList[0].raw;
-
-         // Upload file to storage first
-         const fileExt = file.name.split('.').pop();
-         const fileName = `${Date.now()}.${fileExt}`;
-         const filePath = `task_documents/${this.task.id}/${fileName}`;
-
-         const { data: uploadData, error: uploadError } = await supabase.storage
-           .from('task-files')
-           .upload(filePath, file);
-
-         if (uploadError) throw uploadError;
-
-         // Get public URL
-         const { data: urlData } = supabase.storage
-           .from('task-files')
-           .getPublicUrl(filePath);
-
-         // Insert document record
-         const { data, error } = await supabase
-           .from('task_documents')
-           .insert([
-             {
-               task_id: this.task.id,
-               name: file.name,
-               original_filename: file.name,
-               file_path: filePath,
-               download_url: urlData.publicUrl,
-               size: file.size,
-               mime_type: file.type,
-               requires_signature: true,
-               signature_status: 'pending',
-               created_by_user_id: user.id
-             }
-           ])
-           .select();
-
-         if (error) throw error;
-
-         this.uploadFileList = [];
-         await this.loadEsignDocuments();
-         
-         ElNotification.success({
-           title: 'Success',
-           message: 'PDF uploaded successfully'
-         });
-       } catch (error) {
-         console.error('Error uploading PDF:', error);
-         ElNotification.error({
-           title: 'Error',
-           message: 'Failed to upload PDF: ' + error.message
-         });
-       } finally {
-         this.uploadingPdf = false;
-       }
+       // Instead of uploading immediately, open the signature position modal
+       const file = this.uploadFileList[0].raw;
+       this.pendingPdfFileObj = file;
+       this.pendingPdfFileName = file.name;
+       this.pendingPdfFile = URL.createObjectURL(file);
+       this.showSignaturePositionModal = true;
      },
 
     getSignatureStatusType(status) {
@@ -4503,6 +4464,64 @@ ${comment.content}
         return [];
       }
       return data;
+    },
+
+    async handleSignaturePositionsSet(positions) {
+      // Called after user sets signature positions in the modal
+      try {
+        this.uploadingPdf = true;
+        const file = this.pendingPdfFileObj;
+        const { data: { user } } = await supabase.auth.getUser();
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `task_documents/${this.task.id}/${fileName}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('task-files')
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('task-files')
+          .getPublicUrl(filePath);
+        // Insert document record with signature positions in metadata
+        const { data, error } = await supabase
+          .from('task_documents')
+          .insert([
+            {
+              task_id: this.task.id,
+              name: file.name,
+              original_filename: file.name,
+              file_path: filePath,
+              download_url: urlData.publicUrl,
+              size: file.size,
+              mime_type: file.type,
+              requires_signature: true,
+              signature_status: 'pending',
+              created_by_user_id: user.id,
+              metadata: { esign_positions: positions }
+            }
+          ])
+          .select();
+        if (error) throw error;
+        this.uploadFileList = [];
+        this.pendingPdfFile = null;
+        this.pendingPdfFileName = '';
+        this.pendingPdfFileObj = null;
+        this.pendingSignaturePositions = [];
+        this.showSignaturePositionModal = false;
+        await this.loadEsignDocuments();
+        ElNotification.success({
+          title: 'Success',
+          message: 'PDF uploaded successfully'
+        });
+      } catch (error) {
+        console.error('Error uploading PDF:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to upload PDF: ' + error.message
+        });
+      } finally {
+        this.uploadingPdf = false;
+      }
     },
 
   },

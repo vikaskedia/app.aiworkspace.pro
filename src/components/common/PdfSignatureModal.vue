@@ -54,14 +54,14 @@
           <div class="page-controls" v-if="document && numPages > 1">
             <el-button 
               @click="previousPage" 
-              :disabled="currentPage === 1 || currentStep === 2"
+              :disabled="currentPage === 1"
               size="small">
               <el-icon><ArrowLeft /></el-icon>
             </el-button>
             <span class="page-info">{{ currentPage }} / {{ numPages }}</span>
             <el-button 
               @click="nextPage" 
-              :disabled="currentPage === numPages || currentStep === 2"
+              :disabled="currentPage === numPages"
               size="small">
               <el-icon><ArrowRight /></el-icon>
             </el-button>
@@ -222,13 +222,21 @@
         </el-button>
         
         <el-button 
-          v-if="currentStep === 1"
+          v-if="currentStep === 1 && positionOnlyMode"
+          type="primary"
+          @click="emitPositionsAndClose"
+          :disabled="!signatureAreas.length"
+          size="large">
+          Save Positions
+        </el-button>
+        <el-button 
+          v-if="currentStep === 1 && !positionOnlyMode"
           @click="currentStep = 0"
           size="large">
           Back
         </el-button>
         <el-button 
-          v-if="currentStep === 1"
+          v-if="currentStep === 1 && !positionOnlyMode"
           type="primary" 
           @click="proceedToSigning"
           :disabled="!document || signatureAreas.length === 0"
@@ -237,13 +245,13 @@
         </el-button>
         
         <el-button 
-          v-if="currentStep === 2"
+          v-if="currentStep === 2 && !positionOnlyMode && !fixedSignaturePositions"
           @click="currentStep = 1"
           size="large">
           Back to Placement
         </el-button>
         <el-button 
-          v-if="currentStep === 2"
+          v-if="currentStep === 2 && !positionOnlyMode"
           type="primary" 
           @click="submitSignature"
           :loading="signing"
@@ -302,9 +310,17 @@ export default {
     userEmail: {
       type: String,
       default: ''
+    },
+    positionOnlyMode: {
+      type: Boolean,
+      default: false
+    },
+    fixedSignaturePositions: {
+      type: Array,
+      default: null
     }
   },
-  emits: ['update:modelValue', 'close', 'signed'],
+  emits: ['update:modelValue', 'close', 'signed', 'positions-set'],
   data() {
     return {
       signing: false,
@@ -358,6 +374,38 @@ export default {
     visible(newVal) {
       if (newVal) {
         this.resetState();
+        console.log('Modal opening with:', {
+          document: this.document ? this.document.name : 'No document',
+          fixedSignaturePositions: this.fixedSignaturePositions,
+          positionOnlyMode: this.positionOnlyMode
+        });
+        // If fixedSignaturePositions is provided, initialize signatureAreas and go to sign step
+        if (this.fixedSignaturePositions && this.fixedSignaturePositions.length) {
+          // For external users, we need to convert PDF coordinates back to display coordinates
+          this.signatureAreas = this.fixedSignaturePositions.map((pos, index) => ({ 
+            ...pos, 
+            id: pos.id || `fixed-${Date.now()}-${index}`, // Ensure unique ID
+            signatureImage: null,
+            // Mark as PDF coordinates that need conversion when PDF loads
+            isPdfCoordinates: true
+          }));
+          console.log('Initialized signature areas from fixed positions:', this.signatureAreas);
+          // Add detailed coordinate logging
+          this.signatureAreas.forEach((area, index) => {
+            console.log(`Signature area ${index}:`, {
+              id: area.id,
+              page: area.page,
+              coordinates: { x: area.x, y: area.y, width: area.width, height: area.height },
+              hasSignature: !!area.signatureImage,
+              isPdfCoordinates: area.isPdfCoordinates
+            });
+          });
+          this.currentStep = 2; // Go directly to sign step
+        } else if (this.fixedSignaturePositions) {
+          console.warn('fixedSignaturePositions is set but empty:', this.fixedSignaturePositions);
+        } else {
+          console.log('No fixed signature positions provided');
+        }
       }
     },
     userEmail: {
@@ -403,6 +451,11 @@ export default {
         }
       }
       console.log('PDF page dimensions:', this.pdfPageDimensions);
+      
+      // Convert PDF coordinates to display coordinates for external users
+      if (this.fixedSignaturePositions && this.signatureAreas.length > 0) {
+        this.convertPdfCoordinatesToDisplay();
+      }
     },
 
     onPageLoaded() {
@@ -430,7 +483,8 @@ export default {
     },
 
     handlePdfClick(event) {
-      if (this.currentStep !== 1) return;
+      // Only allow adding signature areas if not in fixed mode and in placement step
+      if (this.currentStep !== 1 || (this.fixedSignaturePositions && this.fixedSignaturePositions.length)) return;
       
       const pdfElement = event.target;
       const rect = pdfElement.getBoundingClientRect();
@@ -491,6 +545,7 @@ export default {
     },
 
     selectSignatureArea(area) {
+      console.log('Selecting signature area:', area.id, 'Current signatures:', this.signatureAreas.map(a => ({ id: a.id, hasSig: !!a.signatureImage })));
       this.selectedSignatureArea = area;
       this.showSignatureDrawer = true;
       this.initializeSignatureCanvas();
@@ -504,6 +559,8 @@ export default {
     },
 
     removeSignatureArea(index) {
+      // Only allow removing if not in fixed mode
+      if (this.fixedSignaturePositions && this.fixedSignaturePositions.length) return;
       this.signatureAreas.splice(index, 1);
     },
 
@@ -661,10 +718,26 @@ export default {
 
       const signatureImage = this.getSignatureDataURL();
       
-      // Find the signature area by ID and update it
-      const areaIndex = this.signatureAreas.findIndex(area => area.id === this.selectedSignatureArea.id);
-      if (areaIndex !== -1) {
-        this.signatureAreas[areaIndex].signatureImage = signatureImage;
+      console.log('Applying signature to area:', this.selectedSignatureArea.id);
+      
+      // If using fixed signature positions (external user), apply signature to ALL areas
+      if (this.fixedSignaturePositions && this.fixedSignaturePositions.length) {
+        // Apply signature to all unsigned areas
+        this.signatureAreas.forEach((area, index) => {
+          if (!area.signatureImage) {
+            this.signatureAreas[index].signatureImage = signatureImage;
+          }
+        });
+        console.log('Signature applied to all unsigned areas (external mode)');
+      } else {
+        // Normal mode: only apply to selected area
+        const areaIndex = this.signatureAreas.findIndex(area => area.id === this.selectedSignatureArea.id);
+        if (areaIndex !== -1) {
+          this.signatureAreas[areaIndex].signatureImage = signatureImage;
+          console.log('Signature applied to area at index:', areaIndex);
+        } else {
+          console.error('Could not find signature area with ID:', this.selectedSignatureArea.id);
+        }
       }
       
       this.showSignatureDrawer = false;
@@ -706,6 +779,77 @@ export default {
           
           // Use stored display context for accurate coordinate conversion
           const displayContext = area.displayContext;
+          
+          // Handle different coordinate systems
+          if (this.fixedSignaturePositions && !displayContext) {
+            // For external users with fixed positions - coordinates may have been converted to display
+            // We need to convert back to PDF coordinates
+            const pageDimensions = this.pdfPageDimensions[area.page];
+            if (!pageDimensions) {
+              console.warn('No page dimensions for coordinate conversion, using direct coordinates');
+              const pdfX = area.x;
+              const pdfY = actualPageHeight - area.y - area.height;
+              const pdfWidth = area.width;
+              const pdfHeight = area.height;
+              
+              page.drawImage(signatureImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+              });
+              continue;
+            }
+            
+            // Get current display dimensions
+            const pdfElement = document.querySelector('.pdf-embed canvas') || document.querySelector('.pdf-embed');
+            if (!pdfElement) {
+              console.warn('Could not find PDF element, using fallback coordinates');
+              const pdfX = area.x;
+              const pdfY = actualPageHeight - area.y - area.height;
+              const pdfWidth = area.width;
+              const pdfHeight = area.height;
+              
+              page.drawImage(signatureImage, {
+                x: pdfX,
+                y: pdfY,
+                width: pdfWidth,
+                height: pdfHeight,
+              });
+              continue;
+            }
+            
+            const displayedWidth = pdfElement.offsetWidth;
+            const displayedHeight = pdfElement.offsetHeight;
+            
+            // Convert display coordinates back to PDF coordinates
+            const scaleX = pageDimensions.width / displayedWidth;
+            const scaleY = pageDimensions.height / displayedHeight;
+            
+            const pdfX = area.x * scaleX;
+            const pdfY = actualPageHeight - (area.y * scaleY) - (area.height * scaleY);
+            const pdfWidth = area.width * scaleX;
+            const pdfHeight = area.height * scaleY;
+            
+            console.log('Converting display coordinates back to PDF for signing:', {
+              signatureId: area.id,
+              page: area.page,
+              display: { x: area.x, y: area.y, width: area.width, height: area.height },
+              pdf: { x: pdfX, y: pdfY, width: pdfWidth, height: pdfHeight },
+              scales: { x: scaleX, y: scaleY },
+              pageDimensions: pageDimensions,
+              displayDimensions: { width: displayedWidth, height: displayedHeight }
+            });
+            
+            page.drawImage(signatureImage, {
+              x: pdfX,
+              y: pdfY,
+              width: pdfWidth,
+              height: pdfHeight,
+            });
+            continue;
+          }
+          
           if (!displayContext) {
             console.warn('No display context found for signature area, using fallback conversion');
             // Fallback conversion if display context is missing
@@ -880,6 +1024,106 @@ export default {
       } finally {
         this.signing = false;
       }
+    },
+
+    emitPositionsAndClose() {
+      // Convert display coordinates to PDF coordinates before emitting
+      const positions = this.signatureAreas.map(area => {
+        // Get PDF page dimensions
+        const pageDimensions = this.pdfPageDimensions[area.page];
+        if (!pageDimensions || !area.displayContext) {
+          console.warn('Missing dimensions or display context for area:', area.id);
+          return {
+            page: area.page,
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height
+          };
+        }
+
+        // Calculate scaling factors to convert from display to PDF coordinates
+        const scaleX = pageDimensions.width / (area.displayContext.displayedWidth / area.displayContext.zoomLevel);
+        const scaleY = pageDimensions.height / (area.displayContext.displayedHeight / area.displayContext.zoomLevel);
+        
+        // Convert coordinates from display space to PDF space
+        const pdfX = (area.x / area.displayContext.zoomLevel) * scaleX;
+        const pdfY = (area.y / area.displayContext.zoomLevel) * scaleY;
+        const pdfWidth = (area.width / area.displayContext.zoomLevel) * scaleX;
+        const pdfHeight = (area.height / area.displayContext.zoomLevel) * scaleY;
+
+        console.log('Converting position to PDF coordinates:', {
+          areaId: area.id,
+          display: { x: area.x, y: area.y, width: area.width, height: area.height },
+          pdf: { x: pdfX, y: pdfY, width: pdfWidth, height: pdfHeight },
+          scales: { x: scaleX, y: scaleY },
+          pageDimensions: pageDimensions,
+          displayContext: area.displayContext
+        });
+
+        return {
+          page: area.page,
+          x: pdfX,
+          y: pdfY,
+          width: pdfWidth,
+          height: pdfHeight
+        };
+      });
+
+      this.$emit('positions-set', positions);
+      this.$emit('update:modelValue', false);
+    },
+
+    convertPdfCoordinatesToDisplay() {
+      console.log('Converting PDF coordinates to display coordinates');
+      this.$nextTick(() => {
+        // Get the actual displayed PDF dimensions
+        const pdfElement = document.querySelector('.pdf-embed canvas') || document.querySelector('.pdf-embed');
+        if (!pdfElement) {
+          console.warn('Could not find PDF element for coordinate conversion');
+          return;
+        }
+        
+        const displayedWidth = pdfElement.offsetWidth;
+        const displayedHeight = pdfElement.offsetHeight;
+        console.log('PDF display dimensions:', { width: displayedWidth, height: displayedHeight });
+        
+        this.signatureAreas = this.signatureAreas.map(area => {
+          if (!area.isPdfCoordinates) return area;
+          
+          const pageDimensions = this.pdfPageDimensions[area.page];
+          if (!pageDimensions) {
+            console.warn('No page dimensions for page:', area.page);
+            return area;
+          }
+          
+          // Calculate scale factors
+          const scaleX = displayedWidth / pageDimensions.width;
+          const scaleY = displayedHeight / pageDimensions.height;
+          
+          // Convert PDF coordinates to display coordinates
+          const displayX = area.x * scaleX;
+          const displayY = area.y * scaleY;
+          const displayWidth = area.width * scaleX;
+          const displayHeight = area.height * scaleY;
+          
+          console.log(`Converting area ${area.id}:`, {
+            pdf: { x: area.x, y: area.y, width: area.width, height: area.height },
+            display: { x: displayX, y: displayY, width: displayWidth, height: displayHeight },
+            scales: { x: scaleX, y: scaleY },
+            pageDimensions
+          });
+          
+          return {
+            ...area,
+            x: displayX,
+            y: displayY,
+            width: displayWidth,
+            height: displayHeight,
+            isPdfCoordinates: false
+          };
+        });
+      });
     }
   }
 };

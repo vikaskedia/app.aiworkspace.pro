@@ -168,11 +168,24 @@ async function fetchFormDesignAndIntakes() {
       .single();
     if (designErr) throw designErr;
 
+    const tableColumns = await getTableColumns();
+    const tableColumnsString = formatTableColumns(tableColumns);
+    console.log('tableColumnsString', tableColumnsString);
+
+    const userPrompt = `
+    Here is the Postgres table structure for intake_for_ws_${workspaceId}: 
+    ${tableColumnsString}
+
+Generate a complete form definition with UI design, layout, and styling. 
+Focus on creating a professional intake form with logical grouping of fields.
+return only with valid json strecture. do not include any other text or comments.
+    `;
+
     // If cache_of_empty_form_html is empty, generate and cache it
     if (!designRow.cache_of_empty_form_html) {
-      const prompt = designRow.prompt_to_generate_dynamic_form;
+      // const prompt = designRow.prompt_to_generate_dynamic_form;
       const { data: aiData } = await axios.post('https://app.aiworkspace.pro/api/ai-generate-intake-form', {
-        userPrompt: prompt,
+        userPrompt: userPrompt,
         tableName: 'intake_for_ws_' + workspaceId,
         workspace_id: workspaceId
       });
@@ -190,6 +203,8 @@ async function fetchFormDesignAndIntakes() {
         : designRow.cache_of_empty_form_html;
     }
 
+
+
     // Fetch all intakes
     const { data: allIntakes, error: intakesErr } = await supabase
       .from('intake_for_ws_' + workspaceId)
@@ -203,6 +218,18 @@ async function fetchFormDesignAndIntakes() {
   } finally {
     loading.value = false;
   }
+}
+
+async function getTableColumns() {
+  const { data: tableColumns, error: tableColumnsErr } = await supabase
+    .rpc('get_table_columns', { table_name: 'intake_for_ws_' + workspaceId });
+  console.log('tableColumns', tableColumns);
+  return tableColumns;
+}
+
+function formatTableColumns(tableColumns) {
+  // format tablecolumns as string with comma separated values name and data_type
+  return tableColumns.map(column => column.column_name + ',' + column.data_type).join(',\n');
 }
 
 function copyShareLink(row) {
@@ -295,6 +322,9 @@ async function handleSubmit() {
     // if dob is not set then set it null
     if (!formData.dob) {
       updateObj.dob = null;
+    }
+    if (!formData.cvv_code) {
+      updateObj.cvv_code = null;
     }
     
     const { error: updateErr } = await supabase

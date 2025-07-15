@@ -7200,4 +7200,7 @@ table.editor-table {
     margin: 0;
     line-height: 20px;
 }
+.task-tabs-section .el-tabs__header {
+    margin-bottom: 0;
+}
 </style>

@@ -7193,9 +7193,11 @@ table.editor-table {
   display: flex;
   align-items: center;
 }
+</style>
+
+<style>
 .description-wrapper-compact > p.description > p {
     margin: 0;
     line-height: 20px;
 }
 </style>
-

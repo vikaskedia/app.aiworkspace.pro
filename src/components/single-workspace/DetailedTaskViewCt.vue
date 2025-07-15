@@ -174,13 +174,13 @@
             <div class="child-tasks-header-section-condensed">
               <span class="child-tasks-title">Child Tasks</span>
               <el-button 
-                type="primary" 
+                type="text" 
                 size="small"
                 @click="createChildTaskDialogVisible = true"
                 class="create-child-btn-condensed"
                 :loading="creatingChildTask">
                 <el-icon><Plus /></el-icon>
-                Add
+                Add Child Task
               </el-button>
             </div>
             <div class="child-tasks-table-condensed">

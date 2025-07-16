@@ -189,44 +189,42 @@ async function handleMessageReceived(eventData) {
 
     // Find or create conversation (for 1:1, fallback)
     let conversation = null;
-    if (!groupKey) {
-      let { data: conv, error: convError } = await supabase
+    let { data: conv, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('matter_id', matterId)
+      .eq('from_phone_number', toPhone)
+      .eq('to_phone_number', fromPhone)
+      .single();
+    if (convError && convError.code !== 'PGRST116') {
+      throw convError;
+    }
+    // Create conversation if it doesn't exist
+    if (!conv) {
+      const { data: newConv, error: createError } = await supabase
         .from('conversations')
-        .select('*')
-        .eq('matter_id', matterId)
-        .eq('from_phone_number', toPhone)
-        .eq('to_phone_number', fromPhone)
+        .insert({
+          matter_id: matterId,
+          from_phone_number: toPhone,
+          to_phone_number: fromPhone,
+          contact_name: null,
+          last_message_at: new Date().toISOString(),
+          last_message_preview: previewText.substring(0, 100)
+        })
+        .select()
         .single();
-      if (convError && convError.code !== 'PGRST116') {
-        throw convError;
-      }
-      // Create conversation if it doesn't exist
-      if (!conv) {
-        const { data: newConv, error: createError } = await supabase
-          .from('conversations')
-          .insert({
-            matter_id: matterId,
-            from_phone_number: toPhone,
-            to_phone_number: fromPhone,
-            contact_name: null,
-            last_message_at: new Date().toISOString(),
-            last_message_preview: previewText.substring(0, 100)
-          })
-          .select()
-          .single();
-        if (createError) throw createError;
-        conversation = newConv;
-      } else {
-        // Update existing conversation
-        await supabase
-          .from('conversations')
-          .update({
-            last_message_at: new Date().toISOString(),
-            last_message_preview: previewText.substring(0, 100)
-          })
-          .eq('id', conv.id);
-        conversation = conv;
-      }
+      if (createError) throw createError;
+      conversation = newConv;
+    } else {
+      // Update existing conversation
+      await supabase
+        .from('conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_preview: previewText.substring(0, 100)
+        })
+        .eq('id', conv.id);
+      conversation = conv;
     }
 
     // Create message record (always)

@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS group_conversations (
     participants TEXT[],
     last_message_at TIMESTAMP,
     last_message_preview TEXT,
-    matter_id UUID,
+    matter_id int8,
     created_at TIMESTAMP DEFAULT now()
 ); 

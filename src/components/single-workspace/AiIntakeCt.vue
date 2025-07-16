@@ -170,13 +170,9 @@ const pageTitle = ref('');
 const intakes = ref([]); // All rows from intake_for_ws_19
 const tableColumnNames = ref([]); // Store column names for dynamic table columns
 
-// 1. On page load, fetch the form design and all intakes
-async function fetchFormDesignAndIntakes() {
-  loading.value = true;
-  error.value = null;
-  try {
-    // Fetch the design row
-    let { data: designRow, error: designErr } = await supabase
+async function fetchFormDesign() {
+   // Fetch the design row
+   let { data: designRow, error: designErr } = await supabase
       .from('intake_form_design_for_ws')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -218,31 +214,20 @@ return only with valid json strecture. do not include any other text or comments
         : designRow.cache_of_empty_form_html;
     }
 
-    // Fetch all short urls
-    const { data: shortUrls, error: shortUrlsErr } = await supabase
-      .from('intake_short_urls')
-      .select('*')
-      .like('actual_url', '/intake-share/' + workspaceId + '_%');
-    if (shortUrlsErr) throw shortUrlsErr;
-    shortUrls.value = shortUrls || [];
-    console.log('shortUrls', shortUrls);
+}
 
-    // Fetch all intakes
-    const { data: allIntakes, error: intakesErr } = await supabase
-      .from('intake_for_ws_' + workspaceId)
-      .select('*')
-      .order('added_on', { ascending: false });
-    if (intakesErr) throw intakesErr;
 
-    // add short url to each intake if it exists
-    allIntakes.forEach(intake => {
-      const shortUrl = shortUrls.find(shortUrl => shortUrl.intake_row_uuid === intake.server_side_row_uuid);
-      if (shortUrl) {
-        intake.short_url = shortUrl.short_id;
-      }
-    });
-    //console.log('allIntakes', allIntakes);
-    intakes.value = allIntakes || [];
+// 1. On page load, fetch the form design and all intakes
+async function fetchFormDesignAndIntakes() {
+  loading.value = true;
+  error.value = null;
+  try {
+    // Fetch form design
+    await fetchFormDesign();
+
+    // Fetch all intakes with short urls
+    await fetchIntakes();
+
   } catch (err) {
     error.value = err.message || 'Failed to load form design or intakes';
     formDefinition.value = null;

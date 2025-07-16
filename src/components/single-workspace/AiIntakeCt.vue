@@ -40,7 +40,7 @@
           {{ formatDate(row.added_on) }}
         </template>
       </el-table-column>
-      <el-table-column label="Actions" width="120">
+      <el-table-column label="Actions" width="210">
         <template #default="{ row }">
             <el-button size="small" @click="openIntake(row)">Open</el-button>
             <el-button size="small" @click="copyShareLink(row)">Copy Share Link</el-button>

@@ -180,14 +180,12 @@ async function fetchFormDesignAndIntakes() {
     const tableColumnsString = formatTableColumns(tableColumns);
     console.log('tableColumnsString', tableColumnsString);
 
-    const userPrompt = `
-    Here is the Postgres table structure for intake_for_ws_${workspaceId}: 
-    ${tableColumnsString}
+    const userPrompt = `Here is the Postgres table structure for intake_for_ws_${workspaceId}: 
+${tableColumnsString}
 
 Generate a complete form definition with UI design, layout, and styling. 
 Focus on creating a professional intake form with logical grouping of fields.
-return only with valid json strecture. do not include any other text or comments.
-    `;
+return only with valid json strecture. do not include any other text or comments.`;
 
     // If cache_of_empty_form_html is empty, generate and cache it
     if (!designRow.cache_of_empty_form_html) {

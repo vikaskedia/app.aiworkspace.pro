@@ -108,9 +108,36 @@ export default async function handler(req, res) {
       }
     })
 
+    // Fetch group conversations for the matter
+    const { data: groupConversations, error: groupError } = await supabase
+      .from('group_conversations')
+      .select('*')
+      .eq('matter_id', matterId)
+      .order('last_message_at', { ascending: false })
+
+    if (groupError) {
+      console.error('Error fetching group conversations:', groupError)
+      // Continue without group conversations if there's an error
+    }
+
+    console.log('Found group conversations:', groupConversations?.length || 0)
+
+    // Transform group conversations to match frontend format
+    const transformedGroupConversations = (groupConversations || []).map(groupConv => {
+      return {
+        id: groupConv.group_key, // Use group_key as ID for frontend
+        participants: groupConv.participants || [],
+        lastMessage: groupConv.last_message_preview || '',
+        lastMessageTime: groupConv.last_message_at || groupConv.created_at,
+        type: 'group',
+        messages: [] // Will be loaded separately when selected
+      }
+    })
+
     return res.status(200).json({
       success: true,
-      conversations: transformedConversations
+      conversations: transformedConversations,
+      groupConversations: transformedGroupConversations
     })
 
   } catch (error) {

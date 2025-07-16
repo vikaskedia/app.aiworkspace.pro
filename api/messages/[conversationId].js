@@ -28,12 +28,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Conversation ID is required' })
     }
 
-    // Fetch messages for the conversation
-    const { data: messages, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+    // Determine if this is a group conversation (group_key) or regular conversation
+    // Group keys are formatted as phone numbers joined by dashes (e.g., "+1234-+5678-+9012")
+    const isGroupConversation = conversationId.includes('-') && conversationId.includes('+')
+    
+    let messages
+    let error
+    
+    if (isGroupConversation) {
+      // Fetch messages by group_key
+      console.log('Fetching group messages for group_key:', conversationId)
+      const result = await supabase
+        .from('messages')
+        .select('*')
+        .eq('group_key', conversationId)
+        .order('created_at', { ascending: true })
+      messages = result.data
+      error = result.error
+    } else {
+      // Fetch messages by conversation_id (existing logic)
+      console.log('Fetching 1:1 messages for conversation_id:', conversationId)
+      const result = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+      messages = result.data
+      error = result.error
+    }
 
     if (error) throw error
 

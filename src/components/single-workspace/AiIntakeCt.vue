@@ -375,17 +375,12 @@ async function handleSubmit() {
       });
     });
 
-    // if dob is not set then set it null
-    if (!formData.dob) {
-      updateObj.dob = null;
-    }
-    if (!formData.cc_cvv) {
-      updateObj.cc_cvv = null;
-    }
-
-    if (!formData.cc_number) {
-      updateObj.cc_number = null;
-    }
+    // if field is empty then set it null
+    Object.keys(updateObj).forEach(key => {
+      if (updateObj[key] === '') {
+        updateObj[key] = null;
+      }
+    });
     
     const { error: updateErr } = await supabase
       .from('intake_for_ws_' + workspaceId)

@@ -163,14 +163,14 @@ async function handleMessageReceived(eventData) {
 
     // --- GROUP MESSAGE LOGIC ---
     let groupKey = null;
-    //if (Array.isArray(cc) && cc.length > 1 && fromPhone) {
+    if (Array.isArray(cc) && cc.length > 1 && fromPhone) {
       // Compute group key
       const groupNumbers = Array.from(new Set([fromPhone, ...cc])).sort();
       groupKey = groupNumbers.join('-');
       // Upsert group_conversations
       const { error: groupConvError } = await supabase
         .from('group_conversations')
-        .insert([
+        .upsert([
           {
             group_key: groupKey,
             participants: groupNumbers,
@@ -178,11 +178,13 @@ async function handleMessageReceived(eventData) {
             last_message_preview: previewText.substring(0, 100),
             matter_id: matterId
           }
-        ], { onConflict: 'group_key' });
+        ], { onConflict: 'group_key'});
       if (groupConvError) {
         console.error('Error upserting group_conversations:', groupConvError);
       }
-    //}
+    }else{
+      console.log('No group key found', 'cc', cc, 'fromPhone', fromPhone);
+    }
     // --- END GROUP MESSAGE LOGIC ---
 
     // Find or create conversation (for 1:1, fallback)

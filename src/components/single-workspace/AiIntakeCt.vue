@@ -22,10 +22,16 @@
       style="width: 100%"
       class="mb-4"
     >
-      <el-table-column prop="first_name" label="First Name" />
-      <el-table-column prop="last_name" label="Last Name" />
-      <el-table-column prop="email" label="Email" />
-      <el-table-column prop="added_on" label="Created" />
+     
+      <!-- <el-table-column prop="added_on" label="Created" /> -->
+      
+      <!-- Dynamic columns for 4th, 5th, 6th fields -->
+      <el-table-column
+        v-for="col in tableColumnNames.slice(3, 6)"
+        :key="col"
+        :prop="col"
+        :label="col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())"
+      />
       <el-table-column label="Actions" width="120">
         <template #default="{ row }">
             <el-button size="small" @click="openIntake(row)">Open</el-button>
@@ -154,6 +160,7 @@ const showJson = ref(false);
 const currentIntakeRow = ref(null); // The current row from intake_for_ws_19
 
 const intakes = ref([]); // All rows from intake_for_ws_19
+const tableColumnNames = ref([]); // Store column names for dynamic table columns
 
 // 1. On page load, fetch the form design and all intakes
 async function fetchFormDesignAndIntakes() {
@@ -169,6 +176,7 @@ async function fetchFormDesignAndIntakes() {
     if (designErr) throw designErr;
 
     const tableColumns = await getTableColumns();
+    tableColumnNames.value = tableColumns.map(col => col.column_name); // Set column names
     const tableColumnsString = formatTableColumns(tableColumns);
     console.log('tableColumnsString', tableColumnsString);
 

@@ -221,6 +221,12 @@ async function handleSubmit() {
     if (!formData.dob) {
       updateObj.dob = null;
     }
+    if (!formData.cvv_code) {
+      updateObj.cvv_code = null;
+    }
+    if (!formData.credit_card_number) {
+      updateObj.credit_card_number = null;
+    }
     
     const { error: updateErr } = await supabase
       .from('intake_for_ws_' + workspaceId)

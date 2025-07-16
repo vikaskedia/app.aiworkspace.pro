@@ -23,7 +23,7 @@
       class="mb-4"
     >
      
-      <!-- <el-table-column prop="added_on" label="Created" /> -->
+      
       
       <!-- Dynamic columns for 4th, 5th, 6th fields -->
       <el-table-column
@@ -32,6 +32,14 @@
         :prop="col"
         :label="col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())"
       />
+      <el-table-column
+        prop="added_on"
+        label="Created"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.added_on) }}
+        </template>
+      </el-table-column>
       <el-table-column label="Actions" width="120">
         <template #default="{ row }">
             <el-button size="small" @click="openIntake(row)">Open</el-button>
@@ -464,6 +472,13 @@ function getInputClass(field) {
     classes.push('has-validation');
   }
   return classes.join(' ');
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); // You can customize the format if needed
 }
 
 onMounted(fetchFormDesignAndIntakes);

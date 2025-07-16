@@ -1,6 +1,6 @@
 <template>
   <div class="ai-intake-ct">
-    <h2>Patient Intake Forms</h2>
+    <h2>{{ pageTitle }}</h2>
 
     <!-- Controls -->
     <div class="controls mb-3">
@@ -166,7 +166,7 @@ const formDefinition = ref(null); // The JSON structure for the form
 const formData = reactive({}); // The data for the current intake row
 const showJson = ref(false);
 const currentIntakeRow = ref(null); // The current row from intake_for_ws_19
-
+const pageTitle = ref('');
 const intakes = ref([]); // All rows from intake_for_ws_19
 const tableColumnNames = ref([]); // Store column names for dynamic table columns
 
@@ -182,6 +182,7 @@ async function fetchFormDesignAndIntakes() {
       .eq('workspace_id', workspaceId)
       .single();
     if (designErr) throw designErr;
+    pageTitle.value = designRow.title;
 
     const tableColumns = await getTableColumns();
     tableColumnNames.value = tableColumns.map(col => col.column_name); // Set column names

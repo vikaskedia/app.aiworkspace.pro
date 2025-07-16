@@ -10,7 +10,7 @@
 
     <div v-else-if="formDefinition" class="form-container">
       <div class="form-header" :style="formHeaderStyle">
-        <h2>{{ formDefinition.title || 'Patient Intake Form' }}</h2>
+        <h2>{{ formTitle || 'Patient Intake Form' }}</h2>
         <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
       </div>
 
@@ -107,6 +107,7 @@ async function loadIntakeForm() {
       .select('*')
       .eq('workspace_id', workspaceId)
       .single();
+      const pageTitle = designData.title;
 
     if (designError) {
       error.value = 'Intake form design not found';
@@ -116,7 +117,7 @@ async function loadIntakeForm() {
     if (designData) {
       console.log('designData', designData);
       formDefinition.value = designData.cache_of_empty_form_html;
-      formTitle.value = 'Intake Form';
+      formTitle.value = pageTitle;
       console.log('formDefinition', formDefinition.value);
     }
 

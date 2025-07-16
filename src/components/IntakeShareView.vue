@@ -98,8 +98,10 @@ const submitted = ref(false);
 const realtimeSubscription = ref(null);
 
 async function loadIntakeForm() {
-  const workspaceId = route.params.workspaceId;
-  const shareId = route.params.shareId;
+  // const workspaceId = route.params.workspaceId;
+  const formId = route.params.shareId;
+  const workspaceId = formId.split('_')[0];
+  const shareId = formId.split('_')[1];
   
   try {
     const { data: designData, error: designError } = await supabase

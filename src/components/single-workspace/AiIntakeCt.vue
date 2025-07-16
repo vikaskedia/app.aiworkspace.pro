@@ -187,7 +187,7 @@ async function fetchFormDesignAndIntakes() {
     const tableColumns = await getTableColumns();
     tableColumnNames.value = tableColumns.map(col => col.column_name); // Set column names
     const tableColumnsString = formatTableColumns(tableColumns);
-    console.log('tableColumnsString', tableColumnsString);
+    //console.log('tableColumnsString', tableColumnsString);
 
     const userPrompt = `Here is the Postgres table structure for intake_for_ws_${workspaceId}: 
 ${tableColumnsString}
@@ -218,7 +218,14 @@ return only with valid json strecture. do not include any other text or comments
         : designRow.cache_of_empty_form_html;
     }
 
-
+    // Fetch all short urls
+    const { data: shortUrls, error: shortUrlsErr } = await supabase
+      .from('intake_short_urls')
+      .select('*')
+      .like('actual_url', '/intake-share/' + workspaceId + '_%');
+    if (shortUrlsErr) throw shortUrlsErr;
+    shortUrls.value = shortUrls || [];
+    console.log('shortUrls', shortUrls);
 
     // Fetch all intakes
     const { data: allIntakes, error: intakesErr } = await supabase
@@ -226,6 +233,15 @@ return only with valid json strecture. do not include any other text or comments
       .select('*')
       .order('added_on', { ascending: false });
     if (intakesErr) throw intakesErr;
+
+    // add short url to each intake if it exists
+    allIntakes.forEach(intake => {
+      const shortUrl = shortUrls.find(shortUrl => shortUrl.intake_row_uuid === intake.server_side_row_uuid);
+      if (shortUrl) {
+        intake.short_url = shortUrl.short_id;
+      }
+    });
+    //console.log('allIntakes', allIntakes);
     intakes.value = allIntakes || [];
   } catch (err) {
     error.value = err.message || 'Failed to load form design or intakes';
@@ -238,7 +254,7 @@ return only with valid json strecture. do not include any other text or comments
 async function getTableColumns() {
   const { data: tableColumns, error: tableColumnsErr } = await supabase
     .rpc('get_table_columns', { table_name: 'intake_for_ws_' + workspaceId });
-  console.log('tableColumns', tableColumns);
+  // console.log('tableColumns', tableColumns);
   return tableColumns;
 }
 
@@ -248,10 +264,18 @@ function formatTableColumns(tableColumns) {
 }
 
 function copyShareLink(row) {
-  const link = `${window.location.origin}/intake-share/${workspaceId}/${row.server_side_row_uuid}`;
-  navigator.clipboard.writeText(link);
+  // const share_url = `/intake-share/${workspaceId}_${row.server_side_row_uuid}`;
+  const short_url = `${window.location.origin}/${row.short_url}`;
+  navigator.clipboard.writeText(short_url);
   ElMessage.success('Share link copied!');
 }
+
+function generateShortUrl() {
+  // generate short url like i/aB3dE9
+  const shortUrl = 'i/' + Math.random().toString(36).substring(2, 15);
+  return shortUrl;
+}
+
 // 2. On 'New Intake' click, create a new row and open the form
 async function generateForm() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -266,6 +290,18 @@ async function generateForm() {
       .single();
     if (insertErr) throw insertErr;
 
+    const share_url = `/intake-share/${workspaceId}_${insertData.server_side_row_uuid}`;
+    const shortUrl = generateShortUrl();
+    const { data: shortUrlData, error: shortUrlErr } = await supabase
+      .from('intake_short_urls')
+      .insert({ short_id: shortUrl, actual_url : share_url, intake_row_uuid: insertData.server_side_row_uuid })
+      .select()
+      .single();
+    if (shortUrlErr) throw shortUrlErr; 
+    if (shortUrlData) {
+      insertData.short_url = shortUrlData.short_url;
+    }
+    
     await loadIntakeRow(insertData.server_side_row_uuid);
     await fetchIntakes();
     ElMessage.success('New intake started!');
@@ -282,6 +318,26 @@ async function fetchIntakes() {
     .from('intake_for_ws_' + workspaceId)
     .select('*')
     .order('added_on', { ascending: false });
+
+    // Fetch all short urls
+    const { data: shortUrls, error: shortUrlsErr } = await supabase
+      .from('intake_short_urls')
+      .select('*')
+      .like('actual_url', '/intake-share/' + workspaceId + '_%');
+    if (shortUrlsErr) throw shortUrlsErr;
+    // shortUrls.value = shortUrls || [];
+    // console.log('shortUrls', shortUrls);
+
+
+    // add short url to each intake if it exists
+    allIntakes.forEach(intake => {
+      const shortUrl = shortUrls.find(shortUrl => shortUrl.intake_row_uuid === intake.server_side_row_uuid);
+      if (shortUrl) {
+        intake.short_url = shortUrl.short_id;
+      }
+    });
+
+
   if (!intakesErr) intakes.value = allIntakes || [];
 }
 
@@ -338,11 +394,12 @@ async function handleSubmit() {
     if (!formData.dob) {
       updateObj.dob = null;
     }
-    if (!formData.cvv_code) {
-      updateObj.cvv_code = null;
+    if (!formData.cc_cvv) {
+      updateObj.cc_cvv = null;
     }
-    if (!formData.credit_card_number) {
-      updateObj.credit_card_number = null;
+
+    if (!formData.cc_number) {
+      updateObj.cc_number = null;
     }
     
     const { error: updateErr } = await supabase

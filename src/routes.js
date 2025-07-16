@@ -218,9 +218,15 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/intake-share/:workspaceId/:shareId',
+    path: '/intake-share/:shareId', 
     name: 'IntakeShareView',
     component: () => import('./components/IntakeShareView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/i/:shortId',
+    name: 'IntakeShareViewShort',
+    component: () => import('./components/IntakeShareShortView.vue'),
     meta: { requiresAuth: false }
   },
   {

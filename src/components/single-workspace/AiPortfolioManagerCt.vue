@@ -102,19 +102,62 @@
               <!-- Debug Info -->
               <div v-if="expandedDebug.has(result.id)" class="debug-info">
                 <div class="debug-section">
-                  <h5>System Prompt Used:</h5>
-                  <div class="debug-prompt">{{ result.system_prompt }}</div>
-                </div>
-                <div class="debug-section">
-                  <h5>Spreadsheet Data Snapshot:</h5>
-                  <div class="debug-data">{{ formatSpreadsheetDebug(result.spreadsheet_data) }}</div>
-                </div>
-                <div class="debug-section">
-                  <h5>Request Details:</h5>
+                  <h5>🤖 AI Request Details</h5>
                   <div class="debug-details">
-                    <p><strong>Created:</strong> {{ formatDate(result.created_at) }}</p>
-                    <p><strong>Analysis ID:</strong> {{ result.id }}</p>
+                    <p><strong>Request ID:</strong> {{ result.id }}</p>
+                    <p><strong>Timestamp:</strong> {{ formatDate(result.created_at) }}</p>
                     <p><strong>Matter ID:</strong> {{ result.matter_id }}</p>
+                    <p><strong>AI Model:</strong> {{ result.ai_model || 'GPT-4 (default)' }}</p>
+                    <p><strong>Request Status:</strong> <span class="status-success">✓ Completed</span></p>
+                  </div>
+                </div>
+                
+                <div class="debug-section">
+                  <h5>📝 System Prompt Sent to AI</h5>
+                  <div class="debug-prompt">{{ result.system_prompt }}</div>
+                  <div class="prompt-meta">
+                    <small>Character count: {{ result.system_prompt.length }} | Word count: {{ result.system_prompt.split(' ').length }}</small>
+                  </div>
+                </div>
+                
+                <div class="debug-section">
+                  <h5>📊 Spreadsheet Data Payload</h5>
+                  <div class="debug-data">{{ formatDetailedSpreadsheetData(result.spreadsheet_data) }}</div>
+                  <div class="data-meta">
+                    <small>
+                      Columns: {{ result.spreadsheet_data?.columns?.length || 0 }} | 
+                      Rows: {{ result.spreadsheet_data?.data?.length || 0 }} | 
+                      Total cells: {{ (result.spreadsheet_data?.columns?.length || 0) * (result.spreadsheet_data?.data?.length || 0) }}
+                    </small>
+                  </div>
+                </div>
+                
+                <!--div class="debug-section">
+                  <h5>🔄 Raw JSON Payload Sent to AI</h5>
+                  <div class="debug-json">{{ formatAIRequestPayload(result) }}</div>
+                </div-->
+                
+                <div class="debug-section">
+                  <h5>💬 AI Response Data</h5>
+                  <div class="debug-response">
+                    <div class="response-stats">
+                      <small>
+                        Response length: {{ result.ai_response.length }} characters | 
+                        Words: {{ result.ai_response.split(' ').length }} | 
+                        Lines: {{ result.ai_response.split('\n').length }}
+                      </small>
+                    </div>
+                    <div class="response-content">{{ result.ai_response }}</div>
+                  </div>
+                </div>
+                
+                <div class="debug-section">
+                  <h5>⚡ Performance Metrics</h5>
+                  <div class="debug-details">
+                    <p><strong>Processing Time:</strong> {{ result.processing_time || 'N/A' }}</p>
+                    <p><strong>Token Usage:</strong> {{ result.token_usage || 'N/A' }}</p>
+                    <p><strong>Cost Estimate:</strong> {{ result.cost_estimate || 'N/A' }}</p>
+                    <p><strong>API Endpoint:</strong> https://app.aiworkspace.pro/api/ai-portfolio-analysis</p>
                   </div>
                 </div>
               </div>
@@ -646,6 +689,69 @@ export default {
       return formatted;
     };
 
+    const formatDetailedSpreadsheetData = (spreadsheetData) => {
+      if (!spreadsheetData || !spreadsheetData.columns || !spreadsheetData.data) {
+        return 'No data available';
+      }
+      
+      const { columns, data } = spreadsheetData;
+      let formatted = `=== SPREADSHEET STRUCTURE ===\n`;
+      formatted += `Total Columns: ${columns.length}\n`;
+      formatted += `Total Rows: ${data.length}\n`;
+      formatted += `Total Data Points: ${columns.length * data.length}\n\n`;
+      
+      // Column definitions
+      formatted += `=== COLUMN DEFINITIONS ===\n`;
+      columns.forEach((col, index) => {
+        formatted += `Column ${index + 1}:\n`;
+        formatted += `  - Label: "${col.label}"\n`;
+        formatted += `  - Key: "${col.key}"\n`;
+        formatted += `  - Type: text\n\n`;
+      });
+      
+      // All data (not just sample)
+      formatted += `=== COMPLETE DATA SET ===\n`;
+      if (data.length === 0) {
+        formatted += 'No data rows\n';
+      } else {
+        // Header row
+        formatted += 'ROW | ';
+        columns.forEach(col => {
+          formatted += `${col.label.padEnd(15)} | `;
+        });
+        formatted += '\n';
+        formatted += '----+';
+        columns.forEach(() => {
+          formatted += '-----------------+';
+        });
+        formatted += '\n';
+        
+        // Data rows
+        data.forEach((row, rowIndex) => {
+          formatted += `${String(rowIndex + 1).padStart(3)} | `;
+          columns.forEach(col => {
+            const value = row[col.key] || '';
+            formatted += `${String(value).padEnd(15)} | `;
+          });
+          formatted += '\n';
+        });
+      }
+      
+      return formatted;
+    };
+
+    const formatAIRequestPayload = (result) => {
+      const payload = {
+        systemPrompt: result.system_prompt,
+        spreadsheetData: result.spreadsheet_data,
+        matterId: result.matter_id,
+        timestamp: result.created_at,
+        requestId: result.id
+      };
+      
+      return JSON.stringify(payload, null, 2);
+    };
+
     // Watch portfolioData to convert object data to array format for Handsontable
     const handsontableData = computed(() => {
       if (!columns.value.length) return [];
@@ -712,7 +818,9 @@ export default {
       truncateText,
       formatResponse,
       toggleDebug,
-      formatSpreadsheetDebug
+      formatSpreadsheetDebug,
+      formatDetailedSpreadsheetData,
+      formatAIRequestPayload
     };
   }
 };
@@ -949,22 +1057,31 @@ export default {
 }
 
 .debug-section {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 16px;
 }
 
 .debug-section:last-child {
   margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .debug-section h5 {
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   color: #1a73e8;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .debug-prompt,
-.debug-data {
+.debug-data,
+.debug-json,
+.debug-response .response-content {
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -976,6 +1093,44 @@ export default {
   color: #202124;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.debug-json {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  color: #5f6368;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.prompt-meta,
+.data-meta,
+.response-stats {
+  margin-top: 8px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  color: #5f6368;
+  font-size: 11px;
+}
+
+.status-success {
+  color: #137333;
+  font-weight: 600;
+}
+
+.debug-response {
+  margin-top: 8px;
+}
+
+.response-stats {
+  margin-bottom: 8px;
 }
 
 .debug-details p {

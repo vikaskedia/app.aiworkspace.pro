@@ -147,10 +147,40 @@
             >
               <div class="result-header">
                 <span class="result-date">{{ formatDate(result.created_at) }}</span>
-                <el-button size="small" @click="viewAnalysis(result)">View</el-button>
+                <div class="result-actions">
+                  <el-button 
+                    size="small" 
+                    type="info" 
+                    @click="toggleDebug(result.id)"
+                    :icon="Setting"
+                  >
+                    Debug
+                  </el-button>
+                  <el-button size="small" @click="viewAnalysis(result)">View</el-button>
+                </div>
               </div>
               <div class="result-preview">
                 {{ truncateText(result.ai_response, 150) }}
+              </div>
+              
+              <!-- Debug Info -->
+              <div v-if="expandedDebug.has(result.id)" class="debug-info">
+                <div class="debug-section">
+                  <h5>System Prompt Used:</h5>
+                  <div class="debug-prompt">{{ result.system_prompt }}</div>
+                </div>
+                <div class="debug-section">
+                  <h5>Spreadsheet Data Snapshot:</h5>
+                  <div class="debug-data">{{ formatSpreadsheetDebug(result.spreadsheet_data) }}</div>
+                </div>
+                <div class="debug-section">
+                  <h5>Request Details:</h5>
+                  <div class="debug-details">
+                    <p><strong>Created:</strong> {{ formatDate(result.created_at) }}</p>
+                    <p><strong>Analysis ID:</strong> {{ result.id }}</p>
+                    <p><strong>Matter ID:</strong> {{ result.matter_id }}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -267,6 +297,7 @@ export default {
     const analysisResults = ref([]);
     const showAnalysisDialog = ref(false);
     const selectedAnalysis = ref(null);
+    const expandedDebug = ref(new Set());
 
     const initializePortfolio = async () => {
       // Create default columns
@@ -625,6 +656,44 @@ export default {
       return response.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     };
 
+    const toggleDebug = (resultId) => {
+      if (expandedDebug.value.has(resultId)) {
+        expandedDebug.value.delete(resultId);
+      } else {
+        expandedDebug.value.add(resultId);
+      }
+    };
+
+    const formatSpreadsheetDebug = (spreadsheetData) => {
+      if (!spreadsheetData || !spreadsheetData.columns || !spreadsheetData.data) {
+        return 'No data available';
+      }
+      
+      const { columns, data } = spreadsheetData;
+      let formatted = `Columns: ${columns.length}, Rows: ${data.length}\n\n`;
+      
+      // Show column structure
+      formatted += 'Column Structure:\n';
+      columns.forEach((col, index) => {
+        formatted += `  ${index + 1}. ${col.label} (${col.key})\n`;
+      });
+      
+      // Show sample data (first 3 rows)
+      if (data.length > 0) {
+        formatted += '\nSample Data (first 3 rows):\n';
+        const sampleData = data.slice(0, 3);
+        sampleData.forEach((row, index) => {
+          formatted += `  Row ${index + 1}: `;
+          columns.forEach(col => {
+            formatted += `${col.label}="${row[col.key] || ''}" `;
+          });
+          formatted += '\n';
+        });
+      }
+      
+      return formatted;
+    };
+
     onMounted(() => {
       loadPortfolio();
       loadAnalysisResults();
@@ -644,6 +713,7 @@ export default {
       analysisResults,
       showAnalysisDialog,
       selectedAnalysis,
+      expandedDebug,
       initializePortfolio,
       addRow,
       removeRow,
@@ -662,7 +732,9 @@ export default {
       viewAnalysis,
       formatDate,
       truncateText,
-      formatResponse
+      formatResponse,
+      toggleDebug,
+      formatSpreadsheetDebug
     };
   }
 };
@@ -1098,10 +1170,64 @@ export default {
   font-weight: 500;
 }
 
+.result-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .result-preview {
   color: #3c4043;
   font-size: 14px;
   line-height: 1.4;
+}
+
+/* Debug Information Styles */
+.debug-info {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.debug-section {
+  margin-bottom: 16px;
+}
+
+.debug-section:last-child {
+  margin-bottom: 0;
+}
+
+.debug-section h5 {
+  margin: 0 0 8px 0;
+  color: #1a73e8;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.debug-prompt,
+.debug-data {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: #202124;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-details p {
+  margin: 4px 0;
+  color: #3c4043;
+}
+
+.debug-details strong {
+  color: #1a73e8;
 }
 
 /* Dialog Content */
@@ -1183,8 +1309,26 @@ export default {
     gap: 8px;
   }
 
+  .result-actions {
+    align-self: stretch;
+    justify-content: center;
+  }
+
   .result-date {
     order: 2;
+    align-self: flex-start;
+  }
+
+  .debug-info {
+    padding: 12px;
+    font-size: 12px;
+  }
+
+  .debug-prompt,
+  .debug-data {
+    font-size: 11px;
+    padding: 8px;
+    max-height: 150px;
   }
 }
 </style> 

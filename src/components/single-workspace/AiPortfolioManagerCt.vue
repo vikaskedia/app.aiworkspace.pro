@@ -547,7 +547,7 @@ export default {
         };
 
         // Make API call to ChatGPT (you'll need to implement this endpoint)
-        const response = await fetch('/api/ai-portfolio-analysis', {
+        const response = await fetch('https://app.aiworkspace.pro/api/ai-portfolio-analysis', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

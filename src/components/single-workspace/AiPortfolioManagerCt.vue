@@ -3,6 +3,9 @@
     <div class="header">
       <h2>AI Portfolio Manager</h2>
       <div class="header-actions">
+        <el-button @click="showSystemPromptDialog = true" :icon="Setting" title="Configure AI Analysis">
+          Settings
+        </el-button>
         <el-button type="info" @click="savePortfolio" :loading="saving" :icon="Check">
           {{ saving ? 'Saving...' : 'Save Portfolio' }}
         </el-button>
@@ -98,7 +101,89 @@
           </div>
         </div>
       </div>
+
+      <!-- AI Analysis Section -->
+      <div class="ai-analysis-section">
+        <div class="analysis-header">
+          <h3>AI Analysis</h3>
+          <el-button 
+            type="primary" 
+            @click="runAIAnalysis" 
+            :loading="runningAnalysis"
+            :disabled="!systemPrompt.trim() || columns.length === 0"
+          >
+            {{ runningAnalysis ? 'Analyzing...' : 'Run Analysis' }}
+          </el-button>
+        </div>
+
+        <!-- No Data Message -->
+        <div v-if="columns.length === 0" class="no-data-message">
+          <el-alert 
+            type="info" 
+            title="No Portfolio Data" 
+            description="Create your portfolio spreadsheet first, then configure a system prompt to run AI analysis."
+            :closable="false"
+          />
+        </div>
+
+        <!-- No System Prompt Message -->
+        <div v-else-if="!systemPrompt.trim()" class="no-prompt-message">
+          <el-alert 
+            type="warning" 
+            title="No System Prompt Configured" 
+            description="Click the Settings button to configure an AI analysis prompt before running analysis."
+            :closable="false"
+          />
+        </div>
+
+        <!-- Analysis Results -->
+        <div v-if="analysisResults.length > 0" class="analysis-results">
+          <h4>Analysis History</h4>
+          <div class="results-list">
+            <div 
+              v-for="result in analysisResults" 
+              :key="result.id"
+              class="result-item"
+            >
+              <div class="result-header">
+                <span class="result-date">{{ formatDate(result.created_at) }}</span>
+                <el-button size="small" @click="viewAnalysis(result)">View</el-button>
+              </div>
+              <div class="result-preview">
+                {{ truncateText(result.ai_response, 150) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- System Prompt Dialog -->
+    <el-dialog
+      v-model="showSystemPromptDialog"
+      title="Configure AI Analysis Prompt"
+      width="600px"
+    >
+      <el-form label-width="120px">
+        <el-form-item label="System Prompt">
+          <el-input
+            v-model="systemPrompt"
+            type="textarea"
+            :rows="8"
+            placeholder="Enter the system prompt for AI analysis of your portfolio data..."
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-text type="info" size="small">
+            This prompt will be sent to ChatGPT along with your spreadsheet data for analysis.
+          </el-text>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSystemPromptDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="saveSystemPrompt">Save Prompt</el-button>
+      </template>
+    </el-dialog>
 
     <!-- Add Column Dialog -->
     <el-dialog
@@ -118,12 +203,34 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- View Analysis Dialog -->
+    <el-dialog
+      v-model="showAnalysisDialog"
+      title="AI Analysis Result"
+      width="800px"
+    >
+      <div v-if="selectedAnalysis" class="analysis-content">
+        <div class="analysis-meta">
+          <p><strong>Date:</strong> {{ formatDate(selectedAnalysis.created_at) }}</p>
+          <p><strong>System Prompt:</strong></p>
+          <div class="prompt-box">{{ selectedAnalysis.system_prompt }}</div>
+        </div>
+        <div class="analysis-response">
+          <p><strong>AI Response:</strong></p>
+          <div class="response-box" v-html="formatResponse(selectedAnalysis.ai_response)"></div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showAnalysisDialog = false">Close</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { ref, reactive, onMounted } from 'vue';
-import { Plus, Document, Delete, Check } from '@element-plus/icons-vue';
+import { Plus, Document, Delete, Check, Setting } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { supabase } from '../../supabase.js';
 import { useMatterStore } from '../../store/matter';
@@ -135,7 +242,8 @@ export default {
     Plus,
     Document,
     Delete,
-    Check
+    Check,
+    Setting
   },
   setup() {
     const matterStore = useMatterStore();
@@ -151,6 +259,14 @@ export default {
     const newColumn = reactive({
       label: ''
     });
+
+    // AI Analysis variables
+    const showSystemPromptDialog = ref(false);
+    const systemPrompt = ref('');
+    const runningAnalysis = ref(false);
+    const analysisResults = ref([]);
+    const showAnalysisDialog = ref(false);
+    const selectedAnalysis = ref(null);
 
     const initializePortfolio = async () => {
       // Create default columns
@@ -251,6 +367,7 @@ export default {
         if (data) {
           columns.value = data.columns || [];
           portfolioData.value = data.data || [];
+          systemPrompt.value = data.system_prompt || '';
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -271,6 +388,7 @@ export default {
           matter_id: currentMatter.value.id,
           columns: columns.value,
           data: portfolioData.value,
+          system_prompt: systemPrompt.value,
           created_by: user.id,
           updated_by: user.id
         };
@@ -380,8 +498,136 @@ export default {
       console.log('Column menu for:', columnKey);
     };
 
+    // AI Analysis functions
+    const saveSystemPrompt = async () => {
+      if (!currentMatter.value?.id) return;
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const promptRecord = {
+          matter_id: currentMatter.value.id,
+          columns: columns.value,
+          data: portfolioData.value,
+          system_prompt: systemPrompt.value,
+          created_by: user.id,
+          updated_by: user.id
+        };
+
+        const { error } = await supabase
+          .from('portfolio_data')
+          .upsert(promptRecord, {
+            onConflict: 'matter_id'
+          });
+
+        if (error) throw error;
+        
+        ElMessage.success('System prompt saved successfully!');
+        showSystemPromptDialog.value = false;
+      } catch (error) {
+        console.error('Error saving system prompt:', error);
+        ElMessage.error('Failed to save system prompt: ' + error.message);
+      }
+    };
+
+    const runAIAnalysis = async () => {
+      if (!systemPrompt.value.trim() || !currentMatter.value?.id || columns.value.length === 0) {
+        ElMessage.warning('Please ensure you have portfolio data and a system prompt configured.');
+        return;
+      }
+      
+      runningAnalysis.value = true;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Prepare spreadsheet data for AI
+        const spreadsheetData = {
+          columns: columns.value,
+          data: portfolioData.value
+        };
+
+        // Make API call to ChatGPT (you'll need to implement this endpoint)
+        const response = await fetch('/api/ai-portfolio-analysis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            systemPrompt: systemPrompt.value,
+            spreadsheetData: spreadsheetData,
+            matterId: currentMatter.value.id
+          })
+        });
+
+        if (!response.ok) throw new Error('AI analysis failed');
+        
+        const result = await response.json();
+        
+        // Save analysis result to database
+        const { error } = await supabase
+          .from('portfolio_analysis_results')
+          .insert({
+            matter_id: currentMatter.value.id,
+            system_prompt: systemPrompt.value,
+            spreadsheet_data: spreadsheetData,
+            ai_response: result.response,
+            created_by: user.id
+          });
+
+        if (error) throw error;
+        
+        // Reload analysis results
+        await loadAnalysisResults();
+        
+        ElMessage.success('AI analysis completed successfully!');
+      } catch (error) {
+        console.error('Error running AI analysis:', error);
+        ElMessage.error('Failed to run AI analysis: ' + error.message);
+      } finally {
+        runningAnalysis.value = false;
+      }
+    };
+
+    const loadAnalysisResults = async () => {
+      if (!currentMatter.value?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('portfolio_analysis_results')
+          .select('*')
+          .eq('matter_id', currentMatter.value.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        analysisResults.value = data || [];
+      } catch (error) {
+        console.error('Error loading analysis results:', error);
+      }
+    };
+
+    const viewAnalysis = (analysis) => {
+      selectedAnalysis.value = analysis;
+      showAnalysisDialog.value = true;
+    };
+
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleString();
+    };
+
+    const truncateText = (text, length) => {
+      if (text.length <= length) return text;
+      return text.substring(0, length) + '...';
+    };
+
+    const formatResponse = (response) => {
+      // Convert line breaks to HTML and handle basic formatting
+      return response.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    };
+
     onMounted(() => {
       loadPortfolio();
+      loadAnalysisResults();
     });
 
     return {
@@ -392,6 +638,12 @@ export default {
       addColumnDialogVisible,
       selectedCell,
       newColumn,
+      showSystemPromptDialog,
+      systemPrompt,
+      runningAnalysis,
+      analysisResults,
+      showAnalysisDialog,
+      selectedAnalysis,
       initializePortfolio,
       addRow,
       removeRow,
@@ -403,7 +655,14 @@ export default {
       selectCell,
       setCellRef,
       handleCellKeydown,
-      showColumnMenu
+      showColumnMenu,
+      saveSystemPrompt,
+      runAIAnalysis,
+      loadAnalysisResults,
+      viewAnalysis,
+      formatDate,
+      truncateText,
+      formatResponse
     };
   }
 };
@@ -770,5 +1029,162 @@ export default {
 .delete-column-btn,
 .delete-row-btn {
   transition: opacity 0.2s ease;
+}
+
+/* AI Analysis Section */
+.ai-analysis-section {
+  margin: 24px 16px;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.analysis-header h3 {
+  margin: 0;
+  color: #202124;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.analysis-results {
+  margin-top: 24px;
+}
+
+.analysis-results h4 {
+  margin: 0 0 16px 0;
+  color: #3c4043;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-item {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: background-color 0.2s ease;
+}
+
+.result-item:hover {
+  background: #f1f3f4;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.result-date {
+  font-size: 13px;
+  color: #5f6368;
+  font-weight: 500;
+}
+
+.result-preview {
+  color: #3c4043;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Dialog Content */
+.analysis-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.analysis-meta {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.analysis-meta p {
+  margin: 8px 0;
+  color: #3c4043;
+}
+
+.prompt-box,
+.response-box {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 8px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.prompt-box {
+  color: #5f6368;
+  white-space: pre-wrap;
+}
+
+.response-box {
+  color: #202124;
+  white-space: pre-wrap;
+}
+
+.response-box strong {
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+/* Alert Messages */
+.no-data-message,
+.no-prompt-message {
+  margin-top: 16px;
+}
+
+.no-data-message :deep(.el-alert),
+.no-prompt-message :deep(.el-alert) {
+  border-radius: 6px;
+}
+
+.no-data-message :deep(.el-alert__content),
+.no-prompt-message :deep(.el-alert__content) {
+  padding-left: 8px;
+}
+
+/* Mobile Responsive for AI Section */
+@media (max-width: 768px) {
+  .ai-analysis-section {
+    margin: 16px 8px;
+    padding: 16px;
+  }
+
+  .analysis-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .result-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .result-date {
+    order: 2;
+  }
 }
 </style> 

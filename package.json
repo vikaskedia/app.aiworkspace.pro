@@ -30,6 +30,7 @@
     "dotenv": "^16.5.0",
     "element-plus": "^2.3.4",
     "handsontable": "^16.0.1",
+    "hyperformula": "^3.0.0",
     "ical.js": "^2.1.0",
     "lodash": "^4.17.21",
     "mailersend": "^2.3.0",

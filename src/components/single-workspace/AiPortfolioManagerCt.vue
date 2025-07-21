@@ -21,12 +21,48 @@
 
       <div v-else-if="columns.length > 0" class="handsontable-wrapper">
         <div class="spreadsheet-controls">
-          <el-button-group>
-            <el-button @click="addColumn" :icon="Plus" size="small">Add Column</el-button>
-            <el-button @click="addRow" :icon="Plus" size="small">Add Row</el-button>
-            <el-button @click="removeLastColumn" :icon="Delete" size="small" :disabled="columns.length <= 1">Remove Column</el-button>
-            <el-button @click="removeLastRow" :icon="Delete" size="small" :disabled="portfolioData.length <= 1">Remove Row</el-button>
-          </el-button-group>
+          <div class="controls-info">
+            <span class="spreadsheet-tips">
+              💡 <strong>Right-click</strong> cells to add/remove rows & columns | <strong>Type =</strong> to start formulas
+            </span>
+          </div>
+          
+          <div class="controls-right">
+            <el-dropdown @command="insertFormula" size="small">
+              <el-button size="small">
+                📊 Formulas ▼
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="=SUM(A1:A5)">SUM - Add numbers</el-dropdown-item>
+                  <el-dropdown-item command="=AVERAGE(A1:A5)">AVERAGE - Calculate mean</el-dropdown-item>
+                  <el-dropdown-item command="=COUNT(A1:A5)">COUNT - Count numbers</el-dropdown-item>
+                  <el-dropdown-item command="=MAX(A1:A5)">MAX - Find maximum</el-dropdown-item>
+                  <el-dropdown-item command="=MIN(A1:A5)">MIN - Find minimum</el-dropdown-item>
+                  <el-dropdown-item command="=A1+B1">ADDITION - Add cells</el-dropdown-item>
+                  <el-dropdown-item command="=A1*B1">MULTIPLY - Multiply cells</el-dropdown-item>
+                  <el-dropdown-item :command="ifFormula">IF - Conditional logic</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            
+            <el-popover placement="bottom-end" width="300" trigger="hover">
+              <template #reference>
+                <el-button size="small" type="info">ℹ️ Formula Help</el-button>
+              </template>
+              <div class="formula-help">
+                <h4>📊 Formula Examples:</h4>
+                <ul>
+                  <li><code>=A1+B1</code> - Add two cells</li>
+                  <li><code>=SUM(A1:A5)</code> - Sum range</li>
+                  <li><code>=AVERAGE(B:B)</code> - Average column</li>
+                  <li><code>=COUNT(A1:C5)</code> - Count numbers</li>
+                  <li><code>=IF(A1>100,"High","Low")</code> - Conditions</li>
+                </ul>
+                <p><strong>💡 Tip:</strong> Start formulas with <code>=</code> and use cell references like A1, B2, etc.</p>
+              </div>
+            </el-popover>
+          </div>
         </div>
         
         <div class="handsontable-container">
@@ -220,10 +256,11 @@
 
 <script>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { Plus, Document, Delete, Check, Setting } from '@element-plus/icons-vue';
+import { Plus, Document, Delete, Check, Setting, ArrowDown } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { HotTable } from '@handsontable/vue3';
 import { registerAllModules } from 'handsontable/registry';
+import { HyperFormula } from 'hyperformula';
 import 'handsontable/styles/handsontable.css';
 import 'handsontable/styles/ht-theme-main.css';
 import { supabase } from '../../supabase.js';
@@ -241,6 +278,7 @@ export default {
     Delete,
     Check,
     Setting,
+    ArrowDown,
     HotTable
   },
   setup() {
@@ -262,6 +300,16 @@ export default {
     const selectedAnalysis = ref(null);
     const expandedDebug = ref(new Set());
 
+    // Initialize HyperFormula instance for formulas
+    const hyperformulaInstance = HyperFormula.buildEmpty({
+      licenseKey: 'gpl-v3',
+      useArrayArithmetic: true,
+      useColumnIndex: true
+    });
+
+    // Define formula strings to avoid template parsing issues
+    const ifFormula = '=IF(A1>10,"High","Low")';
+
     // Handsontable configuration
     const hotSettings = computed(() => {
       const rowCount = Math.max(handsontableData.value.length, 5); // At least 5 rows visible
@@ -272,8 +320,33 @@ export default {
         width: '100%',
         rowHeaders: true,
         colHeaders: columnHeaders.value,
-        contextMenu: true,
+        contextMenu: [
+          'row_above',
+          'row_below',
+          'col_left', 
+          'col_right',
+          '---------',
+          'remove_row',
+          'remove_col',
+          '---------',
+          'copy',
+          'cut',
+          'paste',
+          '---------',
+          'alignment',
+          '---------',
+          {
+            name: 'Insert Formula',
+            callback: function(key, selection, clickEvent) {
+              insertFormulaHelper(selection);
+            }
+          }
+        ],
         licenseKey: 'non-commercial-and-evaluation',
+        formulas: {
+          engine: hyperformulaInstance,
+          sheetName: 'Portfolio'
+        },
         dropdownMenu: true,
         filters: true,
         autoWrapRow: true,
@@ -288,6 +361,17 @@ export default {
           if (source !== 'loadData') {
             onCellChange(changes, source);
           }
+        },
+        cells: function (row, col) {
+          const cellProperties = {};
+          
+          // Check if cell contains a formula
+          const cellData = this.instance.getDataAtCell(row, col);
+          if (typeof cellData === 'string' && cellData.startsWith('=')) {
+            cellProperties.className = 'formula-cell';
+          }
+          
+          return cellProperties;
         }
       };
     });
@@ -752,6 +836,43 @@ export default {
       return JSON.stringify(payload, null, 2);
     };
 
+    // Formula helper functions
+    const insertFormula = (formula) => {
+      if (hotTableComponent.value?.hotInstance) {
+        const selected = hotTableComponent.value.hotInstance.getSelected();
+        if (selected && selected.length > 0) {
+          const [row, col] = selected[0];
+          hotTableComponent.value.hotInstance.setDataAtCell(row, col, formula);
+          ElMessage.success(`Formula ${formula} inserted!`);
+        } else {
+          ElMessage.warning('Please select a cell first to insert the formula');
+        }
+      }
+    };
+
+    const insertFormulaHelper = (selection) => {
+      if (selection && selection.length > 0) {
+        const [startRow, startCol, endRow, endCol] = selection[0];
+        const cellRef = `${String.fromCharCode(65 + startCol)}${startRow + 1}`;
+        
+        ElMessageBox.prompt(
+          `Enter a formula for cell ${cellRef}. Examples:\n• =A1+B1 (add two cells)\n• =SUM(A1:A5) (sum range)\n• =AVERAGE(A:A) (average column)`,
+          'Insert Formula',
+          {
+            confirmButtonText: 'Insert',
+            cancelButtonText: 'Cancel',
+            inputPattern: /^=/,
+            inputErrorMessage: 'Formula must start with ='
+          }
+        ).then(({ value }) => {
+          hotTableComponent.value.hotInstance.setDataAtCell(startRow, startCol, value);
+          ElMessage.success('Formula inserted successfully!');
+        }).catch(() => {
+          // User cancelled
+        });
+      }
+    };
+
     // Watch portfolioData to convert object data to array format for Handsontable
     const handsontableData = computed(() => {
       if (!columns.value.length) return [];
@@ -804,10 +925,6 @@ export default {
       columnHeaders,
       handsontableData,
       initializePortfolio,
-      addRow,
-      removeLastRow,
-      addColumn,
-      removeLastColumn,
       savePortfolio,
       onCellChange,
       saveSystemPrompt,
@@ -820,7 +937,10 @@ export default {
       toggleDebug,
       formatSpreadsheetDebug,
       formatDetailedSpreadsheetData,
-      formatAIRequestPayload
+      formatAIRequestPayload,
+      insertFormula,
+      insertFormulaHelper,
+      ifFormula
     };
   }
 };
@@ -884,10 +1004,28 @@ export default {
 
 .spreadsheet-controls {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding: 12px 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.controls-info {
+  display: flex;
+  align-items: center;
+}
+
+.spreadsheet-tips {
+  font-size: 13px;
+  color: #5f6368;
+  font-style: italic;
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .handsontable-container {
@@ -966,6 +1104,53 @@ export default {
 .handsontable-container .ht_master .ht_clone .ht_clone_cell,
 .handsontable-container .ht_master .ht_clone .ht_clone_cell .ht_clone_cell_content {
   transition: border-color 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* Formula cell styling */
+:deep(.formula-cell) {
+  background-color: #e8f5e8 !important;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
+  border-left: 3px solid #4caf50 !important;
+}
+
+:deep(.formula-cell):hover {
+  background-color: #d4edda !important;
+}
+
+/* Formula help styling */
+.formula-help {
+  font-size: 13px;
+}
+
+.formula-help h4 {
+  margin: 0 0 12px 0;
+  color: #1a73e8;
+  font-size: 14px;
+}
+
+.formula-help ul {
+  margin: 0 0 12px 0;
+  padding-left: 20px;
+}
+
+.formula-help li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.formula-help code {
+  background: #f1f3f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  color: #d73a49;
+}
+
+.formula-help p {
+  margin: 0;
+  color: #5f6368;
 }
 
 /* AI Analysis Section */

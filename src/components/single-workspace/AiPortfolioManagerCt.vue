@@ -153,6 +153,8 @@
           </div>
         </div>
       </div>
+
+
     </div>
 
     <!-- System Prompt Dialog -->
@@ -203,6 +205,48 @@
         <el-button @click="showAnalysisDialog = false">Close</el-button>
       </template>
     </el-dialog>
+
+    <!-- Create Column Group Dialog -->
+    <el-dialog
+      v-model="showGroupColumnsDialog"
+      title="Create Column Group"
+      width="500px"
+    >
+      <div class="group-dialog-content">
+        <div class="selected-columns-info">
+          <p><strong>Selected Columns:</strong></p>
+          <div class="columns-preview">
+            <span v-if="selectedColumns.length === 2" class="columns-range">
+              {{ String.fromCharCode(65 + selectedColumns[0]) }} - {{ String.fromCharCode(65 + selectedColumns[1]) }}
+              ({{ columns[selectedColumns[0]]?.label }} to {{ columns[selectedColumns[1]]?.label }})
+            </span>
+          </div>
+        </div>
+        <el-form label-width="120px" class="group-form">
+          <el-form-item label="Group Name" required>
+            <el-input
+              v-model="groupName"
+              placeholder="Enter group name (e.g., User Info, Contact Details)"
+              maxlength="50"
+              show-word-limit
+              @keyup.enter="createColumnGroup"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-text type="info" size="small">
+              This will create a collapsible group header that spans the selected columns.
+              You can expand/collapse the group by clicking the button in the header.
+            </el-text>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="showGroupColumnsDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="createColumnGroup" :disabled="!groupName.trim()">
+          Create Group
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -250,6 +294,12 @@ export default {
     const selectedAnalysis = ref(null);
     const expandedDebug = ref(new Set());
 
+    // Column Groups variables
+    const columnGroups = ref([]);
+    const showGroupColumnsDialog = ref(false);
+    const selectedColumns = ref([]);
+    const groupName = ref('');
+
     // Initialize HyperFormula instance for formulas
     const hyperformulaInstance = HyperFormula.buildEmpty({
       licenseKey: 'gpl-v3',
@@ -262,7 +312,7 @@ export default {
     // Handsontable configuration
     const hotSettings = computed(() => {
       const rowCount = Math.max(handsontableData.value.length, 8); // At least 8 rows visible
-      const nestedHeaderHeight = 50; // Account for two-row nested headers (A,B,C + column names)
+      const nestedHeaderHeight = columnGroups.value.length > 0 ? 100 : 50; // 3 rows when groups exist, 2 rows when no groups
       const rowHeight = 20; // More generous row height
       const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700); // Increased max height to 700px
       
@@ -272,6 +322,7 @@ export default {
         rowHeaders: true,
         colHeaders: false, // Disable simple headers since we're using nested headers
         nestedHeaders: columnHeaders.value,
+        collapsibleColumns: getCollapsibleColumnsConfig(),
         contextMenu: [
           'row_above',
           'row_below',
@@ -291,6 +342,19 @@ export default {
             name: 'Insert Formula',
             callback: function(key, selection, clickEvent) {
               insertFormulaHelper(selection);
+            }
+          },
+          '---------',
+          {
+            name: 'Group Columns',
+            callback: function(key, selection, clickEvent) {
+              groupSelectedColumns(selection);
+            }
+          },
+          {
+            name: 'Ungroup Columns',
+            callback: function(key, selection, clickEvent) {
+              ungroupSelectedColumns(selection);
             }
           }
         ],
@@ -312,6 +376,15 @@ export default {
         afterChange: function (changes, source) {
           if (source !== 'loadData') {
             onCellChange(changes, source);
+          }
+        },
+        afterRender: function () {
+          // Debug: Check if collapsible buttons are rendered
+          const buttons = document.querySelectorAll('.collapsibleIndicator');
+          if (buttons.length > 0) {
+            console.log('🔘 Found', buttons.length, 'collapsible buttons');
+          } else {
+            console.log('❌ No collapsible buttons found');
           }
         },
         afterColumnResize: function (newSize, column, isDoubleClick) {
@@ -337,12 +410,235 @@ export default {
     const columnHeaders = computed(() => {
       if (columns.value.length === 0) return true;
       
-      // Create nested headers: [A, B, C...] on top, [column names] below
-      return [
-        columns.value.map((_, index) => String.fromCharCode(65 + index)), // A, B, C...
-        columns.value.map(col => col.label) // Actual column names
-      ];
+      const headers = [];
+      
+      // If there are column groups, create group headers first
+      if (columnGroups.value.length > 0) {
+        const groupHeaderRow = [];
+        let currentCol = 0;
+        
+        // Sort groups by startCol to process them in order
+        const sortedGroups = [...columnGroups.value].sort((a, b) => a.startCol - b.startCol);
+        
+        for (const group of sortedGroups) {
+          // Add individual columns before this group
+          while (currentCol < group.startCol) {
+            groupHeaderRow.push(String.fromCharCode(65 + currentCol));
+            currentCol++;
+          }
+          
+          // Add the group header with colspan
+          groupHeaderRow.push({
+            label: group.name,
+            colspan: group.endCol - group.startCol + 1
+          });
+          currentCol = group.endCol + 1;
+        }
+        
+        // Add remaining individual columns
+        while (currentCol < columns.value.length) {
+          groupHeaderRow.push(String.fromCharCode(65 + currentCol));
+          currentCol++;
+        }
+        
+        headers.push(groupHeaderRow);
+        
+        // Create A, B, C... row (sub-headers under groups)
+        const letterRow = [];
+        currentCol = 0;
+        
+        for (const group of sortedGroups) {
+          // Add individual column letters before this group
+          while (currentCol < group.startCol) {
+            letterRow.push(String.fromCharCode(65 + currentCol));
+            currentCol++;
+          }
+          
+          // Add letters for grouped columns
+          for (let i = group.startCol; i <= group.endCol; i++) {
+            letterRow.push(String.fromCharCode(65 + i));
+          }
+          currentCol = group.endCol + 1;
+        }
+        
+        // Add remaining individual column letters
+        while (currentCol < columns.value.length) {
+          letterRow.push(String.fromCharCode(65 + currentCol));
+          currentCol++;
+        }
+        
+        headers.push(letterRow);
+      } else {
+        // No groups - just add A, B, C... row
+        headers.push(columns.value.map((_, index) => String.fromCharCode(65 + index)));
+      }
+      
+      // Always add column names as the last row
+      headers.push(columns.value.map(col => col.label));
+      
+      return headers;
     });
+
+
+
+    // Column Groups Functions
+    const getCollapsibleColumnsConfig = () => {
+      if (columnGroups.value.length === 0) return false;
+      
+      // Calculate the position of each group in the group header row
+      const config = [];
+      const sortedGroups = [...columnGroups.value].sort((a, b) => a.startCol - b.startCol);
+      
+      let headerPosition = 0;
+      let currentCol = 0;
+      
+      for (const group of sortedGroups) {
+        // Account for individual columns before this group
+        while (currentCol < group.startCol) {
+          headerPosition++;
+          currentCol++;
+        }
+        
+        // Add collapsible config for this group
+        const configItem = {
+          row: -3, // Top row (group headers row)
+          col: headerPosition,
+          collapsible: true
+        };
+        config.push(configItem);
+        
+        console.log(`🎯 Group "${group.name}" at header position ${headerPosition}, columns ${group.startCol}-${group.endCol}`);
+        
+        // Move past this group
+        headerPosition++;
+        currentCol = group.endCol + 1;
+      }
+      
+      console.log('🔧 Final collapsible config:', config);
+      return config;
+    };
+
+    const groupSelectedColumns = (selection) => {
+      if (!hotTableComponent.value?.hotInstance) {
+        ElMessage.warning('Table not ready');
+        return;
+      }
+      
+      // Get current selection from Handsontable instance
+      const selected = hotTableComponent.value.hotInstance.getSelected();
+      if (!selected || selected.length === 0) {
+        ElMessage.warning('Please select multiple columns first');
+        return;
+      }
+      
+      const [startRow, startCol, endRow, endCol] = selected[0];
+      const minCol = Math.min(startCol, endCol);
+      const maxCol = Math.max(startCol, endCol);
+      
+      if (minCol === maxCol) {
+        ElMessage.warning('Please select multiple columns to group');
+        return;
+      }
+      
+      // Check for overlapping groups
+      const overlapping = columnGroups.value.some(group => 
+        (minCol >= group.startCol && minCol <= group.endCol) ||
+        (maxCol >= group.startCol && maxCol <= group.endCol) ||
+        (minCol <= group.startCol && maxCol >= group.endCol)
+      );
+      
+      if (overlapping) {
+        ElMessage.warning('Cannot create overlapping column groups');
+        return;
+      }
+      
+      selectedColumns.value = [minCol, maxCol];
+      showGroupColumnsDialog.value = true;
+    };
+
+    const ungroupSelectedColumns = async (selection) => {
+      if (!hotTableComponent.value?.hotInstance) {
+        ElMessage.warning('Table not ready');
+        return;
+      }
+      
+      // Get current selection from Handsontable instance
+      const selected = hotTableComponent.value.hotInstance.getSelected();
+      if (!selected || selected.length === 0) {
+        ElMessage.warning('Please select columns first');
+        return;
+      }
+      
+      const [startRow, startCol, endRow, endCol] = selected[0];
+      const minCol = Math.min(startCol, endCol);
+      const maxCol = Math.max(startCol, endCol);
+      
+      // Find groups that overlap with selection
+      const groupsToRemove = columnGroups.value.filter(group => 
+        (minCol >= group.startCol && minCol <= group.endCol) ||
+        (maxCol >= group.startCol && maxCol <= group.endCol) ||
+        (minCol <= group.startCol && maxCol >= group.endCol)
+      );
+      
+      if (groupsToRemove.length === 0) {
+        ElMessage.warning('No column groups found in selection');
+        return;
+      }
+      
+      // Remove the groups
+      groupsToRemove.forEach(groupToRemove => {
+        const index = columnGroups.value.findIndex(g => g.id === groupToRemove.id);
+        if (index !== -1) {
+          columnGroups.value.splice(index, 1);
+        }
+      });
+      
+      await savePortfolio();
+      
+      // Debug: Log after ungrouping
+      console.log('Remaining groups:', columnGroups.value);
+      console.log('Updated headers:', columnHeaders.value);
+      console.log('Updated collapsible config:', getCollapsibleColumnsConfig());
+      
+      ElMessage.success(`Removed ${groupsToRemove.length} column group(s)`);
+    };
+
+    const createColumnGroup = async () => {
+      if (!groupName.value.trim()) {
+        ElMessage.warning('Please enter a group name');
+        return;
+      }
+      
+      if (selectedColumns.value.length !== 2) {
+        ElMessage.error('Invalid column selection');
+        return;
+      }
+      
+      const [startCol, endCol] = selectedColumns.value;
+      const newGroup = {
+        id: Date.now().toString(),
+        name: groupName.value.trim(),
+        startCol: startCol,
+        endCol: endCol
+      };
+      
+      columnGroups.value.push(newGroup);
+      columnGroups.value.sort((a, b) => a.startCol - b.startCol);
+      
+      await savePortfolio();
+      
+      showGroupColumnsDialog.value = false;
+      groupName.value = '';
+      selectedColumns.value = [];
+      
+      // Debug: Log the configuration
+      console.log('✅ Created group:', newGroup);
+      console.log('📊 Column headers structure:', columnHeaders.value);
+      console.log('🔧 Collapsible config:', getCollapsibleColumnsConfig());
+      console.log('📏 Header rows count:', columnHeaders.value.length);
+      
+      ElMessage.success('Column group created successfully');
+    };
 
 
 
@@ -485,6 +781,7 @@ export default {
           columns.value = data.columns || [];
           portfolioData.value = data.data || [];
           systemPrompt.value = data.system_prompt || '';
+          columnGroups.value = data.column_groups || [];
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -519,6 +816,7 @@ export default {
           columns: columns.value,
           data: currentData,
           system_prompt: systemPrompt.value,
+          column_groups: columnGroups.value,
           created_by: user.id,
           updated_by: user.id
         };
@@ -567,6 +865,7 @@ export default {
           columns: columns.value,
           data: portfolioData.value,
           system_prompt: systemPrompt.value,
+          column_groups: columnGroups.value,
           created_by: user.id,
           updated_by: user.id
         };
@@ -800,8 +1099,15 @@ export default {
 
 
     const insertFormulaHelper = (selection) => {
-      if (selection && selection.length > 0) {
-        const [startRow, startCol, endRow, endCol] = selection[0];
+      if (!hotTableComponent.value?.hotInstance) {
+        ElMessage.warning('Table not ready');
+        return;
+      }
+      
+      // Get current selection from Handsontable instance
+      const selected = hotTableComponent.value.hotInstance.getSelected();
+      if (selected && selected.length > 0) {
+        const [startRow, startCol, endRow, endCol] = selected[0];
         const cellRef = `${String.fromCharCode(65 + startCol)}${startRow + 1}`;
         
         ElMessageBox.prompt(
@@ -869,19 +1175,20 @@ export default {
       });
     });
 
-    // Watch for changes to columns and update Handsontable
-    watch([columns, portfolioData], () => {
+    // Watch for changes to columns, portfolioData, and columnGroups and update Handsontable
+    watch([columns, portfolioData, columnGroups], () => {
       if (hotTableComponent.value?.hotInstance) {
         setTimeout(() => {
           // Update height based on new content with improved calculation
           const rowCount = Math.max(handsontableData.value.length, 8);
-          const nestedHeaderHeight = 50;
+          const nestedHeaderHeight = columnGroups.value.length > 0 ? 100 : 50;
           const rowHeight = 20;
           const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700);
           
           hotTableComponent.value.hotInstance.updateSettings({
             height: calculatedHeight,
             nestedHeaders: columnHeaders.value,
+            collapsibleColumns: getCollapsibleColumnsConfig(),
             colWidths: getColumnWidths()
           });
           hotTableComponent.value.hotInstance.render();
@@ -906,6 +1213,10 @@ export default {
       showAnalysisDialog,
       selectedAnalysis,
       expandedDebug,
+      columnGroups,
+      showGroupColumnsDialog,
+      selectedColumns,
+      groupName,
       hotSettings,
       columnHeaders,
       handsontableData,
@@ -925,7 +1236,11 @@ export default {
       formatAIRequestPayload,
       insertFormulaHelper,
       getColumnWidths,
-      saveColumnWidths
+      saveColumnWidths,
+      getCollapsibleColumnsConfig,
+      groupSelectedColumns,
+      ungroupSelectedColumns,
+      createColumnGroup
     };
   }
 };
@@ -1030,50 +1345,12 @@ export default {
   transition: border-color 0.1s ease, box-shadow 0.1s ease;
 }
 
-  /* Nested headers styling for A, B, C... notation */
-  :deep(.ht_clone_top .htCore thead th),
-  :deep(.htCore thead th) {
-    background: #f8f9fa !important;
-    border-bottom: 1px solid #e0e0e0 !important;
-    color: #5f6368 !important;
-    font-weight: 500 !important;
-    text-align: center !important;
-  }
-
-  /* First row of nested headers (A, B, C...) */
-  :deep(.ht_clone_top .htCore thead tr:first-child th),
-  :deep(.htCore thead tr:first-child th) {
-    background: #e8f0fe !important;
-    color: #1a73e8 !important;
-    font-weight: 700 !important;
-    font-size: 14px !important;
-    height: 30px !important;
-    border-bottom: 2px solid #1a73e8 !important;
-  }
-
-  /* Second row of nested headers (column names) */
-  :deep(.ht_clone_top .htCore thead tr:last-child th),
-  :deep(.htCore thead tr:last-child th) {
-    background: #f8f9fa !important;
-    color: #202124 !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-    height: 35px !important;
-    border-bottom: 1px solid #dadce0 !important;
-  }
-
   /* Data row height adjustment */
   :deep(.htCore tbody tr td) {
     height: 20px !important;
     vertical-align: middle !important;
     padding: 2px 6px !important;
     line-height: 16px !important;
-  }
-
-  /* Hover effects */
-  :deep(.ht_clone_top .htCore thead th):hover,
-  :deep(.htCore thead th):hover {
-    background: #f1f3f4 !important;
   }
 
   /* Formula cell styling */
@@ -1375,4 +1652,178 @@ export default {
     max-height: 150px;
   }
 }
+
+/* Column Groups Dialog Styles */
+.group-dialog-content {
+  padding: 8px 0;
+}
+
+.selected-columns-info {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.selected-columns-info p {
+  margin: 0 0 8px 0;
+  color: #3c4043;
+  font-weight: 500;
+}
+
+.columns-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.columns-range {
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.group-form {
+  margin-top: 16px;
+}
+
+.group-form .el-form-item {
+  margin-bottom: 16px;
+}
+
+.group-form .el-input {
+  width: 100%;
+}
+
+  /* Enhanced Nested Headers for Groups */
+  :deep(.ht_clone_top .htCore thead tr:first-child th),
+  :deep(.htCore thead tr:first-child th) {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+    color: #0d47a1 !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    border: 2px solid #1976d2 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    position: relative;
+  }
+  
+  /* Second row headers (A, B, C...) */
+  :deep(.ht_clone_top .htCore thead tr:nth-child(2) th),
+  :deep(.htCore thead tr:nth-child(2) th) {
+    background: #f8f9fa !important;
+    color: #1976d2 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    height: 25px !important;
+    border-bottom: 1px solid #dadce0 !important;
+  }
+  
+  /* Third row headers (column names) */
+  :deep(.ht_clone_top .htCore thead tr:nth-child(3) th),
+  :deep(.htCore thead tr:nth-child(3) th) {
+    background: #ffffff !important;
+    color: #202124 !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    height: 30px !important;
+    border-bottom: 2px solid #dadce0 !important;
+  }
+
+/* Collapsible button styling - White arrow */
+:deep(.collapsibleIndicator) {
+  background: transparent !important;
+  color: white !important;
+  border: none !important;
+  padding: 2px 4px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin-left: 8px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  z-index: 10 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7) !important;
+}
+
+:deep(.collapsibleIndicator:hover) {
+  transform: scale(1.2) !important;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Arrow content - CSS triangular arrows */
+:deep(.collapsibleIndicator::before) {
+  content: "" !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-style: solid !important;
+  border-width: 6px 8px 6px 0 !important;
+  border-color: transparent white transparent transparent !important;
+  display: inline-block !important;
+}
+
+/* When collapsed, show left-pointing arrow */
+:deep(.collapsibleIndicator.collapsed::before) {
+  border-width: 6px 0 6px 8px !important;
+  border-color: transparent transparent transparent white !important;
+}
+
+/* Alternative: Use Unicode arrows if you prefer them over CSS triangles */
+/*
+:deep(.collapsibleIndicator::before) {
+  content: "▼" !important;
+  color: white !important;
+  font-size: 12px !important;
+}
+
+:deep(.collapsibleIndicator.collapsed::before) {
+  content: "▶" !important;
+}
+*/
+
+/* Make sure the button is positioned properly in group headers */
+:deep(.ht_clone_top .htCore thead tr:first-child th),
+:deep(.htCore thead tr:first-child th) {
+  padding: 8px 6px !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  position: relative !important;
+}
+
+/* Ensure button appears in group header row - positioned absolutely */
+:deep(.ht_clone_top .htCore thead tr:first-child th .collapsibleIndicator),
+:deep(.htCore thead tr:first-child th .collapsibleIndicator) {
+  position: absolute !important;
+  right: 4px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  float: none !important;
+  margin: 0 !important;
+}
+
+/* Group header hover effects */
+:deep(.ht_clone_top .htCore thead tr:first-child th):hover,
+:deep(.htCore thead tr:first-child th):hover {
+  background: linear-gradient(135deg, #d1c4e9 0%, #b39ddb 100%) !important;
+  color: #4a148c !important;
+}
+
+/* Grouped columns visual indication */
+:deep(.htCore tbody tr td.grouped-column) {
+  border-left: 3px solid #1976d2 !important;
+  background: linear-gradient(90deg, rgba(25, 118, 210, 0.05) 0%, transparent 100%) !important;
+}
+
+
 </style> 

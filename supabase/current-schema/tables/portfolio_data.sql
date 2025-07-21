@@ -5,6 +5,7 @@ CREATE TABLE portfolio_data (
     columns JSONB NOT NULL DEFAULT '[]'::jsonb,
     data JSONB NOT NULL DEFAULT '[]'::jsonb,
     system_prompt TEXT DEFAULT '',
+    column_groups JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_by UUID REFERENCES auth.users(id) NOT NULL,
     updated_by UUID REFERENCES auth.users(id) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -17,12 +18,16 @@ Each matter can have one portfolio with:
 1. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
 2. data: JSON array containing row data [{ item: "Stock A", value: "1000", status: "Active" }]
 3. system_prompt: Text prompt for AI analysis of the portfolio data
-4. Standard audit fields (created_by, updated_by, created_at, updated_at)';
+4. column_groups: JSON array defining collapsible column groups [{ id: "uuid", name: "Group Name", startCol: 0, endCol: 2 }]
+5. Standard audit fields (created_by, updated_by, created_at, updated_at)';
+
+COMMENT ON COLUMN portfolio_data.column_groups IS 'JSON array defining collapsible column groups structure [{ id: "uuid", name: "Group Name", startCol: 0, endCol: 2 }]';
 
 -- Add indexes for better performance
 CREATE INDEX idx_portfolio_data_matter_id ON portfolio_data(matter_id);
 CREATE INDEX idx_portfolio_data_created_by ON portfolio_data(created_by);
 CREATE INDEX idx_portfolio_data_updated_by ON portfolio_data(updated_by);
+CREATE INDEX idx_portfolio_data_column_groups ON portfolio_data USING GIN (column_groups);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE portfolio_data ENABLE ROW LEVEL SECURITY;

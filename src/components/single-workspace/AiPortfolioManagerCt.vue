@@ -365,6 +365,11 @@ export default {
             onCellChange(changes, source);
           }
         },
+        afterColumnResize: function (newSize, column, isDoubleClick) {
+          // Save column widths when user resizes columns
+          saveColumnWidths();
+        },
+        colWidths: getColumnWidths(),
         cells: function (row, col) {
           const cellProperties = {};
           
@@ -393,11 +398,11 @@ export default {
 
 
     const initializePortfolio = async () => {
-      // Create default columns
+      // Create default columns with widths
       columns.value = [
-        { key: 'item', label: 'Portfolio Item' },
-        { key: 'value', label: 'Value' },
-        { key: 'status', label: 'Status' }
+        { key: 'item', label: 'Portfolio Item', width: 150 },
+        { key: 'value', label: 'Value', width: 120 },
+        { key: 'status', label: 'Status', width: 120 }
       ];
       
       // Add first row
@@ -456,7 +461,8 @@ export default {
           const columnKey = columnName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
           const newCol = {
             key: columnKey,
-            label: columnName.trim()
+            label: columnName.trim(),
+            width: 120 // Default width for new columns
           };
           
           columns.value.push(newCol);
@@ -882,6 +888,39 @@ export default {
       }
     };
 
+    // Column width management functions
+    const getColumnWidths = () => {
+      if (!columns.value.length) return undefined;
+      
+      return columns.value.map((col, index) => {
+        return col.width || 120; // Get width from column definition or default 120px
+      });
+    };
+
+    const saveColumnWidths = async () => {
+      if (!hotTableComponent.value?.hotInstance || !currentMatter.value?.id) return;
+      
+      try {
+        // Get current column widths from Handsontable and update column definitions
+        const instance = hotTableComponent.value.hotInstance;
+        
+        columns.value.forEach((col, index) => {
+          const width = instance.getColWidth(index);
+          if (width && width > 0) {
+            col.width = width; // Store width directly in column definition
+          }
+        });
+        
+        // Save to database with a small delay to avoid too frequent saves
+        setTimeout(() => {
+          savePortfolio();
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Error saving column widths:', error);
+      }
+    };
+
     // Watch portfolioData to convert object data to array format for Handsontable
     const handsontableData = computed(() => {
       if (!columns.value.length) return [];
@@ -902,13 +941,14 @@ export default {
         setTimeout(() => {
           // Update height based on new content with improved calculation
           const rowCount = Math.max(handsontableData.value.length, 8);
-          const nestedHeaderHeight = 65;
-          const rowHeight = 28;
+          const nestedHeaderHeight = 50;
+          const rowHeight = 20;
           const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700);
           
           hotTableComponent.value.hotInstance.updateSettings({
             height: calculatedHeight,
-            nestedHeaders: columnHeaders.value
+            nestedHeaders: columnHeaders.value,
+            colWidths: getColumnWidths()
           });
           hotTableComponent.value.hotInstance.render();
         }, 50);
@@ -952,7 +992,9 @@ export default {
       formatAIRequestPayload,
       insertFormula,
       insertFormulaHelper,
-      ifFormula
+      ifFormula,
+      getColumnWidths,
+      saveColumnWidths
     };
   }
 };
@@ -1152,8 +1194,10 @@ export default {
 
   /* Data row height adjustment */
   :deep(.htCore tbody tr td) {
-    height: 28px !important;
+    height: 20px !important;
     vertical-align: middle !important;
+    padding: 2px 6px !important;
+    line-height: 16px !important;
   }
 
   /* Hover effects */

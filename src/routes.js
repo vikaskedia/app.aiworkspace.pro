@@ -158,6 +158,11 @@ const routes = [
         component: () => import('./components/single-workspace/AiIntakeCt.vue')
       },
       {
+        path: 'ai_portfolio',
+        name: 'AiPortfolioPage',
+        component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue')
+      },
+      {
         path: 'contacts',
         name: 'ContactsPage',
         component: ContactsCt

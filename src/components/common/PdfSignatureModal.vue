@@ -12,7 +12,7 @@
       <!-- Instructions -->
       <div class="instructions-header">
         <h3>{{ document?.name || 'Loading document...' }}</h3>
-        <div class="instruction-steps">
+        <div v-if="!fixedSignaturePositions" class="instruction-steps">
           <el-steps :active="currentStep" finish-status="success" simple>
             <el-step title="Review Document" />
             <el-step title="Place Signature" />
@@ -20,12 +20,18 @@
           </el-steps>
         </div>
         <p class="instruction-text">
-          <span v-if="currentStep === 0">Review the document below, then click "Next" to place your signature.</span>
-          <span v-else-if="currentStep === 1">Click on the document where you want to place your signature.</span>
-          <span v-else-if="currentStep === 2 && signatureAreas.some(area => !area.signatureImage)">
+          <span v-if="!fixedSignaturePositions && currentStep === 0">Review the document below, then click "Next" to place your signature.</span>
+          <span v-else-if="!fixedSignaturePositions && currentStep === 1">Click on the document where you want to place your signature.</span>
+          <span v-else-if="!fixedSignaturePositions && currentStep === 2 && signatureAreas.some(area => !area.signatureImage)">
             Click on the blue signature areas below to draw your signature. Signed areas will appear in green.
           </span>
-          <span v-else-if="currentStep === 2 && signatureAreas.every(area => area.signatureImage)">
+          <span v-else-if="!fixedSignaturePositions && currentStep === 2 && signatureAreas.every(area => area.signatureImage)">
+            All signature areas completed! Review your signatures and click "Sign Document" to finalize.
+          </span>
+          <span v-else-if="fixedSignaturePositions && signatureAreas.some(area => !area.signatureImage)">
+            Click on the blue signature areas below to add your signature. All signature areas will be signed with the same signature.
+          </span>
+          <span v-else-if="fixedSignaturePositions && signatureAreas.every(area => area.signatureImage)">
             All signature areas completed! Review your signatures and click "Sign Document" to finalize.
           </span>
           <span v-else>Click on signature areas to sign, then submit the document.</span>
@@ -156,7 +162,18 @@
         :close-on-click-modal="false">
         
         <div class="signature-drawer">
-          <div class="signature-pad-container">
+          <div class="signature-type-selector">
+            <h4>Choose Signature Method</h4>
+            <el-radio-group v-model="signatureType" @change="onSignatureTypeChange">
+              <el-radio label="draw">Draw Signature</el-radio>
+              <el-radio label="auto">Auto-generate from Name</el-radio>
+              <el-radio label="upload">Upload Image</el-radio>
+            </el-radio-group>
+          </div>
+
+          <!-- Draw Signature -->
+          <div v-if="signatureType === 'draw'" class="signature-pad-container">
+            <h5>Draw Your Signature</h5>
             <canvas
               ref="signatureCanvas"
               class="signature-canvas"
@@ -172,6 +189,69 @@
               <el-button @click="clearSignature" size="small">
                 <el-icon><Delete /></el-icon>
                 Clear
+              </el-button>
+            </div>
+          </div>
+
+          <!-- Auto-generated Signature -->
+          <div v-if="signatureType === 'auto'" class="auto-signature-container">
+            <h5>Auto-generated Signature</h5>
+            <p class="auto-signature-description">
+              Choose a signature style and it will be automatically generated based on your full name.
+            </p>
+
+            <!-- Style Selection -->
+            <div class="signature-style-selector" v-if="signerInfo.fullName">
+              <h6>Choose Signature Style:</h6>
+              <div class="signature-style-options">
+                <div 
+                  v-for="style in autoSignatureStyles" 
+                  :key="style.id"
+                  class="signature-style-option"
+                  :class="{ 'selected': selectedAutoSignatureStyle === style.id }"
+                  @click="selectSignatureStyle(style.id)">
+                  <div class="style-preview">
+                    <canvas :ref="`styleCanvas_${style.id}`" class="style-preview-canvas"></canvas>
+                  </div>
+                  <div class="style-name">{{ style.name }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Selected Style Preview -->
+            <div class="auto-signature-preview" v-if="signerInfo.fullName">
+              <h6>Your Signature:</h6>
+              <canvas ref="autoSignatureCanvas" class="auto-signature-canvas"></canvas>
+            </div>
+            <p v-else class="auto-signature-placeholder">
+              Please enter your full name below to generate signature options.
+            </p>
+          </div>
+
+          <!-- Upload Signature -->
+          <div v-if="signatureType === 'upload'" class="upload-signature-container">
+            <h5>Upload Signature Image</h5>
+            <p class="upload-signature-description">
+              Upload a clear image of your signature (PNG, JPG, or GIF).
+            </p>
+            <el-upload
+              ref="signatureUpload"
+              :auto-upload="false"
+              :on-change="handleSignatureImageUpload"
+              :before-upload="beforeSignatureUpload"
+              accept="image/*"
+              :limit="1"
+              :show-file-list="false">
+              <el-button type="primary">
+                <el-icon><Upload /></el-icon>
+                Choose Image
+              </el-button>
+            </el-upload>
+            <div v-if="uploadedSignatureImage" class="uploaded-signature-preview">
+              <img :src="uploadedSignatureImage" alt="Uploaded signature" class="signature-preview-image" />
+              <el-button @click="clearUploadedSignature" size="small" type="danger">
+                <el-icon><Delete /></el-icon>
+                Remove
               </el-button>
             </div>
           </div>
@@ -266,7 +346,7 @@
 </template>
 
 <script>
-import { Document, Delete, DocumentChecked, Edit, Close, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, Loading, Warning } from '@element-plus/icons-vue';
+import { Document, Delete, DocumentChecked, Edit, Close, ZoomIn, ZoomOut, ArrowLeft, ArrowRight, Loading, Warning, Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElNotification } from 'element-plus';
 import { supabase } from '../../supabase';
 import { PDFDocument, rgb } from 'pdf-lib';
@@ -286,7 +366,8 @@ export default {
     ArrowRight,
     Loading,
     Warning,
-    VuePdfEmbed
+    VuePdfEmbed,
+    Upload
   },
   props: {
     modelValue: {
@@ -327,7 +408,7 @@ export default {
       isDrawing: false,
       lastX: 0,
       lastY: 0,
-      hasSignature: false,
+      hasDrawnSignature: false,
       currentStep: 0, // 0: review, 1: place signature, 2: sign
       
       // PDF rendering
@@ -344,7 +425,43 @@ export default {
       signerInfo: {
         email: '',
         fullName: ''
-      }
+      },
+      signatureType: 'draw', // 'draw', 'auto', 'upload'
+      uploadedSignatureImage: null,
+      autoSignatureText: '',
+      selectedAutoSignatureStyle: 'style1',
+      autoSignatureStyles: [
+        {
+          id: 'style1',
+          name: 'Classic',
+          font: 'bold 32px "Georgia", "Times New Roman", serif',
+          style: 'elegant'
+        },
+        {
+          id: 'style2', 
+          name: 'Modern',
+          font: '300 30px "Segoe UI", "Helvetica Neue", "Arial", sans-serif',
+          style: 'clean'
+        },
+        {
+          id: 'style3',
+          name: 'Script',
+          font: 'italic 34px "Lucida Handwriting", "Brush Script MT", "Lucida Script", cursive',
+          style: 'handwritten'
+        },
+        {
+          id: 'style4',
+          name: 'Executive',
+          font: 'bold 28px "Trebuchet MS", "Helvetica", "Arial", sans-serif',
+          style: 'professional'
+        },
+        {
+          id: 'style5',
+          name: 'Stylish',
+          font: 'italic bold 30px "Palatino", "Book Antiqua", "Georgia", serif',
+          style: 'stylish'
+        }
+      ],
     };
   },
   computed: {
@@ -362,6 +479,16 @@ export default {
              this.signatureAreas.every(area => area.signatureImage) &&
              this.signerInfo.email.trim() && 
              this.signerInfo.fullName.trim();
+    },
+    hasSignature() {
+      if (this.signatureType === 'draw') {
+        return this.hasDrawnSignature;
+      } else if (this.signatureType === 'auto') {
+        return !!this.signerInfo.fullName;
+      } else if (this.signatureType === 'upload') {
+        return !!this.uploadedSignatureImage;
+      }
+      return false;
     }
   },
   mounted() {
@@ -414,6 +541,14 @@ export default {
         if (newVal && !this.signerInfo.email) {
           this.signerInfo.email = newVal;
         }
+      }
+    },
+    'signerInfo.fullName'(newVal) {
+      if (newVal && this.signatureType === 'auto') {
+        this.$nextTick(() => {
+          this.generateStylePreviews();
+          this.generateAutoSignature();
+        });
       }
     }
   },
@@ -588,7 +723,7 @@ export default {
         ctx.lineJoin = 'round';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        this.hasSignature = false;
+        this.hasDrawnSignature = false;
       });
     },
 
@@ -617,7 +752,7 @@ export default {
         const y = (canvas.height - drawHeight) / 2;
         
         ctx.drawImage(img, x, y, drawWidth, drawHeight);
-        this.hasSignature = true;
+        this.hasDrawnSignature = true;
       };
       
       img.src = signatureDataURL;
@@ -646,6 +781,7 @@ export default {
       const pos = this.getMousePos(e);
       this.lastX = pos.x;
       this.lastY = pos.y;
+      this.hasDrawnSignature = true;
     },
 
     draw(e) {
@@ -662,7 +798,7 @@ export default {
 
       this.lastX = pos.x;
       this.lastY = pos.y;
-      this.hasSignature = true;
+      this.hasDrawnSignature = true;
     },
 
     stopDrawing() {
@@ -689,25 +825,47 @@ export default {
 
         this.lastX = pos.x;
         this.lastY = pos.y;
-        this.hasSignature = true;
+        this.hasDrawnSignature = true;
       }
     },
 
     clearSignature() {
-      const canvas = this.$refs.signatureCanvas;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      this.hasSignature = false;
+      if (this.signatureType === 'draw') {
+        const canvas = this.$refs.signatureCanvas;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        this.hasDrawnSignature = false;
+      } else if (this.signatureType === 'auto') {
+        const canvas = this.$refs.autoSignatureCanvas;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      } else if (this.signatureType === 'upload') {
+        this.uploadedSignatureImage = null;
+      }
     },
 
     getSignatureDataURL() {
-      const canvas = this.$refs.signatureCanvas;
-      return canvas.toDataURL('image/png');
+      if (this.signatureType === 'draw') {
+        const canvas = this.$refs.signatureCanvas;
+        return canvas.toDataURL('image/png');
+      } else if (this.signatureType === 'auto') {
+        const canvas = this.$refs.autoSignatureCanvas;
+        return canvas ? canvas.toDataURL('image/png') : null;
+      } else if (this.signatureType === 'upload') {
+        return this.uploadedSignatureImage;
+      }
+      return null;
     },
 
     applySignature() {
-      if (!this.hasSignature) {
-        ElMessage.warning('Please draw your signature first');
+      const signatureDataURL = this.getSignatureDataURL();
+      
+      if (!signatureDataURL) {
+        ElMessage.warning('Please create a signature first');
         return;
       }
 
@@ -716,16 +874,14 @@ export default {
         return;
       }
 
-      const signatureImage = this.getSignatureDataURL();
-      
-      console.log('Applying signature to area:', this.selectedSignatureArea.id);
+      console.log('Applying signature to area:', this.selectedSignatureArea.id, 'Type:', this.signatureType);
       
       // If using fixed signature positions (external user), apply signature to ALL areas
       if (this.fixedSignaturePositions && this.fixedSignaturePositions.length) {
         // Apply signature to all unsigned areas
         this.signatureAreas.forEach((area, index) => {
           if (!area.signatureImage) {
-            this.signatureAreas[index].signatureImage = signatureImage;
+            this.signatureAreas[index].signatureImage = signatureDataURL;
           }
         });
         console.log('Signature applied to all unsigned areas (external mode)');
@@ -733,7 +889,7 @@ export default {
         // Normal mode: only apply to selected area
         const areaIndex = this.signatureAreas.findIndex(area => area.id === this.selectedSignatureArea.id);
         if (areaIndex !== -1) {
-          this.signatureAreas[areaIndex].signatureImage = signatureImage;
+          this.signatureAreas[areaIndex].signatureImage = signatureDataURL;
           console.log('Signature applied to area at index:', areaIndex);
         } else {
           console.error('Could not find signature area with ID:', this.selectedSignatureArea.id);
@@ -1124,6 +1280,229 @@ export default {
           };
         });
       });
+    },
+
+    onSignatureTypeChange() {
+      this.clearSignature();
+      this.uploadedSignatureImage = null;
+      this.autoSignatureText = '';
+    },
+
+    async generateAutoSignature() {
+      if (!this.signerInfo.fullName) {
+        ElMessage.warning('Please enter your full name to generate an auto-signature.');
+        return;
+      }
+
+      const canvas = this.$refs.autoSignatureCanvas;
+      if (!canvas) return;
+
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = 100; // Fixed height for auto-generated signature
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const selectedStyle = this.autoSignatureStyles.find(style => style.id === this.selectedAutoSignatureStyle);
+      if (!selectedStyle) {
+        console.warn('Selected auto-signature style not found:', this.selectedAutoSignatureStyle);
+        return;
+      }
+
+      ctx.font = selectedStyle.font;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const text = this.signerInfo.fullName;
+      const x = canvas.width / 2;
+      const y = canvas.height / 2;
+
+      // Apply different styling based on style type
+      if (selectedStyle.style === 'elegant') {
+        // Classic style with underline and subtle shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(text, x, y);
+        ctx.shadowColor = 'transparent';
+        
+        // Add elegant underline
+        const textWidth = ctx.measureText(text).width;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - textWidth / 2, y + 18);
+        ctx.lineTo(x + textWidth / 2, y + 18);
+        ctx.stroke();
+      } else if (selectedStyle.style === 'handwritten') {
+        // Script style with rotation and natural feel
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(-0.03); // Slightly more rotation for handwritten feel
+        ctx.translate(-x, -y);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 1;
+        ctx.shadowOffsetX = 0.5;
+        ctx.shadowOffsetY = 0.5;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+      } else if (selectedStyle.style === 'professional') {
+        // Executive style with bold outline
+        ctx.fillText(text, x, y);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#333';
+        ctx.strokeText(text, x, y);
+      } else if (selectedStyle.style === 'stylish') {
+        // Stylish style with gradient and flourish
+        const gradient = ctx.createLinearGradient(0, y - 20, 0, y + 20);
+        gradient.addColorStop(0, '#2c3e50');
+        gradient.addColorStop(1, '#34495e');
+        ctx.fillStyle = gradient;
+        ctx.fillText(text, x, y);
+        
+        // Add decorative flourish
+        const textWidth = ctx.measureText(text).width;
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        // Left flourish
+        ctx.moveTo(x - textWidth / 2 - 15, y + 10);
+        ctx.quadraticCurveTo(x - textWidth / 2 - 5, y + 5, x - textWidth / 2, y + 12);
+        // Right flourish  
+        ctx.moveTo(x + textWidth / 2, y + 12);
+        ctx.quadraticCurveTo(x + textWidth / 2 + 5, y + 5, x + textWidth / 2 + 15, y + 10);
+        ctx.stroke();
+      } else {
+        // Clean/modern style with subtle letter spacing
+        ctx.letterSpacing = '1px';
+        ctx.fillText(text, x, y);
+      }
+    },
+
+    handleSignatureImageUpload(file) {
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.uploadedSignatureImage = e.target.result;
+        };
+        reader.readAsDataURL(file.raw);
+      }
+    },
+
+    beforeSignatureUpload(file) {
+      const isImage = file.type.startsWith('image/');
+      if (!isImage) {
+        ElMessage.error('Please upload an image file (PNG, JPG, or GIF)');
+        return false;
+      }
+      const isLt2M = file.size / 1024 / 1024 < 2;
+      if (!isLt2M) {
+        ElMessage.error('Image must be smaller than 2MB!');
+        return false;
+      }
+      return true;
+    },
+
+    clearUploadedSignature() {
+      this.uploadedSignatureImage = null;
+    },
+
+    selectSignatureStyle(styleId) {
+      this.selectedAutoSignatureStyle = styleId;
+      this.generateAutoSignature();
+    },
+
+    generateStylePreviews() {
+      if (!this.signerInfo.fullName) return;
+
+      this.$nextTick(() => {
+        this.autoSignatureStyles.forEach(style => {
+          const canvasRef = `styleCanvas_${style.id}`;
+          const canvas = this.$refs[canvasRef];
+          if (!canvas || !canvas.length) return;
+
+          const canvasElement = canvas[0];
+          canvasElement.width = 200;
+          canvasElement.height = 60;
+
+          const ctx = canvasElement.getContext('2d');
+          ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+          ctx.font = style.font;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#000';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          const text = this.signerInfo.fullName;
+          const x = canvasElement.width / 2;
+          const y = canvasElement.height / 2;
+
+          // Scale font size for preview
+          const scaledFont = style.font.replace(/\d+px/, '20px');
+          ctx.font = scaledFont;
+
+          // Apply styling
+          if (style.style === 'elegant') {
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 1;
+            ctx.shadowOffsetX = 0.5;
+            ctx.shadowOffsetY = 0.5;
+            ctx.fillText(text, x, y);
+            ctx.shadowColor = 'transparent';
+            
+            const textWidth = ctx.measureText(text).width;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x - textWidth / 2, y + 8);
+            ctx.lineTo(x + textWidth / 2, y + 8);
+            ctx.stroke();
+          } else if (style.style === 'handwritten') {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-0.02);
+            ctx.translate(-x, -y);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+            ctx.shadowBlur = 0.5;
+            ctx.shadowOffsetX = 0.3;
+            ctx.shadowOffsetY = 0.3;
+            ctx.fillText(text, x, y);
+            ctx.restore();
+          } else if (style.style === 'professional') {
+            ctx.fillText(text, x, y);
+            ctx.lineWidth = 0.8;
+            ctx.strokeStyle = '#333';
+            ctx.strokeText(text, x, y);
+          } else if (style.style === 'stylish') {
+            const gradient = ctx.createLinearGradient(0, y - 10, 0, y + 10);
+            gradient.addColorStop(0, '#2c3e50');
+            gradient.addColorStop(1, '#34495e');
+            ctx.fillStyle = gradient;
+            ctx.fillText(text, x, y);
+            
+            // Add mini decorative flourish for preview
+            const textWidth = ctx.measureText(text).width;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x - textWidth / 2 - 8, y + 6);
+            ctx.quadraticCurveTo(x - textWidth / 2 - 3, y + 3, x - textWidth / 2, y + 7);
+            ctx.moveTo(x + textWidth / 2, y + 7);
+            ctx.quadraticCurveTo(x + textWidth / 2 + 3, y + 3, x + textWidth / 2 + 8, y + 6);
+            ctx.stroke();
+          } else {
+            ctx.fillText(text, x, y);
+          }
+        });
+      });
     }
   }
 };
@@ -1366,6 +1745,234 @@ export default {
   gap: 1.5rem;
 }
 
+.signature-type-selector {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.signature-type-selector h4 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.auto-signature-container,
+.upload-signature-container {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fafafa;
+  text-align: center;
+}
+
+.auto-signature-container h5,
+.upload-signature-container h5 {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.auto-signature-description,
+.upload-signature-description {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.auto-signature-preview,
+.uploaded-signature-preview {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.auto-signature-preview {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border: 2px dashed #dee2e6;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.auto-signature-preview h6 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.auto-signature-canvas {
+  width: 100%;
+  max-width: 400px;
+  height: 100px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin: 0 auto;
+  display: block;
+}
+
+.auto-signature-description {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.auto-signature-placeholder {
+  color: #adb5bd;
+  font-style: italic;
+  padding: 2rem;
+  text-align: center;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.uploaded-signature-preview {
+  position: relative;
+  display: inline-block;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.signature-preview-image {
+  max-width: 300px;
+  max-height: 150px;
+  object-fit: contain;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.signature-type-selector .el-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .signature-type-selector .el-radio-group {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
+
+.signature-style-selector {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.signature-style-selector h6 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.signature-style-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.signature-style-option {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.signature-style-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(64, 158, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.signature-style-option:hover {
+  border-color: #409eff;
+  box-shadow: 0 8px 25px rgba(64, 158, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.signature-style-option:hover::before {
+  left: 100%;
+}
+
+.signature-style-option.selected {
+  border-color: #409eff;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  box-shadow: 0 8px 25px rgba(64, 158, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.signature-style-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #409eff;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.style-preview {
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.style-preview-canvas {
+  width: 100%;
+  height: 45px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  transition: all 0.3s ease;
+}
+
+.signature-style-option:hover .style-preview-canvas {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.signature-style-option.selected .style-preview-canvas {
+  border-color: #409eff;
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+}
+
+.style-name {
+  font-size: 0.85rem;
+  color: #495057;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.signature-style-option:hover .style-name {
+  color: #409eff;
+}
+
+.signature-style-option.selected .style-name {
+  color: #1976d2;
+  font-weight: 600;
+}
+
 .signature-pad-container {
   border: 2px solid #ddd;
   border-radius: 8px;
@@ -1444,6 +2051,28 @@ export default {
     width: 22px;
     height: 22px;
     font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .signature-style-options {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .signature-style-options {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .signature-style-option {
+    padding: 0.75rem;
+  }
+  
+  .style-preview-canvas {
+    height: 50px;
   }
 }
 </style> 

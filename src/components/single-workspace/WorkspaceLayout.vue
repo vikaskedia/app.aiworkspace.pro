@@ -40,6 +40,7 @@ export default {
       if (path.includes('/contacts')) return 'contacts'
       if (path.includes('/ai_phone')) return 'ai-phone'
       if (path.includes('/ai_intake')) return 'ai-intake'
+      if (path.includes('/ai_portfolio')) return 'ai-portfolio'
       return 'dashboard'
     }
   },
@@ -102,6 +103,10 @@ export default {
 }
 
 .matter-content.matter-content--ai-intake {
+    max-width: 100%;
+}
+
+.matter-content.matter-content--ai-portfolio {
     max-width: 100%;
 }
 </style>

@@ -220,29 +220,34 @@ export default {
     const expandedDebug = ref(new Set());
 
     // Handsontable configuration
-    const hotSettings = computed(() => ({
-      height: 400,
-      width: '100%',
-      rowHeaders: true,
-      colHeaders: columnHeaders.value,
-      contextMenu: true,
-      licenseKey: 'non-commercial-and-evaluation',
-      dropdownMenu: true,
-      filters: true,
-      autoWrapRow: true,
-      autoWrapCol: true,
-      manualColumnResize: true,
-      manualRowResize: true,
-      copyPaste: true,
-      fillHandle: true,
-      minRows: 1,
-      minCols: columns.value.length || 3,
-      afterChange: function (changes, source) {
-        if (source !== 'loadData') {
-          onCellChange(changes, source);
+    const hotSettings = computed(() => {
+      const rowCount = Math.max(handsontableData.value.length, 5); // At least 5 rows visible
+      const calculatedHeight = Math.min(rowCount * 23 + 40, 500); // Row height ~23px + header ~40px, max 500px
+      
+      return {
+        height: calculatedHeight,
+        width: '100%',
+        rowHeaders: true,
+        colHeaders: columnHeaders.value,
+        contextMenu: true,
+        licenseKey: 'non-commercial-and-evaluation',
+        dropdownMenu: true,
+        filters: true,
+        autoWrapRow: true,
+        autoWrapCol: true,
+        manualColumnResize: true,
+        manualRowResize: true,
+        copyPaste: true,
+        fillHandle: true,
+        minRows: 1,
+        minCols: columns.value.length || 3,
+        afterChange: function (changes, source) {
+          if (source !== 'loadData') {
+            onCellChange(changes, source);
+          }
         }
-      }
-    }));
+      };
+    });
 
     // Computed properties for Handsontable
     const columnHeaders = computed(() => {
@@ -659,6 +664,13 @@ export default {
     watch([columns, portfolioData], () => {
       if (hotTableComponent.value?.hotInstance) {
         setTimeout(() => {
+          // Update height based on new content
+          const rowCount = Math.max(handsontableData.value.length, 5);
+          const calculatedHeight = Math.min(rowCount * 23 + 40, 500);
+          
+          hotTableComponent.value.hotInstance.updateSettings({
+            height: calculatedHeight
+          });
           hotTableComponent.value.hotInstance.render();
         }, 50);
       }
@@ -740,7 +752,8 @@ export default {
 
 .portfolio-content {
   flex: 1;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #fafafa;
 }
 
@@ -753,7 +766,6 @@ export default {
 }
 
 .handsontable-wrapper {
-  height: 100%;
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -771,7 +783,6 @@ export default {
 }
 
 .handsontable-container {
-  height: 100%;
   width: 100%;
   position: relative;
 }
@@ -824,7 +835,7 @@ export default {
   }
 
   .handsontable-container {
-    height: calc(100% - 100px); /* Adjust for header height */
+    /* Height is now dynamic based on content */
   }
 }
 

@@ -312,14 +312,17 @@ export default {
 
     // Handsontable configuration
     const hotSettings = computed(() => {
-      const rowCount = Math.max(handsontableData.value.length, 5); // At least 5 rows visible
-      const calculatedHeight = Math.min(rowCount * 23 + 40, 500); // Row height ~23px + header ~40px, max 500px
+      const rowCount = Math.max(handsontableData.value.length, 8); // At least 8 rows visible
+      const nestedHeaderHeight = 50; // Account for two-row nested headers (A,B,C + column names)
+      const rowHeight = 20; // More generous row height
+      const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700); // Increased max height to 700px
       
       return {
         height: calculatedHeight,
         width: '100%',
         rowHeaders: true,
-        colHeaders: columnHeaders.value,
+        colHeaders: false, // Disable simple headers since we're using nested headers
+        nestedHeaders: columnHeaders.value,
         contextMenu: [
           'row_above',
           'row_below',
@@ -378,7 +381,13 @@ export default {
 
     // Computed properties for Handsontable
     const columnHeaders = computed(() => {
-      return columns.value.length > 0 ? columns.value.map(col => col.label) : true;
+      if (columns.value.length === 0) return true;
+      
+      // Create nested headers: [A, B, C...] on top, [column names] below
+      return [
+        columns.value.map((_, index) => String.fromCharCode(65 + index)), // A, B, C...
+        columns.value.map(col => col.label) // Actual column names
+      ];
     });
 
 
@@ -891,12 +900,15 @@ export default {
     watch([columns, portfolioData], () => {
       if (hotTableComponent.value?.hotInstance) {
         setTimeout(() => {
-          // Update height based on new content
-          const rowCount = Math.max(handsontableData.value.length, 5);
-          const calculatedHeight = Math.min(rowCount * 23 + 40, 500);
+          // Update height based on new content with improved calculation
+          const rowCount = Math.max(handsontableData.value.length, 8);
+          const nestedHeaderHeight = 65;
+          const rowHeight = 28;
+          const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700);
           
           hotTableComponent.value.hotInstance.updateSettings({
-            height: calculatedHeight
+            height: calculatedHeight,
+            nestedHeaders: columnHeaders.value
           });
           hotTableComponent.value.hotInstance.render();
         }, 50);
@@ -1106,13 +1118,57 @@ export default {
   transition: border-color 0.1s ease, box-shadow 0.1s ease;
 }
 
-/* Formula cell styling */
-:deep(.formula-cell) {
-  background-color: #e8f5e8 !important;
-  font-family: 'Roboto Mono', monospace;
-  font-weight: 500;
-  border-left: 3px solid #4caf50 !important;
-}
+  /* Nested headers styling for A, B, C... notation */
+  :deep(.ht_clone_top .htCore thead th),
+  :deep(.htCore thead th) {
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    color: #5f6368 !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+  }
+
+  /* First row of nested headers (A, B, C...) */
+  :deep(.ht_clone_top .htCore thead tr:first-child th),
+  :deep(.htCore thead tr:first-child th) {
+    background: #e8f0fe !important;
+    color: #1a73e8 !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    height: 30px !important;
+    border-bottom: 2px solid #1a73e8 !important;
+  }
+
+  /* Second row of nested headers (column names) */
+  :deep(.ht_clone_top .htCore thead tr:last-child th),
+  :deep(.htCore thead tr:last-child th) {
+    background: #f8f9fa !important;
+    color: #202124 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    height: 35px !important;
+    border-bottom: 1px solid #dadce0 !important;
+  }
+
+  /* Data row height adjustment */
+  :deep(.htCore tbody tr td) {
+    height: 28px !important;
+    vertical-align: middle !important;
+  }
+
+  /* Hover effects */
+  :deep(.ht_clone_top .htCore thead th):hover,
+  :deep(.htCore thead th):hover {
+    background: #f1f3f4 !important;
+  }
+
+  /* Formula cell styling */
+  :deep(.formula-cell) {
+    background-color: #e8f5e8 !important;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 500;
+    border-left: 3px solid #4caf50 !important;
+  }
 
 :deep(.formula-cell):hover {
   background-color: #d4edda !important;

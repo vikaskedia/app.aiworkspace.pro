@@ -1,16 +1,6 @@
 <template>
   <div class="ai-portfolio-manager">
-    <div class="header">
-      <h2>AI Portfolio Manager</h2>
-      <div class="header-actions">
-        <el-button @click="showSystemPromptDialog = true" :icon="Setting" title="Configure AI Analysis">
-          Settings
-        </el-button>
-        <el-button type="info" @click="savePortfolio" :loading="saving" :icon="Check">
-          {{ saving ? 'Saving...' : 'Save Portfolio' }}
-        </el-button>
-      </div>
-    </div>
+
 
     <div class="portfolio-content" v-loading="loading">
       <div v-if="!loading && portfolioData.length === 0 && columns.length === 0" class="empty-state">
@@ -20,50 +10,7 @@
       </div>
 
       <div v-else-if="columns.length > 0" class="handsontable-wrapper">
-        <div class="spreadsheet-controls">
-          <div class="controls-info">
-            <span class="spreadsheet-tips">
-              💡 <strong>Right-click</strong> cells to add/remove rows & columns | <strong>Type =</strong> to start formulas
-            </span>
-          </div>
-          
-          <div class="controls-right">
-            <el-dropdown @command="insertFormula" size="small">
-              <el-button size="small">
-                📊 Formulas ▼
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="=SUM(A1:A5)">SUM - Add numbers</el-dropdown-item>
-                  <el-dropdown-item command="=AVERAGE(A1:A5)">AVERAGE - Calculate mean</el-dropdown-item>
-                  <el-dropdown-item command="=COUNT(A1:A5)">COUNT - Count numbers</el-dropdown-item>
-                  <el-dropdown-item command="=MAX(A1:A5)">MAX - Find maximum</el-dropdown-item>
-                  <el-dropdown-item command="=MIN(A1:A5)">MIN - Find minimum</el-dropdown-item>
-                  <el-dropdown-item command="=A1+B1">ADDITION - Add cells</el-dropdown-item>
-                  <el-dropdown-item command="=A1*B1">MULTIPLY - Multiply cells</el-dropdown-item>
-                  <el-dropdown-item :command="ifFormula">IF - Conditional logic</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-            
-            <el-popover placement="bottom-end" width="300" trigger="hover">
-              <template #reference>
-                <el-button size="small" type="info">ℹ️ Formula Help</el-button>
-              </template>
-              <div class="formula-help">
-                <h4>📊 Formula Examples:</h4>
-                <ul>
-                  <li><code>=A1+B1</code> - Add two cells</li>
-                  <li><code>=SUM(A1:A5)</code> - Sum range</li>
-                  <li><code>=AVERAGE(B:B)</code> - Average column</li>
-                  <li><code>=COUNT(A1:C5)</code> - Count numbers</li>
-                  <li><code>=IF(A1>100,"High","Low")</code> - Conditions</li>
-                </ul>
-                <p><strong>💡 Tip:</strong> Start formulas with <code>=</code> and use cell references like A1, B2, etc.</p>
-              </div>
-            </el-popover>
-          </div>
-        </div>
+
         
         <div class="handsontable-container">
           <HotTable
@@ -78,14 +25,19 @@
       <div class="ai-analysis-section">
         <div class="analysis-header">
           <h3>AI Analysis</h3>
-          <el-button 
-            type="primary" 
-            @click="runAIAnalysis" 
-            :loading="runningAnalysis"
-            :disabled="!systemPrompt.trim() || portfolioData.length === 0"
-          >
-            {{ runningAnalysis ? 'Analyzing...' : 'Run Analysis' }}
-          </el-button>
+          <div class="analysis-actions">
+            <el-button @click="showSystemPromptDialog = true" :icon="Setting" title="Configure AI Analysis">
+              Settings
+            </el-button>
+            <el-button 
+              type="primary" 
+              @click="runAIAnalysis" 
+              :loading="runningAnalysis"
+              :disabled="!systemPrompt.trim() || portfolioData.length === 0"
+            >
+              {{ runningAnalysis ? 'Analyzing...' : 'Run Analysis' }}
+            </el-button>
+          </div>
         </div>
 
         <!-- No Data Message -->
@@ -256,7 +208,7 @@
 
 <script>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { Plus, Document, Delete, Check, Setting, ArrowDown } from '@element-plus/icons-vue';
+import { Plus, Document, Delete, Setting, ArrowDown } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { HotTable } from '@handsontable/vue3';
 import { registerAllModules } from 'handsontable/registry';
@@ -276,7 +228,6 @@ export default {
     Plus,
     Document,
     Delete,
-    Check,
     Setting,
     ArrowDown,
     HotTable
@@ -286,7 +237,6 @@ export default {
     const { currentMatter } = storeToRefs(matterStore);
 
     const loading = ref(false);
-    const saving = ref(false);
     const portfolioData = ref([]);
     const columns = ref([]);
     const hotTableComponent = ref(null);
@@ -307,8 +257,7 @@ export default {
       useColumnIndex: true
     });
 
-    // Define formula strings to avoid template parsing issues
-    const ifFormula = '=IF(A1>10,"High","Low")';
+
 
     // Handsontable configuration
     const hotSettings = computed(() => {
@@ -548,7 +497,6 @@ export default {
     const savePortfolio = async () => {
       if (!currentMatter.value?.id) return;
       
-      saving.value = true;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -584,12 +532,10 @@ export default {
         if (error) throw error;
         
         portfolioData.value = currentData;
-        ElMessage.success('Portfolio saved successfully!');
+        ElMessage.success('Portfolio saved');
       } catch (error) {
         console.error('Error saving portfolio:', error);
         ElMessage.error('Failed to save portfolio data');
-      } finally {
-        saving.value = false;
       }
     };
 
@@ -851,19 +797,7 @@ export default {
       return JSON.stringify(payload, null, 2);
     };
 
-    // Formula helper functions
-    const insertFormula = (formula) => {
-      if (hotTableComponent.value?.hotInstance) {
-        const selected = hotTableComponent.value.hotInstance.getSelected();
-        if (selected && selected.length > 0) {
-          const [row, col] = selected[0];
-          hotTableComponent.value.hotInstance.setDataAtCell(row, col, formula);
-          ElMessage.success(`Formula ${formula} inserted!`);
-        } else {
-          ElMessage.warning('Please select a cell first to insert the formula');
-        }
-      }
-    };
+
 
     const insertFormulaHelper = (selection) => {
       if (selection && selection.length > 0) {
@@ -962,7 +896,6 @@ export default {
 
     return {
       loading,
-      saving,
       portfolioData,
       columns,
       hotTableComponent,
@@ -990,9 +923,7 @@ export default {
       formatSpreadsheetDebug,
       formatDetailedSpreadsheetData,
       formatAIRequestPayload,
-      insertFormula,
       insertFormulaHelper,
-      ifFormula,
       getColumnWidths,
       saveColumnWidths
     };
@@ -1008,29 +939,7 @@ export default {
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
 
-.header h2 {
-  margin: 0;
-  color: #202124;
-  font-size: 22px;
-  font-weight: 400;
-  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
 
 .portfolio-content {
   flex: 1;
@@ -1056,31 +965,7 @@ export default {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.spreadsheet-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-}
 
-.controls-info {
-  display: flex;
-  align-items: center;
-}
-
-.spreadsheet-tips {
-  font-size: 13px;
-  color: #5f6368;
-  font-style: italic;
-}
-
-.controls-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .handsontable-container {
   width: 100%;
@@ -1112,27 +997,12 @@ export default {
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-    padding: 12px 16px;
-  }
-
-  .header-actions {
-    justify-content: center;
-  }
-
   .handsontable-wrapper {
     margin: 8px;
     border-radius: 4px;
   }
 
-  .spreadsheet-controls {
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
-  }
+
 
   .handsontable-container {
     /* Height is now dynamic based on content */
@@ -1218,40 +1088,7 @@ export default {
   background-color: #d4edda !important;
 }
 
-/* Formula help styling */
-.formula-help {
-  font-size: 13px;
-}
 
-.formula-help h4 {
-  margin: 0 0 12px 0;
-  color: #1a73e8;
-  font-size: 14px;
-}
-
-.formula-help ul {
-  margin: 0 0 12px 0;
-  padding-left: 20px;
-}
-
-.formula-help li {
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-
-.formula-help code {
-  background: #f1f3f4;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 12px;
-  color: #d73a49;
-}
-
-.formula-help p {
-  margin: 0;
-  color: #5f6368;
-}
 
 /* AI Analysis Section */
 .ai-analysis-section {
@@ -1276,6 +1113,12 @@ export default {
   color: #202124;
   font-size: 18px;
   font-weight: 500;
+}
+
+.analysis-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .analysis-results {
@@ -1498,6 +1341,10 @@ export default {
     flex-direction: column;
     gap: 12px;
     align-items: stretch;
+  }
+
+  .analysis-actions {
+    justify-content: center;
   }
 
   .result-header {

@@ -19,86 +19,22 @@
         </el-empty>
       </div>
 
-      <div v-else-if="columns.length > 0" class="spreadsheet-wrapper">
-        <div class="spreadsheet-container">
-          <!-- Spreadsheet Header -->
-          <div class="spreadsheet-header">
-            <!-- Empty corner cell -->
-            <div class="corner-cell"></div>
-            <!-- Column headers -->
-            <div 
-              v-for="(column, index) in columns" 
-              :key="column.key"
-              class="column-header-cell"
-              @contextmenu.prevent="showColumnMenu($event, column.key)"
-            >
-              <input 
-                v-model="column.label"
-                class="column-header-input"
-                @blur="savePortfolio"
-                @keyup.enter="savePortfolio"
-                :placeholder="`Column ${getColumnLetter(index)}`"
-              />
-              <button 
-                v-if="columns.length > 1"
-                class="delete-column-btn"
-                @click="removeColumn(column.key)"
-                title="Delete column"
-              >
-                ×
-              </button>
-            </div>
-            <!-- Add column button -->
-            <div class="add-column-cell" @click="addColumn">
-              <Plus class="add-icon" />
-            </div>
-          </div>
-
-          <!-- Spreadsheet Body -->
-          <div class="spreadsheet-body">
-            <div 
-              v-for="(row, rowIndex) in portfolioData" 
-              :key="rowIndex"
-              class="spreadsheet-row"
-            >
-              <!-- Row number -->
-              <div class="row-number-cell">
-                {{ rowIndex + 1 }}
-                <button 
-                  class="delete-row-btn"
-                  @click="removeRow(rowIndex)"
-                  title="Delete row"
-                >
-                  ×
-                </button>
-              </div>
-              <!-- Data cells -->
-              <div 
-                v-for="column in columns"
-                :key="column.key"
-                class="data-cell"
-                @click="selectCell(rowIndex, column.key)"
-                :class="{ 'selected': selectedCell?.row === rowIndex && selectedCell?.column === column.key }"
-              >
-                <input
-                  v-model="row[column.key]"
-                  class="cell-input"
-                  @focus="selectCell(rowIndex, column.key)"
-                  @blur="savePortfolio"
-                  @keyup.enter="savePortfolio"
-                  @keydown="handleCellKeydown($event, rowIndex, column.key)"
-                  :ref="el => setCellRef(el, rowIndex, column.key)"
-                />
-              </div>
-            </div>
-            <!-- Add row button -->
-            <div class="add-row-container">
-              <div class="add-row-cell" @click="addRow">
-                <Plus class="add-icon" />
-                <span>Add Row</span>
-              </div>
-            </div>
-          </div>
+      <div v-else-if="columns.length > 0" class="handsontable-wrapper">
+        <div class="spreadsheet-controls">
+          <el-button-group>
+            <el-button @click="addColumn" :icon="Plus" size="small">Add Column</el-button>
+            <el-button @click="addRow" :icon="Plus" size="small">Add Row</el-button>
+            <el-button @click="removeLastColumn" :icon="Delete" size="small" :disabled="columns.length <= 1">Remove Column</el-button>
+            <el-button @click="removeLastRow" :icon="Delete" size="small" :disabled="portfolioData.length <= 1">Remove Row</el-button>
+          </el-button-group>
+        </div>
+        
+        <div class="handsontable-container">
+          <HotTable
+            ref="hotTableComponent"
+            :settings="hotSettings"
+            :data="handsontableData"
+          />
         </div>
       </div>
 
@@ -110,14 +46,14 @@
             type="primary" 
             @click="runAIAnalysis" 
             :loading="runningAnalysis"
-            :disabled="!systemPrompt.trim() || columns.length === 0"
+            :disabled="!systemPrompt.trim() || portfolioData.length === 0"
           >
             {{ runningAnalysis ? 'Analyzing...' : 'Run Analysis' }}
           </el-button>
         </div>
 
         <!-- No Data Message -->
-        <div v-if="columns.length === 0" class="no-data-message">
+        <div v-if="portfolioData.length === 0" class="no-data-message">
           <el-alert 
             type="info" 
             title="No Portfolio Data" 
@@ -215,25 +151,6 @@
       </template>
     </el-dialog>
 
-    <!-- Add Column Dialog -->
-    <el-dialog
-      v-model="addColumnDialogVisible"
-      title="Add New Column"
-      width="400px"
-    >
-      <el-form :model="newColumn" label-width="120px">
-        <el-form-item label="Column Name" required>
-          <el-input v-model="newColumn.label" placeholder="Enter column name" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addColumnDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="confirmAddColumn" :disabled="!newColumn.label">
-          Add Column
-        </el-button>
-      </template>
-    </el-dialog>
-
     <!-- View Analysis Dialog -->
     <el-dialog
       v-model="showAnalysisDialog"
@@ -259,12 +176,19 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { Plus, Document, Delete, Check, Setting } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { HotTable } from '@handsontable/vue3';
+import { registerAllModules } from 'handsontable/registry';
+import 'handsontable/styles/handsontable.css';
+import 'handsontable/styles/ht-theme-main.css';
 import { supabase } from '../../supabase.js';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+
+// Register Handsontable modules
+registerAllModules();
 
 export default {
   name: 'AiPortfolioManagerCt',
@@ -273,7 +197,8 @@ export default {
     Document,
     Delete,
     Check,
-    Setting
+    Setting,
+    HotTable
   },
   setup() {
     const matterStore = useMatterStore();
@@ -283,12 +208,7 @@ export default {
     const saving = ref(false);
     const portfolioData = ref([]);
     const columns = ref([]);
-    const addColumnDialogVisible = ref(false);
-    const selectedCell = ref(null);
-    const cellRefs = ref(new Map());
-    const newColumn = reactive({
-      label: ''
-    });
+    const hotTableComponent = ref(null);
 
     // AI Analysis variables
     const showSystemPromptDialog = ref(false);
@@ -298,6 +218,38 @@ export default {
     const showAnalysisDialog = ref(false);
     const selectedAnalysis = ref(null);
     const expandedDebug = ref(new Set());
+
+    // Handsontable configuration
+    const hotSettings = computed(() => ({
+      height: 400,
+      width: '100%',
+      rowHeaders: true,
+      colHeaders: columnHeaders.value,
+      contextMenu: true,
+      licenseKey: 'non-commercial-and-evaluation',
+      dropdownMenu: true,
+      filters: true,
+      autoWrapRow: true,
+      autoWrapCol: true,
+      manualColumnResize: true,
+      manualRowResize: true,
+      copyPaste: true,
+      fillHandle: true,
+      minRows: 1,
+      minCols: columns.value.length || 3,
+      afterChange: function (changes, source) {
+        if (source !== 'loadData') {
+          onCellChange(changes, source);
+        }
+      }
+    }));
+
+    // Computed properties for Handsontable
+    const columnHeaders = computed(() => {
+      return columns.value.length > 0 ? columns.value.map(col => col.label) : true;
+    });
+
+
 
     const initializePortfolio = async () => {
       // Create default columns
@@ -313,66 +265,104 @@ export default {
       ];
       
       await savePortfolio();
+      
+      // Force update Handsontable after initialization
+      setTimeout(() => {
+        if (hotTableComponent.value?.hotInstance) {
+          hotTableComponent.value.hotInstance.render();
+        }
+      }, 100);
     };
 
     const addRow = () => {
+      if (columns.value.length === 0) {
+        ElMessage.warning('Please add columns first');
+        return;
+      }
+      
       const newRow = {};
       columns.value.forEach(column => {
         newRow[column.key] = '';
       });
       portfolioData.value.push(newRow);
+      savePortfolio();
     };
 
-    const removeRow = async (index) => {
+    const removeLastRow = async () => {
+      if (portfolioData.value.length <= 1) return;
+      
       try {
-        await ElMessageBox.confirm('Are you sure you want to delete this row?', 'Confirm', {
+        await ElMessageBox.confirm('Are you sure you want to delete the last row?', 'Confirm', {
           type: 'warning'
         });
-        portfolioData.value.splice(index, 1);
+        portfolioData.value.pop();
         await savePortfolio();
       } catch {
         // User cancelled
       }
     };
 
-    const addColumn = () => {
-      newColumn.label = '';
-      addColumnDialogVisible.value = true;
-    };
-
-    const confirmAddColumn = () => {
-      if (!newColumn.label.trim()) return;
-      
-      const columnKey = newColumn.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      const newCol = {
-        key: columnKey,
-        label: newColumn.label.trim()
-      };
-      
-      columns.value.push(newCol);
-      
-      // Add empty values for this column to all existing rows
-      portfolioData.value.forEach(row => {
-        row[columnKey] = '';
-      });
-      
-      addColumnDialogVisible.value = false;
-      savePortfolio();
-    };
-
-    const removeColumn = async (columnKey) => {
+    const addColumn = async () => {
       try {
-        await ElMessageBox.confirm('Are you sure you want to delete this column?', 'Confirm', {
+        const { value: columnName } = await ElMessageBox.prompt('Enter column name:', 'Add Column', {
+          confirmButtonText: 'Add',
+          cancelButtonText: 'Cancel',
+          inputPattern: /^.+$/,
+          inputErrorMessage: 'Column name cannot be empty'
+        });
+
+        if (columnName) {
+          const columnKey = columnName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+          const newCol = {
+            key: columnKey,
+            label: columnName.trim()
+          };
+          
+          columns.value.push(newCol);
+          
+          // Add empty values for this column to all existing rows
+          portfolioData.value.forEach(row => {
+            row[columnKey] = '';
+          });
+          
+          // Update Handsontable
+          if (hotTableComponent.value?.hotInstance) {
+            hotTableComponent.value.hotInstance.updateSettings({
+              colHeaders: columns.value.map(col => col.label),
+              minCols: columns.value.length
+            });
+          }
+          
+          await savePortfolio();
+        }
+      } catch (error) {
+        // User cancelled or error occurred
+        console.log('Add column cancelled');
+      }
+    };
+
+    const removeLastColumn = async () => {
+      if (columns.value.length <= 1) return;
+      
+      try {
+        await ElMessageBox.confirm('Are you sure you want to delete the last column?', 'Confirm', {
           type: 'warning'
         });
         
-        // Remove column from columns array
-        columns.value = columns.value.filter(col => col.key !== columnKey);
+        const removedColumn = columns.value.pop();
         
         // Remove column data from all rows
         portfolioData.value.forEach(row => {
-          delete row[columnKey];
+          delete row[removedColumn.key];
         });
+        
+        // Update Handsontable
+        if (hotTableComponent.value?.hotInstance) {
+          hotTableComponent.value.hotInstance.updateSettings({
+            colHeaders: columns.value.map(col => col.label),
+            minCols: columns.value.length
+          });
+        }
         
         await savePortfolio();
       } catch {
@@ -415,10 +405,24 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Get current data from Handsontable if available
+        let currentData = portfolioData.value;
+        if (hotTableComponent.value?.hotInstance) {
+          currentData = hotTableComponent.value.hotInstance.getSourceData();
+          // Convert array data back to object format
+          currentData = currentData.map(row => {
+            const rowObj = {};
+            columns.value.forEach((col, index) => {
+              rowObj[col.key] = row[index] || '';
+            });
+            return rowObj;
+          });
+        }
+        
         const portfolioRecord = {
           matter_id: currentMatter.value.id,
           columns: columns.value,
-          data: portfolioData.value,
+          data: currentData,
           system_prompt: systemPrompt.value,
           created_by: user.id,
           updated_by: user.id
@@ -432,6 +436,7 @@ export default {
 
         if (error) throw error;
         
+        portfolioData.value = currentData;
         ElMessage.success('Portfolio saved successfully!');
       } catch (error) {
         console.error('Error saving portfolio:', error);
@@ -441,92 +446,20 @@ export default {
       }
     };
 
-    // Google Sheets-like functionality
-    const getColumnLetter = (index) => {
-      let result = '';
-      while (index >= 0) {
-        result = String.fromCharCode(65 + (index % 26)) + result;
-        index = Math.floor(index / 26) - 1;
+    // Handsontable event handlers
+    const onCellChange = (changes, source) => {
+      if (source !== 'loadData' && changes) {
+        // Convert Handsontable array data back to object format
+        const tableData = hotTableComponent.value?.hotInstance?.getSourceData() || [];
+        portfolioData.value = tableData.map(row => {
+          const rowObj = {};
+          columns.value.forEach((col, index) => {
+            rowObj[col.key] = row[index] || '';
+          });
+          return rowObj;
+        });
+        savePortfolio();
       }
-      return result;
-    };
-
-    const selectCell = (rowIndex, columnKey) => {
-      selectedCell.value = { row: rowIndex, column: columnKey };
-    };
-
-    const setCellRef = (el, rowIndex, columnKey) => {
-      if (el) {
-        cellRefs.value.set(`${rowIndex}-${columnKey}`, el);
-      }
-    };
-
-    const handleCellKeydown = (event, rowIndex, columnKey) => {
-      const currentColumnIndex = columns.value.findIndex(col => col.key === columnKey);
-      
-      switch (event.key) {
-        case 'ArrowUp':
-          if (rowIndex > 0) {
-            event.preventDefault();
-            const upCell = cellRefs.value.get(`${rowIndex - 1}-${columnKey}`);
-            if (upCell) upCell.focus();
-          }
-          break;
-        case 'ArrowDown':
-          if (rowIndex < portfolioData.value.length - 1) {
-            event.preventDefault();
-            const downCell = cellRefs.value.get(`${rowIndex + 1}-${columnKey}`);
-            if (downCell) downCell.focus();
-          }
-          break;
-        case 'ArrowLeft':
-          if (currentColumnIndex > 0) {
-            event.preventDefault();
-            const leftColumnKey = columns.value[currentColumnIndex - 1].key;
-            const leftCell = cellRefs.value.get(`${rowIndex}-${leftColumnKey}`);
-            if (leftCell) leftCell.focus();
-          }
-          break;
-        case 'ArrowRight':
-          if (currentColumnIndex < columns.value.length - 1) {
-            event.preventDefault();
-            const rightColumnKey = columns.value[currentColumnIndex + 1].key;
-            const rightCell = cellRefs.value.get(`${rowIndex}-${rightColumnKey}`);
-            if (rightCell) rightCell.focus();
-          }
-          break;
-        case 'Tab':
-          event.preventDefault();
-          if (event.shiftKey) {
-            // Move left
-            if (currentColumnIndex > 0) {
-              const leftColumnKey = columns.value[currentColumnIndex - 1].key;
-              const leftCell = cellRefs.value.get(`${rowIndex}-${leftColumnKey}`);
-              if (leftCell) leftCell.focus();
-            }
-          } else {
-            // Move right
-            if (currentColumnIndex < columns.value.length - 1) {
-              const rightColumnKey = columns.value[currentColumnIndex + 1].key;
-              const rightCell = cellRefs.value.get(`${rowIndex}-${rightColumnKey}`);
-              if (rightCell) rightCell.focus();
-            }
-          }
-          break;
-        case 'Enter':
-          event.preventDefault();
-          if (rowIndex < portfolioData.value.length - 1) {
-            const downCell = cellRefs.value.get(`${rowIndex + 1}-${columnKey}`);
-            if (downCell) downCell.focus();
-          }
-          savePortfolio();
-          break;
-      }
-    };
-
-    const showColumnMenu = (event, columnKey) => {
-      // Future: Add context menu functionality
-      console.log('Column menu for:', columnKey);
     };
 
     // AI Analysis functions
@@ -562,7 +495,7 @@ export default {
     };
 
     const runAIAnalysis = async () => {
-      if (!systemPrompt.value.trim() || !currentMatter.value?.id || columns.value.length === 0) {
+      if (!systemPrompt.value.trim() || !currentMatter.value?.id || portfolioData.value.length === 0) {
         ElMessage.warning('Please ensure you have portfolio data and a system prompt configured.');
         return;
       }
@@ -571,13 +504,27 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Get current data from Handsontable
+        let currentData = portfolioData.value;
+        if (hotTableComponent.value?.hotInstance) {
+          currentData = hotTableComponent.value.hotInstance.getSourceData();
+          // Convert array data back to object format for analysis
+          currentData = currentData.map(row => {
+            const rowObj = {};
+            columns.value.forEach((col, index) => {
+              rowObj[col.key] = row[index] || '';
+            });
+            return rowObj;
+          });
+        }
+        
         // Prepare spreadsheet data for AI
         const spreadsheetData = {
           columns: columns.value,
-          data: portfolioData.value
+          data: currentData
         };
 
-        // Make API call to ChatGPT (you'll need to implement this endpoint)
+        // Make API call to ChatGPT
         const response = await fetch('https://app.aiworkspace.pro/api/ai-portfolio-analysis', {
           method: 'POST',
           headers: {
@@ -694,6 +641,29 @@ export default {
       return formatted;
     };
 
+    // Watch portfolioData to convert object data to array format for Handsontable
+    const handsontableData = computed(() => {
+      if (!columns.value.length) return [];
+      
+      // If no data, create at least one empty row
+      if (!portfolioData.value || portfolioData.value.length === 0) {
+        return [columns.value.map(() => '')];
+      }
+      
+      return portfolioData.value.map(row => {
+        return columns.value.map(col => row[col.key] || '');
+      });
+    });
+
+    // Watch for changes to columns and update Handsontable
+    watch([columns, portfolioData], () => {
+      if (hotTableComponent.value?.hotInstance) {
+        setTimeout(() => {
+          hotTableComponent.value.hotInstance.render();
+        }, 50);
+      }
+    }, { deep: true });
+
     onMounted(() => {
       loadPortfolio();
       loadAnalysisResults();
@@ -704,9 +674,7 @@ export default {
       saving,
       portfolioData,
       columns,
-      addColumnDialogVisible,
-      selectedCell,
-      newColumn,
+      hotTableComponent,
       showSystemPromptDialog,
       systemPrompt,
       runningAnalysis,
@@ -714,18 +682,16 @@ export default {
       showAnalysisDialog,
       selectedAnalysis,
       expandedDebug,
+      hotSettings,
+      columnHeaders,
+      handsontableData,
       initializePortfolio,
       addRow,
-      removeRow,
+      removeLastRow,
       addColumn,
-      confirmAddColumn,
-      removeColumn,
+      removeLastColumn,
       savePortfolio,
-      getColumnLetter,
-      selectCell,
-      setCellRef,
-      handleCellKeydown,
-      showColumnMenu,
+      onCellChange,
       saveSystemPrompt,
       runAIAnalysis,
       loadAnalysisResults,
@@ -786,7 +752,7 @@ export default {
   background: white;
 }
 
-.spreadsheet-wrapper {
+.handsontable-wrapper {
   height: 100%;
   background: white;
   border: 1px solid #e0e0e0;
@@ -796,243 +762,40 @@ export default {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
-.spreadsheet-container {
+.spreadsheet-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.handsontable-container {
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Roboto', Arial, sans-serif;
-  font-size: 13px;
-}
-
-/* Spreadsheet Header */
-.spreadsheet-header {
-  display: flex;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.corner-cell {
-  width: 60px;
-  height: 40px;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.column-header-cell {
-  min-width: 120px;
-  width: 120px;
-  height: 40px;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  cursor: pointer;
-}
-
-.column-header-cell:hover {
-  background: #f1f3f4;
-}
-
-.column-header-input {
   width: 100%;
-  height: 100%;
-  border: none;
-  background: transparent;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: #3c4043;
-  outline: none;
-  padding: 0 8px;
-}
-
-.column-header-input:focus {
-  background: white;
-  border: 2px solid #1a73e8;
-  border-radius: 2px;
-}
-
-.delete-column-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background: #ea4335;
-  color: white;
-  border-radius: 50%;
-  font-size: 10px;
-  cursor: pointer;
-  display: none;
-}
-
-.column-header-cell:hover .delete-column-btn {
-  display: block;
-}
-
-.add-column-cell {
-  width: 60px;
-  height: 40px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #5f6368;
-}
-
-.add-column-cell:hover {
-  background: #f1f3f4;
-}
-
-/* Spreadsheet Body */
-.spreadsheet-body {
-  flex: 1;
-  overflow: auto;
-}
-
-.spreadsheet-row {
-  display: flex;
-  min-height: 32px;
-}
-
-.row-number-cell {
-  width: 60px;
-  min-height: 32px;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: #3c4043;
   position: relative;
-  cursor: pointer;
-}
-
-.row-number-cell:hover {
-  background: #f1f3f4;
-}
-
-.delete-row-btn {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
-  border: none;
-  background: #ea4335;
-  color: white;
-  border-radius: 50%;
-  font-size: 8px;
-  cursor: pointer;
-  display: none;
-}
-
-.row-number-cell:hover .delete-row-btn {
-  display: block;
-}
-
-.data-cell {
-  min-width: 120px;
-  width: 120px;
-  min-height: 32px;
-  border-right: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  position: relative;
-  background: white;
-}
-
-.data-cell:hover {
-  background: #f8f9fa;
-}
-
-.data-cell.selected {
-  background: #e8f0fe;
-  border: 2px solid #1a73e8;
-}
-
-.cell-input {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: transparent;
-  padding: 6px 8px;
-  font-size: 13px;
-  color: #202124;
-  outline: none;
-  resize: none;
-  line-height: 20px;
-}
-
-.cell-input:focus {
-  background: white;
-  border: 2px solid #1a73e8;
-  border-radius: 2px;
-  z-index: 2;
-  position: relative;
-}
-
-/* Add Row Button */
-.add-row-container {
-  display: flex;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.add-row-cell {
-  width: 100%;
-  height: 40px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #5f6368;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.add-row-cell:hover {
-  background: #f1f3f4;
-}
-
-.add-icon {
-  width: 16px;
-  height: 16px;
 }
 
 /* Scrollbars */
-.spreadsheet-body::-webkit-scrollbar {
+.handsontable-container::-webkit-scrollbar {
   width: 12px;
   height: 12px;
 }
 
-.spreadsheet-body::-webkit-scrollbar-track {
+.handsontable-container::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
 
-.spreadsheet-body::-webkit-scrollbar-thumb {
+.handsontable-container::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 6px;
 }
 
-.spreadsheet-body::-webkit-scrollbar-thumb:hover {
+.handsontable-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 
-.spreadsheet-body::-webkit-scrollbar-corner {
+.handsontable-container::-webkit-scrollbar-corner {
   background: #f1f1f1;
 }
 
@@ -1049,58 +812,41 @@ export default {
     justify-content: center;
   }
 
-  .spreadsheet-wrapper {
+  .handsontable-wrapper {
     margin: 8px;
     border-radius: 4px;
   }
 
-  .corner-cell,
-  .row-number-cell {
-    width: 40px;
+  .spreadsheet-controls {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
   }
 
-  .column-header-cell,
-  .data-cell {
-    min-width: 100px;
-    width: 100px;
-  }
-
-  .spreadsheet-body {
-    font-size: 12px;
-  }
-
-  .cell-input {
-    font-size: 12px;
-    padding: 4px 6px;
+  .handsontable-container {
+    height: calc(100% - 100px); /* Adjust for header height */
   }
 }
 
 /* Selection and focus styles */
-.data-cell::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px solid transparent;
-  pointer-events: none;
+.handsontable-container .ht_master .ht_clone {
+  z-index: 1000; /* Ensure cloned cells are above other elements */
 }
 
-.data-cell.selected::before {
-  border-color: #1a73e8;
+.handsontable-container .ht_master .ht_clone .ht_clone_cell {
+  border: 2px solid #1a73e8;
+  box-shadow: 0 0 0 2px #1a73e8;
+}
+
+.handsontable-container .ht_master .ht_clone .ht_clone_cell .ht_clone_cell_content {
+  border: 2px solid #1a73e8;
+  box-shadow: 0 0 0 2px #1a73e8;
 }
 
 /* Animation for smooth interactions */
-.data-cell,
-.column-header-cell,
-.row-number-cell {
-  transition: background-color 0.1s ease;
-}
-
-.delete-column-btn,
-.delete-row-btn {
-  transition: opacity 0.2s ease;
+.handsontable-container .ht_master .ht_clone .ht_clone_cell,
+.handsontable-container .ht_master .ht_clone .ht_clone_cell .ht_clone_cell_content {
+  transition: border-color 0.1s ease, box-shadow 0.1s ease;
 }
 
 /* AI Analysis Section */

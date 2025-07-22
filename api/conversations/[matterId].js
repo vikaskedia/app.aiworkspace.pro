@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       `)
       .eq('matter_id', finalMatterId)
       .order('last_message_at', { ascending: false })
+      .limit(10000)
 
     if (error) throw error
 

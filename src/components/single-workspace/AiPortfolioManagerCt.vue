@@ -565,13 +565,7 @@ export default {
 
     // Handsontable configuration
     const hotSettings = computed(() => {
-      const rowCount = Math.max(handsontableData.value.length, 8); // At least 8 rows visible
-      const nestedHeaderHeight = columnGroups.value.length > 0 ? 100 : 50; // 3 rows when groups exist, 2 rows when no groups
-      const rowHeight = 20; // More generous row height
-      const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700); // Increased max height to 700px
-      
       return {
-        height: calculatedHeight,
         width: '100%',
         rowHeaders: true,
         colHeaders: false, // Disable simple headers since we're using nested headers
@@ -1897,14 +1891,8 @@ export default {
     watch([columns, portfolioData, columnGroups], () => {
       if (hotTableComponent.value?.hotInstance) {
         setTimeout(() => {
-          // Update height based on new content with improved calculation
-          const rowCount = Math.max(handsontableData.value.length, 8);
-          const nestedHeaderHeight = columnGroups.value.length > 0 ? 100 : 50;
-          const rowHeight = 20;
-          const calculatedHeight = Math.min(rowCount * rowHeight + nestedHeaderHeight + 20, 700);
-          
+          // Update table settings without height to prevent internal scrollbars
           hotTableComponent.value.hotInstance.updateSettings({
-            height: calculatedHeight,
             nestedHeaders: columnHeaders.value,
             collapsibleColumns: getCollapsibleColumnsConfig(),
             colWidths: getColumnWidths()
@@ -1999,7 +1987,7 @@ export default {
 <style scoped>
 .ai-portfolio-manager {
   padding: 0;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -2008,8 +1996,6 @@ export default {
 
 .portfolio-content {
   flex: 1;
-  overflow-x: hidden;
-  overflow-y: auto;
   background: #fafafa;
 }
 
@@ -2026,7 +2012,6 @@ export default {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   margin: 16px;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
@@ -2037,28 +2022,7 @@ export default {
   position: relative;
 }
 
-/* Scrollbars */
-.handsontable-container::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-.handsontable-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.handsontable-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 6px;
-}
-
-.handsontable-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-.handsontable-container::-webkit-scrollbar-corner {
-  background: #f1f1f1;
-}
+/* Removed custom scrollbar styling to prevent internal scrollbars */
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
@@ -2070,7 +2034,7 @@ export default {
 
 
   .handsontable-container {
-    /* Height is now dynamic based on content */
+    /* Height is now dynamic based on content without internal scrollbars */
   }
 }
 

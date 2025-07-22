@@ -10,7 +10,53 @@
       </div>
 
       <div v-else-if="columns.length > 0" class="handsontable-wrapper">
-
+        <!-- Filter Controls -->
+        <div class="filter-controls">
+          <div class="filter-toolbar">
+            <div class="filter-actions">
+              <el-button-group>
+                <el-button 
+                  size="small" 
+                  @click="clearAllFilters"
+                  :icon="RefreshRight"
+                  title="Clear All Filters"
+                >
+                  Clear Filters
+                </el-button>
+                <el-button 
+                  size="small" 
+                  @click="showFilterDialog = true"
+                  :icon="Filter"
+                  title="Advanced Filters"
+                >
+                  Advanced
+                </el-button>
+                <el-button 
+                  size="small" 
+                  @click="showSavedFiltersDialog = true"
+                  :icon="FolderOpened"
+                  title="Saved Filters"
+                >
+                  Saved
+                </el-button>
+              </el-button-group>
+            </div>
+            <div class="active-filters" v-if="activeFilters.length > 0">
+              <span class="filter-label">Active Filters:</span>
+              <el-tag 
+                v-for="filter in activeFilters" 
+                :key="filter.id"
+                closable
+                @close="removeFilter(filter)"
+                size="small"
+                effect="light"
+                class="filter-tag"
+              >
+                {{ getFilterDisplayText(filter) }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
         
         <div class="handsontable-container">
           <HotTable
@@ -26,7 +72,7 @@
         <div class="analysis-header">
           <h3>AI Analysis</h3>
           <div class="analysis-actions">
-            <el-button @click="showSystemPromptDialog = true" :icon="Setting" title="Configure AI Analysis">
+            <el-button @click="showSystemPromptDialog = true" :icon="Tools" title="Configure AI Analysis">
               Settings
             </el-button>
             <el-button 
@@ -76,7 +122,7 @@
                     size="small" 
                     type="info" 
                     @click="toggleDebug(result.id)"
-                    :icon="Setting"
+                    :icon="Tools"
                   >
                     Debug
                   </el-button>
@@ -247,12 +293,200 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Advanced Filter Dialog -->
+    <el-dialog
+      v-model="showFilterDialog"
+      title="Advanced Filters"
+      width="700px"
+    >
+      <div class="filter-dialog-content">
+        <div class="filter-builder">
+          <h4>Create Custom Filter</h4>
+          <el-form :model="newFilter" label-width="120px">
+            <el-form-item label="Column">
+              <el-select v-model="newFilter.column" placeholder="Select column">
+                <el-option 
+                  v-for="(col, index) in columns" 
+                  :key="index"
+                  :label="col.label" 
+                  :value="index"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Condition">
+              <el-select v-model="newFilter.condition" placeholder="Select condition">
+                <el-option label="Contains" value="contains" />
+                <el-option label="Equals" value="eq" />
+                <el-option label="Not equals" value="neq" />
+                <el-option label="Starts with" value="begins_with" />
+                <el-option label="Ends with" value="ends_with" />
+                <el-option label="Greater than" value="gt" />
+                <el-option label="Less than" value="lt" />
+                <el-option label="Greater or equal" value="gte" />
+                <el-option label="Less or equal" value="lte" />
+                <el-option label="Is empty" value="empty" />
+                <el-option label="Is not empty" value="not_empty" />
+                <el-option label="Between" value="between" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Value" v-if="needsValue(newFilter.condition)">
+              <el-input 
+                v-if="newFilter.condition !== 'between'"
+                v-model="newFilter.value" 
+                placeholder="Enter filter value"
+              />
+              <div v-else class="between-inputs">
+                <el-input 
+                  v-model="newFilter.value" 
+                  placeholder="From"
+                  style="width: 48%"
+                />
+                <span style="width: 4%; text-align: center">to</span>
+                <el-input 
+                  v-model="newFilter.value2" 
+                  placeholder="To"
+                  style="width: 48%"
+                />
+              </div>
+            </el-form-item>
+          </el-form>
+          <div class="filter-actions">
+            <el-button type="primary" @click="addCustomFilter" :disabled="!isValidFilter">
+              Add Filter
+            </el-button>
+          </div>
+        </div>
+
+        <div class="filter-presets" v-if="columns.length > 0">
+          <h4>Quick Filters</h4>
+          <div class="preset-buttons">
+            <el-button 
+              v-for="(col, index) in columns" 
+              :key="index"
+              size="small" 
+              @click="showColumnValueFilter(index)"
+            >
+              Filter {{ col.label }}
+            </el-button>
+          </div>
+        </div>
+
+        <div class="applied-filters" v-if="activeFilters.length > 0">
+          <h4>Applied Filters</h4>
+          <div class="filter-list">
+            <div 
+              v-for="filter in activeFilters" 
+              :key="filter.id"
+              class="filter-item"
+            >
+              <span class="filter-description">{{ getFilterDisplayText(filter) }}</span>
+              <el-button size="small" type="danger" @click="removeFilter(filter)">
+                Remove
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showFilterDialog = false">Close</el-button>
+        <el-button type="primary" @click="saveCurrentFilters">Save Filter Set</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Saved Filters Dialog -->
+    <el-dialog
+      v-model="showSavedFiltersDialog"
+      title="Saved Filter Sets"
+      width="600px"
+    >
+      <div class="saved-filters-content">
+        <div v-if="savedFilters.length === 0" class="no-saved-filters">
+          <el-empty description="No saved filter sets">
+            <el-text type="info">Create and save filter combinations for quick access</el-text>
+          </el-empty>
+        </div>
+        <div v-else class="saved-filter-list">
+          <div 
+            v-for="savedFilter in savedFilters" 
+            :key="savedFilter.id"
+            class="saved-filter-item"
+          >
+            <div class="saved-filter-info">
+              <h5>{{ savedFilter.name }}</h5>
+              <p class="filter-description">{{ savedFilter.description }}</p>
+              <div class="filter-tags">
+                <el-tag 
+                  v-for="filter in savedFilter.filters" 
+                  :key="filter.id"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ getFilterDisplayText(filter) }}
+                </el-tag>
+              </div>
+            </div>
+            <div class="saved-filter-actions">
+              <el-button size="small" type="primary" @click="applySavedFilter(savedFilter)">
+                Apply
+              </el-button>
+              <el-button size="small" type="danger" @click="deleteSavedFilter(savedFilter.id)">
+                Delete
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showSavedFiltersDialog = false">Close</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Column Value Filter Dialog -->
+    <el-dialog
+      v-model="showColumnValueDialog"
+      :title="`Filter ${selectedColumnForValues !== null ? columns[selectedColumnForValues]?.label : ''}`"
+      width="500px"
+    >
+      <div class="column-value-filter">
+        <div class="search-values">
+          <el-input
+            v-model="valueFilterSearch"
+            placeholder="Search values..."
+            :prefix-icon="Search"
+            clearable
+          />
+        </div>
+        <div class="value-list">
+          <el-checkbox-group v-model="selectedValues">
+            <div class="value-options">
+              <el-checkbox 
+                v-for="value in filteredColumnValues" 
+                :key="value"
+                :label="value"
+                class="value-option"
+              >
+                {{ value || '(empty)' }}
+              </el-checkbox>
+            </div>
+          </el-checkbox-group>
+        </div>
+        <div class="value-actions">
+          <el-button size="small" @click="selectAllValues">Select All</el-button>
+          <el-button size="small" @click="selectNoneValues">Select None</el-button>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showColumnValueDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="applyColumnValueFilter">Apply Filter</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { Plus, Document, Delete, Setting, ArrowDown } from '@element-plus/icons-vue';
+import { Plus, Document, Delete, Tools, ArrowDown, Filter, RefreshRight, FolderOpened, Search } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { HotTable } from '@handsontable/vue3';
 import { registerAllModules } from 'handsontable/registry';
@@ -272,8 +506,12 @@ export default {
     Plus,
     Document,
     Delete,
-    Setting,
+    Tools,
     ArrowDown,
+    Filter,
+    RefreshRight,
+    FolderOpened,
+    Search,
     HotTable
   },
   setup() {
@@ -299,6 +537,22 @@ export default {
     const showGroupColumnsDialog = ref(false);
     const selectedColumns = ref([]);
     const groupName = ref('');
+
+    // Filter variables
+    const showFilterDialog = ref(false);
+    const showSavedFiltersDialog = ref(false);
+    const showColumnValueDialog = ref(false);
+    const activeFilters = ref([]);
+    const savedFilters = ref([]);
+    const newFilter = reactive({
+      column: null,
+      condition: '',
+      value: '',
+      value2: ''
+    });
+    const selectedColumnForValues = ref(null);
+    const selectedValues = ref([]);
+    const valueFilterSearch = ref('');
 
     // Initialize HyperFormula instance for formulas
     const hyperformulaInstance = HyperFormula.buildEmpty({
@@ -363,8 +617,13 @@ export default {
           engine: hyperformulaInstance,
           sheetName: 'Portfolio'
         },
-        dropdownMenu: true,
+        dropdownMenu: [
+          'filter_by_condition',
+          'filter_by_value',
+          'filter_action_bar'
+        ],
         filters: true,
+        columnSorting: true,
         autoWrapRow: true,
         autoWrapCol: true,
         manualColumnResize: true,
@@ -782,6 +1041,7 @@ export default {
           portfolioData.value = data.data || [];
           systemPrompt.value = data.system_prompt || '';
           columnGroups.value = data.column_groups || [];
+          savedFilters.value = data.saved_filters || [];
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -817,6 +1077,7 @@ export default {
           data: currentData,
           system_prompt: systemPrompt.value,
           column_groups: columnGroups.value,
+          saved_filters: savedFilters.value,
           created_by: user.id,
           updated_by: user.id
         };
@@ -1096,6 +1357,316 @@ export default {
       return JSON.stringify(payload, null, 2);
     };
 
+    // Filter Computed Properties
+    const isValidFilter = computed(() => {
+      return newFilter.column !== null && 
+             newFilter.condition && 
+             (needsValue(newFilter.condition) ? newFilter.value || newFilter.condition === 'between' && newFilter.value && newFilter.value2 : true);
+    });
+
+    const filteredColumnValues = computed(() => {
+      if (selectedColumnForValues.value === null) return [];
+      
+      const columnKey = columns.value[selectedColumnForValues.value]?.key;
+      if (!columnKey) return [];
+      
+      // Get unique values from the column
+      const values = portfolioData.value.map(row => row[columnKey] || '').filter((value, index, self) => {
+        return self.indexOf(value) === index;
+      });
+      
+      // Filter by search term
+      if (valueFilterSearch.value) {
+        return values.filter(value => 
+          value.toString().toLowerCase().includes(valueFilterSearch.value.toLowerCase())
+        );
+      }
+      
+      return values;
+    });
+
+    // Filter Functions
+    const needsValue = (condition) => {
+      return !['empty', 'not_empty'].includes(condition);
+    };
+
+    const clearAllFilters = () => {
+      if (hotTableComponent.value?.hotInstance) {
+        const filtersPlugin = hotTableComponent.value.hotInstance.getPlugin('filters');
+        filtersPlugin.clearConditions();
+        filtersPlugin.filter();
+        activeFilters.value = [];
+        ElMessage.success('All filters cleared');
+      }
+    };
+
+    const addCustomFilter = () => {
+      if (!isValidFilter.value || !hotTableComponent.value?.hotInstance) return;
+      
+      const filtersPlugin = hotTableComponent.value.hotInstance.getPlugin('filters');
+      const column = newFilter.column;
+      const condition = newFilter.condition;
+      
+      let filterCondition;
+      
+      if (condition === 'between') {
+        filterCondition = [condition, [newFilter.value, newFilter.value2]];
+      } else if (needsValue(condition)) {
+        filterCondition = [condition, [newFilter.value]];
+      } else {
+        filterCondition = [condition, []];
+      }
+      
+      // Add to Handsontable filters
+      filtersPlugin.addCondition(column, filterCondition[0], filterCondition[1]);
+      filtersPlugin.filter();
+      
+      // Add to our tracking
+      const filterId = Date.now().toString();
+      activeFilters.value.push({
+        id: filterId,
+        column: column,
+        condition: condition,
+        value: newFilter.value,
+        value2: newFilter.value2
+      });
+      
+      // Reset form
+      Object.assign(newFilter, {
+        column: null,
+        condition: '',
+        value: '',
+        value2: ''
+      });
+      
+      ElMessage.success('Filter applied');
+    };
+
+    const removeFilter = (filter) => {
+      if (!hotTableComponent.value?.hotInstance) return;
+      
+      const filtersPlugin = hotTableComponent.value.hotInstance.getPlugin('filters');
+      
+      // Remove from active filters
+      const index = activeFilters.value.findIndex(f => f.id === filter.id);
+      if (index !== -1) {
+        activeFilters.value.splice(index, 1);
+      }
+      
+      // Rebuild all filters
+      filtersPlugin.clearConditions();
+      
+      activeFilters.value.forEach(f => {
+        let filterCondition;
+        if (f.condition === 'between') {
+          filterCondition = [f.condition, [f.value, f.value2]];
+        } else if (needsValue(f.condition)) {
+          filterCondition = [f.condition, [f.value]];
+        } else {
+          filterCondition = [f.condition, []];
+        }
+        filtersPlugin.addCondition(f.column, filterCondition[0], filterCondition[1]);
+      });
+      
+      filtersPlugin.filter();
+      ElMessage.success('Filter removed');
+    };
+
+    const getFilterDisplayText = (filter) => {
+      const columnName = columns.value[filter.column]?.label || 'Unknown';
+      const conditionNames = {
+        'contains': 'contains',
+        'eq': 'equals',
+        'neq': 'not equals',
+        'begins_with': 'starts with',
+        'ends_with': 'ends with',
+        'gt': 'greater than',
+        'lt': 'less than',
+        'gte': 'greater or equal',
+        'lte': 'less or equal',
+        'empty': 'is empty',
+        'not_empty': 'is not empty',
+        'between': 'between'
+      };
+      
+      const conditionName = conditionNames[filter.condition] || filter.condition;
+      
+      if (filter.condition === 'between') {
+        return `${columnName} ${conditionName} ${filter.value} and ${filter.value2}`;
+      } else if (needsValue(filter.condition)) {
+        return `${columnName} ${conditionName} "${filter.value}"`;
+      } else {
+        return `${columnName} ${conditionName}`;
+      }
+    };
+
+    const showColumnValueFilter = (columnIndex) => {
+      selectedColumnForValues.value = columnIndex;
+      selectedValues.value = [];
+      valueFilterSearch.value = '';
+      showColumnValueDialog.value = true;
+    };
+
+    const selectAllValues = () => {
+      selectedValues.value = [...filteredColumnValues.value];
+    };
+
+    const selectNoneValues = () => {
+      selectedValues.value = [];
+    };
+
+    const applyColumnValueFilter = () => {
+      if (!hotTableComponent.value?.hotInstance || selectedColumnForValues.value === null) return;
+      
+      const filtersPlugin = hotTableComponent.value.hotInstance.getPlugin('filters');
+      const column = selectedColumnForValues.value;
+      
+      if (selectedValues.value.length === 0) {
+        ElMessage.warning('Please select at least one value');
+        return;
+      }
+      
+      // Use "by_value" condition for multi-select
+      filtersPlugin.addCondition(column, 'by_value', selectedValues.value);
+      filtersPlugin.filter();
+      
+      // Add to our tracking
+      const filterId = Date.now().toString();
+      activeFilters.value.push({
+        id: filterId,
+        column: column,
+        condition: 'by_value',
+        value: selectedValues.value.join(', '),
+        values: selectedValues.value
+      });
+      
+      showColumnValueDialog.value = false;
+      ElMessage.success('Value filter applied');
+    };
+
+    const saveCurrentFilters = async () => {
+      if (activeFilters.value.length === 0) {
+        ElMessage.warning('No filters to save');
+        return;
+      }
+      
+      try {
+        const { value: filterSetName } = await ElMessageBox.prompt('Enter a name for this filter set:', 'Save Filters', {
+          confirmButtonText: 'Save',
+          cancelButtonText: 'Cancel',
+          inputPattern: /^.+$/,
+          inputErrorMessage: 'Filter set name cannot be empty'
+        });
+
+        if (filterSetName) {
+          const savedFilter = {
+            id: Date.now().toString(),
+            name: filterSetName.trim(),
+            description: `${activeFilters.value.length} filter(s)`,
+            filters: [...activeFilters.value],
+            created_at: new Date().toISOString()
+          };
+          
+          savedFilters.value.push(savedFilter);
+          await saveSavedFilters();
+          
+          ElMessage.success('Filter set saved successfully');
+          showFilterDialog.value = false;
+        }
+      } catch (error) {
+        // User cancelled
+      }
+    };
+
+    const applySavedFilter = (savedFilter) => {
+      if (!hotTableComponent.value?.hotInstance) return;
+      
+      // Clear existing filters
+      clearAllFilters();
+      
+      const filtersPlugin = hotTableComponent.value.hotInstance.getPlugin('filters');
+      
+      // Apply each saved filter
+      savedFilter.filters.forEach(filter => {
+        let filterCondition;
+        
+        if (filter.condition === 'between') {
+          filterCondition = [filter.condition, [filter.value, filter.value2]];
+        } else if (filter.condition === 'by_value') {
+          filterCondition = [filter.condition, filter.values || [filter.value]];
+        } else if (needsValue(filter.condition)) {
+          filterCondition = [filter.condition, [filter.value]];
+        } else {
+          filterCondition = [filter.condition, []];
+        }
+        
+        filtersPlugin.addCondition(filter.column, filterCondition[0], filterCondition[1]);
+      });
+      
+      filtersPlugin.filter();
+      
+      // Update active filters
+      activeFilters.value = [...savedFilter.filters];
+      
+      showSavedFiltersDialog.value = false;
+      ElMessage.success(`Applied filter set: ${savedFilter.name}`);
+    };
+
+    const deleteSavedFilter = async (filterId) => {
+      try {
+        await ElMessageBox.confirm('Are you sure you want to delete this filter set?', 'Confirm', {
+          type: 'warning'
+        });
+        
+        const index = savedFilters.value.findIndex(f => f.id === filterId);
+        if (index !== -1) {
+          savedFilters.value.splice(index, 1);
+          await saveSavedFilters();
+          ElMessage.success('Filter set deleted');
+        }
+      } catch {
+        // User cancelled
+      }
+    };
+
+    const loadSavedFilters = async () => {
+      if (!currentMatter.value?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('portfolio_data')
+          .select('saved_filters')
+          .eq('matter_id', currentMatter.value.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
+        if (data?.saved_filters) {
+          savedFilters.value = data.saved_filters;
+        }
+      } catch (error) {
+        console.error('Error loading saved filters:', error);
+      }
+    };
+
+    const saveSavedFilters = async () => {
+      if (!currentMatter.value?.id) return;
+      
+      try {
+        const { error } = await supabase
+          .from('portfolio_data')
+          .update({ saved_filters: savedFilters.value })
+          .eq('matter_id', currentMatter.value.id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error saving filters:', error);
+        ElMessage.error('Failed to save filters');
+      }
+    };
+
 
 
     const insertFormulaHelper = (selection) => {
@@ -1199,6 +1770,7 @@ export default {
     onMounted(() => {
       loadPortfolio();
       loadAnalysisResults();
+      loadSavedFilters();
     });
 
     return {
@@ -1217,9 +1789,23 @@ export default {
       showGroupColumnsDialog,
       selectedColumns,
       groupName,
+      // Filter variables
+      showFilterDialog,
+      showSavedFiltersDialog,
+      showColumnValueDialog,
+      activeFilters,
+      savedFilters,
+      newFilter,
+      selectedColumnForValues,
+      selectedValues,
+      valueFilterSearch,
+      // Computed
       hotSettings,
       columnHeaders,
       handsontableData,
+      isValidFilter,
+      filteredColumnValues,
+      // Functions
       initializePortfolio,
       savePortfolio,
       onCellChange,
@@ -1240,7 +1826,20 @@ export default {
       getCollapsibleColumnsConfig,
       groupSelectedColumns,
       ungroupSelectedColumns,
-      createColumnGroup
+      createColumnGroup,
+      // Filter functions
+      needsValue,
+      clearAllFilters,
+      addCustomFilter,
+      removeFilter,
+      getFilterDisplayText,
+      showColumnValueFilter,
+      selectAllValues,
+      selectNoneValues,
+      applyColumnValueFilter,
+      saveCurrentFilters,
+      applySavedFilter,
+      deleteSavedFilter
     };
   }
 };
@@ -1823,6 +2422,332 @@ export default {
 :deep(.htCore tbody tr td.grouped-column) {
   border-left: 3px solid #1976d2 !important;
   background: linear-gradient(90deg, rgba(25, 118, 210, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Filter Controls Styles */
+.filter-controls {
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 12px 16px;
+}
+
+.filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.active-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: #5f6368;
+  font-weight: 500;
+}
+
+.filter-tag {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+/* Filter Dialog Styles */
+.filter-dialog-content {
+  padding: 8px 0;
+}
+
+.filter-builder {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-builder h4 {
+  margin: 0 0 16px 0;
+  color: #1a73e8;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.filter-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.between-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.filter-presets {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f1f3f4;
+  border-radius: 6px;
+  border: 1px solid #dadce0;
+}
+
+.filter-presets h4 {
+  margin: 0 0 12px 0;
+  color: #3c4043;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.applied-filters {
+  padding: 16px;
+  background: #e8f0fe;
+  border-radius: 6px;
+  border: 1px solid #1976d2;
+}
+
+.applied-filters h4 {
+  margin: 0 0 12px 0;
+  color: #1976d2;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.filter-description {
+  font-size: 14px;
+  color: #3c4043;
+  flex: 1;
+}
+
+/* Saved Filters Dialog Styles */
+.saved-filters-content {
+  padding: 8px 0;
+}
+
+.no-saved-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+.saved-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.saved-filter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: background-color 0.2s ease;
+}
+
+.saved-filter-item:hover {
+  background: #f1f3f4;
+}
+
+.saved-filter-info {
+  flex: 1;
+  margin-right: 16px;
+}
+
+.saved-filter-info h5 {
+  margin: 0 0 8px 0;
+  color: #202124;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.saved-filter-info .filter-description {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #5f6368;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.saved-filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* Column Value Filter Dialog Styles */
+.column-value-filter {
+  padding: 8px 0;
+}
+
+.search-values {
+  margin-bottom: 16px;
+}
+
+.value-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 16px;
+}
+
+.value-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.value-option {
+  padding: 4px 8px;
+  margin: 0;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.value-option:hover {
+  background: #f8f9fa;
+}
+
+.value-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Mobile Responsive for Filter Controls */
+@media (max-width: 768px) {
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filter-actions {
+    justify-content: center;
+  }
+
+  .active-filters {
+    justify-content: center;
+  }
+
+  .filter-builder {
+    padding: 12px;
+  }
+
+  .preset-buttons {
+    justify-content: center;
+  }
+
+  .filter-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .saved-filter-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .saved-filter-actions {
+    justify-content: center;
+    align-self: stretch;
+  }
+
+  .between-inputs {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .between-inputs span {
+    text-align: center;
+    width: 100%;
+  }
+}
+
+/* Enhanced filter dropdown menu styling */
+:deep(.htDropdownMenu) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 6px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+:deep(.htDropdownMenu .ht_clone_top) {
+  background: white !important;
+}
+
+:deep(.htDropdownMenu .htCore) {
+  background: white !important;
+}
+
+/* Filter condition styling */
+:deep(.htUIMultipleSelectHot) {
+  border-radius: 4px !important;
+  border: 1px solid #e0e0e0 !important;
+}
+
+:deep(.htUIMultipleSelectHot .ht_master .ht_clone_top) {
+  background: #f8f9fa !important;
+}
+
+/* Active filter indication in column headers */
+:deep(.htCore thead th.htFiltersActive) {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+  color: #0d47a1 !important;
+  font-weight: 600 !important;
+  position: relative !important;
+}
+
+:deep(.htCore thead th.htFiltersActive::after) {
+  content: "🔍" !important;
+  position: absolute !important;
+  top: 2px !important;
+  right: 4px !important;
+  font-size: 12px !important;
+  color: #1976d2 !important;
 }
 
 

@@ -177,6 +177,8 @@ export default {
               'sheet-01': {
                 id: 'sheet-01',
                 name: 'Portfolio',
+                rowCount: 20,
+                columnCount: 10,
                 cellData: {
                   0: {
                     0: { v: 'Symbol' },
@@ -1376,8 +1378,8 @@ export default {
               cellData: {},
               tabColor: '',
               hidden: 0,
-              rowCount: 1000,
-              columnCount: 26,
+              rowCount: 20,
+              columnCount: 10,
               zoomRatio: 1,
               scrollTop: 0,
               scrollLeft: 0,

@@ -52,18 +52,41 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch conversations for the matter with latest message info
-    // Remove the messages join and limit to see if we can get all conversations
-    const { data: conversations, error } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('matter_id', matterId)
-      .order('created_at', { ascending: false })
-      .range(0, 9999) // Use range instead of limit
+    // Fetch conversations for the matter using pagination to get ALL records
+    let allConversations = []
+    let offset = 0
+    const batchSize = 1000
+    let hasMore = true
 
-    if (error) throw error
+    console.log('Starting to fetch conversations for matter:', matterId)
 
-    console.log('Found conversations:', conversations?.length || 0)
+    while (hasMore) {
+      const { data: conversationBatch, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('matter_id', matterId)
+        .order('last_message_at', { ascending: false })
+        .range(offset, offset + batchSize - 1)
+
+      if (error) throw error
+
+      console.log(`Fetched batch ${Math.floor(offset/batchSize) + 1}: ${conversationBatch?.length || 0} conversations`)
+
+      if (conversationBatch && conversationBatch.length > 0) {
+        allConversations = allConversations.concat(conversationBatch)
+        offset += batchSize
+        
+        // If we got less than the batch size, we've reached the end
+        if (conversationBatch.length < batchSize) {
+          hasMore = false
+        }
+      } else {
+        hasMore = false
+      }
+    }
+
+    const conversations = allConversations
+    console.log('Total conversations fetched:', conversations.length)
 
     // Get user-specific unread counts if user is authenticated
     let unreadCountMap = {}
@@ -93,7 +116,7 @@ export default async function handler(req, res) {
         contact: conv.contact_name || conv.to_phone_number,
         phoneNumber: conv.to_phone_number,
         lastMessage: conv.last_message_preview || '',
-        lastMessageTime: conv.created_at || conv.last_message_at,
+        lastMessageTime: conv.last_message_at || conv.created_at,
         unread: userUnreadCount, // Use user-specific unread count
         fromPhoneNumber: conv.from_phone_number,
         toPhoneNumber: conv.to_phone_number,

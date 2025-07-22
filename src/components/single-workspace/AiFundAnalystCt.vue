@@ -52,15 +52,6 @@
         <el-form label-width="100px" label-position="left">
           <div class="form-row">
             <label class="form-label">Strategy:</label>
-            <!-- <el-autocomplete
-              v-model="strategyDisplayValue"
-              :fetch-suggestions="querySearch"
-              :trigger-on-focus="false"
-              clearable
-              class="inline-input w-50"
-              placeholder="Search and select strategy..."
-              @select="handleSelect"
-            /> -->
             <el-input
               v-model="strategyDisplayValue"
               placeholder="Add strategy..."
@@ -80,18 +71,6 @@
 
           <div class="form-row" style="display: flex; gap: 1rem; float: right;">
             <el-button type="primary" plain @click="createNewStrategy">Create new strategy</el-button>
-            <!-- <el-button type="primary" plain @click="saveAndRun" :loading="loading">
-              <template #default>
-                <span v-if="!loading">Save & Run</span>
-                <span v-else>Saving & Running...</span>
-              </template>
-            </el-button>
-            <el-button color="#626aef" :dark="isDark" plain @click="scheduleRun" :loading="loading">
-              <template #default>
-                <span v-if="!loading">Schedule Run</span>
-                <span v-else>Scheduling Run...</span>
-              </template>
-            </el-button> -->
           </div>
         </el-form>
       </div>
@@ -113,11 +92,14 @@
             :value="strategy"
           />
         </el-select>
+        <div class="form-row" style="display: flex; gap: 0.5rem; float: right;" v-if="selectedExistingStrategy">
+          <el-button type="primary" plain @click="runExistingStrategy">Run</el-button>
+          <el-button type="primary" plain @click="scheduleExistingStrategy">Schedule</el-button>
+        </div>
       </div>
-      <el-divider />
 
-      <div class="all-previous-reports">
-        <h3>All Previous Reports:</h3>
+      <div class="all-previous-reports" v-if="selectedExistingStrategy">
+        <h3>{{ getStrategyLabel(selectedExistingStrategy) }} Reports:</h3>
         <div class="previous-reports-list">
           <el-table
           :data="historicalReports"
@@ -127,19 +109,19 @@
           max-height="400"
           width="100%"
         >
-          <el-table-column prop="strategy" label="Strategy" width="200">
+          <el-table-column prop="analysis.strategy" label="Strategy" width="200">
               <template #default="{ row }">
-                {{ getStrategyLabel(row.strategy) }}
+                {{ getStrategyLabel(row.analysis.strategy) }}
               </template>
             </el-table-column>
             
-            <el-table-column prop="prompt" label="Prompt" width="752">
+            <el-table-column prop="analysis.prompt" label="Prompt" width="752">
               <template #default="{ row }">
-                <span>{{ row.prompt }}</span>                
+                <span>{{ row.analysis.prompt }}</span>                
               </template>
             </el-table-column>
             
-            <el-table-column prop="status" label="Status" width="102">
+            <el-table-column prop="status" label="Status" width="150">
               <template #default="{ row }">
                 <el-tag
                   :type="row.status === 'completed' ? 'success' : row.status === 'failed' ? 'danger' : 'warning'"
@@ -149,30 +131,24 @@
               </template>
             </el-table-column>
             
-            <el-table-column prop="report_datetime" label="Report Date" width="170">
+            <el-table-column prop="created_at" label="Created" width="237">
               <template #default="{ row }">
-                {{ formatDate(row.report_datetime) }}
+                {{ formatDateTime(row.created_at) }}
               </template>
             </el-table-column>
             
-            <!-- <el-table-column prop="created_at" label="Created" width="170">
-              <template #default="{ row }">
-                {{ formatDate(row.created_at) }}
-              </template>
-            </el-table-column> -->
-            
-            <el-table-column label="Actions" width="116" fixed="right">
+            <!-- <el-table-column label="Actions" width="116" fixed="right">
               <template #default="{ row }">
                 <el-button 
                   type="primary" 
                   size="small" 
-                  @click="loadReport(row)"
+                  @click="loadLLMResultReport(row)"
                   :disabled="row.status !== 'completed'"
                 >
                   Load Report
                 </el-button>
               </template>
-            </el-table-column>
+            </el-table-column> -->
           </el-table>
         </div>
       </div>
@@ -214,6 +190,7 @@ export default {
       allHistoricalReports: [],
       uniqueStrategies: [],
       selectedStrategyFilter: '',
+      selectedExistingStrategy: '',
       strategies: [],
       selectedStrategyToDisplay: '',
       promptToDisplay: '',
@@ -239,83 +216,6 @@ export default {
     await this.loadHistoricalReports();
   },
   methods: {
-    async generateReport() {
-      if (!this.selectedStrategy) {
-        ElMessage.warning('Please select a strategy');
-        return;
-      }
-
-      if (!this.prompt.trim()) {
-        ElMessage.warning('Please enter a prompt');
-        return;
-      }
-
-      this.loading = true;
-      this.error = null;
-
-      // Create initial record with pending status
-      let analysisId = null;
-      
-      try {
-        // First, create a pending record in database
-        const { data: analysisRecord, error: insertError } = await supabase
-          .from('ai_fund_analyzing_data')
-          .insert({
-            matter_id: this.currentMatter.id,
-            strategy: this.selectedStrategy,
-            prompt: this.prompt.trim(),
-            report_datetime: this.reportDateTime,
-            status: 'pending',
-            created_by: (await supabase.auth.getUser()).data.user.id
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        analysisId = analysisRecord.id;
-
-        // Call OpenAI API
-        const openAIResponse = await this.callOpenAI(this.prompt, this.selectedStrategy);
-        
-        // If OpenAI call is successful, update the record with the response
-        const { error: updateError } = await supabase
-          .from('ai_fund_analyzing_data')
-          .update({
-            openai_response: openAIResponse.content,
-            status: 'completed'
-          })
-          .eq('id', analysisId);
-
-        if (updateError) throw updateError;
-
-        // Display the report content
-        this.reportContent = this.formatOpenAIResponse(openAIResponse.content);
-        
-        // Refresh historical reports list and unique strategies
-        await this.loadHistoricalReports();
-        
-        ElMessage.success('Report generated and saved successfully');
-
-      } catch (error) {
-        console.error('Error generating report:', error);
-        
-        // Update record with error status if we have an analysisId
-        if (analysisId) {
-          await supabase
-            .from('ai_fund_analyzing_data')
-            .update({
-              status: 'failed',
-              error_message: error.message || 'Unknown error occurred'
-            })
-            .eq('id', analysisId);
-        }
-        
-        this.error = `Failed to generate report: ${error.message || 'Unknown error'}`;
-      } finally {
-        this.loading = false;
-      }
-    },
-
     async createNewStrategy() {
       // Validate required fields
       if (!this.strategyDisplayValue || !this.strategyDisplayValue.trim()) {
@@ -331,14 +231,14 @@ export default {
       this.loading = true;
 
       try {
-        // Insert new record without OpenAI response
+        // Insert new record without OpenAI response and without status
         const { data, error } = await supabase
           .from('ai_fund_analyzing_data')
           .insert({
             matter_id: this.currentMatter.id,
             strategy: this.strategyDisplayValue.trim(),
             prompt: this.prompt.trim(),
-            status: 'pending',
+            report_datetime: new Date().toISOString(),
             created_by: (await supabase.auth.getUser()).data.user.id
           })
           .select()
@@ -474,7 +374,29 @@ export default {
 
     formatDateTime(dateTime) {
       if (!dateTime) return '';
-      return new Date(dateTime).toLocaleString('en-US', {
+      const date = new Date(dateTime);
+      // Get UTC offset in minutes
+      const offset = date.getTimezoneOffset();
+      // Map offset to abbreviation
+      // IST: UTC+5:30 (offset -330)
+      // PST: UTC-8:00 (offset 480)
+      // PDT: UTC-7:00 (offset 420)
+      // EDT: UTC-4:00 (offset 240)
+      let tz = '';
+      if (offset === -330) {
+        tz = 'IST';
+      } else if (offset === 480) {
+        tz = 'PST';
+      } else if (offset === 420) {
+        tz = 'PDT';
+      } else if (offset === 240) {
+        tz = 'EDT';
+      } else {
+        // fallback: show local short name
+        tz = date.toLocaleString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+      }
+      // Format date
+      const formatted = date.toLocaleString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -482,6 +404,7 @@ export default {
         minute: '2-digit',
         second: '2-digit'
       });
+      return `${formatted} ${tz}`;
     },
 
     // Autocomplete methods
@@ -508,42 +431,6 @@ export default {
       };
     },
 
-    async saveAndRun() {
-      if (!this.selectedStrategy) {
-        ElMessage.warning('Please select a strategy');
-        return;
-      }
-
-      if (!this.prompt.trim()) {
-        ElMessage.warning('Please enter a prompt');
-        return;
-      }
-
-      // Close the settings drawer
-      this.showSettings = false;
-      
-      // Generate the report
-      await this.generateReport();
-    },
-
-    async scheduleRun() {
-      if (!this.selectedStrategy) {
-        ElMessage.warning('Please select a strategy');
-        return;
-      }
-
-      if (!this.prompt.trim()) {
-        ElMessage.warning('Please enter a prompt');
-        return;
-      }
-
-      ElMessage.success('Report generation scheduled successfully');
-      this.showSettings = false;
-      
-      // You can add scheduling logic here
-      console.log('Scheduling report generation...');
-    },
-
     async loadHistoricalReports() {
       if (!this.currentMatter?.id) return;
 
@@ -558,7 +445,7 @@ export default {
         if (error) throw error;
         
         this.allHistoricalReports = data || [];
-        this.historicalReports = data || [];
+        this.historicalReports = []; // Don't show any reports initially
         
         // Extract unique strategies from the data
         this.extractUniqueStrategies();
@@ -581,7 +468,7 @@ export default {
       this.uniqueStrategies = Array.from(strategies).sort();
     },
 
-    filterReportsByStrategy() {
+    async filterReportsByStrategy() {
       if (!this.selectedStrategyFilter) {
         // Show all reports if no strategy is selected
         this.historicalReports = this.allHistoricalReports;
@@ -590,48 +477,94 @@ export default {
         this.selectedStrategyToDisplay = '';
         this.promptToDisplay = '';
         this.reportDateTimeToDisplay = '';
+        return;
+      }
+      // Filter analysis requests by selected strategy
+      const filteredRequests = this.allHistoricalReports.filter(
+        report => report.strategy === this.selectedStrategyFilter
+      );
+      const analysisIds = filteredRequests.map(r => r.id);
+      if (analysisIds.length === 0) {
+        this.historicalReports = [];
+        this.reportContent = '';
+        return;
+      }
+      // Fetch all LLM results for these analysis IDs
+      const { data: results, error } = await supabase
+        .from('ai_fund_analysis_results')
+        .select('*, analysis:analysis_id(strategy, prompt, created_at)')
+        .in('analysis_id', analysisIds)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching LLM results:', error);
+        this.historicalReports = [];
+        this.reportContent = '';
+        return;
+      }
+      this.historicalReports = results || [];
+      // Show the latest completed LLM response in the report view
+      const latest = (results || []).filter(r => r.status === 'completed' && r.openai_response)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      if (latest) {
+        this.loadLLMResultReport(latest, false);
       } else {
-        // Filter reports by selected strategy
-        const filteredReports = this.allHistoricalReports.filter(
-          report => report.strategy === this.selectedStrategyFilter
-        );
-        this.historicalReports = filteredReports;
-        
-        // Find the latest completed report of this strategy
-        const latestReport = filteredReports
-          .filter(report => report.status === 'completed' && report.openai_response)
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-        
-        if (latestReport) {
-          // Automatically load the latest report (no success message)
-          this.loadReport(latestReport, false);
-        } else {
-          // No completed reports found for this strategy
-          this.reportContent = '';
-          this.selectedStrategyToDisplay = this.selectedStrategyFilter;
-          this.promptToDisplay = 'No completed reports found for this strategy';
-          this.reportDateTimeToDisplay = '';
-          ElMessage.info(`No completed reports found for ${this.getStrategyLabel(this.selectedStrategyFilter)}`);
-        }
+        this.reportContent = '';
+      }
+    },
+    async filterReportsByExistingStrategy() {
+      if (!this.selectedExistingStrategy) {
+        this.historicalReports = [];
+        this.reportContent = '';
+        this.selectedStrategyToDisplay = '';
+        this.promptToDisplay = '';
+        this.reportDateTimeToDisplay = '';
+        return;
+      }
+      // 1. Get all analysis requests for the selected strategy
+      const filteredRequests = this.allHistoricalReports.filter(
+        report => report.strategy === this.selectedExistingStrategy
+      );
+      const analysisIds = filteredRequests.map(r => r.id);
+      if (analysisIds.length === 0) {
+        this.historicalReports = [];
+        this.reportContent = '';
+        return;
+      }
+      // 2. Fetch all LLM results for these analysis IDs
+      const { data: results, error } = await supabase
+        .from('ai_fund_analysis_results')
+        .select('*, analysis:analysis_id(strategy, prompt, created_at)')
+        .in('analysis_id', analysisIds)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error fetching LLM results:', error);
+        this.historicalReports = [];
+        this.reportContent = '';
+        return;
+      }
+      // 3. Show all results in the table
+      this.historicalReports = results || [];
+      // 4. Auto-load the latest completed report if any
+      const latest = (results || []).filter(r => r.status === 'completed' && r.openai_response)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      if (latest) {
+        //this.loadLLMResultReport(latest, false);
+      } else {
+        this.reportContent = '';
       }
     },
 
-    loadReport(reportData, showMessage = true) {
-      if (reportData.status !== 'completed' || !reportData.openai_response) {
+    // New: Load report from LLM result record
+    loadLLMResultReport(result, showMessage = true) {
+      if (result.status !== 'completed' || !result.openai_response) {
         ElMessage.warning('This report is not completed or has no content');
         return;
       }
-
-      // Set the report content and metadata
-      this.reportContent = this.formatOpenAIResponse(reportData.openai_response);
-      this.selectedStrategyToDisplay = reportData.strategy;
-      this.promptToDisplay = reportData.prompt;
-      this.reportDateTimeToDisplay = reportData.report_datetime;
-
-      // Close the settings drawer
+      this.reportContent = this.formatOpenAIResponse(result.openai_response);
+      this.selectedStrategyToDisplay = result.analysis?.strategy || '';
+      this.promptToDisplay = result.analysis?.prompt || '';
+      this.reportDateTimeToDisplay = result.analysis?.created_at || '';
       this.showSettings = false;
-
-      // Show success message only if requested (not for automatic loading)
       if (showMessage) {
         ElMessage.success('Report loaded successfully');
       }
@@ -646,6 +579,73 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+
+    async runExistingStrategy() {
+      if (!this.selectedExistingStrategy) {
+        ElMessage.warning('Please select a strategy');
+        return;
+      }
+      // Find the latest analysis request for this strategy
+      const filteredRequests = this.allHistoricalReports.filter(
+        report => report.strategy === this.selectedExistingStrategy
+      );
+      if (!filteredRequests.length) {
+        ElMessage.warning('No analysis request found for this strategy');
+        return;
+      }
+      // Use the latest by created_at
+      const latestRequest = filteredRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      this.loading = true;
+      let resultId = null;
+      try {
+        // 1. Create a new result record with status 'pending'
+        const { data: result, error: insertError } = await supabase
+          .from('ai_fund_analysis_results')
+          .insert({
+            analysis_id: latestRequest.id,
+            status: 'pending'
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        resultId = result.id;
+        // 2. Call OpenAI
+        const openAIResponse = await this.callOpenAI(latestRequest.prompt, latestRequest.strategy);
+        // 3. Update the result record with the response
+        const { error: updateError } = await supabase
+          .from('ai_fund_analysis_results')
+          .update({
+            openai_response: openAIResponse.content,
+            status: 'completed',
+            error_message: null
+          })
+          .eq('id', resultId);
+        if (updateError) throw updateError;
+        ElMessage.success('LLM analysis completed and saved!');
+        // Refresh reports
+        await this.loadHistoricalReports();
+        // Auto-refresh filtered table
+        await this.filterReportsByExistingStrategy();
+      } catch (error) {
+        console.error('Error running LLM analysis:', error);
+        if (resultId) {
+          await supabase
+            .from('ai_fund_analysis_results')
+            .update({
+              status: 'failed',
+              error_message: error.message || 'Unknown error'
+            })
+            .eq('id', resultId);
+        }
+        ElMessage.error('Failed to run LLM analysis: ' + (error.message || 'Unknown error'));
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async scheduleExistingStrategy() {
+      console.log('Scheduling existing strategy');
     }
   }
 };

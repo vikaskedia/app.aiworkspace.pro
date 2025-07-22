@@ -4,22 +4,16 @@ CREATE TABLE ai_fund_analyzing_data (
     matter_id bigint REFERENCES matters(id) ON DELETE CASCADE NOT NULL,
     strategy character varying(100) NOT NULL,
     prompt text NOT NULL,
-    openai_response text,
     report_datetime timestamp with time zone NOT NULL,
-    status character varying(50) DEFAULT 'pending'::character varying NOT NULL,
-    error_message text,
     created_by uuid REFERENCES auth.users(id) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    
-    CONSTRAINT ai_fund_analyzing_data_status_check CHECK (status IN ('pending', 'completed', 'failed'))
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 -- Indexes for ai_fund_analyzing_data
 CREATE INDEX ai_fund_analyzing_data_matter_id_idx ON ai_fund_analyzing_data USING btree (matter_id);
 CREATE INDEX ai_fund_analyzing_data_created_by_idx ON ai_fund_analyzing_data USING btree (created_by);
 CREATE INDEX ai_fund_analyzing_data_strategy_idx ON ai_fund_analyzing_data USING btree (strategy);
-CREATE INDEX ai_fund_analyzing_data_status_idx ON ai_fund_analyzing_data USING btree (status);
 CREATE INDEX ai_fund_analyzing_data_created_at_idx ON ai_fund_analyzing_data USING btree (created_at DESC);
 CREATE INDEX ai_fund_analyzing_data_report_datetime_idx ON ai_fund_analyzing_data USING btree (report_datetime DESC);
 
@@ -73,14 +67,11 @@ CREATE TRIGGER handle_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments for documentation
-COMMENT ON TABLE ai_fund_analyzing_data IS 'AI Fund Analyst data with OpenAI responses.
-Each record represents an AI analysis request and response for fund analysis.
-Includes the user prompt, OpenAI response, and status tracking.';
+COMMENT ON TABLE ai_fund_analyzing_data IS 'AI Fund Analyst analysis requests.
+Each record represents a strategy and prompt combination.
+LLM responses are stored in the ai_fund_analysis_results table.';
 
 COMMENT ON COLUMN ai_fund_analyzing_data.matter_id IS 'References the matter/workspace this analysis belongs to';
 COMMENT ON COLUMN ai_fund_analyzing_data.strategy IS 'The analysis strategy selected by the user';
-COMMENT ON COLUMN ai_fund_analyzing_data.prompt IS 'The user input prompt sent to OpenAI';
-COMMENT ON COLUMN ai_fund_analyzing_data.openai_response IS 'The response received from OpenAI API';
-COMMENT ON COLUMN ai_fund_analyzing_data.report_datetime IS 'When the user requested the report to be generated';
-COMMENT ON COLUMN ai_fund_analyzing_data.status IS 'Processing status: pending, completed, failed';
-COMMENT ON COLUMN ai_fund_analyzing_data.error_message IS 'Error message if the OpenAI request failed'; 
+COMMENT ON COLUMN ai_fund_analyzing_data.prompt IS 'The user input prompt for analysis';
+COMMENT ON COLUMN ai_fund_analyzing_data.report_datetime IS 'When the user requested the report to be generated'; 

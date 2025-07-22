@@ -656,6 +656,18 @@ export default {
           // Save column widths when user resizes columns
           saveColumnWidths();
         },
+        afterCreateCol: function (index, amount, source) {
+          // Handle when new columns are inserted via context menu
+          if (source !== 'loadData') {
+            handleNewColumnsInserted(index, amount);
+          }
+        },
+        afterRemoveCol: function (index, amount, physicalColumns, source) {
+          // Handle when columns are removed via context menu
+          if (source !== 'loadData') {
+            handleColumnsRemoved(index, amount);
+          }
+        },
         colWidths: getColumnWidths(),
         cells: function (row, col) {
           const cellProperties = {};
@@ -960,41 +972,42 @@ export default {
 
     const addColumn = async () => {
       try {
-        const { value: columnName } = await ElMessageBox.prompt('Enter column name:', 'Add Column', {
-          confirmButtonText: 'Add',
-          cancelButtonText: 'Cancel',
-          inputPattern: /^.+$/,
-          inputErrorMessage: 'Column name cannot be empty'
+        // Generate next column letter (A, B, C, etc.)
+        const nextColumnIndex = columns.value.length;
+        const columnLetter = String.fromCharCode(65 + nextColumnIndex);
+        
+        // Create default column name
+        const defaultColumnName = 'New Column';
+        const columnKey = `column_${nextColumnIndex + 1}`;
+        
+        const newCol = {
+          key: columnKey,
+          label: defaultColumnName,
+          width: 120 // Default width for new columns
+        };
+        
+        columns.value.push(newCol);
+        
+        // Add empty values for this column to all existing rows
+        portfolioData.value.forEach(row => {
+          row[columnKey] = '';
         });
-
-        if (columnName) {
-          const columnKey = columnName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-          const newCol = {
-            key: columnKey,
-            label: columnName.trim(),
-            width: 120 // Default width for new columns
-          };
-          
-          columns.value.push(newCol);
-          
-          // Add empty values for this column to all existing rows
-          portfolioData.value.forEach(row => {
-            row[columnKey] = '';
+        
+        // Update Handsontable
+        if (hotTableComponent.value?.hotInstance) {
+          hotTableComponent.value.hotInstance.updateSettings({
+            colHeaders: columns.value.map(col => col.label),
+            minCols: columns.value.length
           });
-          
-          // Update Handsontable
-          if (hotTableComponent.value?.hotInstance) {
-            hotTableComponent.value.hotInstance.updateSettings({
-              colHeaders: columns.value.map(col => col.label),
-              minCols: columns.value.length
-            });
-          }
-          
-          await savePortfolio();
         }
+        
+        await savePortfolio();
+        
+        ElMessage.success(`Column ${columnLetter} (${defaultColumnName}) added successfully! Right-click the column header to rename it.`);
+        
       } catch (error) {
-        // User cancelled or error occurred
-        console.log('Add column cancelled');
+        console.error('Error adding column:', error);
+        ElMessage.error('Failed to add column');
       }
     };
 
@@ -1762,6 +1775,77 @@ export default {
       }
     };
 
+    const handleNewColumnsInserted = async (index, amount) => {
+      console.log(`Inserting ${amount} column(s) at index ${index}`);
+      
+      // Create new column definitions for the inserted columns
+      const newColumns = [];
+      for (let i = 0; i < amount; i++) {
+        const columnIndex = index + i;
+        const columnKey = `column_${Date.now()}_${i}`;
+        const newCol = {
+          key: columnKey,
+          label: 'New Column',
+          width: 120
+        };
+        newColumns.push(newCol);
+      }
+      
+      // Insert the new columns at the correct position
+      columns.value.splice(index, 0, ...newColumns);
+      
+      // Add empty values for these columns to all existing rows
+      portfolioData.value.forEach(row => {
+        newColumns.forEach(col => {
+          row[col.key] = '';
+        });
+      });
+      
+      // Force a re-render after a short delay
+      setTimeout(async () => {
+        await savePortfolio();
+        
+        if (hotTableComponent.value?.hotInstance) {
+          hotTableComponent.value.hotInstance.updateSettings({
+            minCols: columns.value.length
+          });
+        }
+        
+        const columnLetters = newColumns.map((_, i) => String.fromCharCode(65 + index + i)).join(', ');
+        ElMessage.success(`Column(s) ${columnLetters} added! Right-click to rename.`);
+      }, 100);
+    };
+
+    const handleColumnsRemoved = async (index, amount) => {
+      console.log(`Removing ${amount} column(s) at index ${index}`);
+      
+      // Get the columns that are being removed
+      const removedColumns = columns.value.slice(index, index + amount);
+      
+      // Remove from columns array
+      columns.value.splice(index, amount);
+      
+      // Remove the data for these columns from all rows
+      portfolioData.value.forEach(row => {
+        removedColumns.forEach(col => {
+          delete row[col.key];
+        });
+      });
+      
+      // Save changes
+      setTimeout(async () => {
+        await savePortfolio();
+        
+        if (hotTableComponent.value?.hotInstance) {
+          hotTableComponent.value.hotInstance.updateSettings({
+            minCols: columns.value.length
+          });
+        }
+        
+        ElMessage.success(`${amount} column(s) removed successfully!`);
+      }, 100);
+    };
+
     // Column width management functions
     const getColumnWidths = () => {
       if (!columns.value.length) return undefined;
@@ -1886,6 +1970,8 @@ export default {
       insertFormulaHelper,
       editColumnLabel,
       editColumnHeaderByIndex,
+      handleNewColumnsInserted,
+      handleColumnsRemoved,
       getColumnWidths,
       saveColumnWidths,
       getCollapsibleColumnsConfig,

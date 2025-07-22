@@ -598,6 +598,12 @@ export default {
               insertFormulaHelper(selection);
             }
           },
+          {
+            name: 'Edit Column Label',
+            callback: function(key, selection, clickEvent) {
+              editColumnLabel(selection);
+            }
+          },
           '---------',
           {
             name: 'Group Columns',
@@ -649,6 +655,16 @@ export default {
         afterColumnResize: function (newSize, column, isDoubleClick) {
           // Save column widths when user resizes columns
           saveColumnWidths();
+        },
+        afterOnCellMouseDown: function (event, coords, TD) {
+          // Handle double-click on column headers to edit labels
+          if (coords.row < 0 && event.detail === 2) {
+            // Double-click on column header
+            const columnIndex = coords.col;
+            setTimeout(() => {
+              editColumnHeaderByIndex(columnIndex);
+            }, 50);
+          }
         },
         colWidths: getColumnWidths(),
         cells: function (row, col) {
@@ -1699,6 +1715,63 @@ export default {
       }
     };
 
+    const editColumnLabel = async (selection) => {
+      if (!hotTableComponent.value?.hotInstance) {
+        ElMessage.warning('Table not ready');
+        return;
+      }
+      
+      // Get current selection from Handsontable instance
+      const selected = hotTableComponent.value.hotInstance.getSelected();
+      if (!selected || selected.length === 0) {
+        ElMessage.warning('Please select a column first');
+        return;
+      }
+      
+      const [startRow, startCol, endRow, endCol] = selected[0];
+      const columnIndex = startCol;
+      
+      await editColumnHeaderByIndex(columnIndex);
+    };
+
+    const editColumnHeaderByIndex = async (columnIndex) => {
+      if (columnIndex < 0 || columnIndex >= columns.value.length) {
+        ElMessage.warning('Invalid column selected');
+        return;
+      }
+      
+      const currentColumn = columns.value[columnIndex];
+      const currentLabel = currentColumn.label;
+      const columnLetter = String.fromCharCode(65 + columnIndex);
+      
+      try {
+        const { value: newLabel } = await ElMessageBox.prompt(
+          `Edit label for column ${columnLetter}:`,
+          'Edit Column Label',
+          {
+            confirmButtonText: 'Save',
+            cancelButtonText: 'Cancel',
+            inputValue: currentLabel,
+            inputPattern: /^.+$/,
+            inputErrorMessage: 'Column label cannot be empty'
+          }
+        );
+
+        if (newLabel && newLabel.trim() !== currentLabel) {
+          // Update the column label
+          columns.value[columnIndex].label = newLabel.trim();
+          
+          // Save the portfolio
+          await savePortfolio();
+          
+          ElMessage.success('Column label updated successfully!');
+        }
+      } catch (error) {
+        // User cancelled or error occurred
+        console.log('Edit column label cancelled');
+      }
+    };
+
     // Column width management functions
     const getColumnWidths = () => {
       if (!columns.value.length) return undefined;
@@ -1821,6 +1894,8 @@ export default {
       formatDetailedSpreadsheetData,
       formatAIRequestPayload,
       insertFormulaHelper,
+      editColumnLabel,
+      editColumnHeaderByIndex,
       getColumnWidths,
       saveColumnWidths,
       getCollapsibleColumnsConfig,

@@ -53,6 +53,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch conversations for the matter with latest message info
+    // Set a higher limit to get all conversations (max 10000 for safety)
     const { data: conversations, error } = await supabase
       .from('conversations')
       .select(`
@@ -67,6 +68,7 @@ export default async function handler(req, res) {
       `)
       .eq('matter_id', matterId)
       .order('last_message_at', { ascending: false })
+      .limit(10000)
 
     if (error) throw error
 

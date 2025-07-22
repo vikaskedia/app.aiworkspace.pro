@@ -41,6 +41,7 @@ export default {
       if (path.includes('/ai_phone')) return 'ai-phone'
       if (path.includes('/ai_intake')) return 'ai-intake'
       if (path.includes('/ai_portfolio')) return 'ai-portfolio'
+      if (path.includes('/ai_fund_analyst')) return 'ai-fund-analyst'
       return 'dashboard'
     }
   },

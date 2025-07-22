@@ -163,6 +163,11 @@ const routes = [
         component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue')
       },
       {
+        path: 'ai_fund_analyst',
+        name: 'AiFundAnalystPage',
+        component: () => import('./components/single-workspace/AiFundAnalystCt.vue')
+      },
+      {
         path: 'contacts',
         name: 'ContactsPage',
         component: ContactsCt

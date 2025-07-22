@@ -20,7 +20,7 @@
 # Tech: 
 ## Server side:
     1. Supabase
-    2. Python on server side
+    2. Python on server side 
 ## Client side:
     1. element-io
     2. Vue

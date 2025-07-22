@@ -53,22 +53,13 @@ export default async function handler(req, res) {
     }
 
     // Fetch conversations for the matter with latest message info
-    // Set a higher limit to get all conversations (max 10000 for safety)
+    // Remove the messages join and limit to see if we can get all conversations
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        messages(
-          id,
-          message_body,
-          created_at,
-          direction,
-          status
-        )
-      `)
+      .select('*')
       .eq('matter_id', matterId)
-      .order('last_message_at', { ascending: false })
-      .limit(10000)
+      .order('created_at', { ascending: false })
+      .range(0, 9999) // Use range instead of limit
 
     if (error) throw error
 
@@ -95,17 +86,17 @@ export default async function handler(req, res) {
 
     // Transform the data to match frontend format
     const transformedConversations = conversations.map(conv => {
-      const latestMessage = conv.messages?.[0]
       const userUnreadCount = unreadCountMap[conv.id] || 0
       
       return {
         id: conv.id,
         contact: conv.contact_name || conv.to_phone_number,
         phoneNumber: conv.to_phone_number,
-        lastMessage: conv.last_message_preview || latestMessage?.message_body || '',
-        lastMessageTime: conv.last_message_at || conv.created_at,
+        lastMessage: conv.last_message_preview || '',
+        lastMessageTime: conv.created_at || conv.last_message_at,
         unread: userUnreadCount, // Use user-specific unread count
         fromPhoneNumber: conv.from_phone_number,
+        toPhoneNumber: conv.to_phone_number,
         status: conv.status || 'primary'
       }
     })

@@ -9,7 +9,7 @@
       </div>
       
       <!-- Strategy Selection -->
-      <div class="form-row">
+      <div class="form-row" style="display: flex; gap: 1rem;">
         <label class="form-label">Strategy:</label>
         <el-select 
           v-model="selectedStrategyFilter" 
@@ -24,6 +24,21 @@
             :key="strategy"
             :label="getStrategyLabel(strategy)"
             :value="strategy"
+          />
+        </el-select>
+
+        <el-select 
+          v-if="selectedStrategyFilter && strategyLLMResults.length"
+          v-model="selectedReportDate"
+          placeholder="Select report date"
+          @change="onSelectReportDate"
+          filterable
+        >
+          <el-option
+            v-for="result in strategyLLMResults"
+            :key="result.created_at"
+            :label="`${formatDateTime(result.created_at)} (${capitalize(result.status)})`"
+            :value="result.created_at"
           />
         </el-select>
       </div>
@@ -93,7 +108,7 @@
           />
         </el-select>
         <div class="form-row" style="display: flex; gap: 0.5rem; float: right;" v-if="selectedExistingStrategy">
-          <el-button type="primary" plain @click="runExistingStrategy">Run</el-button>
+          <el-button type="primary" plain @click="runExistingStrategy" :loading="loading">Run</el-button>
           <el-button type="primary" plain @click="scheduleExistingStrategy">Schedule</el-button>
         </div>
       </div>
@@ -190,6 +205,8 @@ export default {
       allHistoricalReports: [],
       uniqueStrategies: [],
       selectedStrategyFilter: '',
+      selectedReportDate: '',
+      strategyLLMResults: [], // LLM results for selected strategy
       selectedExistingStrategy: '',
       strategies: [],
       selectedStrategyToDisplay: '',
@@ -407,6 +424,11 @@ export default {
       return `${formatted} ${tz}`;
     },
 
+    capitalize(str) {
+      if (!str) return '';
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    },
+
     // Autocomplete methods
     querySearch(queryString, cb) {
       const strategies = this.strategies;
@@ -469,10 +491,10 @@ export default {
     },
 
     async filterReportsByStrategy() {
+      this.selectedReportDate = '';
+      this.strategyLLMResults = [];
       if (!this.selectedStrategyFilter) {
-        // Show all reports if no strategy is selected
         this.historicalReports = this.allHistoricalReports;
-        // Clear the report content when showing all
         this.reportContent = '';
         this.selectedStrategyToDisplay = '';
         this.promptToDisplay = '';
@@ -489,7 +511,7 @@ export default {
         this.reportContent = '';
         return;
       }
-      // Fetch all LLM results for these analysis IDs
+      // Fetch all LLM results (any status) for these analysis IDs
       const { data: results, error } = await supabase
         .from('ai_fund_analysis_results')
         .select('*, analysis:analysis_id(strategy, prompt, created_at)')
@@ -502,15 +524,24 @@ export default {
         return;
       }
       this.historicalReports = results || [];
-      // Show the latest completed LLM response in the report view
-      const latest = (results || []).filter(r => r.status === 'completed' && r.openai_response)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      this.strategyLLMResults = results || [];
+      // Show the latest result in the report view
+      const latest = (results || [])[0];
       if (latest) {
+        this.selectedReportDate = latest.created_at;
         this.loadLLMResultReport(latest, false);
       } else {
         this.reportContent = '';
       }
     },
+
+    onSelectReportDate(date) {
+      const result = this.strategyLLMResults.find(r => r.created_at === date);
+      if (result) {
+        this.loadLLMResultReport(result, false);
+      }
+    },
+
     async filterReportsByExistingStrategy() {
       if (!this.selectedExistingStrategy) {
         this.historicalReports = [];

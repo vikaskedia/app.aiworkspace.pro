@@ -1039,22 +1039,25 @@ export default {
       
       loading.value = true;
       try {
+        // Load the first portfolio for this matter (for backwards compatibility)
         const { data, error } = await supabase
           .from('portfolio_data')
           .select('*')
           .eq('matter_id', currentMatter.value.id)
-          .single();
+          .order('created_at', { ascending: true })
+          .limit(1);
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        if (error) {
           throw error;
         }
 
-        if (data) {
-          columns.value = data.columns || [];
-          portfolioData.value = data.data || [];
-          systemPrompt.value = data.system_prompt || '';
-          columnGroups.value = data.column_groups || [];
-          savedFilters.value = data.saved_filters || [];
+        if (data && data.length > 0) {
+          const portfolioRecord = data[0];
+          columns.value = portfolioRecord.columns || [];
+          portfolioData.value = portfolioRecord.data || [];
+          systemPrompt.value = portfolioRecord.system_prompt || '';
+          columnGroups.value = portfolioRecord.column_groups || [];
+          savedFilters.value = portfolioRecord.saved_filters || [];
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -1084,8 +1087,13 @@ export default {
           });
         }
         
+        // Generate portfolio_id if not exists (for backwards compatibility)
+        const defaultPortfolioId = `portfolio_${currentMatter.value.id}_default`;
+        
         const portfolioRecord = {
           matter_id: currentMatter.value.id,
+          portfolio_id: defaultPortfolioId,
+          portfolio_name: 'Portfolio 1',
           columns: columns.value,
           data: currentData,
           system_prompt: systemPrompt.value,
@@ -1098,7 +1106,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .upsert(portfolioRecord, {
-            onConflict: 'matter_id'
+            onConflict: 'matter_id, portfolio_id'
           });
 
         if (error) throw error;
@@ -1134,12 +1142,18 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Generate portfolio_id if not exists (for backwards compatibility)
+        const defaultPortfolioId = `portfolio_${currentMatter.value.id}_default`;
+        
         const promptRecord = {
           matter_id: currentMatter.value.id,
+          portfolio_id: defaultPortfolioId,
+          portfolio_name: 'Portfolio 1',
           columns: columns.value,
           data: portfolioData.value,
           system_prompt: systemPrompt.value,
           column_groups: columnGroups.value,
+          saved_filters: savedFilters.value,
           created_by: user.id,
           updated_by: user.id
         };
@@ -1147,7 +1161,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .upsert(promptRecord, {
-            onConflict: 'matter_id'
+            onConflict: 'matter_id, portfolio_id'
           });
 
         if (error) throw error;
@@ -1208,10 +1222,13 @@ export default {
         const result = await response.json();
         
         // Save analysis result to database
+        const defaultPortfolioId = `portfolio_${currentMatter.value.id}_default`;
+        
         const { error } = await supabase
           .from('portfolio_analysis_results')
           .insert({
             matter_id: currentMatter.value.id,
+            portfolio_id: defaultPortfolioId,
             system_prompt: systemPrompt.value,
             spreadsheet_data: spreadsheetData,
             ai_response: result.response,
@@ -1236,10 +1253,13 @@ export default {
       if (!currentMatter.value?.id) return;
       
       try {
+        const defaultPortfolioId = `portfolio_${currentMatter.value.id}_default`;
+        
         const { data, error } = await supabase
           .from('portfolio_analysis_results')
           .select('*')
           .eq('matter_id', currentMatter.value.id)
+          .eq('portfolio_id', defaultPortfolioId)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -1646,18 +1666,20 @@ export default {
       if (!currentMatter.value?.id) return;
       
       try {
+        // Load from the first portfolio for this matter
         const { data, error } = await supabase
           .from('portfolio_data')
           .select('saved_filters')
           .eq('matter_id', currentMatter.value.id)
-          .single();
+          .order('created_at', { ascending: true })
+          .limit(1);
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           throw error;
         }
 
-        if (data?.saved_filters) {
-          savedFilters.value = data.saved_filters;
+        if (data && data.length > 0 && data[0]?.saved_filters) {
+          savedFilters.value = data[0].saved_filters;
         }
       } catch (error) {
         console.error('Error loading saved filters:', error);
@@ -1668,10 +1690,14 @@ export default {
       if (!currentMatter.value?.id) return;
       
       try {
+        // Generate portfolio_id for the default portfolio
+        const defaultPortfolioId = `portfolio_${currentMatter.value.id}_default`;
+        
         const { error } = await supabase
           .from('portfolio_data')
           .update({ saved_filters: savedFilters.value })
-          .eq('matter_id', currentMatter.value.id);
+          .eq('matter_id', currentMatter.value.id)
+          .eq('portfolio_id', defaultPortfolioId);
 
         if (error) throw error;
       } catch (error) {

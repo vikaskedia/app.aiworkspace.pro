@@ -41,12 +41,12 @@
       </div-->
     </div>
     
-    <div id="univer-container" class="univer-container"></div>
+    <div id="univer-container" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
   </div>
 </template>
 
 <script>
-import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { onMounted, onBeforeUnmount, ref, computed } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { DocumentChecked } from '@element-plus/icons-vue';
@@ -94,6 +94,24 @@ export default {
     const portfolioId = ref(null);
     const lastSaved = ref(null);
     const allSheetsData = ref({});
+    const defaultRowCount = ref(20);
+    const currentRowCount = ref(20); // Track actual number of rows in the sheet
+
+    // Computed height based on actual row count - exact fit without scrollbars
+    const containerHeight = computed(() => {
+      const rowHeight = 27; // Default row height
+      const columnHeaderHeight = 20; // Column header height
+      const toolbarHeight = 50; // Univer toolbar height
+      const sheetTabsHeight = 30; // Sheet tabs at bottom
+      const containerPadding = 16; // Container margins (8px * 2)
+      
+      console.log('🔍 Current row count for height calculation:', currentRowCount.value);
+      // Calculate exact height needed for all content based on actual rows
+      const contentHeight = (currentRowCount.value * rowHeight) + columnHeaderHeight + toolbarHeight + sheetTabsHeight + containerPadding;
+      
+      // Return exact height without extra space
+      return contentHeight;
+    });
 
     // Load complete portfolio workbook data from Supabase
     const loadPortfolioData = async () => {
@@ -177,7 +195,7 @@ export default {
               'sheet-01': {
                 id: 'sheet-01',
                 name: 'Portfolio',
-                rowCount: 20,
+                rowCount: defaultRowCount.value,
                 columnCount: 10,
                 cellData: {
                   0: {
@@ -337,6 +355,32 @@ export default {
 
     // Remove auto-save - only manual save now
 
+    // Update current row count based on worksheet data
+    const updateRowCount = () => {
+      try {
+        if (!univer || !univer.__getInjector) return;
+        
+        const injector = univer.__getInjector();
+        const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
+        
+        if (workbookService) {
+          const activeWorkbook = workbookService.getCurrentWorkbook?.();
+          if (activeWorkbook) {
+            const activeWorksheet = activeWorkbook.getActiveSheet?.();
+            if (activeWorksheet) {
+              const rowCount = activeWorksheet.getRowCount?.() || activeWorksheet.getMaxRows?.() || currentRowCount.value;
+              if (rowCount && rowCount !== currentRowCount.value) {
+                console.log('📏 Row count updated from', currentRowCount.value, 'to', rowCount);
+                currentRowCount.value = rowCount;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not update row count:', error);
+      }
+    };
+
     // Track sheet changes to maintain local data copy
     const trackSheetChanges = () => {
       try {
@@ -354,6 +398,18 @@ export default {
               command.id === 'SetRangeValuesCommand' ||
               command.id === 'sheet.operation.set-cell-value' ||
               command.id.includes('set-range-value') ||
+              
+              // Row/Column structure changes
+              command.id.includes('insert-row') ||
+              command.id.includes('delete-row') ||
+              command.id.includes('add-row') ||
+              command.id.includes('remove-row') ||
+              command.id.includes('insert-column') ||
+              command.id.includes('delete-column') ||
+              command.id.includes('InsertRow') ||
+              command.id.includes('DeleteRow') ||
+              command.id.includes('InsertCol') ||
+              command.id.includes('DeleteCol') ||
               
               // Formatting and style changes
               command.id.includes('set-style') ||
@@ -386,14 +442,30 @@ export default {
               // Any command with unitId (workbook changes)
               command.params?.unitId;
             
+            // Check if this is a row structure change
+            const isRowChange = 
+              command.id.includes('insert-row') ||
+              command.id.includes('delete-row') ||
+              command.id.includes('add-row') ||
+              command.id.includes('remove-row') ||
+              command.id.includes('InsertRow') ||
+              command.id.includes('DeleteRow');
+            
             if (isRelevantChange) {
               console.log('🎨 Enhanced workbook change detected:', {
                 command: command.id,
-                type: command.id.includes('format') || command.id.includes('style') ? 'formatting' :
+                type: isRowChange ? 'row-structure' :
+                      command.id.includes('format') || command.id.includes('style') ? 'formatting' :
                       command.id.includes('formula') ? 'formula' :
                       command.id.includes('image') || command.id.includes('media') ? 'media' :
                       command.id.includes('sheet') ? 'structure' : 'data'
               });
+              
+              // Update row count if this was a row structure change
+              if (isRowChange) {
+                setTimeout(() => updateRowCount(), 100); // Small delay to ensure change is applied
+              }
+              
               updateLocalSheetData(command.params?.unitId);
             }
           });
@@ -1363,11 +1435,19 @@ export default {
           Object.assign(WORKBOOK_DATA, workbookData);
           portfolioData.value = workbookData;
           
+          // Update current row count from loaded data
+          const firstSheet = Object.values(workbookData.sheets)[0];
+          if (firstSheet && firstSheet.rowCount) {
+            currentRowCount.value = firstSheet.rowCount;
+            console.log('📏 Set current row count from loaded data:', firstSheet.rowCount);
+          }
+          
           console.log('📊 Loaded complete workbook with features:', {
             id: WORKBOOK_DATA.id,
             name: WORKBOOK_DATA.name,
             sheets: Object.keys(WORKBOOK_DATA.sheets),
-            sheetOrder: WORKBOOK_DATA.sheetOrder
+            sheetOrder: WORKBOOK_DATA.sheetOrder,
+            rowCount: currentRowCount.value
           });
         } else {
           // Fallback to default workbook structure
@@ -1378,7 +1458,7 @@ export default {
               cellData: {},
               tabColor: '',
               hidden: 0,
-              rowCount: 20,
+              rowCount: defaultRowCount.value,
               columnCount: 10,
               zoomRatio: 1,
               scrollTop: 0,
@@ -1443,6 +1523,7 @@ export default {
         setTimeout(() => {
           trackSheetChanges();
           updateLocalSheetData();
+          updateRowCount(); // Initialize current row count
           
           // Add feature detection and logging
           detectUniverFeatures();
@@ -1616,7 +1697,9 @@ export default {
       saving,
       manualSave,
       lastSaved,
-      debugCurrentData
+      debugCurrentData,
+      containerHeight,
+      currentRowCount
     };
   },
 };
@@ -1625,7 +1708,7 @@ export default {
 <style scoped>
 .univer-container-wrapper {
   width: 100%;
-  height: 100vh;
+  height: auto;
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
@@ -1634,12 +1717,11 @@ export default {
 
 .univer-container {
   width: 100%;
-  height: 100%;
-  flex: 1;
+  /* Height is now set dynamically via style binding - exact fit */
   background: white;
   border: 1px solid #e0e6ed;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: hidden; /* No scrollbars - exact height */
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   margin: 8px;
 }
@@ -1691,7 +1773,7 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* Ensure Univer takes full space */
+/* Ensure Univer takes exact space without scrollbars */
 :deep(.univer-container) {
   width: 100%;
   height: 100%;
@@ -1702,15 +1784,31 @@ export default {
   height: 100%;
 }
 
-/* Specific styling for Univer components */
+/* Remove all internal scrollbars and ensure exact fit */
 :deep(.univer-container .universheet-render-canvas) {
   width: 100% !important;
   height: 100% !important;
 }
 
-/* Hide scrollbars on the container to prevent double scrollbars */
 :deep(.univer-container .univer-scroll-container) {
-  overflow: hidden;
+  overflow: hidden !important;
+}
+
+:deep(.univer-container .univer-scroll-bar) {
+  display: none !important;
+}
+
+:deep(.univer-container .univer-scrollbar) {
+  display: none !important;
+}
+
+/* Hide any viewport scrollbars within Univer */
+:deep(.univer-container .univer-viewport) {
+  overflow: hidden !important;
+}
+
+:deep(.univer-container .univer-canvas-container) {
+  overflow: hidden !important;
 }
 
 /* Responsive adjustments */

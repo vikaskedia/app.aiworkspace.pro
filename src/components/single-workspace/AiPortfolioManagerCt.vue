@@ -656,16 +656,6 @@ export default {
           // Save column widths when user resizes columns
           saveColumnWidths();
         },
-        afterOnCellMouseDown: function (event, coords, TD) {
-          // Handle double-click on column headers to edit labels
-          if (coords.row < 0 && event.detail === 2) {
-            // Double-click on column header
-            const columnIndex = coords.col;
-            setTimeout(() => {
-              editColumnHeaderByIndex(columnIndex);
-            }, 50);
-          }
-        },
         colWidths: getColumnWidths(),
         cells: function (row, col) {
           const cellProperties = {};

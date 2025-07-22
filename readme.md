@@ -2,7 +2,7 @@
 1. AI Workspace.
 
 # Features working:
-1. App running from vercel
+1. App running from vercel 
 2. Notification system.
 3. Users can upload files to gitea and there is a interface to gitea
 4. Task system

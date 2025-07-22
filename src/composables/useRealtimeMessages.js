@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 
 export function useRealtimeMessages(matterId) {
   const conversations = ref([])
+  const groupConversations = ref([]) // Store group conversations from API
   
   // Channels for subscriptions
   let conversationsChannel = null
@@ -39,6 +40,11 @@ export function useRealtimeMessages(matterId) {
     
     return null
   }
+
+  // --- GROUP MESSAGING LOGIC START ---
+  // Note: Group logic moved to backend, this section is now simplified
+  // groupConversations are now fetched directly from the API
+  // --- GROUP MESSAGING LOGIC END ---
 
   // Event handlers
   const handleConversationChange = (payload) => {
@@ -306,6 +312,7 @@ export function useRealtimeMessages(matterId) {
         })
         
         conversations.value = result.conversations || []
+        groupConversations.value = result.groupConversations || [] // Store group conversations from API
         
         // Restore messages for conversations that had them
         conversations.value.forEach(conv => {
@@ -315,6 +322,7 @@ export function useRealtimeMessages(matterId) {
         })
         
         console.log('📱 Loaded conversations:', conversations.value.length)
+        console.log('👥 Loaded group conversations:', groupConversations.value.length)
       } else {
         console.error('Failed to load conversations:', result.error)
       }
@@ -323,7 +331,7 @@ export function useRealtimeMessages(matterId) {
     }
   }
 
-  // Load messages for a specific conversation
+  // Load messages for a specific conversation (works for both 1:1 and group)
   const loadMessagesForConversation = async (conversationId) => {
     try {
       const response = await fetch(`https://app.aiworkspace.pro/api/messages/${conversationId}`)
@@ -331,13 +339,28 @@ export function useRealtimeMessages(matterId) {
       if (response.ok && result.success) {
         const messages = result.messages
         console.log('Loaded messages for conversation:', conversationId, messages)
-        // Update conversation with loaded messages
+        
+        // Update conversation with loaded messages (works for both 1:1 and group)
         const conversation = conversations.value.find(c => c.id === conversationId)
+        const groupConversationIndex = groupConversations.value.findIndex(gc => gc.id === conversationId)
+        
         if (conversation) {
           conversation.messages = messages
         }
-        // Also load call recordings for this conversation
-        await loadCallRecordingsForConversation(conversationId)
+        if (groupConversationIndex !== -1) {
+          // Update the entire object to trigger Vue reactivity
+          groupConversations.value[groupConversationIndex] = {
+            ...groupConversations.value[groupConversationIndex],
+            messages: messages
+          }
+        }
+        
+        // Also load call recordings for this conversation (only for 1:1 conversations, not groups)
+        // Group conversations use group keys (contains dashes), regular conversations use UUIDs
+        const isGroupConversation = conversationId.includes('-') && conversationId.includes('+')
+        if (!isGroupConversation) {
+          await loadCallRecordingsForConversation(conversationId)
+        }
         return messages
       } else {
         console.error('Failed to load messages:', result.error)
@@ -531,6 +554,7 @@ export function useRealtimeMessages(matterId) {
   return {
     // State
     conversations: sortedConversations,
+    groupConversations, // Expose group conversations for UI
     
     // Methods
     loadConversations,

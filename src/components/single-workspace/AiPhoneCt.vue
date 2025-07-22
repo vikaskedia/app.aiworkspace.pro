@@ -228,13 +228,39 @@
           </el-select> -->
         </div>
 
-        <div class="conversations-list">
+        <div class="conversations-list"> 
+           <!-- Group Messages Section -->
+          <!-- <div class="group-messages-section" v-if="filteredGroupConversations && filteredGroupConversations.length && filteredGroupConversations.some(conv => conv.participants.includes(conversationHeaderTitle.tooltip))">
+            <div 
+              v-for="groupConv in filteredGroupConversations"
+              :key="groupConv.id"
+              :class="['conversation-item', { active: selectedGroupConversation === groupConv.id }]"
+              @click="selectGroupConversation(groupConv)"
+              style="border-left: 4px solid #1976d2;">
+              <div class="conversation-avatar">
+                <el-icon :size="25" color="#1976d2"><MessageBox /></el-icon>
+              </div>
+              <div class="conversation-info">
+                <div class="conversation-header">
+                                      <span class="contact-name">
+                     {{ groupConv.participants.join(', ') }}
+                    </span>
+                  <span class="time">{{ formatTime(groupConv.lastMessageTime) }}</span>
+                </div>
+                <div class="conversation-preview">
+                  <span class="last-message">{{ groupConv.lastMessage || '[Group message]' }}</span>
+                  <el-tag size="small" type="primary" effect="plain">Group</el-tag>
+                </div>
+              </div>
+            </div>
+          </div> -->
+          
           <div 
-            v-for="conversation in filteredConversations"
+            v-for="(conversation, index) in filteredConversations"
             :key="conversation.id"
             :class="['conversation-item', { active: selectedConversation === conversation.id }]"
-            @click="selectConversation(conversation), openContactDetailsPane(conversation.phoneNumber, conversation.contact)">
-            
+            @click="selectConversation(conversation), openContactDetailsPane(getCorrectContactPhone(conversation), getCorrectContactName(conversation))">
+            <!-- <span class="conversation-serial">{{ index + 1 }}.</span> -->
             <div class="conversation-avatar">
               <div class="avatar-circle">
                 <img 
@@ -243,12 +269,12 @@
                   :alt="getContactForConversation(conversation)?.name"
                   class="avatar-image"
                 />
-                <span v-else-if="getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact" class="avatar-text">
-                  <span v-if="getInitials(getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact') != '+'">
-                    {{ getInitials(getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact') }}
+                  <span v-else-if="getCorrectContactName(conversation)" class="avatar-text">
+                    <span v-if="getInitials(getCorrectContactName(conversation)) && !isPhoneNumber(getCorrectContactName(conversation))">
+                      {{ getInitials(getCorrectContactName(conversation)) }}
+                    </span>
+                    <el-icon v-else><User /></el-icon>
                   </span>
-                  <el-icon v-else><User /></el-icon>
-                </span>
               </div>
               <!-- <div v-if="conversation.unread" class="unread-indicator"></div> -->
             </div>
@@ -256,7 +282,7 @@
             <div class="conversation-info">
               <div class="conversation-header">
                 <span class="contact-name">
-                  {{ getContactName(conversation.phoneNumber, conversation.contact) || conversation.contact || 'Unknown Contact' }}
+                  {{ getCorrectContactName(conversation) }}
                 </span>
                 <div class="conversation-actions">
                   <span class="time">{{ formatTime(conversation.lastMessageTime) }}</span>
@@ -309,7 +335,7 @@
 
       <!-- Right Panel - Chat (45% width) -->
       <div class="chat-panel">
-        <div v-if="!selectedConversation" class="no-chat-selected">
+        <div v-if="!selectedConversation && !selectedGroupConversation" class="no-chat-selected">
           <el-icon class="large-icon"><ChatDotRound /></el-icon>
           <h3 class="no-chat-selected-title">Select a conversation</h3>
           <p class="no-chat-selected-title">Choose a conversation from the left to start messaging</p>
@@ -326,17 +352,14 @@
                   :alt="getCurrentContact()?.name"
                   class="avatar-image"
                 />
-                <span v-else-if="getInitials(getCurrentContact()?.name) != '+' && getCurrentContact()?.name">
+                <span v-else-if="getCurrentContact()?.name && !isPhoneNumber(getCurrentContact()?.name)">
                   {{ getInitials(getCurrentContact()?.name) }}
                 </span>
                 <el-icon v-else><User /></el-icon>
               </div>
               <div>
                 <h4 style="display: flex; align-items: center;">
-                  <span 
-                    class="">
-                    {{ getContactName(currentChat.phoneNumber, currentChat.contact) || currentChat.contact || 'Unknown Contact' }}
-                  </span>
+                  {{ getCorrectContactName(currentChat) }}
                   <!-- <template v-if="currentChat">
                     <el-tooltip v-if="!getCurrentContact()" content="Add to Contacts">
                       <el-icon @click="openContactModal('add')" style="margin-left: 8px;cursor: pointer;"><Plus /></el-icon>
@@ -362,16 +385,6 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Quick Actions -->
-            <!-- <div class="chat-actions" v-if="getCurrentContact()">
-              <el-button size="small" @click="editContact(getCurrentContact())">
-                Edit Contact
-              </el-button>
-              <el-button size="small" @click="viewContactHistory(getCurrentContact())">
-                View History
-              </el-button>
-            </div> -->
           </div>
 
           <!-- Search Bar for Chat Messages -->
@@ -731,7 +744,8 @@
               </template>
               <template v-else>
                 <img v-if="selectedContactDetails.profile_picture_url" :src="selectedContactDetails.profile_picture_url" class="avatar" />
-                <div v-else class="avatar-initials">{{ getInitials(selectedContactDetails.name) }}</div>
+                <div v-else-if="selectedContactDetails.name && !isPhoneNumber(selectedContactDetails.name)" class="avatar-initials">{{ getInitials(selectedContactDetails.name) }}</div>
+                <el-icon v-else><User /></el-icon>
               </template>
             </div>
             <!-- Contact Name -->
@@ -1616,7 +1630,8 @@ import {
   View,
   MagicStick,
   ChatLineRound,
-  Loading
+  Loading,
+  MessageBox,
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
 import { useMatterStore } from '../../store/matter';
@@ -1680,7 +1695,8 @@ export default {
     View,
     MagicStick,
     ChatLineRound,
-    Loading
+    Loading,
+    MessageBox,
   },
   setup() {
     const matterStore = useMatterStore();
@@ -1689,6 +1705,7 @@ export default {
     // Real-time messaging setup
     const {
       conversations: realtimeConversations,
+      groupConversations,
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
       markConversationAsRead: realtimeMarkAsRead
@@ -1697,6 +1714,7 @@ export default {
     return { 
       currentMatter,
       realtimeConversations,
+      groupConversations,
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
       realtimeMarkAsRead
@@ -1706,6 +1724,7 @@ export default {
       return {
         selectedInboxItem: null,
         selectedConversation: null,
+        selectedGroupConversation: null,
         searchQuery: '',
         chatSearchQuery: '',
         newMessage: '',
@@ -1979,9 +1998,14 @@ export default {
       const phoneId = this.selectedInboxItem.replace('phone_', '');
       const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
-      if (phone) {
-        filtered = filtered.filter(conv => conv.fromPhoneNumber === phone.number);
-        
+      if (phone) {        
+        filtered = filtered.filter(conv => {
+          // Check all three possible fields where the phone number could appear
+          const matches = conv.fromPhoneNumber === phone.number || 
+                         conv.phoneNumber === phone.number || 
+                         conv.toPhoneNumber === phone.number;
+          return matches;
+        });        
         // Apply tag filtering for the selected phone
         const selectedTag = this.selectedTagByPhone[`phone_${phone.id}`];
         if (selectedTag) {
@@ -2064,9 +2088,32 @@ export default {
 
       return filtered;
     },
+
+    filteredGroupConversations() {
+      return this.groupConversations || [];
+    },
     
     currentChat() {
+      if (this.selectedGroupConversation) {
+        const groupChat = this.filteredGroupConversations.find(g => g.id === this.selectedGroupConversation);
+        return groupChat;
+      }
       return this.realtimeConversations.find(conv => conv.id === this.selectedConversation);
+    },
+
+    currentChatDisplayName() {
+      if (!this.currentChat) return 'Unknown Contact';
+      
+      // For group conversations
+      if (this.currentChat.type === 'group' || this.currentChat.participants) {
+        const participantCount = this.currentChat.participants?.length || 0;
+        return `Group Chat (${participantCount} participants)`;
+      }
+      
+      // For 1:1 conversations
+      return this.getContactName(this.currentChat.phoneNumber, this.currentChat.contact) || 
+             this.currentChat.contact || 
+             'Unknown Contact';
     },
     
     conversationHeaderTitle() {
@@ -2112,6 +2159,8 @@ export default {
 
     // Group filtered messages by date
     groupedChatMessages() {
+      console.log('groupedChatMessages computed - currentChat:', this.currentChat?.id);
+      console.log('groupedChatMessages computed - filteredChatMessages:', this.filteredChatMessages?.length);
       const groups = {};
       
       // Create a combined array of messages and call recordings
@@ -2570,7 +2619,7 @@ export default {
             
             // FIX: Also open contact details panel (4th panel) like normal conversation selection
             console.log('📋 Opening contact details panel for conversation');
-            await this.openContactDetailsPane(conversation.phoneNumber, conversation.contact);
+            await this.openContactDetailsPane(this.getCorrectContactPhone(conversation), this.getCorrectContactName(conversation));
           } else {
             console.warn('💬 ❌ Conversation not found:', this.conversationId, 'Available:', this.realtimeConversations?.map(c => c.id));
           }
@@ -2896,8 +2945,27 @@ export default {
       return this.currentMatter?.phone_numbers?.find(p => p.id === phoneId);
     },
     
+    async selectGroupConversation(groupConv) {
+      this.selectedGroupConversation = groupConv.id;
+      this.selectedConversation = null;
+      
+      // Load messages for the group conversation
+      await this.loadMessagesForConversation(groupConv.id);
+      
+      // Note: We don't load call recordings for group conversations
+      // since they are associated with individual conversation UUIDs, not group keys
+      
+      this.$nextTick(() => {
+        const container = this.$refs.messagesContainer;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+    },
+
     async selectConversation(conversation) {
       this.selectedConversation = conversation.id;
+      this.selectedGroupConversation = null;
       
       // Load messages for this conversation using real-time composable
       await this.loadMessagesForConversation(conversation.id);
@@ -3692,14 +3760,90 @@ export default {
       return contact ? contact.name : null;
     },
 
+    getCorrectContactName(conversation) {
+      // Get the currently selected phone number
+      const phoneId = this.selectedInboxItem?.replace('phone_', '');
+      const selectedPhone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      
+      if (!selectedPhone) {
+        return conversation.contact || 'Unknown Contact';
+      }
+
+      // Determine which phone number is the "other party" (not the selected phone)
+      let otherPartyPhone = null;
+      
+      if (conversation.fromPhoneNumber === selectedPhone.number) {
+        // Selected phone is sender, so other party is the recipient
+        otherPartyPhone = conversation.toPhoneNumber || conversation.phoneNumber;
+      } else if (conversation.toPhoneNumber === selectedPhone.number || conversation.phoneNumber === selectedPhone.number) {
+        // Selected phone is recipient, so other party is the sender
+        otherPartyPhone = conversation.fromPhoneNumber;
+      } else {
+        // Fallback to original logic
+        otherPartyPhone = conversation.phoneNumber || conversation.contact;
+      }
+
+      // Use existing getContactName logic to get the contact name, or fallback to phone number
+      const contactName = this.getContactName(otherPartyPhone, otherPartyPhone);
+      return contactName || otherPartyPhone || 'Unknown Contact';
+    },
+
+    getCorrectContactPhone(conversation) {
+      // Get the currently selected phone number
+      const phoneId = this.selectedInboxItem?.replace('phone_', '');
+      const selectedPhone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      
+      if (!selectedPhone) {
+        return conversation.phoneNumber || conversation.contact;
+      }
+
+      // Determine which phone number is the "other party" (not the selected phone)
+      if (conversation.fromPhoneNumber === selectedPhone.number) {
+        // Selected phone is sender, so other party is the recipient
+        return conversation.toPhoneNumber || conversation.phoneNumber;
+      } else if (conversation.toPhoneNumber === selectedPhone.number || conversation.phoneNumber === selectedPhone.number) {
+        // Selected phone is recipient, so other party is the sender
+        return conversation.fromPhoneNumber;
+      } else {
+        // Fallback to original logic
+        return conversation.phoneNumber || conversation.contact;
+      }
+    },
+
     getContactTags(phoneNumber) {
       const contact = this.workspaceContacts.find(c => c.phone_number === phoneNumber);
       return contact ? contact.tags : [];
     },
 
+    isPhoneNumber(str) {
+      if (!str) return false;
+      // Remove all non-digit characters except +
+      const cleaned = str.replace(/[^\d+]/g, '');
+      // Check if it's a phone number pattern:
+      // - Starts with + followed by 10-15 digits
+      // - Or just 10-15 digits
+      const phoneRegex = /^(\+\d{10,15}|\d{10,15})$/;
+      return phoneRegex.test(cleaned);
+    },
+
     getCurrentContact() {
       if (!this.currentChat) return null;
-      return this.workspaceContacts.find(c => c.phone_number === this.currentChat.phoneNumber.slice(-10));
+      
+      // For group conversations, return null since there's no single contact
+      if (this.currentChat.type === 'group' || this.currentChat.participants) {
+        return null;
+      }
+      
+      // Use the same logic as getCorrectContactPhone to find the other party
+      const otherPartyPhone = this.getCorrectContactPhone(this.currentChat);
+      if (!otherPartyPhone) return null;
+      
+      // Find contact by the other party's phone number
+      return this.workspaceContacts.find(c => {
+        const normalizedOtherPhone = otherPartyPhone.replace(/\D/g, '').slice(-10);
+        const normalizedContactPhone = c.phone_number.replace(/\D/g, '').slice(-10);
+        return normalizedContactPhone === normalizedOtherPhone;
+      });
     },
 
     getContactForConversation(conversation) {
@@ -4016,12 +4160,12 @@ export default {
       this.currentTranscript = '';
     },
     async openContactDetailsPane(phoneNumber, contactName) {
-      // Find the contact in workspace contacts
-      const contact = this.workspaceContacts.find(c => 
-        c.phone_number === contactName || 
-        c.phone_number === contactName.slice(-10) ||
-        c.phone_number === contactName.replace(/\D/g, '').slice(-10)
-      );
+      // Find the contact in workspace contacts using the phoneNumber parameter (which is the other party's phone)
+      const normalizedPhoneNumber = phoneNumber.replace(/\D/g, '').slice(-10);
+      const contact = this.workspaceContacts.find(c => {
+        const normalizedContactPhone = c.phone_number.replace(/\D/g, '').slice(-10);
+        return normalizedContactPhone === normalizedPhoneNumber;
+      });
       let creatorName = 'Unknown';
       if (contact && contact.created_by) {
         try {
@@ -4041,8 +4185,8 @@ export default {
         this.selectedContactDetails = { ...contact, creator_name: creatorName };
       } else {
         this.selectedContactDetails = {
-          name: contactName || 'Unknown Contact',
-          phone_number: phoneNumber.replace(/\D/g, '').slice(-10),
+          name: contactName || phoneNumber || 'Unknown Contact',
+          phone_number: normalizedPhoneNumber,
           tags: [],
           creator_name: creatorName
         };
@@ -4477,7 +4621,7 @@ export default {
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
-          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
+          ? 'https://app.aiworkspace.pro/api/ai-check-message'
           : '/api/ai-check-message';
 
         const requestData = {
@@ -4564,7 +4708,7 @@ export default {
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
-          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-check-message'
+          ? 'https://app.aiworkspace.pro/api/ai-check-message'
           : '/api/ai-check-message';
 
         const requestData = {
@@ -4691,7 +4835,7 @@ export default {
 
       try {
         const apiUrl = window.location.hostname === 'localhost' 
-          ? 'https://app-aiworkspace-pro-2025-06-25.vercel.app/api/ai-draft-message'
+          ? 'https://app.aiworkspace.pro/api/ai-draft-message'
           : '/api/ai-draft-message';
 
         const requestData = {

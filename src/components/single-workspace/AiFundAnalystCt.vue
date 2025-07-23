@@ -35,7 +35,7 @@
           filterable
         >
           <el-option
-            v-for="result in strategyLLMResults"
+            v-for="result in strategyLLMResults.filter(r => r.status !== 'failed')"
             :key="result.created_at"
             :label="`${formatDateTime(result.created_at)} (${capitalize(result.status)})`"
             :value="result.created_at"

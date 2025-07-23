@@ -94,8 +94,8 @@ export default {
     const portfolioId = ref(null);
     const lastSaved = ref(null);
     const allSheetsData = ref({});
-    const defaultRowCount = ref(20);
-    const currentRowCount = ref(20); // Track actual number of rows in the sheet
+    const defaultRowCount = ref(10);
+    const currentRowCount = ref(10); // Track actual number of rows in the sheet
 
     // Computed height based on actual row count - exact fit without scrollbars
     const containerHeight = computed(() => {

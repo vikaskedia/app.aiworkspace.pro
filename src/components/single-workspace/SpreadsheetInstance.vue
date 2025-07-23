@@ -97,6 +97,11 @@ export default {
       type: Number,
       required: false,
       default: null
+    },
+    portfolioId: {
+      type: String,
+      required: false,
+      default: null
     }
   },
   emits: ['remove-spreadsheet'],
@@ -140,12 +145,19 @@ export default {
       }
 
       try {
-        // Find data with the specific spreadsheet_id AND matter_id for workspace filtering
-        const { data, error } = await supabase
+        // Find data with the specific spreadsheet_id AND matter_id AND portfolio_id for filtering
+        let query = supabase
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentMatterId.value);
+        
+        // Add portfolio_id filter if provided
+        if (props.portfolioId) {
+          query = query.eq('portfolio_id', props.portfolioId);
+        }
+        
+        const { data, error } = await query
           .order('created_at', { ascending: false })
           .limit(1);
 
@@ -308,6 +320,7 @@ export default {
               name: props.spreadsheetName,
               spreadsheet_id: props.spreadsheetId,
               matter_id: currentMatterId.value,
+              portfolio_id: props.portfolioId,
               updated_at: new Date().toISOString()
             })
             .eq('id', portfolioId.value)
@@ -328,6 +341,7 @@ export default {
               name: props.spreadsheetName,
               spreadsheet_id: props.spreadsheetId,
               matter_id: currentMatterId.value,
+              portfolio_id: props.portfolioId,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])

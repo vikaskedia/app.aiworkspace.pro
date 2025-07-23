@@ -277,6 +277,12 @@ export default {
           return;
         }
         
+        // Prevent deleting the last spreadsheet
+        if (spreadsheets.value.length <= 1) {
+          ElMessage.warning('Cannot delete the last remaining spreadsheet. You must have at least one spreadsheet.');
+          return;
+        }
+        
         // Confirm deletion
         await ElMessageBox.confirm(
           `Are you sure you want to delete "${spreadsheet.name}"? This action cannot be undone.`,
@@ -289,12 +295,46 @@ export default {
           }
         );
         
-        // Remove from array
-        const index = spreadsheets.value.findIndex(s => s.id === spreadsheetId);
-        if (index > -1) {
-          spreadsheets.value.splice(index, 1);
-          console.log(`📊 Removed spreadsheet: ${spreadsheet.name} (${spreadsheetId})`);
-          ElMessage.success(`Spreadsheet "${spreadsheet.name}" deleted successfully`);
+        console.log(`🗑️ Starting deletion of spreadsheet: ${spreadsheet.name} (${spreadsheetId})`);
+        
+        // Show loading state
+        const loadingMessage = ElMessage({
+          message: `Deleting "${spreadsheet.name}"...`,
+          type: 'info',
+          duration: 0, // Don't auto-close
+          showClose: false
+        });
+        
+        try {
+          // Delete from Supabase database
+          const { data: deletedRecords, error: deleteError } = await supabase
+            .from('ai_portfolio_data')
+            .delete()
+            .eq('spreadsheet_id', spreadsheetId)
+            .select(); // Return deleted records for verification
+
+          if (deleteError) {
+            console.error('❌ Database deletion failed:', deleteError);
+            throw new Error(`Failed to delete from database: ${deleteError.message}`);
+          }
+          
+          console.log(`✅ Successfully deleted ${deletedRecords?.length || 0} record(s) from database:`, deletedRecords);
+          
+          // Close loading message
+          loadingMessage.close();
+          
+          // Remove from local array
+          const index = spreadsheets.value.findIndex(s => s.id === spreadsheetId);
+          if (index > -1) {
+            spreadsheets.value.splice(index, 1);
+            console.log(`📊 Removed spreadsheet from UI: ${spreadsheet.name} (${spreadsheetId})`);
+            ElMessage.success(`Spreadsheet "${spreadsheet.name}" deleted successfully`);
+          }
+          
+        } catch (dbError) {
+          // Close loading message on error
+          loadingMessage.close();
+          throw dbError; // Re-throw to be caught by outer catch
         }
         
       } catch (error) {
@@ -302,8 +342,8 @@ export default {
           // User cancelled - do nothing
           return;
         }
-        console.error('Error removing spreadsheet:', error);
-        ElMessage.error('Failed to remove spreadsheet: ' + error.message);
+        console.error('❌ Error removing spreadsheet:', error);
+        ElMessage.error('Failed to remove spreadsheet: ' + (error.message || 'Unknown error'));
       }
     };
 
@@ -333,7 +373,6 @@ export default {
   width: 100%;
   min-height: 100vh;
   background: #f8fafc;
-  padding: 24px;
 }
 
 /* Page Header */
@@ -522,10 +561,6 @@ export default {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .portfolio-manager-wrapper {
-    padding: 16px;
-  }
-  
   .page-header {
     flex-direction: column;
     gap: 16px;
@@ -549,11 +584,7 @@ export default {
 }
 
 @media (max-width: 480px) {
-  .portfolio-manager-wrapper {
-    padding: 12px;
-  }
-  
-  .page-header {
+    .page-header {
     padding: 16px;
     margin-bottom: 24px;
   }

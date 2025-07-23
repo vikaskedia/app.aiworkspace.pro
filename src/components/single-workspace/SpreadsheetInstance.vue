@@ -32,6 +32,8 @@ import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { DocumentChecked, Delete } from '@element-plus/icons-vue';
+import { useMatterStore } from '../../store/matter';
+import { storeToRefs } from 'pinia';
 
 // Univer core with locale support
 import { LocaleType, merge, Univer, UniverInstanceType } from '@univerjs/core';
@@ -90,10 +92,22 @@ export default {
     canRemove: {
       type: Boolean,
       default: true
+    },
+    matterId: {
+      type: Number,
+      required: false,
+      default: null
     }
   },
   emits: ['remove-spreadsheet'],
   setup(props) {
+    // Matter store for workspace context
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+    
+    // Use prop matterId if provided, otherwise get from current matter
+    const currentMatterId = computed(() => props.matterId || currentMatter.value?.id);
+    
     let univer = null;
     const portfolioData = ref({});
     const saving = ref(false);
@@ -120,12 +134,18 @@ export default {
 
     // Load complete portfolio workbook data from Supabase
     const loadPortfolioData = async () => {
+      if (!currentMatterId.value) {
+        console.warn(`⚠️ No matter ID available for loading portfolio data (${props.spreadsheetId})`);
+        return {};
+      }
+
       try {
-        // Find data with the specific spreadsheet_id
+        // Find data with the specific spreadsheet_id AND matter_id for workspace filtering
         const { data, error } = await supabase
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
+          .eq('matter_id', currentMatterId.value)
           .order('created_at', { ascending: false })
           .limit(1);
 
@@ -134,6 +154,8 @@ export default {
         if (data && data.length > 0) {
           portfolioId.value = data[0].id;
           const loadedData = data[0].data || {};
+          
+          console.log(`📊 Loading portfolio data for workspace ${currentMatterId.value}, spreadsheet ${props.spreadsheetId}`);
           
           // Check if this is a complete Univer workbook format or legacy format
           if (loadedData.id && loadedData.sheets && loadedData.sheetOrder) {
@@ -233,6 +255,12 @@ export default {
         return;
       }
       
+      if (!currentMatterId.value) {
+        console.warn(`⚠️ No matter ID available for saving portfolio data (${props.spreadsheetId})`);
+        ElMessage.warning(`Cannot save ${props.spreadsheetName}: No workspace selected`);
+        return;
+      }
+      
       try {
         saving.value = true;
         
@@ -245,7 +273,7 @@ export default {
           return;
         }
         
-        console.log(`💾 SAVING TO SUPABASE (${props.spreadsheetId}):`, {
+        console.log(`💾 SAVING TO SUPABASE (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, {
           hasSheets: !!(dataToSave.sheets),
           sheetCount: dataToSave.sheets ? Object.keys(dataToSave.sheets).length : 0,
           hasStyles: !!(dataToSave.styles),
@@ -271,7 +299,7 @@ export default {
         }
         
         if (portfolioId.value) {
-          // Update existing record
+          // Update existing record - verify it belongs to current workspace
           console.log(`📝 Updating existing record ID (${props.spreadsheetId}):`, portfolioId.value);
           const { error } = await supabase
             .from('ai_portfolio_data')
@@ -279,24 +307,27 @@ export default {
               data: cleanedData,
               name: props.spreadsheetName,
               spreadsheet_id: props.spreadsheetId,
+              matter_id: currentMatterId.value,
               updated_at: new Date().toISOString()
             })
-            .eq('id', portfolioId.value);
+            .eq('id', portfolioId.value)
+            .eq('matter_id', currentMatterId.value); // Extra security: ensure we only update records from current workspace
 
           if (error) {
             console.error(`❌ Supabase update error (${props.spreadsheetId}):`, error);
             throw error;
           }
-          console.log(`✅ Successfully updated existing record (${props.spreadsheetId})`);
+          console.log(`✅ Successfully updated existing record (${props.spreadsheetId}) for workspace ${currentMatterId.value}`);
         } else {
           // Create new record
-          console.log(`📝 Creating new record (${props.spreadsheetId})...`);
+          console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentMatterId.value}...`);
           const { data: newRecord, error } = await supabase
             .from('ai_portfolio_data')
             .insert([{ 
               data: cleanedData,
               name: props.spreadsheetName,
               spreadsheet_id: props.spreadsheetId,
+              matter_id: currentMatterId.value,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }])
@@ -308,7 +339,7 @@ export default {
             throw error;
           }
           portfolioId.value = newRecord.id;
-          console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}):`, newRecord.id);
+          console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, newRecord.id);
         }
 
         portfolioData.value = cleanedData;
@@ -317,7 +348,7 @@ export default {
         const sheetCount = cleanedData.sheets ? Object.keys(cleanedData.sheets).length : 0;
         const styleCount = cleanedData.styles ? Object.keys(cleanedData.styles).length : 0;
         
-        console.log(`✅ Save operation completed successfully (${props.spreadsheetId}):`, {
+        console.log(`✅ Save operation completed successfully (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, {
           recordId: portfolioId.value,
           sheets: sheetCount,
           styles: styleCount,

@@ -24,9 +24,9 @@
          - Individual save/load functionality per spreadsheet
          
          💾 Enhanced Save System captures ALL Univer features! -->
-    
+   
     <!-- Spreadsheet Instances -->
-    <div class="spreadsheets-container">
+    <div class="spreadsheets-container" v-if="currentMatter">
       <SpreadsheetInstance
         v-for="spreadsheet in spreadsheets"
         :key="spreadsheet.id"
@@ -35,12 +35,13 @@
         :initial-rows="spreadsheet.rows"
         :initial-columns="spreadsheet.columns"
         :can-remove="spreadsheets.length > 1"
+        :matter-id="currentMatterId"
         @remove-spreadsheet="removeSpreadsheet"
       />
     </div>
     
     <!-- Add Spreadsheet Button (at bottom) -->
-    <div class="add-spreadsheet-section" v-if="spreadsheets.length > 0">
+    <div class="add-spreadsheet-section" v-if="spreadsheets.length > 0 && currentMatter">
       <el-button 
         type="primary" 
         @click="showAddSpreadsheetDialog"
@@ -101,19 +102,29 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
+import { Plus, Folder } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
+import { useMatterStore } from '../../store/matter';
+import { storeToRefs } from 'pinia';
 
 export default {
   name: 'AiPortfolioManagerCt',
   components: {
     SpreadsheetInstance,
-    Plus
+    Plus,
+    Folder
   },
   setup() {
+    // Matter store for workspace context
+    const matterStore = useMatterStore();
+    const { currentMatter } = storeToRefs(matterStore);
+    
+    // Computed matter ID for workspace filtering
+    const currentMatterId = computed(() => currentMatter.value?.id);
+    
     // Spreadsheet management
     const spreadsheets = ref([]);
     const addSpreadsheetDialogVisible = ref(false);
@@ -146,13 +157,19 @@ export default {
       return 'sheet_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     };
     
-    // Initialize with default spreadsheet
+    // Initialize with default spreadsheet for current workspace
     const initializeDefaultSpreadsheet = async () => {
+      if (!currentMatterId.value) {
+        console.warn('⚠️ No current matter selected, cannot load workspace-specific spreadsheets');
+        return;
+      }
+
       try {
-        // Check if we already have spreadsheets with spreadsheet_id
+        // Check if we already have spreadsheets for this workspace
         const { data: existingSpreadsheets, error } = await supabase
           .from('ai_portfolio_data')
           .select('*')
+          .eq('matter_id', currentMatterId.value)
           .not('spreadsheet_id', 'is', null)
           .order('created_at', { ascending: false });
 
@@ -160,9 +177,9 @@ export default {
           console.warn('Error checking for existing spreadsheets:', error);
         }
 
-        // If we already have spreadsheets, load them
+        // If we already have spreadsheets for this workspace, load them
         if (existingSpreadsheets && existingSpreadsheets.length > 0) {
-          console.log('📊 Found existing spreadsheets, loading them:', existingSpreadsheets.length);
+          console.log(`📊 Found ${existingSpreadsheets.length} existing spreadsheets for workspace ${currentMatterId.value}`);
           spreadsheets.value = existingSpreadsheets.map(sheet => ({
             id: sheet.spreadsheet_id,
             name: sheet.name || 'Portfolio',
@@ -173,7 +190,7 @@ export default {
           return;
         }
 
-        // No existing spreadsheets, create a new default one
+        // No existing spreadsheets for this workspace, create a new default one
         const defaultSpreadsheetId = generateSpreadsheetId();
         spreadsheets.value = [{
           id: defaultSpreadsheetId,
@@ -183,7 +200,7 @@ export default {
           createdAt: new Date()
         }];
 
-        console.log('📊 Created new default spreadsheet with ID:', defaultSpreadsheetId);
+        console.log(`📊 Created new default spreadsheet for workspace ${currentMatterId.value} with ID:`, defaultSpreadsheetId);
       } catch (error) {
         console.error('Error initializing default spreadsheet:', error);
         // Fallback to creating new spreadsheet
@@ -199,6 +216,11 @@ export default {
     
     // Show add spreadsheet dialog
     const showAddSpreadsheetDialog = () => {
+      if (!currentMatterId.value) {
+        ElMessage.warning('Please select a workspace first');
+        return;
+      }
+      
       // Reset form
       newSpreadsheetForm.value = {
         name: '',
@@ -210,6 +232,11 @@ export default {
     
     // Add new spreadsheet
     const addNewSpreadsheet = async () => {
+      if (!currentMatterId.value) {
+        ElMessage.error('No workspace selected');
+        return;
+      }
+      
       try {
         // Validate form first
         if (!spreadsheetFormRef.value) {
@@ -224,13 +251,13 @@ export default {
         
         addingSpreadsheet.value = true;
         
-        // Check for duplicate names
+        // Check for duplicate names within the current workspace
         const isDuplicate = spreadsheets.value.some(sheet => 
           sheet.name.toLowerCase() === newSpreadsheetForm.value.name.toLowerCase()
         );
         
         if (isDuplicate) {
-          ElMessage.error('A spreadsheet with this name already exists');
+          ElMessage.error('A spreadsheet with this name already exists in this workspace');
           addingSpreadsheet.value = false;
           return;
         }
@@ -246,7 +273,7 @@ export default {
         
         spreadsheets.value.push(newSpreadsheet);
         
-        console.log('📊 Added new spreadsheet:', newSpreadsheet);
+        console.log(`📊 Added new spreadsheet to workspace ${currentMatterId.value}:`, newSpreadsheet);
         ElMessage.success(`Spreadsheet "${newSpreadsheet.name}" added successfully!`);
         
         // Close dialog
@@ -270,6 +297,11 @@ export default {
     
     // Remove spreadsheet
     const removeSpreadsheet = async (spreadsheetId) => {
+      if (!currentMatterId.value) {
+        ElMessage.error('No workspace selected');
+        return;
+      }
+      
       try {
         const spreadsheet = spreadsheets.value.find(s => s.id === spreadsheetId);
         if (!spreadsheet) {
@@ -295,7 +327,7 @@ export default {
           }
         );
         
-        console.log(`🗑️ Starting deletion of spreadsheet: ${spreadsheet.name} (${spreadsheetId})`);
+        console.log(`🗑️ Starting deletion of spreadsheet: ${spreadsheet.name} (${spreadsheetId}) from workspace ${currentMatterId.value}`);
         
         // Show loading state
         const loadingMessage = ElMessage({
@@ -306,11 +338,12 @@ export default {
         });
         
         try {
-          // Delete from Supabase database
+          // Delete from Supabase database - filter by both spreadsheet_id AND matter_id for security
           const { data: deletedRecords, error: deleteError } = await supabase
             .from('ai_portfolio_data')
             .delete()
             .eq('spreadsheet_id', spreadsheetId)
+            .eq('matter_id', currentMatterId.value)
             .select(); // Return deleted records for verification
 
           if (deleteError) {
@@ -318,7 +351,7 @@ export default {
             throw new Error(`Failed to delete from database: ${deleteError.message}`);
           }
           
-          console.log(`✅ Successfully deleted ${deletedRecords?.length || 0} record(s) from database:`, deletedRecords);
+          console.log(`✅ Successfully deleted ${deletedRecords?.length || 0} record(s) from database for workspace ${currentMatterId.value}:`, deletedRecords);
           
           // Close loading message
           loadingMessage.close();
@@ -347,13 +380,47 @@ export default {
       }
     };
 
+    // Watch for matter changes and reload spreadsheets
+    const watchMatterChanges = () => {
+      let isInitialized = false;
+      
+      return computed(() => {
+        if (currentMatter.value?.id) {
+          const matterId = currentMatter.value.id;
+          
+          // Only reload if matter actually changed (not initial load)
+          if (isInitialized) {
+            console.log(`🔄 Matter changed to ${matterId}, reloading spreadsheets...`);
+            spreadsheets.value = []; // Clear current spreadsheets
+            initializeDefaultSpreadsheet(); // Load spreadsheets for new workspace
+          } else {
+            // First time initialization
+            isInitialized = true;
+            initializeDefaultSpreadsheet();
+          }
+        } else {
+          // No matter selected, clear spreadsheets
+          spreadsheets.value = [];
+        }
+        
+        return currentMatter.value?.id;
+      });
+    };
+
     // Initialize component
     onMounted(async () => {
-      await initializeDefaultSpreadsheet();
-      console.log('✅ AI Portfolio Manager initialized with multiple spreadsheet support!');
+      // Set up matter watching
+      const matterWatcher = watchMatterChanges();
+      
+      // Trigger initial load
+      matterWatcher.value;
+      
+      console.log('✅ AI Portfolio Manager initialized with workspace-specific support!');
     });
 
     return {
+      currentMatter,
+      currentMatterId,
       spreadsheets,
       addSpreadsheetDialogVisible,
       addingSpreadsheet,
@@ -402,6 +469,40 @@ export default {
 .page-actions {
   display: flex;
   gap: 12px;
+}
+
+/* Workspace Indicator */
+.workspace-indicator {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 16px 24px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-icon {
+  font-size: 24px;
+  color: #667eea;
+}
+
+.workspace-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.no-workspace-warning {
+  margin-bottom: 32px;
 }
 
 /* Spreadsheets Container */

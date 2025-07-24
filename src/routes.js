@@ -240,6 +240,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/intake-process/:workspaceId',
+    name: 'IntakeProcess',
+    component: () => import('./components/IntakeProcessCt.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/short-link/:shortId',
     name: 'ShareTaskRedirect',
     component: () => import('./components/ShareTaskRedirect.vue'),

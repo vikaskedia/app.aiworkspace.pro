@@ -2,7 +2,7 @@
   <div class="ai-phone-interface">
 
     <div class="phone-layout" :class="{ 'with-contact-panel': showContactDetailsPane }">
-      <!-- Left Panel: Inbox/Navigation -->
+      <!-- 1st Panel: Inbox/Navigation -->
       <div class="inbox-panel">
         <div class="panel-header">
           <el-tooltip placement="bottom">
@@ -170,7 +170,7 @@
         </div>
       </div>
 
-      <!-- Middle Panel: Chat Numbers/Conversations -->
+      <!-- 2nd Panel: Chat Numbers/Conversations -->
       <div class="chats-panel">
         <div class="panel-header">
           <div class="panel-header-title">
@@ -333,7 +333,7 @@
         </div>
       </div>
 
-      <!-- Right Panel - Chat (45% width) -->
+      <!-- 3rd Panel - Chat (45% width) -->
       <div class="chat-panel">
         <div v-if="!selectedConversation && !selectedGroupConversation" class="no-chat-selected">
           <el-icon class="large-icon"><ChatDotRound /></el-icon>
@@ -3142,8 +3142,8 @@ export default {
 
       try {
         // Get the selected phone number for this conversation
-        const fromPhone = this.currentChat.fromPhoneNumber;
-        const toPhone = this.currentChat.phoneNumber;
+        let fromPhone = this.currentChat.fromPhoneNumber;
+        let toPhone = this.currentChat.phoneNumber;
 
         if (!fromPhone || !toPhone) {
           throw new Error('Missing phone number information');
@@ -3238,7 +3238,25 @@ export default {
             container.scrollTop = container.scrollHeight;
           }
         });
-
+        
+        // Check if fromPhone exists in currentMatter phone numbers
+        const matterPhoneNumbers = this.currentMatter?.phone_numbers || [];
+        const fromPhoneExists = matterPhoneNumbers.some(phone => phone.number === fromPhone);
+        if (!fromPhoneExists) {
+          // Check if toPhone exists in currentMatter phone numbers
+          const toPhoneExists = matterPhoneNumbers.some(phone => phone.number === toPhone);
+          
+          if (toPhoneExists) {
+            // Swap fromPhone and toPhone
+            const tempPhone = fromPhone;
+            fromPhone = toPhone;
+            toPhone = tempPhone;
+          }
+        }
+        if(toPhone.length == 10){
+          toPhone = `+1${toPhone}`;
+        }
+        console.log('fromPhone:', fromPhone, 'toPhone:', toPhone, 'message:', messageText);
         // Send via API
         const smsResponse = await fetch('https://app.aiworkspace.pro/api/sms/send', {
           method: 'POST',

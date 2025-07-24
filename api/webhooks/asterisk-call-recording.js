@@ -229,10 +229,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         audioUrl: publicUrl,
         callRecordingId: insertedRecording.id,
+        fileSize: fileSize
       })
     }).catch(error => {
       console.error('❌ Failed to start transcription:', error);
     });
+    console.log('🚀 FIRING transcription API call to:', 'https://app.aiworkspace.pro/api/transcribe-summary', 'callRecordingId:', insertedRecording.id, 'audioUrl:', publicUrl, 'fileSize:', fileSize);
 
     console.log(`✅ Stored in Supabase bucket only`);
     console.log(`🔗 Supabase public URL:`, publicUrl);

@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { audioUrl, callRecordingId } = req.body;
+  const { audioUrl, callRecordingId, fileSize } = req.body;
   if (!audioUrl) return res.status(400).json({ error: 'audioUrl is required' });
 
   // Initialize Supabase client for call recording updates
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   );
-
+  console.log('🚀 Get data from API call to transcribe-summary:', 'callRecordingId:', callRecordingId, 'audioUrl:', audioUrl, 'fileSize:', fileSize);
   try {
     // Update processing status to 'processing'
     if (callRecordingId) {

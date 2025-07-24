@@ -11,6 +11,7 @@ import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
 import VueCookies from "vue3-cookies";
 import mitt from "mitt";
+import VueSignaturePad from "vue-signature-pad";
 
 // Create the app instance
 const rootVueApp = createApp(App);
@@ -35,6 +36,9 @@ rootVueApp.use(router);
 
 // Element Plus setup
 rootVueApp.use(ElementPlus);
+
+// Register VueSignaturePad globally
+rootVueApp.use(VueSignaturePad);
 
 // Cookie setup
 rootVueApp.use(VueCookies);

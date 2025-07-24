@@ -38,6 +38,7 @@
                     </el-checkbox>
                   </el-form-item>
 
+
                   <el-form-item v-else :label="field.label" :required="field.required">
                     <component
                       :is="inputComponent(field)"
@@ -57,11 +58,25 @@
                       </template>
                     </component>
                   </el-form-item>
+
+                  
                 </div>
               </template>
             </div>
           </div>
         </template>
+        <!-- Signature Pad -->
+        <el-form-item label="Signature">
+          <VueSignaturePad
+            ref="signaturePadRef"
+            width="240px"
+            height="120px"
+            :options="{ penColor: 'black', backgroundColor: 'rgba(255,255,255,1)' }"
+            style="border: 1px solid #ccc;"
+          />
+          <el-button @click.prevent="signaturePadRef && signaturePadRef.clearSignature()" style="margin-top: 8px;">Clear</el-button>
+        </el-form-item>
+
 
         <el-form-item>
           <el-button type="primary" @click="handleSubmit" :loading="submitting">
@@ -93,6 +108,7 @@ const formTitle = ref('');
 const formData = reactive({});
 const submitting = ref(false);
 const submitted = ref(false);
+const signaturePadRef = ref(null);
 
 const WORKSPACE_ID = 686;
 
@@ -117,6 +133,7 @@ async function loadIntakeForm() {
       });
     });
     formData.server_side_row_uuid = '';
+    formData.signature = '';
   } catch (err) {
     error.value = 'Error loading intake form';
     console.error('Error loading intake form:', err);
@@ -128,12 +145,17 @@ async function loadIntakeForm() {
 async function handleSubmit() {
   submitting.value = true;
   try {
+    // Get signature data
+    if (signaturePadRef.value) {
+      formData.signature = signaturePadRef.value.saveSignature();
+    }
     const updateObj = {};
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {
         updateObj[field.name] = formData[field.name];
       });
     });
+    updateObj.signature = formData.signature;
     // Insert new row into intake_for_ws_19
     const { error: insertErr } = await supabase
       .from('intake_for_ws_' + WORKSPACE_ID)

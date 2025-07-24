@@ -195,7 +195,7 @@ return only with valid json strecture. do not include any other text or comments
     // If cache_of_empty_form_html is empty, generate and cache it
     if (!designRow.cache_of_empty_form_html) {
       // const prompt = designRow.prompt_to_generate_dynamic_form;
-      const { data: aiData } = await axios.post('https://app.aiworkspace.pro/api/ai-generate-intake-form', {
+      const { data: aiData } = await axios.post('https://app.aiworkspace.pro/api/bk-serverless/ai-generate-intake-form', {
         userPrompt: userPrompt,
         tableName: 'intake_for_ws_' + workspaceId,
         workspace_id: workspaceId

@@ -158,7 +158,8 @@ async function handleSubmit() {
   try {
     // Get signature data
     if (signaturePadRef.value) {
-      formData.signature = signaturePadRef.value.saveSignature();
+      const signature = signaturePadRef.value.saveSignature();
+      formData.signature = signature.data;
     }
     const updateObj = {};
     (formDefinition.value.sections || []).forEach(section => {
@@ -167,6 +168,15 @@ async function handleSubmit() {
       });
     });
     updateObj.signature = formData.signature;
+
+    // if field is empty then set it null
+    Object.keys(updateObj).forEach(key => {
+      if (updateObj[key] === '') {
+        updateObj[key] = null;
+      }
+    });
+
+
     // Insert new row into intake_for_ws_19
     const { error: insertErr } = await supabase
       .from('intake_for_ws_' + WORKSPACE_ID)

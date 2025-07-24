@@ -220,21 +220,25 @@ export default async function handler(req, res) {
     }
 
     // Start background transcription and summary generation
-    console.log('🎤 Starting background transcription and summary generation...');
-    fetch('https://app.aiworkspace.pro/api/transcribe-summary', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        audioUrl: publicUrl,
-        callRecordingId: insertedRecording.id,
-        fileSize: fileSize
-      })
-    }).catch(error => {
-      console.error('❌ Failed to start transcription:', error);
-    });
-    console.log('🚀 FIRING transcription API call to:', 'https://app.aiworkspace.pro/api/transcribe-summary', 'callRecordingId:', insertedRecording.id, 'audioUrl:', publicUrl, 'fileSize:', fileSize);
+    if (fileSize === 44) {
+      console.log('⏭️ Skipping transcription: fileSize is 44 bytes (likely empty/corrupted audio)');
+    } else {
+      console.log('🎤 Starting background transcription and summary generation...');
+      fetch('https://app.aiworkspace.pro/api/transcribe-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioUrl: publicUrl,
+          callRecordingId: insertedRecording.id,
+          fileSize: fileSize
+        })
+      }).catch(error => {
+        console.error('❌ Failed to start transcription:', error);
+      });
+      console.log('🚀 FIRING transcription API call to:', 'https://app.aiworkspace.pro/api/transcribe-summary', 'callRecordingId:', insertedRecording.id, 'audioUrl:', publicUrl, 'fileSize:', fileSize);
+    }
 
     console.log(`✅ Stored in Supabase bucket only`);
     console.log(`🔗 Supabase public URL:`, publicUrl);

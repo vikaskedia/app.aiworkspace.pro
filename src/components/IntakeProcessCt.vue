@@ -8,7 +8,7 @@
       <el-alert type="error" :title="error" show-icon />
     </div>
 
-    <div v-else-if="formDefinition" class="form-container">
+    <div v-else-if="formDefinition && !submitted" class="form-container">
       <div class="form-header" :style="formHeaderStyle">
         <h2>{{ formTitle || 'Patient Intake Form' }}</h2>
         <p v-if="formDefinition.description" class="form-description">{{ formDefinition.description }}</p>
@@ -95,15 +95,33 @@
           </el-button>
         </el-form-item>
       </el-form>
-
-      <div v-if="submitted" class="success-message">
-        <el-alert type="success" title="Form submitted successfully!" show-icon />
-      </div>
     </div>
 
-    <div v-else class="not-found">
-      <el-alert type="warning" title="Intake form not found" description="The requested intake form could not be found or may have expired." show-icon />
+    <div v-if="submitted" class="success-section">
+      <el-card class="success-card">
+        <div class="success-icon-container">
+          <el-icon color="#67c23a" size="48"><i class="el-icon-circle-check"></i></el-icon>
+        </div>
+        <h2 class="success-title">Success</h2>
+        <div class="success-message">
+          Thank you for submitting your debt relief request!<br />We will contact you soon.
+        </div>
+        <el-divider />
+        <div class="contact-info">
+          <div class="contact-title">Schedule a call with your Debt Settlement Specialist / Case Manager:</div>
+          <div class="contact-details">
+            <b>Email:</b> <a href="mailto:clientintake@ovlg.com">clientintake@ovlg.com</a><br />
+            <b>Call/Text:</b> <a href="tel:+18005306854">+1-800-530-6854</a><br />
+            <span class="contact-note">Please save this number in your contact list.</span>
+          </div>
+        </div>
+        <el-divider />
+        <div class="action-area">
+          <el-button type="primary" plain href="/users/login">Take me to my client secure area</el-button>
+        </div>
+      </el-card>
     </div>
+
   </div>
 </template>
 
@@ -168,6 +186,8 @@ async function handleSubmit() {
       });
     });
     updateObj.signature = formData.signature;
+
+    updateObj.server_side_row_uuid = crypto.randomUUID();
 
     // if field is empty then set it null
     Object.keys(updateObj).forEach(key => {
@@ -395,5 +415,64 @@ onMounted(loadIntakeForm);
   .section-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.success-section {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 350px;
+}
+.success-card {
+  max-width: 480px;
+  width: 100%;
+  padding: 32px 24px 24px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  background: #fff;
+  text-align: center;
+}
+.success-icon-container {
+  margin-bottom: 12px;
+}
+.success-title {
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+.success-message {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 18px;
+}
+.contact-info {
+  margin: 18px 0 10px 0;
+}
+.contact-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #444;
+}
+.contact-details {
+  font-size: 1rem;
+  color: #222;
+}
+.contact-details a {
+  color: #409EFF;
+  text-decoration: none;
+}
+.contact-details a:hover {
+  text-decoration: underline;
+}
+.contact-note {
+  color: #888;
+  font-size: 0.95rem;
+  display: block;
+  margin-top: 4px;
+}
+.action-area {
+  margin-top: 18px;
 }
 </style> 

@@ -55,6 +55,7 @@ import { UniverDocsPlugin } from '@univerjs/docs';
 import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
 import { UniverSheetsPlugin } from '@univerjs/sheets';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
+import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
@@ -893,12 +894,98 @@ export default {
 
         univer.registerPlugin(UniverSheetsPlugin);
         univer.registerPlugin(UniverSheetsUIPlugin);
+        univer.registerPlugin(UniverSheetsFormulaPlugin);
         univer.registerPlugin(UniverSheetsFormulaUIPlugin);
         univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+
+        // Simple and reliable TASKSTATUS formula processor
+        const processTaskStatusFormulas = async () => {
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            if (!currentData || !currentData.sheets) return;
+            
+            let processedCount = 0;
+            let needsReload = false;
+            
+            Object.keys(currentData.sheets).forEach(sheetId => {
+              const sheet = currentData.sheets[sheetId];
+              if (!sheet.cellData) return;
+              
+              Object.keys(sheet.cellData).forEach(row => {
+                Object.keys(sheet.cellData[row]).forEach(col => {
+                  const cell = sheet.cellData[row][col];
+                  if (cell && cell.f && typeof cell.f === 'string') {
+                    const formula = cell.f.trim();
+                    const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                    
+                    if (taskStatusMatch) {
+                      const number = parseInt(taskStatusMatch[1], 10);
+                      if (!isNaN(number)) {
+                        // Reverse the digits
+                        const reversedNumber = parseInt(number.toString().split('').reverse().join(''), 10);
+                        
+                        // Update the cell value and remove formula
+                        cell.v = reversedNumber;
+                        delete cell.f;
+                        
+                        console.log(`✅ Processed TASKSTATUS(${number}) → ${reversedNumber} at [${row}, ${col}] (${props.spreadsheetId})`);
+                        
+                        // Show user notification
+                        ElMessage.success(`TASKSTATUS(${number}) processed → ${reversedNumber}. Refresh to see result.`);
+                        
+                        processedCount++;
+                        needsReload = true;
+                      }
+                    }
+                  }
+                });
+              });
+            });
+            
+            if (needsReload) {
+              console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
+              
+              // Update portfolio data
+              portfolioData.value = { ...currentData };
+              
+              // Save to database
+              try {
+                await savePortfolioData(currentData);
+                console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
+              } catch (saveError) {
+                console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
+              }
+              
+              // Trigger immediate processing on next cell edit
+              console.log(`🔄 Data updated in background, will reflect on next reload (${props.spreadsheetId})`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
+          }
+        };
+        
+        // Start monitoring for TASKSTATUS formulas
+        console.log(`🔧 Starting TASKSTATUS formula processor (${props.spreadsheetId})...`);
 
         // Create workbook with loaded data and styles
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
         univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
+
+        // Start formula processing after workbook is created
+        setTimeout(() => {
+          // Process immediately
+          processTaskStatusFormulas();
+          
+          // Then process every 2 seconds for faster response
+          const formulaInterval = setInterval(processTaskStatusFormulas, 2000);
+          
+          // Store interval for cleanup
+          if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
+          window.taskStatusIntervals.set(props.spreadsheetId, formulaInterval);
+          
+          console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(123)" in any cell, wait 2 seconds, then refresh or navigate away and back to see result`);
+        }, 1000);
 
         // Enable change tracking with error handling
         setTimeout(() => {
@@ -929,6 +1016,13 @@ export default {
     });
 
     onBeforeUnmount(() => {
+      // Clean up TASKSTATUS formula processor
+      if (window.taskStatusIntervals && window.taskStatusIntervals.has(props.spreadsheetId)) {
+        clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
+        window.taskStatusIntervals.delete(props.spreadsheetId);
+        console.log(`🧹 Cleaned up TASKSTATUS processor for ${props.spreadsheetId}`);
+      }
+      
       if (univer) {
         try {
           univer.dispose();

@@ -45,21 +45,32 @@
             :label="portfolio.name" 
             :name="portfolio.id">
             
-            <!-- Custom tab label with context menu and close icon -->
+            <!-- Custom tab label with context menu, edit, and close icon -->
             <template #label>
               <span 
                 @contextmenu.prevent="showContextMenu($event, portfolio)"
+                @dblclick.stop="editPortfolioName(portfolio)"
                 class="tab-label">
                 <span class="tab-text">
                   {{ portfolio.name }}
                   <span class="tab-count">({{ getPortfolioSpreadsheetCount(portfolio.id) }})</span>
                 </span>
-                <el-icon 
-                  v-if="portfolios.length > 1"
-                  class="tab-close-icon" 
-                  @click.stop="deletePortfolio(portfolio.id)">
-                  <Close />
-                </el-icon>
+                <div class="tab-actions">
+                  <el-tooltip content="Edit portfolio name (or double-click)" placement="bottom" :show-after="500">
+                    <el-icon 
+                      class="tab-edit-icon" 
+                      @click.stop="editPortfolioName(portfolio)">
+                      <Edit />
+                    </el-icon>
+                  </el-tooltip>
+                  <el-tooltip content="Delete portfolio" placement="bottom" :show-after="500" v-if="portfolios.length > 1">
+                    <el-icon 
+                      class="tab-close-icon" 
+                      @click.stop="deletePortfolio(portfolio.id)">
+                      <Close />
+                    </el-icon>
+                  </el-tooltip>
+                </div>
               </span>
             </template>
             
@@ -171,7 +182,8 @@
       v-model="editPortfolioDialogVisible"
       title="Rename Portfolio"
       width="400px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false"
+      @close="editingPortfolio = null">
       <el-form 
         :model="editPortfolioForm" 
         :rules="portfolioFormRules"
@@ -188,7 +200,7 @@
       </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="editPortfolioDialogVisible = false">Cancel</el-button>
+          <el-button @click="editPortfolioDialogVisible = false; editingPortfolio = null">Cancel</el-button>
           <el-button 
             type="primary" 
             @click="updatePortfolioName"
@@ -294,6 +306,7 @@ export default {
     const contextMenuX = ref(0);
     const contextMenuY = ref(0);
     const selectedPortfolio = ref(null);
+    const editingPortfolio = ref(null); // Separate variable for portfolio being edited
     
     // Form refs
     const portfolioFormRef = ref(null);
@@ -356,13 +369,13 @@ export default {
     const editPortfolioName = (portfolio) => {
       hideContextMenu();
       editPortfolioForm.value.name = portfolio.name;
-      selectedPortfolio.value = portfolio;
+      editingPortfolio.value = portfolio;
       editPortfolioDialogVisible.value = true;
     };
     
     // Update portfolio name
     const updatePortfolioName = async () => {
-      if (!currentMatterId.value || !selectedPortfolio.value) {
+      if (!currentMatterId.value || !editingPortfolio.value) {
         ElMessage.error('No workspace or portfolio selected');
         return;
       }
@@ -380,7 +393,7 @@ export default {
         
         // Check for duplicate names
         const isDuplicate = portfolios.value.some(portfolio => 
-          portfolio.id !== selectedPortfolio.value.id &&
+          portfolio.id !== editingPortfolio.value.id &&
           portfolio.name.toLowerCase() === editPortfolioForm.value.name.toLowerCase()
         );
         
@@ -397,13 +410,13 @@ export default {
             portfolio_name: editPortfolioForm.value.name,
             updated_by: (await supabase.auth.getUser()).data.user?.id
           })
-          .eq('portfolio_id', selectedPortfolio.value.id)
+          .eq('portfolio_id', editingPortfolio.value.id)
           .eq('matter_id', currentMatterId.value);
 
         if (error) throw error;
         
         // Update local state
-        const portfolioIndex = portfolios.value.findIndex(p => p.id === selectedPortfolio.value.id);
+        const portfolioIndex = portfolios.value.findIndex(p => p.id === editingPortfolio.value.id);
         if (portfolioIndex > -1) {
           portfolios.value[portfolioIndex].name = editPortfolioForm.value.name;
           portfolios.value[portfolioIndex].lastUpdated = new Date().toLocaleDateString();
@@ -411,6 +424,7 @@ export default {
         
         ElMessage.success(`Portfolio renamed to "${editPortfolioForm.value.name}" successfully!`);
         editPortfolioDialogVisible.value = false;
+        editingPortfolio.value = null; // Clear the editing portfolio
         
       } catch (error) {
         console.error('Error updating portfolio name:', error);
@@ -923,6 +937,7 @@ export default {
       contextMenuX,
       contextMenuY,
       selectedPortfolio,
+      editingPortfolio,
       portfolioFormRef,
       editPortfolioFormRef,
       spreadsheetFormRef,
@@ -954,7 +969,7 @@ export default {
   /*width: 100%;*/
   min-height: calc(100vh - 40px);
   background: #f8fafc;
-  padding: 8px;
+  padding: 12px;
 }
 
 /* No Workspace Warning */
@@ -1007,6 +1022,33 @@ export default {
   font-weight: 500;
 }
 
+.tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-edit-icon {
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px;
+  opacity: 1;
+}
+
+.tab-label:hover .tab-edit-icon {
+  opacity: 0.7;
+}
+
+.tab-edit-icon:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
 .tab-close-icon {
   font-size: 14px;
   color: #94a3b8;
@@ -1014,7 +1056,6 @@ export default {
   transition: all 0.2s ease;
   border-radius: 4px;
   padding: 2px;
-  margin-left: 4px;
   opacity: 0.7;
 }
 
@@ -1069,7 +1110,7 @@ export default {
 /* Add Portfolio Button Container */
 .add-portfolio-button-container {
   position: absolute;
-  top: 8px;
+  top: 4px;
   right: 16px;
   z-index: 10;
 }
@@ -1133,9 +1174,9 @@ export default {
   border-bottom: 1px solid #e2e8f0;
 }
 
-:deep(.el-tabs__nav-wrap) {
+/*:deep(.el-tabs__nav-wrap) {
   padding: 0 16px;
-}
+}*/
 
 :deep(.el-tabs__item) {
   font-weight: 600;
@@ -1317,7 +1358,7 @@ export default {
   }
   
   .add-portfolio-button-container {
-    top: 6px;
+    top: 4px;
     right: 12px;
   }
 }
@@ -1335,10 +1376,15 @@ export default {
     display: none; /* Hide count on very small screens */
   }
   
+  .tab-edit-icon {
+    font-size: 10px;
+    padding: 1px;
+    opacity: 0.8 !important; /* Always visible on mobile */
+  }
+  
   .tab-close-icon {
     font-size: 12px;
     padding: 1px;
-    margin-left: 2px;
   }
   
   .add-spreadsheet-section {
@@ -1384,6 +1430,15 @@ export default {
     color: #64748b;
   }
   
+  .tab-edit-icon {
+    color: #64748b;
+  }
+  
+  .tab-edit-icon:hover {
+    color: #a5b4fc;
+    background: rgba(165, 180, 252, 0.1);
+  }
+  
   .tab-close-icon {
     color: #64748b;
   }
@@ -1424,6 +1479,6 @@ export default {
 
 <style>
 .matter-content.matter-content--ai-portfolio {
-    padding: 0.5rem;
+    padding: 0;
 }
 </style>

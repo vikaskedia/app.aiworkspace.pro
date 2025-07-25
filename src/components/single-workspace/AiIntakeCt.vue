@@ -118,6 +118,17 @@
           </div>
         </template>
 
+        <div class="form-section" >
+          <h4 class="section-title">Signature</h4>
+          <el-form-item label=" "  >
+            <!-- show image with data url -->
+            <img :src="formData.signature" alt="Signature" style="width: 300px; height: 120px;" v-if="formData.signature" />
+            <div v-else>No signature</div>
+          </el-form-item>
+
+         
+        </div>
+
         <el-form-item class="submit-section">
           <el-button 
             :type="formDefinition.submitButton?.style || 'primary'"
@@ -349,7 +360,7 @@ async function loadIntakeRow(uuid) {
   // Set hidden fields
   formData.server_side_row_uuid = row.server_side_row_uuid;
   // formData.ptuuid = row.ptuuid;
-  
+  formData.signature = row.signature;
   // Populate form fields from definition
   (formDefinition.value.sections || []).forEach(section => {
     (section.fields || []).forEach(field => {

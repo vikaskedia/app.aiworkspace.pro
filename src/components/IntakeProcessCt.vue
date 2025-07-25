@@ -129,7 +129,9 @@
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../supabase.js';
+import { useRoute } from 'vue-router';
 
+const route = useRoute();
 const loading = ref(true);
 const error = ref(null);
 const formDefinition = ref(null);
@@ -139,15 +141,17 @@ const submitting = ref(false);
 const submitted = ref(false);
 const signaturePadRef = ref(null);
 
-const WORKSPACE_ID = 686;
+const workspace_id = ref(null);
 
 async function loadIntakeForm() {
   try {
+    const form_name = route.params.name;
+    console.log('form_name', form_name);
     // Load the form design for workspace 19
     const { data: designData, error: designError } = await supabase
       .from('intake_form_design_for_ws')
       .select('*')
-      .eq('workspace_id', WORKSPACE_ID)
+      .eq('form_name', form_name)
       .single();
     if (designError || !designData) {
       error.value = 'Intake form design not found';
@@ -155,6 +159,7 @@ async function loadIntakeForm() {
     }
     formDefinition.value = designData.cache_of_empty_form_html;
     formTitle.value = designData.title;
+    workspace_id.value = designData.workspace_id; 
     // Populate formData with empty values
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {
@@ -199,7 +204,7 @@ async function handleSubmit() {
 
     // Insert new row into intake_for_ws_19
     const { error: insertErr } = await supabase
-      .from('intake_for_ws_' + WORKSPACE_ID)
+      .from('intake_for_ws_' + workspace_id.value)
       .insert([updateObj]);
     if (insertErr) throw insertErr;
     submitted.value = true;

@@ -951,7 +951,7 @@ export default {
 
 <style scoped>
 .portfolio-manager-wrapper {
-  width: 100%;
+  /*width: 100%;*/
   min-height: calc(100vh - 40px);
   background: #f8fafc;
   padding: 8px;

@@ -1,29 +1,35 @@
 <template>
   <div class="spreadsheet-instance-wrapper" :class="{ saving }">
-    <!-- Spreadsheet Header -->
-    <div class="spreadsheet-header">
-      <h3 class="spreadsheet-title">{{ spreadsheetName }}</h3>
-      <div class="spreadsheet-controls">
-        <el-button 
-          type="primary" 
-          :loading="saving" 
-          @click="manualSave"
-          size="small">
-          <el-icon><DocumentChecked /></el-icon>
-          Save
-        </el-button>
-        <el-button 
-          type="danger" 
-          @click="$emit('remove-spreadsheet', spreadsheetId)"
-          size="small"
-          v-if="canRemove">
-          <el-icon><Delete /></el-icon>
-          Remove
-        </el-button>
+    <!-- Spreadsheet Container with Floating Controls -->
+    <div class="spreadsheet-container">
+      <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
+      
+      <!-- Floating Action Buttons -->
+      <div class="floating-controls">
+        <el-tooltip content="Save spreadsheet" placement="left">
+          <el-button 
+            type="primary" 
+            :loading="saving" 
+            @click="manualSave"
+            size="small"
+            circle
+            class="floating-btn save-btn">
+            <el-icon><DocumentChecked /></el-icon>
+          </el-button>
+        </el-tooltip>
+        
+        <el-tooltip content="Remove spreadsheet" placement="left" v-if="canRemove">
+          <el-button 
+            type="danger" 
+            @click="$emit('remove-spreadsheet', spreadsheetId)"
+            size="small"
+            circle
+            class="floating-btn remove-btn">
+            <el-icon><Delete /></el-icon>
+          </el-button>
+        </el-tooltip>
       </div>
     </div>
-    
-    <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
   </div>
 </template>
 
@@ -1047,36 +1053,17 @@ export default {
 
 <style scoped>
 .spreadsheet-instance-wrapper {
-  width: 100%;
-  margin-bottom: 32px;
+  /*width: 100%;*/
+  margin-bottom: 8px;
   background: #f5f7fa;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   position: relative;
 }
 
-.spreadsheet-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e0e6ed;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.spreadsheet-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.spreadsheet-controls {
-  display: flex;
-  gap: 8px;
+.spreadsheet-container {
+  position: relative;
+  width: 100%;
 }
 
 .univer-container {
@@ -1088,25 +1075,65 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* Saving indicator */
-.spreadsheet-instance-wrapper::after {
-  content: '';
-  display: none;
+.floating-controls {
+  position: absolute;
+  top: 6px;
+  right: 24px;
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
 }
 
-.spreadsheet-instance-wrapper.saving::after {
+.floating-btn {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: all 0.3s ease;
+}
+
+.floating-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+}
+
+.save-btn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+.remove-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border: none !important;
+}
+
+.remove-btn:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+}
+
+/* Saving indicator */
+.spreadsheet-instance-wrapper.saving .floating-controls::before {
   content: '💾 Saving...';
-  display: block;
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: -40px;
+  right: 0;
   background: #409eff;
   color: white;
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 12px;
-  z-index: 1001;
+  white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  animation: pulse 1s infinite;
+  z-index: 1001;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 /* Ensure Univer takes exact space without scrollbars */
@@ -1150,28 +1177,54 @@ export default {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .spreadsheet-instance-wrapper {
-    padding: 12px;
-    margin-bottom: 24px;
-  }
-  
-  .spreadsheet-header {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-  
-  .spreadsheet-controls {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .spreadsheet-instance-wrapper {
     padding: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .floating-controls {
+    top: 55px;
+    right: 8px;
+    gap: 6px;
+  }
+  
+  .floating-btn {
+    width: 32px;
+    height: 32px;
   }
   
   .univer-container {
     border-radius: 4px;
   }
+}
+
+@media (max-width: 480px) {
+  .spreadsheet-instance-wrapper {
+    padding: 6px;
+  }
+  
+  .floating-controls {
+    top: 50px;
+    right: 6px;
+    gap: 4px;
+  }
+  
+  .floating-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  
+  .univer-container {
+    border-radius: 4px;
+  }
+  
+  .spreadsheet-instance-wrapper.saving .floating-controls::before {
+    font-size: 11px;
+    padding: 4px 8px;
+    top: -35px;
+  }
+}
+.floating-controls .el-button+.el-button {
+    margin-left: 0;
 }
 </style> 

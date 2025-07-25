@@ -99,26 +99,7 @@
 
     <div v-if="submitted" class="success-section">
       <el-card class="success-card">
-        <div class="success-icon-container">
-          <el-icon color="#67c23a" size="48"><i class="el-icon-circle-check"></i></el-icon>
-        </div>
-        <h2 class="success-title">Success</h2>
-        <div class="success-message">
-          Thank you for submitting your debt relief request!<br />We will contact you soon.
-        </div>
-        <el-divider />
-        <div class="contact-info">
-          <div class="contact-title">Schedule a call with your Debt Settlement Specialist / Case Manager:</div>
-          <div class="contact-details">
-            <b>Email:</b> <a href="mailto:clientintake@ovlg.com">clientintake@ovlg.com</a><br />
-            <b>Call/Text:</b> <a href="tel:+18005306854">+1-800-530-6854</a><br />
-            <span class="contact-note">Please save this number in your contact list.</span>
-          </div>
-        </div>
-        <el-divider />
-        <div class="action-area">
-          <el-button type="primary" plain href="/users/login">Take me to my client secure area</el-button>
-        </div>
+        <div v-html="success_message"></div>
       </el-card>
     </div>
 
@@ -140,6 +121,7 @@ const formData = reactive({});
 const submitting = ref(false);
 const submitted = ref(false);
 const signaturePadRef = ref(null);
+const success_message = ref('');
 
 const workspace_id = ref(null);
 
@@ -160,6 +142,7 @@ async function loadIntakeForm() {
     formDefinition.value = designData.cache_of_empty_form_html;
     formTitle.value = designData.title;
     workspace_id.value = designData.workspace_id; 
+    success_message.value = designData.success_message;
     // Populate formData with empty values
     (formDefinition.value.sections || []).forEach(section => {
       (section.fields || []).forEach(field => {
@@ -207,6 +190,20 @@ async function handleSubmit() {
       .from('intake_for_ws_' + workspace_id.value)
       .insert([updateObj]);
     if (insertErr) throw insertErr;
+
+
+    const share_url = `/intake-share/${workspace_id.value}_${updateObj.server_side_row_uuid}`;
+    const shortUrl = generateShortUrl();
+    const { data: shortUrlData, error: shortUrlErr } = await supabase
+      .from('intake_short_urls')
+      .insert({ short_id: shortUrl, actual_url : share_url, intake_row_uuid: updateObj.server_side_row_uuid })
+      .select()
+      .single();
+    if (shortUrlErr) throw shortUrlErr; 
+    if (shortUrlData) {
+      updateObj.short_url = shortUrlData.short_url;
+    }
+
     submitted.value = true;
     ElMessage.success('Form submitted successfully!');
   } catch (err) {
@@ -281,6 +278,12 @@ function getInputClass(field) {
     classes.push('has-validation');
   }
   return classes.join(' ');
+}
+
+function generateShortUrl() {
+  // generate short url like i/aB3dE9
+  const shortUrl = 'i/' + Math.random().toString(36).substring(2, 15);
+  return shortUrl;
 }
 
 const formHeaderStyle = {};

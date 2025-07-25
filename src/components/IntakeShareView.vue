@@ -63,6 +63,25 @@
           </div>
         </template>
 
+        <div class="form-section">
+          <h4 class="section-title">Signature</h4>
+
+         <!-- Signature Pad -->
+         <el-form-item label=" "  >
+          <div class="signature-pad-container">
+            <VueSignaturePad
+            ref="signaturePadRef"
+            width="300px"
+            height="120px"
+            :options="{ penColor: 'black', backgroundColor: 'rgba(255,255,255,1)' }"
+            style="border: 1px solid #ccc;"
+          />
+          </div>
+          
+          <el-button @click.prevent="signaturePadRef && signaturePadRef.clearSignature()" style="margin-top: 8px;">Clear</el-button>
+        </el-form-item>
+        </div>
+
         <el-form-item>
           <el-button type="primary" @click="handleSubmit" :loading="submitting">
             {{ submitting ? 'Submitting...' : 'Submit Form' }}

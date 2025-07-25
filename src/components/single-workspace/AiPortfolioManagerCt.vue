@@ -45,29 +45,26 @@
             :label="portfolio.name" 
             :name="portfolio.id">
             
-            <!-- Portfolio Content -->
+            <!-- Custom tab label with context menu and close icon -->
+            <template #label>
+              <span 
+                @contextmenu.prevent="showContextMenu($event, portfolio)"
+                class="tab-label">
+                <span class="tab-text">
+                  {{ portfolio.name }}
+                  <span class="tab-count">({{ getPortfolioSpreadsheetCount(portfolio.id) }})</span>
+                </span>
+                <el-icon 
+                  v-if="portfolios.length > 1"
+                  class="tab-close-icon" 
+                  @click.stop="deletePortfolio(portfolio.id)">
+                  <Close />
+                </el-icon>
+              </span>
+            </template>
+            
+            <!-- Portfolio Content - Compact Design -->
             <div class="portfolio-content">
-              <!-- Portfolio Header -->
-              <div class="portfolio-header">
-                <div class="portfolio-info">
-                  <h2 class="portfolio-title">{{ portfolio.name }}</h2>
-                  <p class="portfolio-meta">
-                    {{ getPortfolioSpreadsheetCount(portfolio.id) }} spreadsheet(s) • 
-                    Last updated {{ portfolio.lastUpdated || 'Never' }}
-                  </p>
-                </div>
-                <div class="portfolio-actions">
-                  <el-button 
-                    type="danger" 
-                    size="small"
-                    @click="deletePortfolio(portfolio.id)"
-                    v-if="portfolios.length > 1">
-                    <el-icon><Delete /></el-icon>
-                    Delete Portfolio
-                  </el-button>
-                </div>
-              </div>
-              
               <!-- Spreadsheet Instances for this Portfolio -->
               <div class="spreadsheets-container">
                 <SpreadsheetInstance
@@ -84,15 +81,15 @@
                 />
               </div>
               
-              <!-- Add Spreadsheet Button (at bottom of each portfolio) -->
+              <!-- Add Spreadsheet Button (compact design) -->
               <div class="add-spreadsheet-section">
                 <el-button 
                   type="primary" 
                   @click="showAddSpreadsheetDialog(portfolio.id)"
-                  size="large"
+                  size="default"
                   class="add-spreadsheet-btn">
                   <el-icon><Plus /></el-icon>
-                  Add spreadsheet to {{ portfolio.name }}
+                  Add Spreadsheet
                 </el-button>
               </div>
             </div>
@@ -122,6 +119,18 @@
           :closable="false"
           show-icon
           class="no-workspace-warning" />
+      </div>
+      
+      <!-- Context Menu for Portfolio Management -->
+      <div 
+        v-if="contextMenuVisible" 
+        :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }"
+        class="context-menu"
+        @click.stop>
+        <div class="context-menu-item" @click="editPortfolioName(selectedPortfolio)">
+          <el-icon><Edit /></el-icon>
+          Rename Portfolio
+        </div>
       </div>
       
       <!-- Add Portfolio Dialog -->
@@ -157,6 +166,39 @@
         </template>
       </el-dialog>
     
+    <!-- Edit Portfolio Name Dialog -->
+    <el-dialog
+      v-model="editPortfolioDialogVisible"
+      title="Rename Portfolio"
+      width="400px"
+      :close-on-click-modal="false">
+      <el-form 
+        :model="editPortfolioForm" 
+        :rules="portfolioFormRules"
+        ref="editPortfolioFormRef"
+        label-width="120px">
+        <el-form-item label="Portfolio Name" prop="name">
+          <el-input 
+            v-model="editPortfolioForm.name" 
+            placeholder="Enter new portfolio name"
+            :maxlength="50"
+            show-word-limit
+            @keyup.enter="updatePortfolioName" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="editPortfolioDialogVisible = false">Cancel</el-button>
+          <el-button 
+            type="primary" 
+            @click="updatePortfolioName"
+            :loading="updatingPortfolio">
+            Update Name
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+      
     <!-- Add Spreadsheet Dialog -->
     <el-dialog
       v-model="addSpreadsheetDialogVisible"
@@ -207,9 +249,9 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Folder } from '@element-plus/icons-vue';
+import { Plus, Delete, Folder, Edit, Close } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -221,7 +263,9 @@ export default {
     SpreadsheetInstance,
     Plus,
     Delete,
-    Folder
+    Folder,
+    Edit,
+    Close
   },
   setup() {
     // Matter store for workspace context
@@ -238,17 +282,31 @@ export default {
     
     // Dialog states
     const addPortfolioDialogVisible = ref(false);
+    const editPortfolioDialogVisible = ref(false);
     const addSpreadsheetDialogVisible = ref(false);
     const addingPortfolio = ref(false);
+    const updatingPortfolio = ref(false);
     const addingSpreadsheet = ref(false);
     const targetPortfolioId = ref(''); // For adding spreadsheets to specific portfolio
     
+    // Context menu states
+    const contextMenuVisible = ref(false);
+    const contextMenuX = ref(0);
+    const contextMenuY = ref(0);
+    const selectedPortfolio = ref(null);
+    
     // Form refs
     const portfolioFormRef = ref(null);
+    const editPortfolioFormRef = ref(null);
     const spreadsheetFormRef = ref(null);
     
     // Form for adding new portfolio
     const newPortfolioForm = ref({
+      name: ''
+    });
+    
+    // Form for editing portfolio name
+    const editPortfolioForm = ref({
       name: ''
     });
     
@@ -278,6 +336,88 @@ export default {
       columns: [
         { required: true, message: 'Please specify number of columns', trigger: 'blur' }
       ]
+    };
+
+    // Context menu management
+    const showContextMenu = (event, portfolio) => {
+      event.preventDefault();
+      selectedPortfolio.value = portfolio;
+      contextMenuX.value = event.clientX;
+      contextMenuY.value = event.clientY;
+      contextMenuVisible.value = true;
+    };
+    
+    const hideContextMenu = () => {
+      contextMenuVisible.value = false;
+      selectedPortfolio.value = null;
+    };
+    
+    // Edit portfolio name
+    const editPortfolioName = (portfolio) => {
+      hideContextMenu();
+      editPortfolioForm.value.name = portfolio.name;
+      selectedPortfolio.value = portfolio;
+      editPortfolioDialogVisible.value = true;
+    };
+    
+    // Update portfolio name
+    const updatePortfolioName = async () => {
+      if (!currentMatterId.value || !selectedPortfolio.value) {
+        ElMessage.error('No workspace or portfolio selected');
+        return;
+      }
+      
+      try {
+        if (!editPortfolioFormRef.value) {
+          ElMessage.error('Form validation failed');
+          return;
+        }
+        
+        const valid = await editPortfolioFormRef.value.validate();
+        if (!valid) return;
+        
+        updatingPortfolio.value = true;
+        
+        // Check for duplicate names
+        const isDuplicate = portfolios.value.some(portfolio => 
+          portfolio.id !== selectedPortfolio.value.id &&
+          portfolio.name.toLowerCase() === editPortfolioForm.value.name.toLowerCase()
+        );
+        
+        if (isDuplicate) {
+          ElMessage.error('A portfolio with this name already exists');
+          updatingPortfolio.value = false;
+          return;
+        }
+        
+        // Update in database
+        const { error } = await supabase
+          .from('portfolio_data')
+          .update({ 
+            portfolio_name: editPortfolioForm.value.name,
+            updated_by: (await supabase.auth.getUser()).data.user?.id
+          })
+          .eq('portfolio_id', selectedPortfolio.value.id)
+          .eq('matter_id', currentMatterId.value);
+
+        if (error) throw error;
+        
+        // Update local state
+        const portfolioIndex = portfolios.value.findIndex(p => p.id === selectedPortfolio.value.id);
+        if (portfolioIndex > -1) {
+          portfolios.value[portfolioIndex].name = editPortfolioForm.value.name;
+          portfolios.value[portfolioIndex].lastUpdated = new Date().toLocaleDateString();
+        }
+        
+        ElMessage.success(`Portfolio renamed to "${editPortfolioForm.value.name}" successfully!`);
+        editPortfolioDialogVisible.value = false;
+        
+      } catch (error) {
+        console.error('Error updating portfolio name:', error);
+        ElMessage.error('Failed to update portfolio name: ' + error.message);
+      } finally {
+        updatingPortfolio.value = false;
+      }
     };
 
     // Generate unique IDs
@@ -754,7 +894,16 @@ export default {
       const matterWatcher = watchMatterChanges();
       matterWatcher.value;
       
+      // Add event listener for context menu
+      document.addEventListener('click', hideContextMenu);
+      document.addEventListener('contextmenu', hideContextMenu);
+      
       console.log('✅ AI Portfolio Manager with Portfolio Tabs initialized!');
+    });
+
+    onBeforeUnmount(() => {
+      document.removeEventListener('click', hideContextMenu);
+      document.removeEventListener('contextmenu', hideContextMenu);
     });
 
     return {
@@ -764,13 +913,21 @@ export default {
       activePortfolioId,
       spreadsheets,
       addPortfolioDialogVisible,
+      editPortfolioDialogVisible,
       addSpreadsheetDialogVisible,
       addingPortfolio,
+      updatingPortfolio,
       addingSpreadsheet,
       targetPortfolioId,
+      contextMenuVisible,
+      contextMenuX,
+      contextMenuY,
+      selectedPortfolio,
       portfolioFormRef,
+      editPortfolioFormRef,
       spreadsheetFormRef,
       newPortfolioForm,
+      editPortfolioForm,
       newSpreadsheetForm,
       portfolioFormRules,
       spreadsheetFormRules,
@@ -782,7 +939,11 @@ export default {
       deletePortfolio,
       showAddSpreadsheetDialog,
       addNewSpreadsheet,
-      removeSpreadsheet
+      removeSpreadsheet,
+      showContextMenu,
+      hideContextMenu,
+      editPortfolioName,
+      updatePortfolioName
     };
   },
 };
@@ -791,9 +952,9 @@ export default {
 <style scoped>
 .portfolio-manager-wrapper {
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - 40px);
   background: #f8fafc;
-  padding: 20px;
+  padding: 8px;
 }
 
 /* No Workspace Warning */
@@ -808,10 +969,10 @@ export default {
   max-width: 500px;
 }
 
-/* Portfolio Tabs */
+/* Portfolio Tabs - Compact Design */
 .portfolio-tabs-container {
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   overflow: hidden;
@@ -822,92 +983,139 @@ export default {
   background: white;
 }
 
-/* Add Portfolio Button Container */
-.add-portfolio-button-container {
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  z-index: 10;
-}
-
-/* Portfolio Content */
-.portfolio-content {
-  padding: 24px;
-  min-height: 600px;
-}
-
-.portfolio-header {
+/* Tab Labels with Context Menu */
+.tab-label {
+  cursor: pointer;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #f1f5f9;
+  gap: 8px;
+  user-select: none;
+  width: 100%;
 }
 
-.portfolio-info {
+.tab-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex: 1;
 }
 
-.portfolio-title {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e293b;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.tab-count {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
-.portfolio-meta {
-  margin: 0;
-  color: #64748b;
+.tab-close-icon {
   font-size: 14px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 2px;
+  margin-left: 4px;
+  opacity: 0.7;
 }
 
-.portfolio-actions {
+.tab-close-icon:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  z-index: 9999;
+  min-width: 160px;
+  padding: 4px 0;
+}
+
+.context-menu-item {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  transition: all 0.2s ease;
 }
 
-/* Spreadsheets Container */
+.context-menu-item:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.context-menu-item.danger {
+  color: #dc2626;
+}
+
+.context-menu-item.danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.context-menu-item .el-icon {
+  font-size: 16px;
+}
+
+/* Add Portfolio Button Container */
+.add-portfolio-button-container {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 10;
+}
+
+/* Portfolio Content - Compact Design */
+.portfolio-content {
+  min-height: auto;
+}
+
+/* Spreadsheets Container - Compact */
 .spreadsheets-container {
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
-/* Add Spreadsheet Section */
+/* Add Spreadsheet Section - Compact */
 .add-spreadsheet-section {
   display: flex;
   justify-content: center;
-  padding: 40px 0;
-  border-top: 2px dashed #cbd5e1;
-  margin-top: 32px;
+  padding: 20px 0;
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 16px;
 }
 
 .add-spreadsheet-btn {
-  padding: 16px 32px;
-  font-size: 16px;
+  padding: 12px 24px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   color: white;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .add-spreadsheet-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 /* Add Portfolio Button */
 .add-portfolio-btn {
   background: none !important;
   border: none !important;
-  padding: 8px !important;
-  font-size: 16px !important;
+  padding: 6px !important;
+  font-size: 14px !important;
   color: #667eea !important;
   transition: all 0.3s ease;
 }
@@ -915,10 +1123,10 @@ export default {
 .add-portfolio-btn:hover {
   color: #4f46e5 !important;
   background: rgba(102, 126, 234, 0.1) !important;
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
-/* Tab Styling Overrides */
+/* Tab Styling Overrides - Compact */
 :deep(.el-tabs__header) {
   margin: 0;
   background: #f8fafc;
@@ -926,23 +1134,24 @@ export default {
 }
 
 :deep(.el-tabs__nav-wrap) {
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
 :deep(.el-tabs__item) {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   color: #64748b;
   border: none;
   background: transparent;
   transition: all 0.3s ease;
+  padding: 12px 16px;
 }
 
 :deep(.el-tabs__item.is-active) {
   color: #667eea;
   background: white;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 -2px 6px rgba(0,0,0,0.08);
 }
 
 :deep(.el-tabs__item:hover) {
@@ -1078,56 +1287,62 @@ export default {
   animation: slideInUp 0.3s ease-out;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - Compact */
 @media (max-width: 768px) {
   .portfolio-manager-wrapper {
-    padding: 12px;
+    padding: 6px;
   }
   
   .portfolio-content {
-    padding: 16px;
-  }
-  
-  .portfolio-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .portfolio-title {
-    font-size: 24px;
-  }
-  
-  .portfolio-actions {
-    justify-content: center;
+    padding: 12px;
   }
   
   .add-spreadsheet-btn {
     width: 100%;
-    padding: 14px 24px;
-    font-size: 15px;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .add-spreadsheet-section {
+    padding: 16px 0;
   }
   
   :deep(.el-tabs__nav-wrap) {
     padding: 0 12px;
   }
+  
+  :deep(.el-tabs__item) {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .add-portfolio-button-container {
+    top: 6px;
+    right: 12px;
+  }
 }
 
 @media (max-width: 480px) {
   .portfolio-manager-wrapper {
-    padding: 8px;
+    padding: 4px;
   }
   
   .portfolio-content {
-    padding: 12px;
+    padding: 8px;
   }
   
-  .portfolio-title {
-    font-size: 22px;
+  .tab-count {
+    display: none; /* Hide count on very small screens */
+  }
+  
+  .tab-close-icon {
+    font-size: 12px;
+    padding: 1px;
+    margin-left: 2px;
   }
   
   .add-spreadsheet-section {
-    padding: 24px 0;
+    padding: 12px 0;
   }
   
   :deep(.el-dialog) {
@@ -1136,8 +1351,17 @@ export default {
   }
   
   :deep(.el-tabs__item) {
-    font-size: 14px;
-    padding: 0 12px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  
+  .context-menu {
+    min-width: 140px;
+  }
+  
+  .context-menu-item {
+    padding: 6px 12px;
+    font-size: 13px;
   }
 }
 
@@ -1156,16 +1380,50 @@ export default {
     background: #1e293b;
   }
   
-  .portfolio-title {
-    color: #f1f5f9;
+  .tab-count {
+    color: #64748b;
   }
   
-  .portfolio-meta {
-    color: #94a3b8;
+  .tab-close-icon {
+    color: #64748b;
+  }
+  
+  .tab-close-icon:hover {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+  }
+  
+  .context-menu {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  
+  .context-menu-item {
+    color: #e2e8f0;
+  }
+  
+  .context-menu-item:hover {
+    background: #374151;
+    color: #f3f4f6;
+  }
+  
+  .context-menu-item.danger {
+    color: #f87171;
+  }
+  
+  .context-menu-item.danger:hover {
+    background: #450a0a;
+    color: #dc2626;
   }
   
   .add-spreadsheet-section {
     border-color: #475569;
   }
+}
+</style>
+
+<style>
+.matter-content.matter-content--ai-portfolio {
+    padding: 0.5rem;
 }
 </style>

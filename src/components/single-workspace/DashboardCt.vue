@@ -128,6 +128,7 @@ import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   name: 'DashboardCt',
@@ -156,11 +157,17 @@ export default {
           this.recentTasks = [];
           this.upcomingEvents = [];
         }
+        this.updatePageTitle();
       },
       immediate: true
     }
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      setWorkspaceTitle('Dashboard', workspaceName);
+    },
+
     async loadDashboardData() {
       if (!this.currentMatter) return;
       

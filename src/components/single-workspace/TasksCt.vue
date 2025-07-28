@@ -14,6 +14,7 @@ import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { ref } from 'vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   setup() {
@@ -113,6 +114,7 @@ export default {
             this.loadSharedUsers()
           ]);
           this.setupRealtimeSubscription();
+          this.updatePageTitle();
         } else if (newMatter) {
           // When matter changes, reload tasks and shared users
           await Promise.all([
@@ -124,6 +126,7 @@ export default {
             this.subscription.unsubscribe();
           }
           this.setupRealtimeSubscription();
+          this.updatePageTitle();
         }
       },
       immediate: true
@@ -152,6 +155,10 @@ export default {
     },
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      setWorkspaceTitle('Tasks', workspaceName);
+    },
 
     async loadSharedUsers() {
       try {
@@ -1433,6 +1440,8 @@ export default {
 
   mounted() {
     this.loadSavedFilters();
+    // Set initial page title
+    this.updatePageTitle();
   },
 
   beforeUnmount() {

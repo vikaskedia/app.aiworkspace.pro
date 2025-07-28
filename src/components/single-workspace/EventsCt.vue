@@ -7,6 +7,7 @@ import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
 import ICAL from 'ical.js';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   setup() {
@@ -51,11 +52,17 @@ export default {
         } else {
           this.events = [];
         }
+        this.updatePageTitle();
       },
       immediate: true
     }
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      setWorkspaceTitle('Events', workspaceName);
+    },
+
     async loadEvents() {
       if (!this.currentMatter) return;
       

@@ -12,6 +12,7 @@ import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import FilePreviewPane from './FilePreviewPane.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 const route = useRoute();
 const matterStore = useMatterStore();
@@ -99,6 +100,7 @@ watch(currentMatter, async (newMatter) => {
     splitViews.value = [];
     selectedFile.value = null;
     await Promise.all([loadFolders(), loadFiles()]);
+    updatePageTitle();
   } else {
     files.value = [];
     folders.value = [];
@@ -106,6 +108,12 @@ watch(currentMatter, async (newMatter) => {
     selectedFile.value = null;
   }
 }, { immediate: true });
+
+// Function to update page title
+const updatePageTitle = () => {
+  const workspaceName = currentMatter.value?.title || 'Workspace';
+  setWorkspaceTitle('Files', workspaceName);
+};
 
 // Load matter if not already loaded
 onMounted(async () => {
@@ -125,6 +133,9 @@ onMounted(async () => {
   //     matterStore.setCurrentMatter(data);
   //   }
   // }
+  
+  // Set initial page title
+  updatePageTitle();
 });
 // Add this before your loadFiles function
 function validateGiteaConfig() {

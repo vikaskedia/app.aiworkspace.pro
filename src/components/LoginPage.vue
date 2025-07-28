@@ -104,6 +104,7 @@ import { ElMessage } from 'element-plus';
 import { ref } from 'vue';
 import { MP } from '../mixpanel';
 import { useRouter } from 'vue-router';
+import { setPageTitle } from '../utils/page-title';
 
 export default {
   setup() {
@@ -126,6 +127,9 @@ export default {
         { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
       ]
     };
+
+    // Set page title
+    setPageTitle({ componentName: 'Sign In' });
 
     return {
       loginForm,

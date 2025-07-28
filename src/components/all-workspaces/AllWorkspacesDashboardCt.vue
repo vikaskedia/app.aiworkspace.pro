@@ -150,6 +150,7 @@ import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { useMatterStore } from '../../store/matter';
+import { setComponentTitle } from '../../utils/page-title';
 
 export default {
   name: 'AllWorkspacesDashboardCt',
@@ -187,8 +188,13 @@ export default {
   },
   mounted() {
     this.loadMattersWithCache();
+    this.updatePageTitle();
   },
   methods: {
+    updatePageTitle() {
+      setComponentTitle('All Workspaces');
+    },
+
     getCacheKey() {
       return `matters_${this.showArchived ? 'archived' : 'active'}`;
     },

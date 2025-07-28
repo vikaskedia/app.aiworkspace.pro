@@ -133,6 +133,7 @@ import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, computed } from 'vue';
 import { MP } from '../mixpanel';
+import { setPageTitle } from '../utils/page-title';
 
 export default {
   name: 'SignupPage',
@@ -194,6 +195,9 @@ export default {
         }
       ]
     };
+
+    // Set page title
+    setPageTitle({ componentName: 'Sign Up' });
 
     return {
       signupForm,

@@ -1352,6 +1352,7 @@ import { updateMatterActivity } from '../../utils/matterActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
 import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
 import PdfSignatureModal from '../common/PdfSignatureModal.vue';
+import { setTaskTitle } from '../../utils/page-title';
 
 export default {
   components: {
@@ -1568,6 +1569,11 @@ export default {
     document.title = 'TaskManager';
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const taskTitle = this.task?.title;
+      setTaskTitle(taskTitle, workspaceName, 'Tasks');
+    },
 
     async handleDueDateChange(date) {
     try {
@@ -4535,9 +4541,12 @@ ${comment.content}
     'task.title': {
       immediate: true,
       handler(newTitle) {
-        if (newTitle) {
-          document.title = `${newTitle} | TaskManager`;
-        }
+        this.updatePageTitle();
+      }
+    },
+    currentMatter: {
+      handler() {
+        this.updatePageTitle();
       }
     },
     '$route.params.taskId': {

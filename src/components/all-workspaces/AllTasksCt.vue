@@ -318,6 +318,7 @@ import TaskBoardCt from '../single-workspace/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setComponentTitle } from '../../utils/page-title';
 
 export default {
   name: 'AllTasksCt',
@@ -386,7 +387,9 @@ export default {
     }
   },
   methods: {
-
+    updatePageTitle() {
+      setComponentTitle('All Tasks');
+    },
 
     async loadTasksWithCache() {
       try {
@@ -1166,6 +1169,9 @@ export default {
     this.loadMatters();
     this.loadTasksWithCache();
     this.loadFilterFromUrl();
+    
+    // Set page title
+    this.updatePageTitle();
 
   },
   watch: {

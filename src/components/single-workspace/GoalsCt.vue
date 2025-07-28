@@ -8,6 +8,7 @@ import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
 import goalsAiTaskResponce from '../../../public/goals-ai-task-responce.json';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   components: { 
@@ -73,6 +74,7 @@ export default {
           if (!oldMatter) {
             this.setupRealtimeSubscription();
           }
+          this.updatePageTitle();
         } else {
           if (this.subscription) {
             this.subscription.unsubscribe();
@@ -84,6 +86,11 @@ export default {
     }
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      setWorkspaceTitle('Goals', workspaceName);
+    },
+
     async loadGoals() {
       if (!this.currentMatter) return;
 
@@ -546,6 +553,7 @@ export default {
     if (this.currentMatter) {
       this.setupRealtimeSubscription();
     }
+    this.updatePageTitle();
   },
   beforeUnmount() {
     if (this.subscription) {

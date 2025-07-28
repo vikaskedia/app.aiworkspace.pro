@@ -139,6 +139,8 @@ import { Clock, Refresh } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setOutlineTitle, getCleanText } from '../../utils/page-title';
+import { useMatterStore } from '../../store/matter';
 
 // Add debounce utility with cancellation support
 function debounce(func, wait) {
@@ -170,6 +172,7 @@ export default {
   setup() {
     const route = useRoute();
     const router = useRouter();
+    const matterStore = useMatterStore();
     const matterId = computed(() => route.params.matterId);
     const saving = ref(false);
     const refreshing = ref(false);
@@ -190,6 +193,19 @@ export default {
     
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
+    
+    // Computed property for current matter
+    const currentMatter = computed(() => matterStore.currentMatter);
+    
+    // Computed property for workspace name
+    const workspaceName = computed(() => currentMatter.value?.title || 'Workspace');
+    
+    // Function to update page title
+    const updatePageTitle = () => {
+      const focusedNode = focusedId.value ? findItemById(outline.value, focusedId.value) : null;
+      const focusedText = focusedNode ? getCleanText(focusedNode.text) : undefined;
+      setOutlineTitle(focusedText, workspaceName.value);
+    };
     
     let refreshInterval = null;
 
@@ -542,6 +558,9 @@ export default {
         await subscribeToChanges();
       }
 
+      // Set initial page title
+      updatePageTitle();
+
       // Don't use aggressive periodic refresh - rely on real-time subscription
       // Periodic refresh was causing text deletion during typing
     });
@@ -582,6 +601,27 @@ export default {
         // This prevents conflicts between outline-level and item-level saves
       }
     }, { deep: true });
+
+    // Watch for changes in focused ID and update page title
+    watch(focusedId, () => {
+      updatePageTitle();
+    });
+
+    // Watch for changes in workspace name and update page title
+    watch(workspaceName, () => {
+      updatePageTitle();
+    });
+
+    // Watch for outline content changes and update page title (for focused node text changes)
+    watch(() => {
+      if (focusedId.value) {
+        const focusedNode = findItemById(outline.value, focusedId.value);
+        return focusedNode?.text;
+      }
+      return null;
+    }, () => {
+      updatePageTitle();
+    });
 
     async function saveOutline() {
       if (!matterId.value) {
@@ -936,6 +976,7 @@ export default {
         path: route.path,
         query: { ...route.query, focus: id }
       });
+      // Page title will be updated by the watcher
     }
 
     function handleBack() {
@@ -947,6 +988,7 @@ export default {
         path: route.path,
         query: newQuery
       });
+      // Page title will be updated by the watcher
     }
 
     function getFocusedOutline() {
@@ -991,6 +1033,7 @@ export default {
         path: route.path,
         query: { ...route.query, focus: node.id }
       });
+      // Page title will be updated by the watcher
     }
 
     function getBreadcrumbText(text) {
@@ -1862,6 +1905,9 @@ This is similar to how Git requires you to pull before pushing when there are co
       hasChanges,
       outlineRenderID,
       displayVersion,
+      currentMatter,
+      workspaceName,
+      updatePageTitle,
       onOutlineUpdate, 
       handleMove, 
       handleDelete,

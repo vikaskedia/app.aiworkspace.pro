@@ -231,6 +231,7 @@ export default {
     const firstUpdateReceived = ref(false);
     const searchQuery = ref('');
     const searchStats = ref({ matches: 0, items: 0 });
+    const lastSaveTime = ref(null);
     
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
@@ -751,8 +752,18 @@ export default {
           }
 
           console.log('✅ Successfully updated outline:', updatedOutline);
+          console.log('📝 Save completed - updating local state:', {
+            oldVersion: currentVersion.value,
+            newVersion: updatedOutline.version,
+            renderID: outlineRenderID.value
+          });
           
+          // Update version FIRST to prevent race conditions with real-time updates
           currentVersion.value = updatedOutline.version;
+          localStorage.setItem(getVersionKey(), currentVersion.value.toString());
+          
+          // Record save time to prevent conflict detection immediately after save
+          lastSaveTime.value = Date.now();
           
           // Update last saved content with what was actually saved
           lastSavedContent.value = deepClone(outlineToSave);
@@ -765,7 +776,6 @@ export default {
           localStorage.setItem(`${getLocalStorageKey()}_last_saved`, JSON.stringify(outlineToSave));
           // Update localStorage with current outline state, not the saved snapshot
           localStorage.setItem(getLocalStorageKey(), JSON.stringify(outline.value));
-          localStorage.setItem(getVersionKey(), currentVersion.value.toString());
         } else {
           // Create new outline
           const { data: newOutline, error: insertError } = await supabase
@@ -783,6 +793,9 @@ export default {
           if (insertError) throw insertError;
           outlineId.value = newOutline.id;
           currentVersion.value = newOutline.version;
+          
+          // Record save time to prevent conflict detection immediately after save
+          lastSaveTime.value = Date.now();
           
           // Update last saved content with what was actually saved
           lastSavedContent.value = deepClone(outlineToSave);
@@ -1407,12 +1420,26 @@ export default {
             filter: `id=eq.${outlineId.value}`
           },
           async (payload) => {
-            console.log('🔄 Received real-time update:', payload);
+            console.log('🔄 Received real-time update:', {
+              eventType: payload.eventType,
+              newVersion: payload.new?.version,
+              currentLocalVersion: currentVersion.value,
+              updateRenderID: payload.new?.render_id,
+              ourRenderID: outlineRenderID.value,
+              isSaving: saving.value
+            });
             
             // Check if this update came from our own tab
             const updateRenderID = payload.new?.render_id;
+            const updateVersion = payload.new?.version;
+            
             if (updateRenderID === outlineRenderID.value) {
               console.log('⏭️ Skipping update - this came from our own tab (renderID match)');
+              // Update our local version tracking to stay in sync
+              if (updateVersion && updateVersion > currentVersion.value) {
+                currentVersion.value = updateVersion;
+                localStorage.setItem(getVersionKey(), updateVersion.toString());
+              }
               return;
             }
             
@@ -1420,6 +1447,19 @@ export default {
             // Our own save will update local state properly
             if (saving.value) {
               console.log('⏭️ Skipping update - currently saving (avoiding race condition)');
+              return;
+            }
+            
+            // If we just saved recently (within 2 seconds), skip processing to avoid 
+            // conflict detection on our own saves that may have slight timing delays
+            if (lastSaveTime.value && (Date.now() - lastSaveTime.value) < 2000) {
+              console.log('⏭️ Skipping update - recent save detected (avoiding post-save conflict)');
+              // Still update version tracking if the received version is higher
+              if (updateVersion && updateVersion > currentVersion.value) {
+                console.log('📝 Updating version after recent save:', updateVersion);
+                currentVersion.value = updateVersion;
+                localStorage.setItem(getVersionKey(), updateVersion.toString());
+              }
               return;
             }
 
@@ -2068,6 +2108,7 @@ This is similar to how Git requires you to pull before pushing when there are co
       hasChanges,
       outlineRenderID,
       displayVersion,
+      lastSaveTime,
       currentMatter,
       workspaceName,
       updatePageTitle,

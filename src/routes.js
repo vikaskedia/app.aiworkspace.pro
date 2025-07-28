@@ -240,7 +240,7 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/intake-process/:workspaceId',
+    path: '/intake-process/:name',
     name: 'IntakeProcess',
     component: () => import('./components/IntakeProcessCt.vue'),
     meta: { requiresAuth: false }

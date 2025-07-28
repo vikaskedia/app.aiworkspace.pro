@@ -39,6 +39,7 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { DocumentChecked, Delete } from '@element-plus/icons-vue';
 import { useMatterStore } from '../../store/matter';
+import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
 
 // Univer core with locale support
@@ -116,6 +117,9 @@ export default {
     // Matter store for workspace context
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
+    
+    // Task store for fetching task information
+    const taskStore = useTaskStore();
     
     // Use prop matterId if provided, otherwise get from current matter
     const currentMatterId = computed(() => props.matterId || currentMatter.value?.id);
@@ -904,7 +908,7 @@ export default {
         univer.registerPlugin(UniverSheetsFormulaUIPlugin);
         univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
 
-        // Simple and reliable TASKSTATUS formula processor
+        // TASKSTATUS formula processor - fetches real task status from database
         const processTaskStatusFormulas = async () => {
           try {
             const currentData = getCurrentSpreadsheetData();
@@ -913,40 +917,84 @@ export default {
             let processedCount = 0;
             let needsReload = false;
             
-            Object.keys(currentData.sheets).forEach(sheetId => {
+            // Helper function to format status for display
+            const formatTaskStatus = (status) => {
+              const statusMap = {
+                'not_started': 'Not Started',
+                'in_progress': 'In Progress',
+                'awaiting_external': 'Awaiting External',
+                'awaiting_internal': 'Awaiting Internal',
+                'completed': 'Completed'
+              };
+              return statusMap[status] || status || 'Unknown';
+            };
+            
+            // Process each sheet
+            for (const sheetId of Object.keys(currentData.sheets)) {
               const sheet = currentData.sheets[sheetId];
-              if (!sheet.cellData) return;
+              if (!sheet.cellData) continue;
               
-              Object.keys(sheet.cellData).forEach(row => {
-                Object.keys(sheet.cellData[row]).forEach(col => {
+              // Process each row
+              for (const row of Object.keys(sheet.cellData)) {
+                // Process each column
+                for (const col of Object.keys(sheet.cellData[row])) {
                   const cell = sheet.cellData[row][col];
                   if (cell && cell.f && typeof cell.f === 'string') {
                     const formula = cell.f.trim();
                     const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
                     
                     if (taskStatusMatch) {
-                      const number = parseInt(taskStatusMatch[1], 10);
-                      if (!isNaN(number)) {
-                        // Reverse the digits
-                        const reversedNumber = parseInt(number.toString().split('').reverse().join(''), 10);
-                        
-                        // Update the cell value and remove formula
-                        cell.v = reversedNumber;
-                        delete cell.f;
-                        
-                        console.log(`✅ Processed TASKSTATUS(${number}) → ${reversedNumber} at [${row}, ${col}] (${props.spreadsheetId})`);
-                        
-                        // Show user notification
-                        ElMessage.success(`TASKSTATUS(${number}) processed → ${reversedNumber}. Refresh to see result.`);
-                        
-                        processedCount++;
-                        needsReload = true;
+                      const taskId = parseInt(taskStatusMatch[1], 10);
+                      if (!isNaN(taskId)) {
+                        try {
+                          console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
+                          
+                          // Fetch task from database
+                          const task = await taskStore.getTaskById(taskId);
+                          
+                          if (task && task.status) {
+                            const formattedStatus = formatTaskStatus(task.status);
+                            
+                            // Update the cell value and remove formula
+                            cell.v = formattedStatus;
+                            delete cell.f;
+                            
+                            console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                            
+                            // Show user notification
+                            ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
+                            
+                            processedCount++;
+                            needsReload = true;
+                          } else {
+                            // Task not found or has no status
+                            cell.v = 'Task Not Found';
+                            delete cell.f;
+                            
+                            console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
+                            ElMessage.warning(`Task ${taskId} not found or not accessible`);
+                            
+                            processedCount++;
+                            needsReload = true;
+                          }
+                        } catch (fetchError) {
+                          console.error(`❌ Error fetching task ${taskId}:`, fetchError);
+                          
+                          // Update cell with error message
+                          cell.v = 'Access Denied';
+                          delete cell.f;
+                          
+                          ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
+                          
+                          processedCount++;
+                          needsReload = true;
+                        }
                       }
                     }
                   }
-                });
-              });
-            });
+                }
+              }
+            }
             
             if (needsReload) {
               console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
@@ -962,8 +1010,8 @@ export default {
                 console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
               }
               
-              // Trigger immediate processing on next cell edit
-              console.log(`🔄 Data updated in background, will reflect on next reload (${props.spreadsheetId})`);
+              // Trigger data refresh
+              console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
             }
           } catch (error) {
             console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
@@ -990,7 +1038,7 @@ export default {
           window.taskStatusIntervals.set(props.spreadsheetId, formulaInterval);
           
           console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
-          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(123)" in any cell, wait 2 seconds, then refresh or navigate away and back to see result`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
         }, 1000);
 
         // Enable change tracking with error handling

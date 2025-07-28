@@ -227,6 +227,8 @@
         :autoFocus="child.autoFocus"
         :collapsed="isNodeCollapsed(child.id)"
         :is-node-collapsed="isNodeCollapsed"
+        :check-version-before-edit="checkVersionBeforeEdit"
+        :handle-version-conflict="handleVersionConflict"
         @update="updateChild"
         @move="handleMove"
         @delete="handleDelete"
@@ -300,6 +302,14 @@ export default {
     isNodeCollapsed: {
       type: Function,
       default: () => () => false
+    },
+    checkVersionBeforeEdit: {
+      type: Function,
+      default: () => async () => ({ canEdit: true })
+    },
+    handleVersionConflict: {
+      type: Function,
+      default: () => async () => ({ canEdit: true })
     }
   },
   emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent', 'add-sibling', 'collapse-toggle'],
@@ -393,29 +403,16 @@ export default {
     },
     autoFocus(newVal) {
       if (newVal) {
-        this.editing = true;
-        this.originalText = this.item.text; // Capture original text when auto-focusing
-        this.editText = this.item.text; // Ensure editText matches current item text
-        this.$nextTick(() => {
-          if (this.$refs.textarea) {
-            this.$refs.textarea.focus();
-            this.autoResize();
-          }
-        });
+        // Use startEdit method which includes version checking
+        this.startEdit();
         this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
       }
     }
   },
   mounted() {
     if (this.autoFocus) {
-      this.editing = true;
-      this.originalText = this.item.text; // Capture original text when auto-focusing on mount
-      this.editText = this.item.text; // Ensure editText matches current item text
-      this.$nextTick(() => {
-        if (this.$refs.textarea) {
-          this.$refs.textarea.focus();
-        }
-      });
+      // Use startEdit method which includes version checking
+      this.startEdit();
       // Optionally clear autoFocus after focusing
       this.$emit('update', { id: this.item.id, text: this.item.text, autoFocus: false });
     }
@@ -478,18 +475,66 @@ export default {
       });
     },
 
-    startEdit() {
-      this.editing = true;
-      this.originalText = this.item.text; // Capture original text when editing starts
-      this.editText = this.item.text; // Ensure editText matches current item text
-      this.$nextTick(() => {
-        if (this.$refs.textarea) {
-          this.$refs.textarea.focus();
-          this.autoResize();
-          // Add input event listener for real-time updates
-          this.$refs.textarea.addEventListener('input', this.handleTextChange);
+    async startEdit() {
+      // Skip version check if readonly
+      if (this.readonly) {
+        return;
+      }
+
+      // Check version before allowing edit
+      try {
+        const versionCheck = await this.checkVersionBeforeEdit();
+        
+        if (versionCheck.warning) {
+          // Show warning but allow editing
+          ElMessage({
+            message: versionCheck.warning,
+            type: 'warning',
+            duration: 5000,
+            showClose: true
+          });
         }
-      });
+        
+        if (!versionCheck.canEdit) {
+          if (versionCheck.isOutdated) {
+            // Handle version conflict
+            const conflictResult = await this.handleVersionConflict(versionCheck);
+            if (!conflictResult.canEdit) {
+              // User chose not to edit or reload failed
+              return;
+            }
+            // If reloaded, the outline content has changed, so we need to return
+            // and let the user click again to start editing the fresh content
+            if (conflictResult.reloaded) {
+              return;
+            }
+          } else {
+            // Other reason preventing edit
+            return;
+          }
+        }
+        
+        // Proceed with editing
+        this.editing = true;
+        this.originalText = this.item.text; // Capture original text when editing starts
+        this.editText = this.item.text; // Ensure editText matches current item text
+        this.$nextTick(() => {
+          if (this.$refs.textarea) {
+            this.$refs.textarea.focus();
+            this.autoResize();
+            // Add input event listener for real-time updates
+            this.$refs.textarea.addEventListener('input', this.handleTextChange);
+          }
+        });
+      } catch (error) {
+        console.error('❌ Error checking version before edit:', error);
+        ElMessage({
+          message: 'Error checking version. Please try refreshing the page.',
+          type: 'error',
+          duration: 5000,
+          showClose: true
+        });
+      }
     },
 
     finishEdit() {

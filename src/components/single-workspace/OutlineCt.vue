@@ -98,6 +98,8 @@
               :readonly="true"
               :collapsed="false"
               :is-node-collapsed="() => false"
+              :check-version-before-edit="checkVersionBeforeEdit"
+              :handle-version-conflict="handleVersionConflict"
             />
           </ul>
         </div>
@@ -113,6 +115,8 @@
         :item="item"
         :collapsed="isNodeCollapsed(item.id)"
         :is-node-collapsed="isNodeCollapsed"
+        :check-version-before-edit="checkVersionBeforeEdit"
+        :handle-version-conflict="handleVersionConflict"
         @update="onOutlineUpdate"
         @move="handleMove"
         @delete="handleDelete"
@@ -130,7 +134,7 @@
 <script>
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElNotification } from 'element-plus';
+import { ElNotification, ElMessageBox } from 'element-plus';
 import { Clock, Refresh } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
@@ -204,7 +208,8 @@ export default {
 
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
-      if (!lastSavedContent.value) return false;
+      // If there's no saved content yet (new outline), any content represents changes
+      if (!lastSavedContent.value) return true;
       try {
         // Create snapshots to avoid reactive object issues
         const newContentSnapshot = JSON.parse(JSON.stringify(newContent));
@@ -419,9 +424,10 @@ export default {
             hasChanges.value = false;
           }
         } else {
-          // If no outline in Supabase, mark as changed if we have local content
-          hasChanges.value = outline.value !== defaultOutline;
-          lastSavedContent.value = outline.value;
+          // If no outline in Supabase, we need to properly initialize lastSavedContent
+          // Set lastSavedContent to null so that any changes will be detected
+          lastSavedContent.value = null;
+          hasChanges.value = true; // Mark as having changes since we have content but no saved version
           // Ensure currentVersion is set to 1 if no outline exists in Supabase
           if (!currentVersion.value) {
             currentVersion.value = 1;
@@ -1733,6 +1739,121 @@ export default {
       }
     }
 
+    // Check if current version matches server version
+    async function checkVersionBeforeEdit() {
+      if (!outlineId.value) {
+        // No outline saved yet, safe to edit
+        return { canEdit: true };
+      }
+
+      try {
+        const { data: serverOutline, error: serverCheckError } = await supabase
+          .from('outlines')
+          .select('version')
+          .eq('id', outlineId.value)
+          .single();
+
+        if (serverCheckError) {
+          console.error('❌ Error checking server version:', serverCheckError);
+          // Allow editing but warn user
+          return { 
+            canEdit: true, 
+            warning: 'Could not verify latest version. Your changes might conflict with others.' 
+          };
+        }
+
+        if (serverOutline.version > currentVersion.value) {
+          console.log('⚠️ Outdated version detected before edit');
+          return {
+            canEdit: false,
+            isOutdated: true,
+            serverVersion: serverOutline.version,
+            currentVersion: currentVersion.value,
+            message: `Outline update required: ${serverOutline.version - currentVersion.value} new changes detected.`
+          };
+        }
+
+        // Version is current, safe to edit
+        return { canEdit: true };
+      } catch (error) {
+        console.error('❌ Error in version check:', error);
+        // Allow editing but warn user
+        return { 
+          canEdit: true, 
+          warning: 'Could not verify latest version. Your changes might conflict with others.' 
+        };
+      }
+    }
+
+    // Handle version conflict with user choice
+    async function handleVersionConflict(versionCheck) {
+      return new Promise((resolve) => {
+        // GitHub-style conflict message that forces reload
+        const conflictMessage = `⚠️ **Conflict Detected**
+
+The outline has been updated by another user while you were away.
+
+**Your version:** ${versionCheck.currentVersion}
+**Latest version:** ${versionCheck.serverVersion}
+
+To prevent data loss and conflicts, you need to reload the latest changes before editing.
+
+This is similar to how Git requires you to pull before pushing when there are conflicts.`;
+
+        ElMessageBox.confirm(
+          conflictMessage,
+          '🔄 Update Required - Reload Latest Version',
+          {
+            confirmButtonText: '🔄 Reload Latest Version',
+            cancelButtonText: 'Cancel',
+            distinguishCancelAndClose: false,
+            type: 'warning',
+            closeOnClickModal: false,
+            closeOnPressEscape: false,
+            showClose: false,
+            dangerouslyUseHTMLString: false,
+            customStyle: {
+              width: '500px'
+            }
+          }
+        ).then(async () => {
+          // User chose to reload
+          try {
+            refreshing.value = true;
+            await refreshOutlineData();
+            ElNotification({
+              title: '✅ Updated Successfully',
+              message: 'Outline has been reloaded with the latest changes. You can now edit safely.',
+              type: 'success',
+              duration: 4000
+            });
+            resolve({ canEdit: true, reloaded: true });
+          } catch (error) {
+            console.error('❌ Failed to reload:', error);
+            ElNotification({
+              title: '❌ Reload Failed',
+              message: 'Could not reload latest version. Please refresh the page manually.',
+              type: 'error',
+              duration: 7000,
+              showClose: true
+            });
+            resolve({ canEdit: false });
+          } finally {
+            refreshing.value = false;
+          }
+        }).catch(() => {
+          // User cancelled - no editing allowed
+          ElNotification({
+            title: 'Edit Cancelled',
+            message: 'Please reload the latest version before editing to avoid conflicts.',
+            type: 'info',
+            duration: 4000
+          });
+          resolve({ canEdit: false });
+        });
+      });
+    }
+
     return { 
       matterId,
       outline, 
@@ -1746,6 +1867,8 @@ export default {
       handleDelete,
       saveOutline,
       manualRefresh,
+      checkVersionBeforeEdit,
+      handleVersionConflict,
       // Drilldown
       focusedId,
       handleDrilldown,

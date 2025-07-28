@@ -13,6 +13,27 @@
     </div>
     <div class="outline-header">
       <div class="outline-actions">
+        <!-- Search Input -->
+        <div class="search-container">
+          <el-input
+            v-model="searchQuery"
+            placeholder="Search outline..."
+            clearable
+            @input="handleSearchInput"
+            @clear="clearSearch"
+            @keydown.esc="clearSearch"
+            class="search-input"
+            style="width: 250px; margin-right: 8px;"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <span v-if="searchQuery && searchStats" class="search-stats">
+            {{ searchStats.matches }} matches in {{ searchStats.items }} items
+          </span>
+        </div>
+        
         <!--el-button 
           type="primary" 
           @click="saveOutline" 
@@ -108,6 +129,23 @@
         <el-button @click="viewVersionDialogVisible = false">Close</el-button>
       </template>
     </el-dialog>
+    
+    <!-- Search Results Header -->
+    <div v-if="searchQuery && searchQuery.trim()" class="search-results-header">
+      <el-icon class="search-icon"><Search /></el-icon>
+      <span class="search-results-text">
+        Showing search results for "<strong>{{ searchQuery }}</strong>"
+      </span>
+      <el-button 
+        text 
+        type="primary" 
+        @click="clearSearch"
+        class="clear-search-btn"
+      >
+        Clear search
+      </el-button>
+    </div>
+    
     <ul class="outline-list">
       <OutlinePointsCt
         v-for="item in getFocusedOutline()"
@@ -117,6 +155,7 @@
         :is-node-collapsed="isNodeCollapsed"
         :check-version-before-edit="checkVersionBeforeEdit"
         :handle-version-conflict="handleVersionConflict"
+        :search-query="searchQuery"
         @update="onOutlineUpdate"
         @move="handleMove"
         @delete="handleDelete"
@@ -135,7 +174,7 @@
 import { ref, watch, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElNotification, ElMessageBox } from 'element-plus';
-import { Clock, Refresh } from '@element-plus/icons-vue';
+import { Clock, Refresh, Search } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/matterActivity';
@@ -168,7 +207,7 @@ function generateRenderID() {
 
 export default {
   name: 'OutlineCt',
-  components: { OutlinePointsCt, Clock, Refresh },
+  components: { OutlinePointsCt, Clock, Refresh, Search },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -190,6 +229,8 @@ export default {
     const realtimeSubscription = ref(null);
     const collapsedNodes = ref(new Set());
     const firstUpdateReceived = ref(false);
+    const searchQuery = ref('');
+    const searchStats = ref({ matches: 0, items: 0 });
     
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
@@ -456,12 +497,20 @@ export default {
         lastSavedContent.value = outline.value;
       }
 
-      // Add keyboard shortcut listener for Ctrl+S / Cmd+S
+      // Add keyboard shortcut listener for Ctrl+S / Cmd+S and Ctrl+F / Cmd+F
       const handleKeyDown = (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 's') {
           event.preventDefault();
           if (hasChanges.value && !saving.value) {
             saveOutline();
+          }
+        } else if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+          event.preventDefault();
+          // Focus the search input
+          const searchInput = document.querySelector('.search-input input');
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
           }
         }
       };
@@ -992,6 +1041,12 @@ export default {
     }
 
     function getFocusedOutline() {
+      // If there's a search query, return filtered results
+      if (searchQuery.value && searchQuery.value.trim()) {
+        return getFilteredOutline();
+      }
+      
+      // If focused on a specific item, show that branch
       if (!focusedId.value) return outline.value;
       function findById(items, id) {
         for (const item of items) {
@@ -1004,6 +1059,55 @@ export default {
         return null;
       }
       return findById(outline.value, focusedId.value) || [];
+    }
+
+    function getFilteredOutline() {
+      const query = searchQuery.value.toLowerCase();
+      
+      function filterItem(item) {
+        const itemText = getCleanText(item.text).toLowerCase();
+        const hasMatch = itemText.includes(query);
+        
+        // Check children recursively
+        const filteredChildren = [];
+        let hasMatchingDescendants = false;
+        
+        if (item.children && item.children.length) {
+          for (const child of item.children) {
+            const filteredChild = filterItem(child);
+            if (filteredChild) {
+              filteredChildren.push(filteredChild);
+              hasMatchingDescendants = true;
+            }
+          }
+        }
+        
+        // Include this item if:
+        // 1. It matches the search query, OR
+        // 2. It has children that match (to preserve tree structure)
+        if (hasMatch || hasMatchingDescendants) {
+          return {
+            ...item,
+            children: filteredChildren,
+            isSearchMatch: hasMatch,
+            isSearchContext: !hasMatch && hasMatchingDescendants,
+            // Expand nodes that contain matches so search results are visible
+            forceExpanded: hasMatchingDescendants
+          };
+        }
+        
+        return null;
+      }
+      
+      const filteredItems = [];
+      for (const item of outline.value) {
+        const filteredItem = filterItem(item);
+        if (filteredItem) {
+          filteredItems.push(filteredItem);
+        }
+      }
+      
+      return filteredItems;
     }
 
     // Helper to find the path from root to focused node
@@ -1897,6 +2001,65 @@ This is similar to how Git requires you to pull before pushing when there are co
       });
     }
 
+          // Search functionality
+      const searchTimer = ref(null);
+
+         function handleSearchInput() {
+       if (searchTimer.value) {
+         clearTimeout(searchTimer.value);
+       }
+       searchTimer.value = setTimeout(() => {
+         updateSearchStats();
+       }, 300); // Debounce time
+     }
+
+     function clearSearch() {
+       searchQuery.value = '';
+       searchStats.value = { matches: 0, items: 0 };
+     }
+
+     function updateSearchStats() {
+       if (!searchQuery.value || !searchQuery.value.trim()) {
+         searchStats.value = { matches: 0, items: 0 };
+         return;
+       }
+
+       const query = searchQuery.value.toLowerCase();
+       let matchCount = 0;
+
+       function countMatches(items) {
+         for (const item of items) {
+           const itemText = getCleanText(item.text).toLowerCase();
+           if (itemText.includes(query)) {
+             matchCount++;
+           }
+           
+           if (item.children && item.children.length) {
+             countMatches(item.children);
+           }
+         }
+       }
+
+       countMatches(outline.value);
+       
+       // Count how many items are shown in filtered results
+       const filteredOutline = getFilteredOutline();
+       let shownItemCount = 0;
+       
+       function countShownItems(items) {
+         for (const item of items) {
+           shownItemCount++;
+           if (item.children && item.children.length) {
+             countShownItems(item.children);
+           }
+         }
+       }
+       
+       countShownItems(filteredOutline);
+       
+       searchStats.value = { matches: matchCount, items: shownItemCount };
+     }
+
     return { 
       matterId,
       outline, 
@@ -1938,6 +2101,11 @@ This is similar to how Git requires you to pull before pushing when there are co
       handleAddSiblingRoot,
       isNodeCollapsed,
       handleCollapseToggle,
+              // Search
+        searchQuery,
+        searchStats,
+        handleSearchInput,
+        clearSearch,
     };
   }
 };
@@ -1961,6 +2129,36 @@ This is similar to how Git requires you to pull before pushing when there are co
 .outline-actions {
   display: flex;
   align-items: center;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.search-input {
+  flex-shrink: 0;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.search-input :deep(.el-input__wrapper):hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.search-stats {
+  font-size: 0.85em;
+  color: #666;
+  white-space: nowrap;
+  background: #f0f2f5;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
 }
 
 .sync-status {
@@ -2009,5 +2207,37 @@ This is similar to how Git requires you to pull before pushing when there are co
 
 .version-outline {
   margin-top: 1rem;
+}
+
+.search-results-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 0.9em;
+}
+
+.search-icon {
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.search-results-text {
+  flex: 1;
+  color: #495057;
+}
+
+.search-results-text strong {
+  color: #212529;
+  font-weight: 600;
+}
+
+.clear-search-btn {
+  font-size: 0.85em;
+  padding: 4px 8px;
 }
 </style> 

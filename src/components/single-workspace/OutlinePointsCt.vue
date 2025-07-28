@@ -86,7 +86,11 @@
         @dragend="handleDragEnd"
         @click.prevent="$emit('drilldown', item.id)"
       ></a>
-      <span v-if="!editing && item.text.length > 0" class="outline-text" @click="handleTextClick" v-html="renderTextWithLinks(item.text)"></span>
+      <span v-if="!editing && item.text.length > 0" 
+            class="outline-text" 
+            :class="{ 'search-match': item.isSearchMatch, 'search-context': item.isSearchContext }"
+            @click="handleTextClick" 
+            v-html="renderTextWithLinksAndHighlight(item.text)"></span>
       <textarea
         v-else
         ref="textarea"
@@ -219,7 +223,7 @@
       />
     </el-dialog>
 
-    <ul v-if="hasChildren && !collapsed" class="outline-list">
+    <ul v-if="hasChildren && !effectiveCollapsed" class="outline-list">
       <OutlinePointsCt
         v-for="child in item.children"
         :key="child.id"
@@ -229,6 +233,7 @@
         :is-node-collapsed="isNodeCollapsed"
         :check-version-before-edit="checkVersionBeforeEdit"
         :handle-version-conflict="handleVersionConflict"
+        :search-query="searchQuery"
         @update="updateChild"
         @move="handleMove"
         @delete="handleDelete"
@@ -310,6 +315,10 @@ export default {
     handleVersionConflict: {
       type: Function,
       default: () => async () => ({ canEdit: true })
+    },
+    searchQuery: {
+      type: String,
+      default: ''
     }
   },
   emits: ['update', 'move', 'delete', 'drilldown', 'navigate', 'indent', 'outdent', 'add-sibling', 'collapse-toggle'],
@@ -391,6 +400,13 @@ export default {
     },
     hasComments() {
       return this.comments && this.comments.length > 0;
+    },
+    effectiveCollapsed() {
+      // If there's a search query and this item has forceExpanded, don't collapse
+      if (this.searchQuery && this.searchQuery.trim() && this.item.forceExpanded) {
+        return false;
+      }
+      return this.collapsed;
     }
   },
   watch: {
@@ -1128,6 +1144,31 @@ export default {
         const fullUrl = url.startsWith('http') ? url : `https://${url}`;
         return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="outline-link">${linkText}</a>`;
       });
+    },
+    renderTextWithLinksAndHighlight(text) {
+      if (!text) return '';
+      
+      let processedText = text;
+      
+      // First, highlight search terms if there's a search query
+      if (this.searchQuery && this.searchQuery.trim()) {
+        const query = this.searchQuery.trim();
+        const regex = new RegExp(`(${this.escapeRegex(query)})`, 'gi');
+        processedText = processedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+      }
+      
+      // Then process links (after highlighting to avoid conflicts)
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      processedText = processedText.replace(linkRegex, (match, linkText, url) => {
+        // Ensure URL has protocol
+        const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="outline-link">${linkText}</a>`;
+      });
+      
+      return processedText;
+    },
+    escapeRegex(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     },
     handleTextClick(event) {
       // If the click was on a link, don't start editing
@@ -1957,5 +1998,24 @@ export default {
 :deep(.el-dropdown-menu__item--divided) {
   border-top: 1px solid #f0f0f0 !important;
   margin-top: 2px !important;
+}
+
+/* Search highlighting styles */
+.search-highlight {
+  background-color: #ffeb3b;
+  color: #000;
+  font-weight: 600;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.outline-text.search-match {
+  background-color: rgba(255, 235, 59, 0.1);
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+
+.outline-text.search-context {
+  opacity: 0.7;
 }
 </style> 

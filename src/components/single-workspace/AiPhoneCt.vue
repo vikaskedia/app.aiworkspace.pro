@@ -1640,6 +1640,7 @@ import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
 import { updateMatterActivity } from '../../utils/matterActivity';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   name: 'AiPhoneCt',
@@ -1711,12 +1712,22 @@ export default {
       markConversationAsRead: realtimeMarkAsRead
     } = useRealtimeMessages(computed(() => currentMatter.value?.id));
     
+    // Function to update page title
+    const updatePageTitle = () => {
+      const workspaceName = currentMatter.value?.title || 'Workspace';
+      setWorkspaceTitle('AI Phone', workspaceName);
+    };
+    
+    // Set initial page title
+    updatePageTitle();
+    
     return { 
       currentMatter,
       realtimeConversations,
       groupConversations,
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
+      updatePageTitle,
       realtimeMarkAsRead
     };
   },
@@ -2477,7 +2488,7 @@ export default {
         console.log('currentChat.messages changed:', val);
       },
       { deep: true }
-    );
+          );
   },
   watch: {
     currentMatter: {
@@ -2488,6 +2499,7 @@ export default {
             this.loadMessageCounts();
           });
         }
+        this.updatePageTitle();
       },
       immediate: false
     },

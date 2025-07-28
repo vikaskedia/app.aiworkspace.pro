@@ -158,13 +158,14 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase.js';
 
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 const matterStore = useMatterStore();
 const { currentMatter } = storeToRefs(matterStore);
@@ -529,6 +530,21 @@ function formatDate(dateStr) {
   if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); // You can customize the format if needed
 }
+
+// Function to update page title
+function updatePageTitle() {
+  const workspaceName = currentMatter.value?.title || 'Workspace';
+  setWorkspaceTitle('AI Intake', workspaceName);
+}
+
+// Watch for matter changes and page title changes
+watch(currentMatter, () => {
+  updatePageTitle();
+}, { immediate: true });
+
+watch(pageTitle, () => {
+  updatePageTitle();
+});
 
 onMounted(fetchFormDesignAndIntakes);
 </script>

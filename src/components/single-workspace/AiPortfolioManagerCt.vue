@@ -268,6 +268,7 @@ import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
+import { setWorkspaceTitle, setComponentTitle } from '../../utils/page-title';
 
 export default {
   name: 'AiPortfolioManagerCt',
@@ -423,6 +424,12 @@ export default {
         }
         
         ElMessage.success(`Portfolio renamed to "${editPortfolioForm.value.name}" successfully!`);
+        
+        // Update page title if this was the active portfolio (check before clearing)
+        if (editingPortfolio.value && editingPortfolio.value.id === activePortfolioId.value) {
+          updatePageTitle();
+        }
+        
         editPortfolioDialogVisible.value = false;
         editingPortfolio.value = null; // Clear the editing portfolio
         
@@ -521,13 +528,22 @@ export default {
         // Set active portfolio to first one
         if (portfolios.value.length > 0) {
           activePortfolioId.value = portfolios.value[0].id;
+          // Update page title now that we have an active portfolio
+          updatePageTitle();
         }
 
         console.log(`✅ Portfolios initialized: ${portfolios.value.length} portfolios, ${spreadsheets.value.length} spreadsheets`);
         
+        // Ensure page title is updated even if no portfolios were set as active
+        if (portfolios.value.length === 0) {
+          updatePageTitle();
+        }
+        
       } catch (error) {
         console.error('Error initializing portfolios:', error);
         ElMessage.error('Failed to load portfolios: ' + error.message);
+        // Update page title even on error to show workspace name
+        updatePageTitle();
       }
     };
     
@@ -594,6 +610,7 @@ export default {
     const handlePortfolioChange = (portfolioId) => {
       console.log(`🔄 Switched to portfolio: ${portfolioId}`);
       activePortfolioId.value = portfolioId;
+      updatePageTitle();
     };
     
     // Show add portfolio dialog
@@ -673,6 +690,9 @@ export default {
         console.log(`📊 Added new portfolio: ${newPortfolio.name} (${portfolioId})`);
         ElMessage.success(`Portfolio "${newPortfolio.name}" created successfully!`);
         
+        // Update page title for the new active portfolio
+        updatePageTitle();
+        
         addPortfolioDialogVisible.value = false;
         
       } catch (error) {
@@ -730,6 +750,7 @@ export default {
         // Switch to first portfolio if deleted was active
         if (activePortfolioId.value === portfolioId && portfolios.value.length > 0) {
           activePortfolioId.value = portfolios.value[0].id;
+          updatePageTitle();
         }
         
         ElMessage.success(`Portfolio "${portfolio.name}" deleted successfully`);
@@ -875,6 +896,21 @@ export default {
       }
     };
 
+    // Function to update page title
+    const updatePageTitle = () => {
+      const workspaceName = currentMatter.value?.title || 'Workspace';
+      
+      // Get the active portfolio name for the component-specific part
+      let portfolioName = undefined;
+      if (activePortfolioId.value && portfolios.value.length > 0) {
+        const activePortfolio = portfolios.value.find(p => p.id === activePortfolioId.value);
+        portfolioName = activePortfolio?.name;
+      }
+      
+      // Use setComponentTitle to include the portfolio name
+      setComponentTitle('AI Portfolio', workspaceName, portfolioName);
+    };
+
     // Watch for matter changes and reload portfolios
     const watchMatterChanges = () => {
       let isInitialized = false;
@@ -903,10 +939,24 @@ export default {
       });
     };
 
+    // Watch for activePortfolioId changes to update title
+    const watchActivePortfolio = () => {
+      return computed(() => {
+        // Update page title when active portfolio changes
+        if (activePortfolioId.value) {
+          updatePageTitle();
+        }
+        return activePortfolioId.value;
+      });
+    };
+
     // Initialize component
     onMounted(async () => {
       const matterWatcher = watchMatterChanges();
       matterWatcher.value;
+      
+      const portfolioWatcher = watchActivePortfolio();
+      portfolioWatcher.value;
       
       // Add event listener for context menu
       document.addEventListener('click', hideContextMenu);

@@ -178,6 +178,7 @@ import { useMatterStore } from '../../store/matter';
 import { storeToRefs } from 'pinia';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
+import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   name: 'AiFundAnalystCt',
@@ -229,10 +230,24 @@ export default {
       }
     }
   },
+  watch: {
+    currentMatter: {
+      handler() {
+        this.updatePageTitle();
+      },
+      immediate: true
+    }
+  },
   async mounted() {
     await this.loadHistoricalReports();
+    this.updatePageTitle();
   },
   methods: {
+    updatePageTitle() {
+      const workspaceName = this.currentMatter?.title || 'Workspace';
+      setWorkspaceTitle('AI Fund Analyst', workspaceName);
+    },
+
     async createNewStrategy() {
       // Validate required fields
       if (!this.strategyDisplayValue || !this.strategyDisplayValue.trim()) {

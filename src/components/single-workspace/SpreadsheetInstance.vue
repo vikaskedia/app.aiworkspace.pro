@@ -710,6 +710,13 @@ export default {
         } catch (extractionError) {
           console.warn(`Unit-based extraction failed (${props.spreadsheetId}):`, extractionError.message);
         }
+    
+        // try to return WORKBOOK_DATA
+        try {
+          return WORKBOOK_DATA;
+        } catch (error) {
+          console.warn(`Error getting workbook data (${props.spreadsheetId}):`, error);
+        }
         
         console.log(`⚠️ All extraction methods failed, falling back to stored data (${props.spreadsheetId})`);
         return portfolioData.value || {};

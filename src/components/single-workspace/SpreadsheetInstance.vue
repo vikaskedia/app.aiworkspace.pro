@@ -805,6 +805,7 @@ export default {
       name: props.spreadsheetName,
       sheetOrder: [],
       sheets: {},
+      styles: {}
     };
 
     const initializeUniver = async () => {

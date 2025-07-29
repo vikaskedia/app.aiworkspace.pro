@@ -1667,15 +1667,6 @@ export default {
             } catch (error) {
               console.error('❌ Error handling real-time update:', error);
               
-              // Show error notification
-              ElNotification({
-                title: 'Sync Error',
-                message: 'There was an error syncing changes. Please refresh if issues persist.',
-                type: 'error',
-                duration: 5000,
-                showClose: true
-              });
-              
               // Try to recover by refreshing data
               try {
                 await refreshOutlineData();
@@ -1805,15 +1796,6 @@ export default {
         }
       } catch (error) {
         console.error('❌ Error refreshing outline data:', error);
-        
-        // Show user-friendly error
-        ElNotification({
-          title: 'Sync Error',
-          message: 'Unable to sync with server. Your changes are preserved locally.',
-          type: 'error',
-          duration: 7000,
-          showClose: true
-        });
         
         throw error; // Re-throw for caller handling
       }

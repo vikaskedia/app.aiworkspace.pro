@@ -2,13 +2,27 @@
   <div class="spreadsheet-instance-wrapper" :class="{ saving }">
     <!-- Spreadsheet Container -->
     <div class="spreadsheet-container">
-      <!-- Unsaved changes indicator -->
-      <div v-if="hasUnsavedChanges" class="unsaved-indicator">
-        <span class="unsaved-text">Unsaved data</span>
+      <!-- State indicator -->
+      <div class="state-indicator" :class="{ 
+        'loading': isInitializing, 
+        'unsaved': !isInitializing && hasUnsavedChanges,
+        'saved': !isInitializing && !hasUnsavedChanges
+      }">
+        <span class="state-text">
+          <template v-if="isInitializing">
+            <span class="state-icon">⏳</span> Loading...
+          </template>
+          <template v-else-if="hasUnsavedChanges">
+            <span class="state-icon">⚠️</span> Unsaved data
+          </template>
+          <template v-else>
+            <span class="state-icon">✅</span> Saved
+          </template>
+        </span>
       </div>
       
       <!-- Debug controls (temporary) -->
-      <div class="debug-controls" style="position: absolute; top: 40px; right: 8px; z-index: 1001; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px;">
+      <!--div class="debug-controls" style="position: absolute; top: 40px; right: 8px; z-index: 1001; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px;">
         <div style="color: white; font-size: 10px; margin-bottom: 4px;">
           State: {{ hasUnsavedChanges ? 'UNSAVED' : 'SAVED' }}
         </div>
@@ -17,7 +31,7 @@
         </div>
         <button @click="markAsUnsaved" style="background: orange; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Test Unsaved</button>
         <button @click="markAsSaved" style="background: green; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Test Saved</button>
-      </div>
+      </div-->
       <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
     </div>
   </div>
@@ -1386,42 +1400,86 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* Unsaved changes indicator */
-.unsaved-indicator {
+/* State indicator */
+.state-indicator {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 1000;
-  background: #ff6b6b;
-  color: white;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading state */
+.state-indicator.loading {
+  color: #6b7280;
+  animation: loadingPulse 1.5s infinite;
+}
+
+/* Unsaved state */
+.state-indicator.unsaved {
+  color: #dc2626;
   animation: unsavedPulse 2s infinite;
 }
 
-.unsaved-text {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* Saved state */
+.state-indicator.saved {
+  color: #059669;
+  animation: savedFade 3s ease-out;
 }
 
-.unsaved-text::before {
-  content: '●';
-  font-size: 8px;
-  animation: unsavedBlink 1.5s infinite;
+.state-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.state-icon {
+  font-size: 14px;
+  display: inline-block;
+}
+
+/* Icon animations */
+.state-indicator.loading .state-icon {
+  animation: loadingRotate 2s linear infinite;
+}
+
+.state-indicator.unsaved .state-icon {
+  animation: unsavedShake 0.5s ease-in-out infinite alternate;
+}
+
+/* Animations */
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes loadingRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @keyframes unsavedPulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.02); }
 }
 
-@keyframes unsavedBlink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
+@keyframes unsavedShake {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(1px); }
+}
+
+@keyframes savedFade {
+  0% { opacity: 1; transform: scale(1.02); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.8; transform: scale(1); }
 }
 
 /* Animations for smooth transitions */

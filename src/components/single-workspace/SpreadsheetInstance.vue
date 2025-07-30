@@ -56,6 +56,7 @@ import SheetsEnUS from '@univerjs/sheets/locale/en-US';
 import SheetsUIEnUS from '@univerjs/sheets-ui/locale/en-US';
 import SheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
 import SheetsNumfmtUIEnUS from '@univerjs/sheets-numfmt-ui/locale/en-US';
+import SheetsNoteUIEnUS from '@univerjs/sheets-note-ui/locale/en-US';
 
 // Plugin imports
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
@@ -1111,6 +1112,7 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
               SheetsUIEnUS,
               SheetsFormulaUIEnUS,
               SheetsNumfmtUIEnUS,
+              SheetsNoteUIEnUS,
             ),
           },
         });

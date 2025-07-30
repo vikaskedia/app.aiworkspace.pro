@@ -2,6 +2,22 @@
   <div class="spreadsheet-instance-wrapper" :class="{ saving }">
     <!-- Spreadsheet Container -->
     <div class="spreadsheet-container">
+      <!-- Unsaved changes indicator -->
+      <div v-if="hasUnsavedChanges" class="unsaved-indicator">
+        <span class="unsaved-text">Unsaved data</span>
+      </div>
+      
+      <!-- Debug controls (temporary) -->
+      <div class="debug-controls" style="position: absolute; top: 40px; right: 8px; z-index: 1001; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px;">
+        <div style="color: white; font-size: 10px; margin-bottom: 4px;">
+          State: {{ hasUnsavedChanges ? 'UNSAVED' : 'SAVED' }}
+        </div>
+        <div style="color: yellow; font-size: 10px; margin-bottom: 4px;">
+          Init: {{ isInitializing ? 'LOADING...' : 'READY' }}
+        </div>
+        <button @click="markAsUnsaved" style="background: orange; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; margin-right: 4px;">Test Unsaved</button>
+        <button @click="markAsSaved" style="background: green; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Test Saved</button>
+      </div>
       <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
     </div>
   </div>
@@ -102,6 +118,8 @@ export default {
     const lastSaved = ref(null);
     const allSheetsData = ref({});
     const currentRowCount = ref(props.initialRows);
+    const hasUnsavedChanges = ref(false);
+    const isInitializing = ref(true); // Prevent change detection during initial load
 
     // Computed height based on actual row count - exact fit without scrollbars
     const containerHeight = computed(() => {
@@ -698,6 +716,30 @@ export default {
       }
     };
 
+    // Unsaved changes tracking
+    const markAsUnsaved = () => {
+      console.log(`🔥 markAsUnsaved called for ${props.spreadsheetId}, initializing:`, isInitializing.value, ', current state:', hasUnsavedChanges.value);
+      
+      // Don't mark as unsaved during initial load
+      if (isInitializing.value) {
+        console.log(`⏭️ Skipping unsaved marking - still initializing ${props.spreadsheetId}`);
+        return;
+      }
+      
+      if (!hasUnsavedChanges.value) {
+        hasUnsavedChanges.value = true;
+        console.log(`📝 Marked ${props.spreadsheetId} as having unsaved changes - NEW STATE:`, hasUnsavedChanges.value);
+      }
+    };
+    
+    const markAsSaved = () => {
+      console.log(`🔥 markAsSaved called for ${props.spreadsheetId}, current state:`, hasUnsavedChanges.value);
+      if (hasUnsavedChanges.value) {
+        hasUnsavedChanges.value = false;
+        console.log(`✅ Marked ${props.spreadsheetId} as saved - NEW STATE:`, hasUnsavedChanges.value);
+      }
+    };
+
     // Simplified and reliable manual save function
     const manualSave = async () => {
       try {
@@ -761,6 +803,7 @@ export default {
         }
         
         await savePortfolioData(currentData);
+        markAsSaved(); // Clear unsaved changes indicator
         console.log(`✅ Save completed successfully (${props.spreadsheetId})`);
         
       } catch (error) {
@@ -1056,6 +1099,63 @@ export default {
           console.log('✅ Custom menu items registered');
           console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
           
+          // Set up change detection for unsaved changes indicator
+          try {
+            console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
+            
+            // Listen for any command that modifies worksheet data
+            const originalExecuteCommand = commandService.executeCommand;
+            commandService.executeCommand = function(...args) {
+              const commandId = args[0];
+              console.log(`🔥 Command executed:`, commandId, args);
+              
+              const result = originalExecuteCommand.apply(this, args);
+              
+              // Commands that indicate data changes - simplified detection
+              if (commandId && typeof commandId === 'string') {
+                if (commandId.includes('set-cell') || 
+                    commandId.includes('set-range') ||
+                    commandId.includes('paste') ||
+                    commandId.includes('cut') ||
+                    commandId.includes('clear') ||
+                    commandId.includes('delete') ||
+                    commandId.includes('insert') ||
+                    commandId.includes('formula')) {
+                  console.log(`🔥 Data-modifying command detected: ${commandId}`);
+                  markAsUnsaved();
+                }
+              }
+              
+              return result;
+            };
+            
+            console.log(`📝 Command interception set up for ${props.spreadsheetId}`);
+            
+          } catch (changeDetectionError) {
+            console.warn(`⚠️ Could not set up command detection for ${props.spreadsheetId}:`, changeDetectionError);
+          }
+          
+          // Simple fallback change detection via DOM events
+          setTimeout(() => {
+            const container = document.getElementById(`univer-container-${props.spreadsheetId}`);
+            console.log(`🔥 Setting up DOM event detection for ${props.spreadsheetId}, container:`, container);
+            
+            if (container) {
+              // Simple approach - any input in the container
+              const handleChange = () => {
+                console.log(`🔥 DOM change detected in ${props.spreadsheetId}`);
+                markAsUnsaved();
+              };
+              
+              // Listen for various events that indicate changes
+              container.addEventListener('input', handleChange);
+              container.addEventListener('keypress', handleChange);
+              container.addEventListener('paste', handleChange);
+              
+              console.log(`📝 DOM event detection set up for ${props.spreadsheetId}`);
+            }
+          }, 3000); // Wait longer for DOM to be ready
+          
         } catch (error) {
           console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);
           console.error('Error details:', error);
@@ -1209,6 +1309,12 @@ export default {
         
         console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
         
+        // Mark initialization as complete after a delay to ensure all setup is done
+        setTimeout(() => {
+          isInitializing.value = false;
+          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - change detection now active`);
+        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
+        
       } catch (error) {
         console.error(`❌ Failed to initialize Univer (${props.spreadsheetId}):`, error);
         ElMessage.error(`Failed to initialize ${props.spreadsheetName}: ${error.message}`);
@@ -1246,7 +1352,11 @@ export default {
       manualSave,
       lastSaved,
       containerHeight,
-      currentRowCount
+      currentRowCount,
+      hasUnsavedChanges,
+      isInitializing,
+      markAsUnsaved,
+      markAsSaved
     };
   },
 };
@@ -1274,6 +1384,44 @@ export default {
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Unsaved changes indicator */
+.unsaved-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+  background: #ff6b6b;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+  animation: unsavedPulse 2s infinite;
+}
+
+.unsaved-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.unsaved-text::before {
+  content: '●';
+  font-size: 8px;
+  animation: unsavedBlink 1.5s infinite;
+}
+
+@keyframes unsavedPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes unsavedBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
 }
 
 /* Animations for smooth transitions */

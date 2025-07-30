@@ -974,14 +974,9 @@ export default {
               console.log('🗑️ Delete operation triggered from dropdown menu');
               if (props.canRemove) {
                 try {
-                  // Confirm before deleting
-                  const confirmed = confirm(`Are you sure you want to delete "${props.spreadsheetName}"? This action cannot be undone.`);
-                  if (confirmed) {
-                    emitFunction('remove-spreadsheet', props.spreadsheetId);
-                    console.log('✅ Delete operation completed successfully');
-                  } else {
-                    console.log('❌ Delete operation cancelled by user');
-                  }
+                  // Directly emit the delete event - parent component will handle confirmation
+                  emitFunction('remove-spreadsheet', props.spreadsheetId);
+                  console.log('✅ Delete operation initiated successfully');
                 } catch (error) {
                   console.error('❌ Delete operation failed:', error);
                 }

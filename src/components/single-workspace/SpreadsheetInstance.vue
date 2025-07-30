@@ -3,7 +3,7 @@
     <!-- Spreadsheet Container -->
     <div class="spreadsheet-container">
       <!-- State indicator -->
-      <div class="state-indicator" :class="{ 
+      <!--div class="state-indicator" :class="{ 
         'loading': isInitializing, 
         'unsaved': !isInitializing && hasUnsavedChanges,
         'saved': !isInitializing && !hasUnsavedChanges
@@ -19,7 +19,7 @@
             <span class="state-icon">✅</span> Saved
           </template>
         </span>
-      </div>
+      </div-->
       
       <!-- Debug controls (temporary) -->
       <!--div class="debug-controls" style="position: absolute; top: 40px; right: 8px; z-index: 1001; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px;">

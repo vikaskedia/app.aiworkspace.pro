@@ -934,22 +934,6 @@ export default {
           console.log('✅ Got all required services from injector');
           
           // Define custom commands
-          const SINGLE_BUTTON_OPERATION = {
-            id: 'custom-menu.operation.single-button',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Quick save functionality
-              console.log('⚡ Quick save triggered from toolbar button');
-              try {
-                await saveFunction();
-                console.log('✅ Quick save completed successfully');
-              } catch (error) {
-                console.error('❌ Quick save failed:', error);
-              }
-              return true;
-            },
-          };
-          
           const DROPDOWN_FIRST_ITEM_OPERATION = {
             id: 'custom-menu.operation.dropdown-list-first-item',
             type: CommandType.OPERATION,
@@ -991,24 +975,11 @@ export default {
           const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
           
           // Register commands
-          commandService.registerCommand(SINGLE_BUTTON_OPERATION);
           commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
           commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
           console.log('✅ Custom menu commands registered');
           
           // Register simple icon components (using createElement directly)
-          const QuickSaveIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M15 9H5V5H15M12 19C15.87 19 19 15.87 19 12S15.87 5 12 5C8.13 5 5 8.13 5 12S8.13 19 12 19M12 2C17.5 2 22 6.5 22 12S17.5 22 12 22 2 17.5 2 12 6.5 2 12 2M9 16L14 11L12.59 9.59L9 13.17L7.41 11.59L6 13L9 16Z'
-            }));
-          };
-          
           const SaveIcon = () => {
             const React = window.React || window['React'];
             if (!React) {
@@ -1045,7 +1016,6 @@ export default {
             }));
           };
           
-          componentManager.register('QuickSaveIcon', QuickSaveIcon);
           componentManager.register('SaveIcon', SaveIcon);
           componentManager.register('DeleteIcon', DeleteIcon);
           componentManager.register('MainButtonIcon', MainButtonIcon);
@@ -1054,18 +1024,8 @@ export default {
           // Register menu items using proper factory functions
           menuManagerService.mergeMenu({
             [RibbonStartGroup.OTHERS]: {
-              [SINGLE_BUTTON_OPERATION.id]: {
-                order: 10,
-                menuItemFactory: () => ({
-                  id: SINGLE_BUTTON_OPERATION.id,
-                  type: MenuItemType.BUTTON,
-                  title: 'Quick Save',
-                  icon: 'QuickSaveIcon',
-                  tooltip: 'Save spreadsheet instantly',
-                }),
-              },
               [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
-                order: 11,
+                order: 10,
                 menuItemFactory: () => ({
                   id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
                   type: MenuItemType.SUBITEMS,
@@ -1079,7 +1039,6 @@ export default {
                     id: DROPDOWN_FIRST_ITEM_OPERATION.id,
                     type: MenuItemType.BUTTON,
                     title: 'Save',
-                    icon: 'SaveIcon',
                   }),
                 },
                 [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
@@ -1088,7 +1047,6 @@ export default {
                     id: DROPDOWN_SECOND_ITEM_OPERATION.id,
                     type: MenuItemType.BUTTON,
                     title: 'Delete',
-                    icon: 'DeleteIcon',
                   }),
                 },
               },

@@ -66,6 +66,8 @@ import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
+// Custom menu plugin
+
 // CSS imports - exactly as in documentation
 import '@univerjs/design/lib/index.css';
 import '@univerjs/ui/lib/index.css';
@@ -915,6 +917,181 @@ export default {
         univer.registerPlugin(UniverSheetsFormulaPlugin);
         univer.registerPlugin(UniverSheetsFormulaUIPlugin);
         univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+
+        // Add custom menu directly using Univer's injector (official documentation pattern)
+        try {
+          console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
+          
+          // Wait for Univer to be fully initialized
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to get the injector through different methods
+          let injector = null;
+          
+          // Method 1: Try the internal injector property
+          if (univer._injector) {
+            injector = univer._injector;
+            console.log('✅ Got injector from _injector property');
+          }
+          // Method 2: Try through context
+          else if (univer.getContext && univer.getContext().injector) {
+            injector = univer.getContext().injector;
+            console.log('✅ Got injector from context');
+          }
+          // Method 3: Try accessing it differently
+          else if (univer.__container) {
+            injector = univer.__container;
+            console.log('✅ Got injector from __container property');
+          }
+          
+          if (!injector) {
+            console.warn('⚠️ Could not access injector, custom menu will not be added');
+            return;
+          }
+          
+          // Import custom menu dependencies
+          const { ICommandService, CommandType } = await import('@univerjs/core');
+          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType } = await import('@univerjs/ui');
+          
+          // Get services
+          const commandService = injector.get(ICommandService);
+          const menuManagerService = injector.get(IMenuManagerService);
+          const componentManager = injector.get(ComponentManager);
+          
+          console.log('✅ Got all required services from injector');
+          
+          // Define custom commands
+          const SINGLE_BUTTON_OPERATION = {
+            id: 'custom-menu.operation.single-button',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              alert('Single button operation - Item 1 clicked!');
+              console.log('🎯 Single button operation executed');
+              return true;
+            },
+          };
+          
+          const DROPDOWN_FIRST_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-first-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              alert('Dropdown list first item operation - Item 1 clicked!');
+              console.log('🎯 Dropdown first item operation executed');
+              return true;
+            },
+          };
+          
+          const DROPDOWN_SECOND_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-second-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              alert('Dropdown list second item operation - Item 2 clicked!');
+              console.log('🎯 Dropdown second item operation executed');
+              return true;
+            },
+          };
+          
+          const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
+          
+          // Register commands
+          commandService.registerCommand(SINGLE_BUTTON_OPERATION);
+          commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
+          commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
+          console.log('✅ Custom menu commands registered');
+          
+          // Register simple icon components (using createElement directly)
+          const ButtonIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
+            }));
+          };
+          
+          const ItemIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
+            }));
+          };
+          
+          const MainButtonIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
+            }));
+          };
+          
+          componentManager.register('ButtonIcon', ButtonIcon);
+          componentManager.register('ItemIcon', ItemIcon);
+          componentManager.register('MainButtonIcon', MainButtonIcon);
+          console.log('✅ Custom menu components registered');
+          
+          // Register menu items using proper factory functions
+          menuManagerService.mergeMenu({
+            [RibbonStartGroup.OTHERS]: {
+              [SINGLE_BUTTON_OPERATION.id]: {
+                order: 10,
+                menuItemFactory: () => ({
+                  id: SINGLE_BUTTON_OPERATION.id,
+                  type: MenuItemType.BUTTON,
+                  title: 'Item 1',
+                  icon: 'ButtonIcon',
+                  tooltip: 'Custom single button - Item 1',
+                }),
+              },
+              [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
+                order: 11,
+                menuItemFactory: () => ({
+                  id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
+                  type: MenuItemType.SUBITEMS,
+                  icon: 'MainButtonIcon',
+                  tooltip: 'Custom dropdown menu',
+                  title: 'Dropdown Menu',
+                }),
+                [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
+                  order: 0,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_FIRST_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Item 1',
+                    icon: 'ItemIcon',
+                  }),
+                },
+                [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
+                  order: 1,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_SECOND_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Item 2',
+                    icon: 'ItemIcon',
+                  }),
+                },
+              },
+            },
+          });
+          
+          console.log('✅ Custom menu items registered');
+          console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
+          
+        } catch (error) {
+          console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);
+          console.error('Error details:', error);
+        }
 
         // TASKSTATUS formula processor - fetches real task status from database
         const processTaskStatusFormulas = async () => {

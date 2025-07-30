@@ -704,7 +704,7 @@
                         <div v-for="(historyEntry, index) in comment.comment_edit_history.slice().reverse()" 
                              :key="index" 
                              class="history-entry">
-                          <div class="previous-content">{{ historyEntry.previous_content }}</div>
+                          <div class="previous-content" v-html="renderHistoryContent(historyEntry.previous_content)"></div>
                           <div class="edit-metadata">
                             Edited by {{ userEmails[historyEntry.edited_by] }}
                             on {{ new Date(historyEntry.edited_at).toLocaleString(undefined, {
@@ -2739,6 +2739,43 @@ export default {
           return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">${fileName}</a>`;
         }
       );
+    },
+    renderHistoryContent(content) {
+      if (!content) return '';
+      
+      // If the content contains HTML tags, render it as HTML
+      if (content.includes('<') && content.includes('>')) {
+        // Apply the same formatting as formatCommentContent for consistency
+        const giteaHost = import.meta.env.VITE_GITEA_HOST;
+        const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+        const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        
+        return content.replace(
+          markdownLinkRegex,
+          (match, fileName, fileUrl) => {
+            let authenticatedUrl = fileUrl;
+            if (fileUrl.startsWith(giteaHost)) {
+              try {
+                const url = new URL(fileUrl);
+                url.searchParams.delete('token');
+                url.searchParams.set('token', giteaToken);
+                authenticatedUrl = url.toString().replace('??', '?');
+              } catch (error) {
+                console.error('Error creating authenticated URL:', error);
+              }
+            }
+            const ext = fileName.split('.').pop().toLowerCase();
+            if (imageExtensions.includes(ext)) {
+              return `<a class="file-link image-link" href="${authenticatedUrl}" target="_blank" title="Click to view image"><img src="${authenticatedUrl}" alt="${fileName}" style="max-width:120px;max-height:120px;object-fit:contain;border-radius:4px;border:1px solid #eee;margin:4px 0;display:inline-block;vertical-align:middle;" /></a>`;
+            }
+            return `<a class="file-link" href="${authenticatedUrl}" target="_blank" title="Click to view file">${fileName}</a>`;
+          }
+        );
+      }
+      
+      // If it's plain text, apply the same formatting as formatCommentContent
+      return this.formatCommentContent(content);
     },
     async loadFiles() {
       try {
@@ -7343,5 +7380,81 @@ table.editor-table {
   display: flex;
   justify-content: flex-end;
   margin-top: 6px;
+}
+
+/* History content styles for proper HTML rendering */
+.comment-history .previous-content {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.comment-history .previous-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.comment-history .previous-content table th,
+.comment-history .previous-content table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.comment-history .previous-content table th {
+  background-color: #f2f2f2;
+  font-weight: 600;
+}
+
+.comment-history .previous-content ul,
+.comment-history .previous-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.comment-history .previous-content li {
+  margin: 4px 0;
+}
+
+.comment-history .previous-content blockquote {
+  border-left: 4px solid #ddd;
+  margin: 8px 0;
+  padding-left: 12px;
+  color: #666;
+}
+
+.comment-history .previous-content code {
+  background-color: #f1f1f1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}
+
+.comment-history .previous-content pre {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.comment-history .previous-content h1,
+.comment-history .previous-content h2,
+.comment-history .previous-content h3,
+.comment-history .previous-content h4,
+.comment-history .previous-content h5,
+.comment-history .previous-content h6 {
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+}
+
+.comment-history .previous-content p {
+  margin: 8px 0;
 }
 </style>

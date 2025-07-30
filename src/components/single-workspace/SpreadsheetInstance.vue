@@ -69,6 +69,11 @@ import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
 import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
+
+// Note/Annotation plugin
+import { UniverSheetsNotePlugin } from '@univerjs/sheets-note';
+import { UniverSheetsNoteUIPlugin } from '@univerjs/sheets-note-ui';
+
 // Custom menu plugin
 
 // CSS imports - exactly as in documentation
@@ -78,6 +83,7 @@ import '@univerjs/docs-ui/lib/index.css';
 import '@univerjs/sheets-ui/lib/index.css';
 import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-numfmt-ui/lib/index.css';
+import '@univerjs/sheets-note-ui/lib/index.css';
 
 export default {
   name: 'SpreadsheetInstance',
@@ -262,7 +268,37 @@ export default {
                   }
                 }
               }
-            }
+            },
+            resources: [
+              {
+                name: 'SHEET_NOTE_PLUGIN',
+                data: '{"sheet-01":{}}'
+              },
+              {
+                name: 'SHEET_RANGE_PROTECTION_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_AuthzIoMockService_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_POINT_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_DEFINED_NAME_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_RANGE_THEME_MODEL_PLUGIN',
+                data: "{}"
+              }
+            ]
           };
           await savePortfolioData(initialWorkbook);
           return initialWorkbook;
@@ -826,6 +862,123 @@ export default {
       }
     };
 
+
+
+const handleAnnotationChange = async (command) => {
+
+  try {
+    console.log('🎯 Annotation change detected:', command);
+    
+    if (command.params) {
+        console.log('📝 Using command parameters for annotation update:', command.params);
+        updateWorkbookDataWithAnnotations(command.params);
+      }
+  } catch (error) {
+    console.error('❌ Error handling annotation change:', error);
+  }
+}
+
+const updateWorkbookDataWithAnnotations = (annotations) => {
+  // 1. get the latest note annotations
+  // 2. fetch the sheet_note_plugin data
+  // 3. update the sheet_note_plugin data with the latest annotations
+  // 4. update the WORKBOOK_DATA_WITH_ANNOTATIONS with the latest sheet_note_plugin data
+
+  try {
+    console.log('🔄 Updating workbook data with annotations:', annotations);
+    
+    // Handle different annotation data formats
+    let annotationData = null;
+    
+    if (annotations && annotations.params) {
+      // Handle the specific annotation JSON structure
+      annotationData = {
+        row: annotations.params.row,
+        col: annotations.params.col,
+        note: annotations.params.note
+      };
+      console.log('📝 Processing annotation data:', annotationData);
+    } else if (annotations && typeof annotations === 'object') {
+      // Handle other annotation formats
+      annotationData = annotations;
+      console.log('📝 Processing generic annotation data:', annotationData);
+    } else {
+      console.log('⚠️ No valid annotation data provided');
+      return;
+    }
+
+    // Get the current SHEET_NOTE_PLUGIN data 
+    const notePluginResource = WORKBOOK_DATA.resources.find(
+      resource => resource.name === 'SHEET_NOTE_PLUGIN'
+    );
+    
+    if (!notePluginResource) {
+      console.warn('⚠️ SHEET_NOTE_PLUGIN resource not found');
+      return;
+    }
+    
+    // Parse the current data
+    let noteData = {};
+    try {
+      noteData = JSON.parse(notePluginResource.data);
+    } catch (e) {
+      noteData = { 'sheet-01': {} };
+    }
+    
+    // Ensure sheet-01 exists
+    if (!noteData['sheet-01']) {
+      noteData['sheet-01'] = {};
+    }
+    
+    // Update with the latest annotation
+    if (annotationData && annotationData.row !== undefined && annotationData.col !== undefined) {
+      const row = annotationData.row;
+      const col = annotationData.col;
+      
+      // Ensure row exists
+      if (!noteData['sheet-01'][row]) {
+        noteData['sheet-01'][row] = {};
+      }
+      
+      // Update the annotation
+      if (annotationData.note) {
+        noteData['sheet-01'][row][col] = {
+          width: annotationData.note.width || 160,
+          height: annotationData.note.height || 72,
+          note: annotationData.note.note || 'Annotation',
+          show: false
+        };
+        
+        console.log(`📝 Updated annotation at [${row}, ${col}]:`, {
+          width: annotationData.note.width || 160,
+          height: annotationData.note.height || 72,
+          note: annotationData.note.note || 'Annotation'
+        });
+      } else {
+        // Remove annotation if note is null/undefined
+        if (noteData['sheet-01'][row][col]) {
+          delete noteData['sheet-01'][row][col];
+          console.log(`🗑️ Removed annotation at [${row}, ${col}]`);
+        }
+        
+        // Clean up empty rows
+        if (Object.keys(noteData['sheet-01'][row]).length === 0) {
+          delete noteData['sheet-01'][row];
+        }
+      }
+    }
+    
+    // Update the resource data
+    notePluginResource.data = JSON.stringify(noteData);
+    
+    console.log('✅ Updated SHEET_NOTE_PLUGIN data:', notePluginResource.data);
+    console.log('🔄 Updated WORKBOOK_DATA:', WORKBOOK_DATA);
+    
+  } catch (error) {
+    console.error('❌ Error updating workbook data with annotations:', error);
+  }
+}
+
     // Workbook data structure
     const WORKBOOK_DATA = {
       id: `workbook-${props.spreadsheetId}`,
@@ -833,7 +986,37 @@ export default {
       name: props.spreadsheetName,
       sheetOrder: [],
       sheets: {},
-      styles: {}
+      styles: {},
+      resources: [
+              {
+                name: 'SHEET_NOTE_PLUGIN',
+                data: '{"sheet-01":{}}'
+              },
+              {
+                name: 'SHEET_RANGE_PROTECTION_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_AuthzIoMockService_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_POINT_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_DEFINED_NAME_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_RANGE_THEME_MODEL_PLUGIN',
+                data: "{}"
+              }
+            ]
     };
 
     const initializeUniver = async () => {
@@ -947,6 +1130,11 @@ export default {
         univer.registerPlugin(UniverSheetsFormulaPlugin);
         univer.registerPlugin(UniverSheetsFormulaUIPlugin);
         univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+
+
+        // Register annotation plugins
+        univer.registerPlugin(UniverSheetsNotePlugin);
+        univer.registerPlugin(UniverSheetsNoteUIPlugin);
 
         // Add custom menu directly using Univer's injector (official documentation pattern)
         try {
@@ -1117,6 +1305,14 @@ export default {
           try {
             console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
             
+            // Listen for annotation-related commands
+            commandService.onCommandExecuted((command) => {
+              if (command.id.includes('comment') || command.id.includes('note') || command.id.includes('annotation')) {
+                console.log('📝 Annotation command detected:', command.id);
+                handleAnnotationChange(command);
+              }
+            });
+
             // Listen for any command that modifies worksheet data
             const originalExecuteCommand = commandService.executeCommand;
             commandService.executeCommand = function(...args) {

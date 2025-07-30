@@ -1,34 +1,8 @@
 <template>
   <div class="spreadsheet-instance-wrapper" :class="{ saving }">
-    <!-- Spreadsheet Container with Floating Controls -->
+    <!-- Spreadsheet Container -->
     <div class="spreadsheet-container">
       <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
-      
-      <!-- Floating Action Buttons -->
-      <div class="floating-controls">
-        <el-tooltip content="Save spreadsheet" placement="left">
-          <el-button 
-            type="primary" 
-            :loading="saving" 
-            @click="manualSave"
-            size="small"
-            circle
-            class="floating-btn save-btn">
-            <el-icon><DocumentChecked /></el-icon>
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip content="Remove spreadsheet" placement="left" v-if="canRemove">
-          <el-button 
-            type="danger" 
-            @click="$emit('remove-spreadsheet', spreadsheetId)"
-            size="small"
-            circle
-            class="floating-btn remove-btn">
-            <el-icon><Delete /></el-icon>
-          </el-button>
-        </el-tooltip>
-      </div>
     </div>
   </div>
 </template>
@@ -37,7 +11,6 @@
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { DocumentChecked, Delete } from '@element-plus/icons-vue';
 import { useMatterStore } from '../../store/matter';
 import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
@@ -78,10 +51,6 @@ import '@univerjs/sheets-numfmt-ui/lib/index.css';
 
 export default {
   name: 'SpreadsheetInstance',
-  components: {
-    DocumentChecked,
-    Delete
-  },
   props: {
     spreadsheetId: {
       type: String,
@@ -115,7 +84,7 @@ export default {
     }
   },
   emits: ['remove-spreadsheet'],
-  setup(props) {
+  setup(props, { emit }) {
     // Matter store for workspace context
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
@@ -814,6 +783,10 @@ export default {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
 
+        // Store references to functions for menu commands
+        const emitFunction = emit;
+        const saveFunction = manualSave;
+
         // Load complete workbook data from Supabase first
         const workbookData = await loadPortfolioData();
         
@@ -965,8 +938,14 @@ export default {
             id: 'custom-menu.operation.single-button',
             type: CommandType.OPERATION,
             handler: async () => {
-              alert('Single button operation - Item 1 clicked!');
-              console.log('🎯 Single button operation executed');
+              // Quick save functionality
+              console.log('⚡ Quick save triggered from toolbar button');
+              try {
+                await saveFunction();
+                console.log('✅ Quick save completed successfully');
+              } catch (error) {
+                console.error('❌ Quick save failed:', error);
+              }
               return true;
             },
           };
@@ -975,8 +954,14 @@ export default {
             id: 'custom-menu.operation.dropdown-list-first-item',
             type: CommandType.OPERATION,
             handler: async () => {
-              alert('Dropdown list first item operation - Item 1 clicked!');
-              console.log('🎯 Dropdown first item operation executed');
+              // Save spreadsheet functionality
+              console.log('💾 Save operation triggered from dropdown menu');
+              try {
+                await saveFunction();
+                console.log('✅ Save operation completed successfully');
+              } catch (error) {
+                console.error('❌ Save operation failed:', error);
+              }
               return true;
             },
           };
@@ -985,8 +970,25 @@ export default {
             id: 'custom-menu.operation.dropdown-list-second-item',
             type: CommandType.OPERATION,
             handler: async () => {
-              alert('Dropdown list second item operation - Item 2 clicked!');
-              console.log('🎯 Dropdown second item operation executed');
+              // Delete spreadsheet functionality
+              console.log('🗑️ Delete operation triggered from dropdown menu');
+              if (props.canRemove) {
+                try {
+                  // Confirm before deleting
+                  const confirmed = confirm(`Are you sure you want to delete "${props.spreadsheetName}"? This action cannot be undone.`);
+                  if (confirmed) {
+                    emitFunction('remove-spreadsheet', props.spreadsheetId);
+                    console.log('✅ Delete operation completed successfully');
+                  } else {
+                    console.log('❌ Delete operation cancelled by user');
+                  }
+                } catch (error) {
+                  console.error('❌ Delete operation failed:', error);
+                }
+              } else {
+                alert('Cannot delete the last spreadsheet in a portfolio');
+                console.log('⚠️ Delete operation blocked - last spreadsheet in portfolio');
+              }
               return true;
             },
           };
@@ -1000,7 +1002,7 @@ export default {
           console.log('✅ Custom menu commands registered');
           
           // Register simple icon components (using createElement directly)
-          const ButtonIcon = () => {
+          const QuickSaveIcon = () => {
             const React = window.React || window['React'];
             if (!React) {
               return null;
@@ -1008,11 +1010,11 @@ export default {
             return React.createElement('svg', {
               width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
             }, React.createElement('path', {
-              d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
+              d: 'M15 9H5V5H15M12 19C15.87 19 19 15.87 19 12S15.87 5 12 5C8.13 5 5 8.13 5 12S8.13 19 12 19M12 2C17.5 2 22 6.5 22 12S17.5 22 12 22 2 17.5 2 12 6.5 2 12 2M9 16L14 11L12.59 9.59L9 13.17L7.41 11.59L6 13L9 16Z'
             }));
           };
           
-          const ItemIcon = () => {
+          const SaveIcon = () => {
             const React = window.React || window['React'];
             if (!React) {
               return null;
@@ -1020,7 +1022,19 @@ export default {
             return React.createElement('svg', {
               width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
             }, React.createElement('path', {
-              d: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
+              d: 'M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C13.66 12 15 13.34 15 15S13.66 18 12 18 9 16.66 9 15 10.34 12 12 12'
+            }));
+          };
+          
+          const DeleteIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z'
             }));
           };
           
@@ -1036,8 +1050,9 @@ export default {
             }));
           };
           
-          componentManager.register('ButtonIcon', ButtonIcon);
-          componentManager.register('ItemIcon', ItemIcon);
+          componentManager.register('QuickSaveIcon', QuickSaveIcon);
+          componentManager.register('SaveIcon', SaveIcon);
+          componentManager.register('DeleteIcon', DeleteIcon);
           componentManager.register('MainButtonIcon', MainButtonIcon);
           console.log('✅ Custom menu components registered');
           
@@ -1049,9 +1064,9 @@ export default {
                 menuItemFactory: () => ({
                   id: SINGLE_BUTTON_OPERATION.id,
                   type: MenuItemType.BUTTON,
-                  title: 'Item 1',
-                  icon: 'ButtonIcon',
-                  tooltip: 'Custom single button - Item 1',
+                  title: 'Quick Save',
+                  icon: 'QuickSaveIcon',
+                  tooltip: 'Save spreadsheet instantly',
                 }),
               },
               [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
@@ -1060,16 +1075,16 @@ export default {
                   id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
                   type: MenuItemType.SUBITEMS,
                   icon: 'MainButtonIcon',
-                  tooltip: 'Custom dropdown menu',
-                  title: 'Dropdown Menu',
+                  tooltip: 'Spreadsheet Actions (Save & Delete)',
+                  title: 'Actions',
                 }),
                 [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
                   order: 0,
                   menuItemFactory: () => ({
                     id: DROPDOWN_FIRST_ITEM_OPERATION.id,
                     type: MenuItemType.BUTTON,
-                    title: 'Item 1',
-                    icon: 'ItemIcon',
+                    title: 'Save',
+                    icon: 'SaveIcon',
                   }),
                 },
                 [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
@@ -1077,8 +1092,8 @@ export default {
                   menuItemFactory: () => ({
                     id: DROPDOWN_SECOND_ITEM_OPERATION.id,
                     type: MenuItemType.BUTTON,
-                    title: 'Item 2',
-                    icon: 'ItemIcon',
+                    title: 'Delete',
+                    icon: 'DeleteIcon',
                   }),
                 },
               },
@@ -1308,156 +1323,5 @@ export default {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.floating-controls {
-  position: absolute;
-  top: 6px;
-  right: 24px;
-  display: flex;
-  gap: 8px;
-  z-index: 1000;
-}
-
-.floating-btn {
-  width: 28px;
-  height: 28px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  transition: all 0.3s ease;
-}
-
-.floating-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.save-btn {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  border: none !important;
-}
-
-.save-btn:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-}
-
-.remove-btn {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-  border: none !important;
-}
-
-.remove-btn:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-}
-
-/* Saving indicator */
-.spreadsheet-instance-wrapper.saving .floating-controls::before {
-  content: '💾 Saving...';
-  position: absolute;
-  top: -40px;
-  right: 0;
-  background: #409eff;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  animation: pulse 1s infinite;
-  z-index: 1001;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* Ensure Univer takes exact space without scrollbars */
-:deep(.univer-container) {
-  width: 100%;
-  height: 100%;
-}
-
-:deep(.univer-container .univer) {
-  width: 100%;
-  height: 100%;
-}
-
-/* Remove all internal scrollbars and ensure exact fit */
-:deep(.univer-container .universheet-render-canvas) {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-:deep(.univer-container .univer-scroll-container) {
-  overflow: hidden !important;
-}
-
-:deep(.univer-container .univer-scroll-bar) {
-  display: none !important;
-}
-
-:deep(.univer-container .univer-scrollbar) {
-  display: none !important;
-}
-
-/* Hide any viewport scrollbars within Univer */
-:deep(.univer-container .univer-viewport) {
-  overflow: hidden !important;
-}
-
-:deep(.univer-container .univer-canvas-container) {
-  overflow: hidden !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .spreadsheet-instance-wrapper {
-    padding: 8px;
-    margin-bottom: 16px;
-  }
-  
-  .floating-controls {
-    top: 55px;
-    right: 8px;
-    gap: 6px;
-  }
-  
-  .floating-btn {
-    width: 32px;
-    height: 32px;
-  }
-  
-  .univer-container {
-    border-radius: 4px;
-  }
-}
-
-@media (max-width: 480px) {
-  .spreadsheet-instance-wrapper {
-    padding: 6px;
-  }
-  
-  .floating-controls {
-    top: 50px;
-    right: 6px;
-    gap: 4px;
-  }
-  
-  .floating-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-  }
-  
-  .univer-container {
-    border-radius: 4px;
-  }
-  
-  .spreadsheet-instance-wrapper.saving .floating-controls::before {
-    font-size: 11px;
-    padding: 4px 8px;
-    top: -35px;
-  }
-}
-.floating-controls .el-button+.el-button {
-    margin-left: 0;
-}
+/* Animations for smooth transitions */
 </style> 

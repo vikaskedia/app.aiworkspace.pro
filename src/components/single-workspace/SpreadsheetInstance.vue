@@ -143,6 +143,99 @@ import '@univerjs/sheets-note-ui/lib/index.css';
     // Use prop matterId if provided, otherwise get from current matter
     const currentMatterId = computed(() => props.matterId || currentMatter.value?.id);
     
+    // Cell edit tracking for user history
+    const currentUser = ref(null);
+    
+    // Enhanced function to get current user with debugging
+    const getCurrentUser = async () => {
+      try {
+        console.log(`🔍 Attempting to load current user...`);
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.error(`❌ Supabase auth error:`, error);
+          return;
+        }
+        
+        if (user) {
+          currentUser.value = user;
+          console.log(`✅ User loaded for edit tracking:`, {
+            email: user.email,
+            id: user.id,
+            metadata: user.user_metadata
+          });
+        } else {
+          console.warn(`⚠️ No user returned from Supabase auth`);
+        }
+      } catch (error) {
+        console.error(`❌ Error getting current user:`, error);
+      }
+    };
+    
+    // Enhanced function to add edit metadata to a cell with debugging
+    const addEditMetadataToCell = (row, col, sheetId = 'sheet-01') => {
+      try {
+        console.log(`🏗️ Starting addEditMetadataToCell for [${row}, ${col}]`);
+        
+        if (!currentUser.value) {
+          console.warn(`⚠️ No user available for edit metadata`);
+          return;
+        }
+        
+        console.log(`👤 User found: ${currentUser.value.email}, ID: ${currentUser.value.id}`);
+        
+        const currentData = getCurrentSpreadsheetData();
+        if (!currentData || !currentData.sheets || !currentData.sheets[sheetId]) {
+          console.warn(`⚠️ No sheet data available for edit metadata`);
+          console.log(`📊 Available data:`, {
+            hasCurrentData: !!currentData,
+            hasSheets: !!(currentData?.sheets),
+            availableSheets: currentData?.sheets ? Object.keys(currentData.sheets) : [],
+            requestedSheet: sheetId
+          });
+          return;
+        }
+        
+        const sheet = currentData.sheets[sheetId];
+        console.log(`📋 Working with sheet: ${sheetId}`);
+        
+        // Ensure cell structure exists
+        if (!sheet.cellData) {
+          sheet.cellData = {};
+          console.log(`🔧 Created cellData for sheet`);
+        }
+        if (!sheet.cellData[row]) {
+          sheet.cellData[row] = {};
+          console.log(`🔧 Created row ${row}`);
+        }
+        if (!sheet.cellData[row][col]) {
+          sheet.cellData[row][col] = {};
+          console.log(`🔧 Created cell [${row}, ${col}]`);
+        }
+        
+        const cell = sheet.cellData[row][col];
+        const userName = currentUser.value.email?.split('@')[0] || 'Unknown User';
+        
+        console.log(`📝 Cell before edit metadata:`, cell);
+        
+        // Add simple edit metadata
+        cell.lastEditedBy = currentUser.value.id;
+        cell.lastEditedByName = userName;
+        cell.lastEditedAt = new Date().toISOString();
+        
+        console.log(`📝 Cell after edit metadata:`, cell);
+        console.log(`✅ Added edit metadata to cell [${row}, ${col}] by ${userName}`);
+        
+        // Update portfolio data to trigger save
+        portfolioData.value = { ...currentData };
+        console.log(`🔄 Portfolio data updated to trigger save`);
+        
+      } catch (error) {
+        console.error(`❌ Error in addEditMetadataToCell:`, error);
+        console.error(`❌ Error stack:`, error.stack);
+      }
+    };
+    
     let univer = null;
     const portfolioData = ref({});
     const saving = ref(false);
@@ -196,6 +289,11 @@ import '@univerjs/sheets-note-ui/lib/index.css';
     const initializeUniver = async () => {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
+
+        // Load current user for edit tracking
+        console.log(`🚀 Loading user for edit tracking in ${props.spreadsheetId}...`);
+        await getCurrentUser();
+        console.log(`🚀 User loading complete for ${props.spreadsheetId}:`, currentUser.value ? `✅ ${currentUser.value.email}` : '❌ No user');
 
         // Store references to functions for menu commands
         const emitFunction = emit;
@@ -480,11 +578,101 @@ import '@univerjs/sheets-note-ui/lib/index.css';
           try {
             console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
             
-            // Listen for annotation-related commands
+            // Listen for annotation-related commands AND cell edits
             commandService.onCommandExecuted((command) => {
+              // Handle annotations
               if (command.id.includes('comment') || command.id.includes('note') || command.id.includes('annotation')) {
                 console.log('📝 Annotation command detected:', command.id);
                 handleAnnotationChange(command);
+              }
+              
+              // Handle cell edits - extract actual cell coordinates from command
+              const isCellEdit = 
+                command.id.includes('set-range-value') ||
+                command.id.includes('set-range-values') ||
+                command.id.includes('SetRangeValues') ||
+                command.id.includes('doc.command.insert-text') ||
+                command.id.includes('insert-text') ||
+                command.id.includes('sheet.mutation.set-range-values') ||
+                command.id.includes('sheet.operation.set-activate-cell-edit');
+              
+              console.log(`🔍 Checking edit conditions: command="${command.id}", isCellEdit=${isCellEdit}, hasUser=${!!currentUser.value}`);
+              console.log(`🔍 Command params:`, command.params);
+              
+              if (isCellEdit) {
+                console.log(`✅ Cell edit detected for command: ${command.id}`);
+                
+                // Extract actual cell coordinates from command parameters
+                const extractCellCoordinates = (commandParams) => {
+                  try {
+                    console.log(`🧮 Extracting coordinates from:`, commandParams);
+                    
+                    // Method 1: Check for range property
+                    if (commandParams?.range) {
+                      const range = commandParams.range;
+                      console.log(`📍 Found range:`, range);
+                      
+                      if (range.startRow !== undefined && range.startColumn !== undefined) {
+                        return { row: range.startRow, col: range.startColumn };
+                      }
+                      if (range.row !== undefined && range.col !== undefined) {
+                        return { row: range.row, col: range.col };
+                      }
+                    }
+                    
+                    // Method 2: Check for direct row/col properties
+                    if (commandParams?.row !== undefined && commandParams?.col !== undefined) {
+                      return { row: commandParams.row, col: commandParams.col };
+                    }
+                    
+                    // Method 3: Check for ranges array
+                    if (commandParams?.ranges && Array.isArray(commandParams.ranges) && commandParams.ranges.length > 0) {
+                      const firstRange = commandParams.ranges[0];
+                      console.log(`📍 Found ranges[0]:`, firstRange);
+                      
+                      if (firstRange.startRow !== undefined && firstRange.startColumn !== undefined) {
+                        return { row: firstRange.startRow, col: firstRange.startColumn };
+                      }
+                    }
+                    
+                    // Method 4: Check for selection
+                    if (commandParams?.selection) {
+                      const sel = commandParams.selection;
+                      if (sel.startRow !== undefined && sel.startColumn !== undefined) {
+                        return { row: sel.startRow, col: sel.startColumn };
+                      }
+                    }
+                    
+                    console.log(`⚠️ Could not extract coordinates, using fallback [0,0]`);
+                    return { row: 0, col: 0 }; // Fallback
+                  } catch (error) {
+                    console.warn(`⚠️ Error extracting coordinates:`, error);
+                    return { row: 0, col: 0 }; // Fallback
+                  }
+                };
+                
+                const { row, col } = extractCellCoordinates(command.params);
+                console.log(`📍 Extracted cell coordinates: [${row}, ${col}]`);
+                
+                if (currentUser.value) {
+                  try {
+                    console.log(`👤 User available for edit tracking: ${currentUser.value.email}`);
+                    addEditMetadataToCell(row, col);
+                    console.log(`✅ Edit metadata added for command: ${command.id} at [${row}, ${col}]`);
+                  } catch (editError) {
+                    console.error(`❌ Error adding edit metadata:`, editError);
+                  }
+                } else {
+                  console.warn(`⚠️ No user available for edit metadata - attempting to load user`);
+                  getCurrentUser().then(() => {
+                    if (currentUser.value) {
+                      console.log(`✅ User loaded, adding edit metadata`);
+                      addEditMetadataToCell(row, col);
+                    }
+                  });
+                }
+              } else {
+                console.log(`📋 Command not detected as cell edit: ${command.id}`);
               }
             });
 
@@ -560,6 +748,20 @@ import '@univerjs/sheets-note-ui/lib/index.css';
               container.addEventListener('paste', handlePotentialChange);
               // Remove 'keypress' as it triggers on any key, add 'change' instead
               container.addEventListener('change', handlePotentialChange);
+              
+              // Add keyboard shortcut for viewing cell edit info (Ctrl+I on Windows/Linux, Cmd+I on macOS)
+              const handleKeyDown = (event) => {
+                // Check for Ctrl+I (Windows/Linux) or Cmd+I (macOS)
+                if ((event.ctrlKey || event.metaKey) && event.key === 'i') {
+                  event.preventDefault();
+                  const keyName = event.metaKey ? 'Cmd+I' : 'Ctrl+I';
+                  console.log(`⌨️ ${keyName} pressed - showing cell edit info`);
+                  showCellEditInfo();
+                }
+              };
+              
+              container.addEventListener('keydown', handleKeyDown, true);
+              console.log(`⌨️ Keyboard shortcut Ctrl+I (Windows/Linux) / Cmd+I (macOS) set up for cell edit info`);
               
               console.log(`📝 Smart DOM event detection set up for ${props.spreadsheetId} with debouncing`);
             }
@@ -740,6 +942,153 @@ import '@univerjs/sheets-note-ui/lib/index.css';
         ElMessage.error(`Failed to initialize ${props.spreadsheetName}: ${error.message}`);
       }
     };
+
+    // Function to get edit metadata for a specific cell
+    const getCellEditInfo = (row, col, sheetId = 'sheet-01') => {
+      try {
+        const currentData = getCurrentSpreadsheetData();
+        if (!currentData?.sheets?.[sheetId]?.cellData?.[row]?.[col]) {
+          return null;
+        }
+        
+        const cell = currentData.sheets[sheetId].cellData[row][col];
+        
+        if (cell.lastEditedBy || cell.lastEditedAt || cell.lastEditedByName) {
+          return {
+            lastEditedBy: cell.lastEditedBy,
+            lastEditedByName: cell.lastEditedByName,
+            lastEditedAt: cell.lastEditedAt,
+            cellValue: cell.v,
+            cellPosition: `${String.fromCharCode(65 + col)}${row + 1}` // Convert to A1 notation
+          };
+        }
+        
+        return null;
+      } catch (error) {
+        console.error(`❌ Error getting cell edit info:`, error);
+        return null;
+      }
+    };
+
+    // Function to get currently selected cell coordinates
+    const getCurrentCellSelection = () => {
+      try {
+        if (!univer || !univer.__getInjector) return null;
+        
+        const injector = univer.__getInjector();
+        const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
+        
+        if (workbookService) {
+          const activeWorkbook = workbookService.getCurrentWorkbook?.();
+          if (activeWorkbook) {
+            const activeWorksheet = activeWorkbook.getActiveSheet?.();
+            if (activeWorksheet) {
+              // Try to get selection
+              const selection = activeWorksheet.getSelection?.() || activeWorksheet.getActiveSelection?.();
+              if (selection) {
+                console.log(`📍 Current selection:`, selection);
+                
+                // Try different selection formats
+                if (selection.startRow !== undefined && selection.startColumn !== undefined) {
+                  return { row: selection.startRow, col: selection.startColumn };
+                }
+                if (selection.row !== undefined && selection.col !== undefined) {
+                  return { row: selection.row, col: selection.col };
+                }
+                if (selection.range && selection.range.startRow !== undefined) {
+                  return { row: selection.range.startRow, col: selection.range.startColumn };
+                }
+              }
+              
+              // Fallback to active cell
+              const activeCell = activeWorksheet.getActiveCell?.();
+              if (activeCell) {
+                console.log(`📍 Active cell:`, activeCell);
+                return { row: activeCell.row || 0, col: activeCell.col || 0 };
+              }
+            }
+          }
+        }
+        
+        console.log(`⚠️ Could not get cell selection, defaulting to [0,0]`);
+        return { row: 0, col: 0 }; // Fallback
+      } catch (error) {
+        console.error(`❌ Error getting current cell selection:`, error);
+        return { row: 0, col: 0 }; // Fallback
+      }
+    };
+
+    // Function to show edit info for the currently selected cell
+    const showCellEditInfo = () => {
+      try {
+        console.log(`🔍 Showing edit info for current selection...`);
+        
+        const selection = getCurrentCellSelection();
+        if (!selection) {
+          ElMessage.warning('Could not determine selected cell');
+          return;
+        }
+        
+        const { row, col } = selection;
+        console.log(`📍 Checking edit info for cell [${row}, ${col}]`);
+        
+        const editInfo = getCellEditInfo(row, col);
+        
+        if (editInfo) {
+          const editDate = new Date(editInfo.lastEditedAt);
+          const formattedDate = editDate.toLocaleString();
+          
+          ElMessage({
+            message: `Cell ${editInfo.cellPosition}: "${editInfo.cellValue}"\nLast edited by: ${editInfo.lastEditedByName}\nDate: ${formattedDate}`,
+            type: 'info',
+            duration: 5000,
+            dangerouslyUseHTMLString: false
+          });
+          
+          console.log(`📋 Edit info for cell [${row}, ${col}]:`, editInfo);
+        } else {
+          ElMessage({
+            message: `Cell ${String.fromCharCode(65 + col)}${row + 1}: No edit history available`,
+            type: 'info',
+            duration: 3000
+          });
+          
+          console.log(`📋 No edit info available for cell [${row}, ${col}]`);
+        }
+      } catch (error) {
+        console.error(`❌ Error showing cell edit info:`, error);
+        ElMessage.error('Error retrieving cell edit information');
+      }
+    };
+
+    // Test function to manually add edit metadata (for verification)
+    const testEditTracking = () => {
+      console.log(`🧪 Testing edit tracking...`);
+      if (currentUser.value) {
+        console.log(`👤 User available: ${currentUser.value.email}`);
+        addEditMetadataToCell(0, 0);
+        addEditMetadataToCell(1, 1);
+        console.log(`✅ Test edit metadata added to cells [0,0] and [1,1]`);
+      } else {
+        console.warn(`⚠️ No user loaded for testing - loading now...`);
+        getCurrentUser().then(() => {
+          if (currentUser.value) {
+            addEditMetadataToCell(0, 0);
+            addEditMetadataToCell(1, 1);
+            console.log(`✅ Test edit metadata added after user load`);
+          } else {
+            console.error(`❌ Still no user after loading attempt`);
+          }
+        });
+      }
+    };
+
+    // Expose functions for manual testing and edit info viewing
+    defineExpose({
+      testEditTracking,
+      showCellEditInfo,
+      getCellEditInfo
+    });
 
     onMounted(() => {
       // Ensure DOM is ready before initialization

@@ -575,19 +575,26 @@ export default {
                       if (urlMatch) {
                         const matchedUrl = urlMatch[0]
                         const start = from - matchedUrl.length
-                        const tr = state.tr
-                        
-                        tr.delete(start, from + 1)
-                        tr.insertText(matchedUrl, start)
-                        
-                        const mark = state.schema.marks.link.create({ href: matchedUrl })
-                        tr.addMark(start, start + matchedUrl.length, mark)
-                        
-                        // Add space after link without including it in the URL
-                        tr.insertText(' ', start + matchedUrl.length)
-                        
-                        view.dispatch(tr)
-                        return true
+
+                        // Check if there's already a link mark at this position
+                        const $start = state.doc.resolve(start)
+                        const existingLink = $start.marks().find(mark => mark.type.name === 'link')
+
+                        if (!existingLink) {
+                          const tr = state.tr
+
+                          tr.delete(start, from + 1)
+                          tr.insertText(matchedUrl, start)
+
+                          const mark = state.schema.marks.link.create({ href: matchedUrl })
+                          tr.addMark(start, start + matchedUrl.length, mark)
+
+                          // Add space after link without including it in the URL
+                          tr.insertText(' ', start + matchedUrl.length)
+
+                          view.dispatch(tr)
+                          return true
+                        }
                       }
                     }
                     return false

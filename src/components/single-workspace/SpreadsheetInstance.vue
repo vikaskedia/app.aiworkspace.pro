@@ -37,7 +37,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
@@ -86,42 +86,47 @@ import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-numfmt-ui/lib/index.css';
 import '@univerjs/sheets-note-ui/lib/index.css';
 
-export default {
-  name: 'SpreadsheetInstance',
-  props: {
-    spreadsheetId: {
-      type: String,
-      required: true
-    },
-    spreadsheetName: {
-      type: String,
-      required: true
-    },
-    initialRows: {
-      type: Number,
-      default: 10
-    },
-    initialColumns: {
-      type: Number,
-      default: 10
-    },
-    canRemove: {
-      type: Boolean,
-      default: true
-    },
-    matterId: {
-      type: Number,
-      required: false,
-      default: null
-    },
-    portfolioId: {
-      type: String,
-      required: false,
-      default: null
-    }
+
+
+
+// Define props
+const props = defineProps({
+  spreadsheetId: {
+    type: String,
+    required: true
   },
-  emits: ['remove-spreadsheet'],
-  setup(props, { emit }) {
+  spreadsheetName: {
+    type: String,
+    required: true
+  },
+  initialRows: {
+    type: Number,
+    default: 10
+  },
+  initialColumns: {
+    type: Number,
+    default: 10
+  },
+  canRemove: {
+    type: Boolean,
+    default: true
+  },
+  matterId: {
+    type: Number,
+    required: false,
+    default: null
+  },
+  portfolioId: {
+    type: String,
+    required: false,
+    default: null
+  }
+})
+
+// Define emits
+const emit = defineEmits(['remove-spreadsheet'])
+
+
     // Matter store for workspace context
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
@@ -1674,21 +1679,6 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
         }
       }
     });
-
-    return {
-      portfolioData,
-      saving,
-      manualSave,
-      lastSaved,
-      containerHeight,
-      currentRowCount,
-      hasUnsavedChanges,
-      isInitializing,
-      markAsUnsaved,
-      markAsSaved
-    };
-  },
-};
 </script>
 
 <style scoped>

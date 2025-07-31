@@ -187,6 +187,24 @@
     <div class="editor-content-wrapper">
       <editor-content :editor="editor" />
       
+      <!-- Floating Link Button -->
+      <div 
+        v-if="showLinkButton" 
+        class="floating-link-button"
+        :style="linkButtonPosition"
+        @click="setLink">
+        <el-button 
+          size="small" 
+          type="primary"
+          title="Add Link">
+          <el-icon>
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <path fill="currentColor" d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+            </svg>
+          </el-icon>
+        </el-button>
+      </div>
+      
       <!-- Replace existing typeahead suggestions with inline suggestions -->
       <div 
         v-if="showTypeahead && typeaheadSuggestions.length" 
@@ -263,6 +281,31 @@
       <template #footer>
         <el-button @click="showTableDialog = false">Cancel</el-button>
         <el-button type="primary" @click="createTable">Insert</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Link Dialog -->
+    <el-dialog
+      v-model="showLinkDialog"
+      title="Add Link"
+      width="400px">
+      <el-form :model="linkForm" label-position="top">
+        <el-form-item label="URL">
+          <el-input 
+            v-model="linkForm.url" 
+            placeholder="https://example.com"
+            @keyup.enter="saveLink" />
+        </el-form-item>
+        <el-form-item label="Text (optional)">
+          <el-input 
+            v-model="linkForm.text" 
+            placeholder="Link text (leave empty to use selected text)"
+            @keyup.enter="saveLink" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showLinkDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="saveLink">Add Link</el-button>
       </template>
     </el-dialog>
   </div>
@@ -390,6 +433,16 @@ export default {
       tableForm: {
         rows: 3,
         columns: 3
+      },
+      showLinkDialog: false,
+      linkForm: {
+        url: '',
+        text: ''
+      },
+      showLinkButton: false,
+      linkButtonPosition: {
+        top: '0px',
+        left: '0px'
       }
     }
   },
@@ -609,6 +662,9 @@ export default {
       onUpdate: ({ editor }) => {
         this.$emit('update:modelValue', editor.getHTML())
         this.handleMentions(editor)
+      },
+      onSelectionUpdate: ({ editor }) => {
+        this.handleSelectionChange(editor)
       }
     })
 
@@ -992,6 +1048,28 @@ export default {
       }
     },
 
+    handleSelectionChange(editor) {
+      const { from, to } = editor.state.selection
+      const selectedText = editor.state.doc.textBetween(from, to)
+      
+      if (selectedText.trim() && from !== to) {
+        // Show floating link button
+        this.showLinkButton = true
+        
+        // Position the button near the selection
+        const coords = editor.view.coordsAtPos(from)
+        const editorRect = editor.view.dom.getBoundingClientRect()
+        
+        this.linkButtonPosition = {
+          top: `${coords.top - editorRect.top - 40}px`,
+          left: `${coords.left - editorRect.left}px`
+        }
+      } else {
+        // Hide floating link button
+        this.showLinkButton = false
+      }
+    },
+
     async createNotification(userId) {
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -1104,6 +1182,60 @@ export default {
     deleteColumn() {
       this.editor.chain().focus().deleteColumn().run();
     },
+    setLink() {
+      const { from, to } = this.editor.state.selection
+      const selectedText = this.editor.state.doc.textBetween(from, to)
+      
+      // Pre-fill the form with selected text if any
+      this.linkForm.text = selectedText
+      this.linkForm.url = ''
+      
+      this.showLinkDialog = true
+    },
+    saveLink() {
+      if (!this.linkForm.url.trim()) {
+        ElMessage.warning('Please enter a URL')
+        return
+      }
+      
+      const url = this.linkForm.url.trim()
+      
+      // Validate URL format
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        this.linkForm.url = 'https://' + url
+      }
+      
+      const { from, to } = this.editor.state.selection
+      const selectedText = this.editor.state.doc.textBetween(from, to)
+      
+      if (selectedText && !this.linkForm.text.trim()) {
+        // Use selected text as link text
+        this.editor
+          .chain()
+          .focus()
+          .setLink({ href: this.linkForm.url })
+          .run()
+      } else if (this.linkForm.text.trim()) {
+        // Insert new link with custom text
+        this.editor
+          .chain()
+          .focus()
+          .insertContent(`<a href="${this.linkForm.url}" target="_blank" rel="noopener noreferrer">${this.linkForm.text}</a>`)
+          .run()
+      } else {
+        // Insert URL as link text
+        this.editor
+          .chain()
+          .focus()
+          .insertContent(`<a href="${this.linkForm.url}" target="_blank" rel="noopener noreferrer">${this.linkForm.url}</a>`)
+          .run()
+      }
+      
+      // Reset form and close dialog
+      this.linkForm.url = ''
+      this.linkForm.text = ''
+      this.showLinkDialog = false
+    }
   }
 }
 </script>
@@ -1683,5 +1815,32 @@ export default {
 
 .table-icon-delete-column {
   background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='1' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='11' y='6' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='11' y='11' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3C/svg%3E");
+}
+
+/* Floating Link Button */
+.floating-link-button {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: auto;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.floating-link-button .el-button {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 4px 8px;
+  height: auto;
+  min-height: 28px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

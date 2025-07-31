@@ -78,6 +78,16 @@
                           <el-icon><Delete /></el-icon>
                           Delete portfolio
                         </el-dropdown-item>
+                        <el-dropdown-item 
+                          @click.stop
+                          divided>
+                          <el-checkbox 
+                            v-model="portfolioReadonlyState[portfolio.id]" 
+                            @change="handleReadonlyChange(portfolio.id, $event)"
+                            @click.stop>
+                            Readonly
+                          </el-checkbox>
+                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
@@ -91,7 +101,7 @@
               <div class="spreadsheets-container">
                 <SpreadsheetInstance
                   v-for="spreadsheet in getPortfolioSpreadsheets(portfolio.id)"
-                  :key="spreadsheet.id"
+                  :key="`${spreadsheet.id}-${getPortfolioReadonlyState(portfolio.id)}`"
                   :spreadsheet-id="spreadsheet.id"
                   :spreadsheet-name="spreadsheet.name"
                   :initial-rows="spreadsheet.rows"
@@ -99,6 +109,7 @@
                   :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
                   :matter-id="currentMatterId"
                   :portfolio-id="portfolio.id"
+                  :readonly="getPortfolioReadonlyState(portfolio.id)"
                   @remove-spreadsheet="removeSpreadsheet"
                 />
               </div>
@@ -304,6 +315,16 @@ export default {
     const portfolios = ref([]);
     const activePortfolioId = ref('');
     const spreadsheets = ref([]); // All spreadsheets across all portfolios
+    
+    // Readonly state for portfolios
+    const portfolioReadonlyState = ref({}); // Store readonly state for each portfolio
+    
+    // Computed function to get readonly state for a portfolio
+    const getPortfolioReadonlyState = (portfolioId) => {
+      const readonlyState = portfolioReadonlyState.value[portfolioId] || false;
+      console.log(`🔍 Getting readonly state for portfolio ${portfolioId}:`, readonlyState);
+      return readonlyState;
+    };
     
     // Dialog states
     const addPortfolioDialogVisible = ref(false);
@@ -527,8 +548,17 @@ export default {
             id: portfolio.portfolio_id,
             name: portfolio.portfolio_name,
             createdAt: new Date(portfolio.created_at),
-            lastUpdated: new Date(portfolio.updated_at).toLocaleDateString()
+            lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
+            isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : true
           }));
+          
+          // Initialize readonly state for each portfolio (default to true)
+          const newReadonlyState = {};
+          portfolioData.forEach(portfolio => {
+            newReadonlyState[portfolio.portfolio_id] = portfolio.is_readonly !== undefined ? portfolio.is_readonly : true;
+          });
+          portfolioReadonlyState.value = newReadonlyState;
+          
           console.log(`📊 Loaded ${portfolios.value.length} portfolios`);
         } else {
           // Create default portfolio
@@ -601,8 +631,15 @@ export default {
           id: portfolioId,
           name: 'Portfolio 1',
           createdAt: new Date(),
-          lastUpdated: 'Just created'
+          lastUpdated: 'Just created',
+          isReadonly: true
         }];
+        
+        // Initialize readonly state for the new portfolio
+        portfolioReadonlyState.value = {
+          ...portfolioReadonlyState.value,
+          [portfolioId]: true
+        };
         
         console.log(`✅ Created default portfolio: ${portfolioId}`);
       } catch (error) {
@@ -704,10 +741,17 @@ export default {
           id: portfolioId,
           name: newPortfolioForm.value.name,
           createdAt: new Date(),
-          lastUpdated: 'Just created'
+          lastUpdated: 'Just created',
+          isReadonly: true
         };
         
         portfolios.value.push(newPortfolio);
+        
+        // Initialize readonly state for the new portfolio
+        portfolioReadonlyState.value = {
+          ...portfolioReadonlyState.value,
+          [portfolioId]: true
+        };
         
         // Create default spreadsheet in new portfolio
         await createDefaultSpreadsheet(portfolioId);
@@ -774,6 +818,10 @@ export default {
         // Remove from local state
         portfolios.value = portfolios.value.filter(p => p.id !== portfolioId);
         spreadsheets.value = spreadsheets.value.filter(s => s.portfolioId !== portfolioId);
+        
+        // Clean up readonly state
+        const { [portfolioId]: removed, ...remainingReadonlyState } = portfolioReadonlyState.value;
+        portfolioReadonlyState.value = remainingReadonlyState;
         
         // Switch to first portfolio if deleted was active
         if (activePortfolioId.value === portfolioId && portfolios.value.length > 0) {
@@ -978,6 +1026,51 @@ export default {
       });
     };
 
+    // Handle readonly state change for a portfolio
+    const handleReadonlyChange = async (portfolioId, checked) => {
+      console.log(`🔄 handleReadonlyChange called for portfolio ${portfolioId} with checked=${checked}`);
+      
+      if (!currentMatterId.value) {
+        ElMessage.error('No workspace selected');
+        return;
+      }
+
+      try {
+        // Update the local state first and trigger reactivity
+        portfolioReadonlyState.value = {
+          ...portfolioReadonlyState.value,
+          [portfolioId]: checked
+        };
+        
+        console.log(`✅ Updated readonly state for portfolio ${portfolioId}:`, portfolioReadonlyState.value);
+        
+        /*
+        const { error } = await supabase
+          .from('portfolio_data')
+          .update({ is_readonly: checked })
+          .eq('portfolio_id', portfolioId)
+          .eq('matter_id', currentMatterId.value);
+
+        if (error) throw error;
+        */
+
+        const portfolioIndex = portfolios.value.findIndex(p => p.id === portfolioId);
+        if (portfolioIndex > -1) {
+          portfolios.value[portfolioIndex].isReadonly = checked;
+        }
+        
+        const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
+        ElMessage.success(`Portfolio "${portfolioName}" is now ${checked ? 'Readonly' : 'Editable'}.`);
+      } catch (error) {
+        console.error('Error updating portfolio readonly state:', error);
+        ElMessage.error('Failed to update portfolio readonly state: ' + error.message);
+        // Revert the local state if the database update failed
+        portfolioReadonlyState.value = {
+          ...portfolioReadonlyState.value,
+          [portfolioId]: !checked
+        };
+      }
+    };
 
 
     // Initialize component
@@ -1018,6 +1111,7 @@ export default {
       contextMenuY,
       selectedPortfolio,
       editingPortfolio,
+      portfolioReadonlyState,
       portfolioFormRef,
       editPortfolioFormRef,
       spreadsheetFormRef,
@@ -1039,7 +1133,9 @@ export default {
       hideContextMenu,
       editPortfolioName,
       updatePortfolioName,
-      handlePortfolioAction
+      handlePortfolioAction,
+      handleReadonlyChange,
+      getPortfolioReadonlyState
     };
   },
 };

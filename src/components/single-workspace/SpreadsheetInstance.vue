@@ -45,6 +45,8 @@ import { useMatterStore } from '../../store/matter';
 import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
 
+
+/*
 // Univer core with locale support
 // import { LocaleType, merge, Univer, UniverInstanceType } from '@univerjs/core';
 
@@ -86,7 +88,7 @@ import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-numfmt-ui/lib/index.css';
 import '@univerjs/sheets-note-ui/lib/index.css';
 
-
+*/
 
 
 
@@ -137,6 +139,10 @@ import '@univerjs/preset-sheets-note/lib/index.css'
         type: String,
         required: false,
         default: null
+      },
+      readonly: {
+        type: Boolean,
+        default: false
       }
     })
 
@@ -249,6 +255,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
     
     let univer = null;
     let univerAPI = null;
+    let editEventListener = null;
     const portfolioData = ref({});
     const saving = ref(false);
     const portfolioId = ref(null);
@@ -414,12 +421,14 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             UniverSheetsCorePreset({
               //container: container.value as HTMLElement,
               container: `univer-container-${props.spreadsheetId}`,
-              header: true, // Show header when not readonly
-              toolbar: true, // Show toolbar when not readonly
+              header: !props.readonly, // Show header when not readonly
+              toolbar: !props.readonly, // Show toolbar when not readonly
             }),
             UniverSheetsNotePreset(),
           ],
-        });
+        })
+
+        
         
         // Store both univer and univerAPI for global access
         univer = univerInstance.univer;
@@ -993,6 +1002,13 @@ import '@univerjs/preset-sheets-note/lib/index.css'
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
+
+        // Add readonly event listener if needed
+        if (props.readonly) {
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            params.cancel = true
+          })
+        }
 
         // Start formula processing after workbook is created
         setTimeout(() => {

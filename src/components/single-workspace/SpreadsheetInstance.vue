@@ -666,7 +666,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
                     id: CONTEXT_MENU_EDIT_INFO_OPERATION.id,
                     type: MenuItemType.BUTTON,
                     icon: 'EditInfoIcon',
-                    title: 'Edit info',
+                    title: 'View Edit info',
                     tooltip: 'This is an example context menu item'
                   }),
                 },

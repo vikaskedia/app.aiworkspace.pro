@@ -88,43 +88,49 @@ import '@univerjs/sheets-note-ui/lib/index.css';
 
 
 
+// Univer presets imports
+//import { createUniver, LocaleType, merge, UniverInstanceType } from '@univerjs/presets'
+//import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
+//import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 
-// Define props
-const props = defineProps({
-  spreadsheetId: {
-    type: String,
-    required: true
-  },
-  spreadsheetName: {
-    type: String,
-    required: true
-  },
-  initialRows: {
-    type: Number,
-    default: 10
-  },
-  initialColumns: {
-    type: Number,
-    default: 10
-  },
-  canRemove: {
-    type: Boolean,
-    default: true
-  },
-  matterId: {
-    type: Number,
-    required: false,
-    default: null
-  },
-  portfolioId: {
-    type: String,
-    required: false,
-    default: null
-  }
-})
 
-// Define emits
-const emit = defineEmits(['remove-spreadsheet'])
+
+    // Define props
+    const props = defineProps({
+      spreadsheetId: {
+        type: String,
+        required: true
+      },
+      spreadsheetName: {
+        type: String,
+        required: true
+      },
+      initialRows: {
+        type: Number,
+        default: 10
+      },
+      initialColumns: {
+        type: Number,
+        default: 10
+      },
+      canRemove: {
+        type: Boolean,
+        default: true
+      },
+      matterId: {
+        type: Number,
+        required: false,
+        default: null
+      },
+      portfolioId: {
+        type: String,
+        required: false,
+        default: null
+      }
+    })
+
+    // Define emits
+    const emit = defineEmits(['remove-spreadsheet'])
 
 
     // Matter store for workspace context
@@ -146,6 +152,619 @@ const emit = defineEmits(['remove-spreadsheet'])
     const currentRowCount = ref(props.initialRows);
     const hasUnsavedChanges = ref(false);
     const isInitializing = ref(true); // Prevent change detection during initial load
+
+    // Workbook data structure
+    const WORKBOOK_DATA = {
+      id: `workbook-${props.spreadsheetId}`,
+      locale: LocaleType.EN_US,
+      name: props.spreadsheetName,
+      sheetOrder: [],
+      sheets: {},
+      styles: {},
+      resources: [
+              {
+                name: 'SHEET_NOTE_PLUGIN',
+                data: '{"sheet-01":{}}'
+              },
+              {
+                name: 'SHEET_RANGE_PROTECTION_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_AuthzIoMockService_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_WORKSHEET_PROTECTION_POINT_PLUGIN',
+                data: "{}"
+              },
+              {
+                name: 'SHEET_DEFINED_NAME_PLUGIN',
+                data: ""
+              },
+              {
+                name: 'SHEET_RANGE_THEME_MODEL_PLUGIN',
+                data: "{}"
+              }
+            ]
+    };
+
+    const initializeUniver = async () => {
+      try {
+        console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
+
+        // Store references to functions for menu commands
+        const emitFunction = emit;
+        const saveFunction = manualSave;
+
+        // Load complete workbook data from Supabase first
+        const workbookData = await loadPortfolioData();
+        
+        // Use the loaded workbook data or create default structure
+        if (workbookData && workbookData.sheets) {
+          // Use the complete workbook data from Supabase
+          Object.assign(WORKBOOK_DATA, workbookData);
+          portfolioData.value = workbookData;
+          
+          // IMPORTANT: Ensure styles are at the root level of WORKBOOK_DATA
+          if (workbookData.styles) {
+            WORKBOOK_DATA.styles = { ...workbookData.styles };
+            realTimeStyleRegistry.value = { ...workbookData.styles };
+            console.log(`✅ Loaded ${Object.keys(workbookData.styles).length} styles from Supabase`);
+            console.log(`📊 Loaded styles applied to WORKBOOK_DATA:`, WORKBOOK_DATA.styles);
+          } else {
+            console.log(`⚠️ No styles found in loaded workbook data`);
+          }
+          
+          // Update current row count from loaded data
+          const firstSheet = Object.values(workbookData.sheets)[0];
+          if (firstSheet && firstSheet.rowCount) {
+            currentRowCount.value = firstSheet.rowCount;
+            console.log(`📏 Set current row count from loaded data (${props.spreadsheetId}):`, firstSheet.rowCount);
+          }
+          
+          console.log(`📊 Loaded complete workbook with features (${props.spreadsheetId}):`, {
+            id: WORKBOOK_DATA.id,
+            name: WORKBOOK_DATA.name,
+            sheets: Object.keys(WORKBOOK_DATA.sheets),
+            sheetOrder: WORKBOOK_DATA.sheetOrder,
+            stylesCount: WORKBOOK_DATA.styles ? Object.keys(WORKBOOK_DATA.styles).length : 0,
+            hasStylesInWorkbookData: !!(WORKBOOK_DATA.styles),
+            rowCount: currentRowCount.value
+          });
+        } else {
+          // Fallback to default workbook structure
+          WORKBOOK_DATA.sheets = {
+            'sheet-01': {
+              id: 'sheet-01',
+              name: props.spreadsheetName,
+              cellData: {},
+              tabColor: '',
+              hidden: 0,
+              rowCount: props.initialRows,
+              columnCount: props.initialColumns,
+              zoomRatio: 1,
+              scrollTop: 0,
+              scrollLeft: 0,
+              defaultColumnWidth: 120,
+              defaultRowHeight: 27,
+              mergeData: [],
+              rowData: {},
+              columnData: {},
+              showGridlines: 1,
+              rowHeader: {
+                width: 46,
+                hidden: 0,
+              },
+              columnHeader: {
+                height: 20,
+                hidden: 0,
+              },
+              selections: ['A1'],
+              rightToLeft: 0,
+            }
+          };
+          WORKBOOK_DATA.sheetOrder = ['sheet-01'];
+          WORKBOOK_DATA.styles = {}; // Ensure styles property exists
+        }
+
+        // Create Univer instance with locales - exactly as in documentation
+        univer = new Univer({
+          locale: LocaleType.EN_US,
+          locales: {
+            [LocaleType.EN_US]: merge(
+              {},
+              DesignEnUS,
+              UIEnUS,
+              DocsUIEnUS,
+              SheetsEnUS,
+              SheetsUIEnUS,
+              SheetsFormulaUIEnUS,
+              SheetsNumfmtUIEnUS,
+              SheetsNoteUIEnUS,
+            ),
+          },
+        });
+
+        // Register plugins in exact order from documentation
+        univer.registerPlugin(UniverRenderEnginePlugin);
+        univer.registerPlugin(UniverFormulaEnginePlugin);
+        univer.registerPlugin(UniverUIPlugin, {
+          container: `univer-container-${props.spreadsheetId}`,
+        });
+
+        univer.registerPlugin(UniverDocsPlugin);
+        univer.registerPlugin(UniverDocsUIPlugin);
+
+        univer.registerPlugin(UniverSheetsPlugin);
+        univer.registerPlugin(UniverSheetsUIPlugin);
+        univer.registerPlugin(UniverSheetsFormulaPlugin);
+        univer.registerPlugin(UniverSheetsFormulaUIPlugin);
+        univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+
+
+        // Register annotation plugins
+        univer.registerPlugin(UniverSheetsNotePlugin);
+        univer.registerPlugin(UniverSheetsNoteUIPlugin);
+
+        // Add custom menu directly using Univer's injector (official documentation pattern)
+        try {
+          console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
+          
+          // Wait for Univer to be fully initialized
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to get the injector through different methods
+          let injector = null;
+          
+          // Method 1: Try the internal injector property
+          if (univer._injector) {
+            injector = univer._injector;
+            console.log('✅ Got injector from _injector property');
+          }
+          // Method 2: Try through context
+          else if (univer.getContext && univer.getContext().injector) {
+            injector = univer.getContext().injector;
+            console.log('✅ Got injector from context');
+          }
+          // Method 3: Try accessing it differently
+          else if (univer.__container) {
+            injector = univer.__container;
+            console.log('✅ Got injector from __container property');
+          }
+          
+          if (!injector) {
+            console.warn('⚠️ Could not access injector, custom menu will not be added');
+            return;
+          }
+          
+          // Import custom menu dependencies
+          const { ICommandService, CommandType } = await import('@univerjs/core');
+          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType } = await import('@univerjs/ui');
+          
+          // Get services
+          const commandService = injector.get(ICommandService);
+          const menuManagerService = injector.get(IMenuManagerService);
+          const componentManager = injector.get(ComponentManager);
+          
+          console.log('✅ Got all required services from injector');
+          
+          // Define custom commands
+          const DROPDOWN_FIRST_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-first-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Save spreadsheet functionality
+              console.log('💾 Save operation triggered from dropdown menu');
+              try {
+                await saveFunction();
+                console.log('✅ Save operation completed successfully');
+              } catch (error) {
+                console.error('❌ Save operation failed:', error);
+              }
+              return true;
+            },
+          };
+          
+          const DROPDOWN_SECOND_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-second-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Delete spreadsheet functionality
+              console.log('🗑️ Delete operation triggered from dropdown menu');
+              if (props.canRemove) {
+                try {
+                  // Directly emit the delete event - parent component will handle confirmation
+                  emitFunction('remove-spreadsheet', props.spreadsheetId);
+                  console.log('✅ Delete operation initiated successfully');
+                } catch (error) {
+                  console.error('❌ Delete operation failed:', error);
+                }
+              } else {
+                alert('Cannot delete the last spreadsheet in a portfolio');
+                console.log('⚠️ Delete operation blocked - last spreadsheet in portfolio');
+              }
+              return true;
+            },
+          };
+          
+          const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
+          
+          // Register commands
+          commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
+          commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
+          console.log('✅ Custom menu commands registered');
+          
+          // Register simple icon components (using createElement directly)
+          const SaveIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C13.66 12 15 13.34 15 15S13.66 18 12 18 9 16.66 9 15 10.34 12 12 12'
+            }));
+          };
+          
+          const DeleteIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z'
+            }));
+          };
+          
+          const MainButtonIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
+            }));
+          };
+          
+          componentManager.register('SaveIcon', SaveIcon);
+          componentManager.register('DeleteIcon', DeleteIcon);
+          componentManager.register('MainButtonIcon', MainButtonIcon);
+          console.log('✅ Custom menu components registered');
+          
+          // Register menu items using proper factory functions
+          menuManagerService.mergeMenu({
+            [RibbonStartGroup.OTHERS]: {
+              [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
+                order: 10,
+                menuItemFactory: () => ({
+                  id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
+                  type: MenuItemType.SUBITEMS,
+                  icon: 'MainButtonIcon',
+                  tooltip: 'Spreadsheet Actions (Save & Delete)',
+                  title: 'Actions',
+                }),
+                [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
+                  order: 0,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_FIRST_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Save',
+                  }),
+                },
+                [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
+                  order: 1,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_SECOND_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Delete',
+                  }),
+                },
+              },
+            },
+          });
+          
+          console.log('✅ Custom menu items registered');
+          console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
+          
+          // Set up change detection for unsaved changes indicator
+          try {
+            console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
+            
+            // Listen for annotation-related commands
+            commandService.onCommandExecuted((command) => {
+              if (command.id.includes('comment') || command.id.includes('note') || command.id.includes('annotation')) {
+                console.log('📝 Annotation command detected:', command.id);
+                handleAnnotationChange(command);
+              }
+            });
+
+            // Listen for any command that modifies worksheet data
+            let commandDebounceTimer = null;
+            const originalExecuteCommand = commandService.executeCommand;
+            
+            commandService.executeCommand = function(...args) {
+              const commandId = args[0];
+              console.log(`🔥 Command executed:`, commandId, args);
+              
+              const result = originalExecuteCommand.apply(this, args);
+              
+              // Commands that indicate potential data changes
+              if (commandId && typeof commandId === 'string') {
+                if (commandId.includes('set-cell') || 
+                    commandId.includes('set-range') ||
+                    commandId.includes('paste') ||
+                    commandId.includes('cut') ||
+                    commandId.includes('clear') ||
+                    commandId.includes('delete') ||
+                    commandId.includes('insert') ||
+                    commandId.includes('formula')) {
+                  console.log(`🔥 Potential data-modifying command detected: ${commandId}`);
+                  
+                  // Clear any existing timer
+                  if (commandDebounceTimer) {
+                    clearTimeout(commandDebounceTimer);
+                  }
+                  
+                  // Wait before checking to ensure command is fully processed
+                  commandDebounceTimer = setTimeout(() => {
+                    markAsUnsaved(); // This now uses smart detection internally
+                  }, 300); // Wait 300ms for command to complete
+                }
+              }
+              
+              return result;
+            };
+            
+            console.log(`📝 Command interception set up for ${props.spreadsheetId}`);
+            
+          } catch (changeDetectionError) {
+            console.warn(`⚠️ Could not set up command detection for ${props.spreadsheetId}:`, changeDetectionError);
+          }
+          
+          // Smart fallback change detection via DOM events with debouncing
+          setTimeout(() => {
+            const container = document.getElementById(`univer-container-${props.spreadsheetId}`);
+            console.log(`🔥 Setting up smart DOM event detection for ${props.spreadsheetId}, container:`, container);
+            
+            if (container) {
+              let debounceTimer = null;
+              
+              // Debounced change handler that actually checks for real changes
+              const handlePotentialChange = () => {
+                console.log(`🔥 Potential DOM change detected in ${props.spreadsheetId}, checking...`);
+                
+                // Clear any existing timer
+                if (debounceTimer) {
+                  clearTimeout(debounceTimer);
+                }
+                
+                // Wait a bit before checking to ensure all DOM updates are complete
+                debounceTimer = setTimeout(() => {
+                  markAsUnsaved(); // This now uses smart detection internally
+                }, 500); // Wait 500ms to ensure change is complete
+              };
+              
+              // Listen for events that might indicate real changes
+              // Use 'blur' instead of 'input' to avoid false positives from just clicking
+              container.addEventListener('blur', handlePotentialChange, true);
+              container.addEventListener('paste', handlePotentialChange);
+              // Remove 'keypress' as it triggers on any key, add 'change' instead
+              container.addEventListener('change', handlePotentialChange);
+              
+              console.log(`📝 Smart DOM event detection set up for ${props.spreadsheetId} with debouncing`);
+            }
+          }, 3000); // Wait longer for DOM to be ready
+          
+        } catch (error) {
+          console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);
+          console.error('Error details:', error);
+        }
+
+        // TASKSTATUS formula processor - fetches real task status from database
+        const processTaskStatusFormulas = async () => {
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            if (!currentData || !currentData.sheets) return;
+            
+            let processedCount = 0;
+            let needsReload = false;
+            
+            // Helper function to format status for display
+            const formatTaskStatus = (status) => {
+              const statusMap = {
+                'not_started': 'Not Started',
+                'in_progress': 'In Progress',
+                'awaiting_external': 'Awaiting External',
+                'awaiting_internal': 'Awaiting Internal',
+                'completed': 'Completed'
+              };
+              return statusMap[status] || status || 'Unknown';
+            };
+            
+            // Process each sheet
+            for (const sheetId of Object.keys(currentData.sheets)) {
+              const sheet = currentData.sheets[sheetId];
+              if (!sheet.cellData) continue;
+              
+              // Process each row
+              for (const row of Object.keys(sheet.cellData)) {
+                // Process each column
+                for (const col of Object.keys(sheet.cellData[row])) {
+                  const cell = sheet.cellData[row][col];
+                  if (cell && cell.f && typeof cell.f === 'string') {
+                    const formula = cell.f.trim();
+                    const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                    
+                    if (taskStatusMatch) {
+                      const taskId = parseInt(taskStatusMatch[1], 10);
+                      if (!isNaN(taskId)) {
+                        try {
+                          console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
+                          
+                          // Fetch task from database
+                          const task = await taskStore.getTaskById(taskId);
+                          
+                          if (task && task.status) {
+                            const formattedStatus = formatTaskStatus(task.status);
+                            
+                            // Update the cell value and remove formula
+                            cell.v = formattedStatus;
+                            delete cell.f;
+                            
+                            console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                            
+                            // Show user notification
+                            ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
+                            
+                            processedCount++;
+                            needsReload = true;
+                          } else {
+                            // Task not found or has no status
+                            cell.v = 'Task Not Found';
+                            delete cell.f;
+                            
+                            console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
+                            ElMessage.warning(`Task ${taskId} not found or not accessible`);
+                            
+                            processedCount++;
+                            needsReload = true;
+                          }
+                        } catch (fetchError) {
+                          console.error(`❌ Error fetching task ${taskId}:`, fetchError);
+                          
+                          // Update cell with error message
+                          cell.v = 'Access Denied';
+                          delete cell.f;
+                          
+                          ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
+                          
+                          processedCount++;
+                          needsReload = true;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (needsReload) {
+              console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
+              
+              // Update portfolio data
+              portfolioData.value = { ...currentData };
+              
+              // Save to database
+              try {
+                await savePortfolioData(currentData);
+                console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
+              } catch (saveError) {
+                console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
+              }
+              
+              // Trigger data refresh
+              console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
+          }
+        };
+        
+        // Start monitoring for TASKSTATUS formulas
+        console.log(`🔧 Starting TASKSTATUS formula processor (${props.spreadsheetId})...`);
+
+        // Create workbook with loaded data and styles
+        console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
+        univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
+
+        // Start formula processing after workbook is created
+        setTimeout(() => {
+          // Process immediately
+          processTaskStatusFormulas();
+          
+          // Then process every 2 seconds for faster response
+          const formulaInterval = setInterval(processTaskStatusFormulas, 2000);
+          
+          // Store interval for cleanup
+          if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
+          window.taskStatusIntervals.set(props.spreadsheetId, formulaInterval);
+          
+          console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
+        }, 1000);
+
+        // Enable change tracking with error handling
+        setTimeout(() => {
+          try {
+            trackSheetChanges();
+            updateLocalSheetData();
+            updateRowCount();
+            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
+          } catch (trackingError) {
+            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
+            // Continue without change tracking rather than failing completely
+          }
+        }, 500);
+        
+        console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
+        
+        // Mark initialization as complete after a delay to ensure all setup is done
+        setTimeout(() => {
+          isInitializing.value = false;
+          
+          // Establish initial data state for comparison after initialization
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            const currentHash = getDataHash(currentData);
+            lastKnownDataState.value = currentHash;
+            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
+          } catch (error) {
+            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
+          }
+          
+          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
+        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
+        
+      } catch (error) {
+        console.error(`❌ Failed to initialize Univer (${props.spreadsheetId}):`, error);
+        ElMessage.error(`Failed to initialize ${props.spreadsheetName}: ${error.message}`);
+      }
+    };
+
+    onMounted(() => {
+      // Ensure DOM is ready before initialization
+      setTimeout(() => {
+        initializeUniver();
+      }, 100);
+    });
+
+    onBeforeUnmount(() => {
+      // Clean up TASKSTATUS formula processor
+      if (window.taskStatusIntervals && window.taskStatusIntervals.has(props.spreadsheetId)) {
+        clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
+        window.taskStatusIntervals.delete(props.spreadsheetId);
+        console.log(`🧹 Cleaned up TASKSTATUS processor for ${props.spreadsheetId}`);
+      }
+      
+      if (univer) {
+        try {
+          univer.dispose();
+          console.log(`📤 Univer disposed successfully (${props.spreadsheetId})`);
+        } catch (error) {
+          console.warn(`⚠️ Error disposing Univer (${props.spreadsheetId}):`, error);
+        }
+      }
+    });
 
     // Computed height based on actual row count - exact fit without scrollbars
     const containerHeight = computed(() => {
@@ -952,733 +1571,121 @@ const emit = defineEmits(['remove-spreadsheet'])
 
 
 
-const handleAnnotationChange = async (command) => {
+    const handleAnnotationChange = async (command) => {
 
-  try {
-    console.log('🎯 Annotation change detected:', command);
-    
-    if (command.params) {
-        console.log('📝 Using command parameters for annotation update:', command.params);
-        updateWorkbookDataWithAnnotations(command.params);
-      }
-  } catch (error) {
-    console.error('❌ Error handling annotation change:', error);
-  }
-}
-
-const updateWorkbookDataWithAnnotations = (annotations) => {
-  // 1. get the latest note annotations
-  // 2. fetch the sheet_note_plugin data
-  // 3. update the sheet_note_plugin data with the latest annotations
-  // 4. update the WORKBOOK_DATA_WITH_ANNOTATIONS with the latest sheet_note_plugin data
-
-  try {
-    console.log('🔄 Updating workbook data with annotations:', annotations);
-    
-    // Handle different annotation data formats
-    let annotationData = null;
-    
-    if (annotations && annotations.params) {
-      // Handle the specific annotation JSON structure
-      annotationData = {
-        row: annotations.params.row,
-        col: annotations.params.col,
-        note: annotations.params.note
-      };
-      console.log('📝 Processing annotation data:', annotationData);
-    } else if (annotations && typeof annotations === 'object') {
-      // Handle other annotation formats
-      annotationData = annotations;
-      console.log('📝 Processing generic annotation data:', annotationData);
-    } else {
-      console.log('⚠️ No valid annotation data provided');
-      return;
-    }
-
-    // Get the current SHEET_NOTE_PLUGIN data 
-    const notePluginResource = WORKBOOK_DATA.resources.find(
-      resource => resource.name === 'SHEET_NOTE_PLUGIN'
-    );
-    
-    if (!notePluginResource) {
-      console.warn('⚠️ SHEET_NOTE_PLUGIN resource not found');
-      return;
-    }
-    
-    // Parse the current data
-    let noteData = {};
-    try {
-      noteData = JSON.parse(notePluginResource.data);
-    } catch (e) {
-      noteData = { 'sheet-01': {} };
-    }
-    
-    // Ensure sheet-01 exists
-    if (!noteData['sheet-01']) {
-      noteData['sheet-01'] = {};
-    }
-    
-    // Update with the latest annotation
-    if (annotationData && annotationData.row !== undefined && annotationData.col !== undefined) {
-      const row = annotationData.row;
-      const col = annotationData.col;
-      
-      // Ensure row exists
-      if (!noteData['sheet-01'][row]) {
-        noteData['sheet-01'][row] = {};
-      }
-      
-      // Update the annotation
-      if (annotationData.note) {
-        noteData['sheet-01'][row][col] = {
-          width: annotationData.note.width || 160,
-          height: annotationData.note.height || 72,
-          note: annotationData.note.note || 'Annotation',
-          show: false
-        };
-        
-        console.log(`📝 Updated annotation at [${row}, ${col}]:`, {
-          width: annotationData.note.width || 160,
-          height: annotationData.note.height || 72,
-          note: annotationData.note.note || 'Annotation'
-        });
-      } else {
-        // Remove annotation if note is null/undefined
-        if (noteData['sheet-01'][row][col]) {
-          delete noteData['sheet-01'][row][col];
-          console.log(`🗑️ Removed annotation at [${row}, ${col}]`);
-        }
-        
-        // Clean up empty rows
-        if (Object.keys(noteData['sheet-01'][row]).length === 0) {
-          delete noteData['sheet-01'][row];
-        }
-      }
-    }
-    
-    // Update the resource data
-    notePluginResource.data = JSON.stringify(noteData);
-    
-    console.log('✅ Updated SHEET_NOTE_PLUGIN data:', notePluginResource.data);
-    console.log('🔄 Updated WORKBOOK_DATA:', WORKBOOK_DATA);
-    
-  } catch (error) {
-    console.error('❌ Error updating workbook data with annotations:', error);
-  }
-}
-
-    // Workbook data structure
-    const WORKBOOK_DATA = {
-      id: `workbook-${props.spreadsheetId}`,
-      locale: LocaleType.EN_US,
-      name: props.spreadsheetName,
-      sheetOrder: [],
-      sheets: {},
-      styles: {},
-      resources: [
-              {
-                name: 'SHEET_NOTE_PLUGIN',
-                data: '{"sheet-01":{}}'
-              },
-              {
-                name: 'SHEET_RANGE_PROTECTION_PLUGIN',
-                data: ""
-              },
-              {
-                name: 'SHEET_AuthzIoMockService_PLUGIN',
-                data: "{}"
-              },
-              {
-                name: 'SHEET_WORKSHEET_PROTECTION_PLUGIN',
-                data: "{}"
-              },
-              {
-                name: 'SHEET_WORKSHEET_PROTECTION_POINT_PLUGIN',
-                data: "{}"
-              },
-              {
-                name: 'SHEET_DEFINED_NAME_PLUGIN',
-                data: ""
-              },
-              {
-                name: 'SHEET_RANGE_THEME_MODEL_PLUGIN',
-                data: "{}"
-              }
-            ]
-    };
-
-    const initializeUniver = async () => {
       try {
-        console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
-
-        // Store references to functions for menu commands
-        const emitFunction = emit;
-        const saveFunction = manualSave;
-
-        // Load complete workbook data from Supabase first
-        const workbookData = await loadPortfolioData();
+        console.log('🎯 Annotation change detected:', command);
         
-        // Use the loaded workbook data or create default structure
-        if (workbookData && workbookData.sheets) {
-          // Use the complete workbook data from Supabase
-          Object.assign(WORKBOOK_DATA, workbookData);
-          portfolioData.value = workbookData;
-          
-          // IMPORTANT: Ensure styles are at the root level of WORKBOOK_DATA
-          if (workbookData.styles) {
-            WORKBOOK_DATA.styles = { ...workbookData.styles };
-            realTimeStyleRegistry.value = { ...workbookData.styles };
-            console.log(`✅ Loaded ${Object.keys(workbookData.styles).length} styles from Supabase`);
-            console.log(`📊 Loaded styles applied to WORKBOOK_DATA:`, WORKBOOK_DATA.styles);
-          } else {
-            console.log(`⚠️ No styles found in loaded workbook data`);
+        if (command.params) {
+            console.log('📝 Using command parameters for annotation update:', command.params);
+            updateWorkbookDataWithAnnotations(command.params);
           }
-          
-          // Update current row count from loaded data
-          const firstSheet = Object.values(workbookData.sheets)[0];
-          if (firstSheet && firstSheet.rowCount) {
-            currentRowCount.value = firstSheet.rowCount;
-            console.log(`📏 Set current row count from loaded data (${props.spreadsheetId}):`, firstSheet.rowCount);
-          }
-          
-          console.log(`📊 Loaded complete workbook with features (${props.spreadsheetId}):`, {
-            id: WORKBOOK_DATA.id,
-            name: WORKBOOK_DATA.name,
-            sheets: Object.keys(WORKBOOK_DATA.sheets),
-            sheetOrder: WORKBOOK_DATA.sheetOrder,
-            stylesCount: WORKBOOK_DATA.styles ? Object.keys(WORKBOOK_DATA.styles).length : 0,
-            hasStylesInWorkbookData: !!(WORKBOOK_DATA.styles),
-            rowCount: currentRowCount.value
-          });
+      } catch (error) {
+        console.error('❌ Error handling annotation change:', error);
+      }
+    }
+
+    const updateWorkbookDataWithAnnotations = (annotations) => {
+      // 1. get the latest note annotations
+      // 2. fetch the sheet_note_plugin data
+      // 3. update the sheet_note_plugin data with the latest annotations
+      // 4. update the WORKBOOK_DATA_WITH_ANNOTATIONS with the latest sheet_note_plugin data
+
+      try {
+        console.log('🔄 Updating workbook data with annotations:', annotations);
+        
+        // Handle different annotation data formats
+        let annotationData = null;
+        
+        if (annotations && annotations.params) {
+          // Handle the specific annotation JSON structure
+          annotationData = {
+            row: annotations.params.row,
+            col: annotations.params.col,
+            note: annotations.params.note
+          };
+          console.log('📝 Processing annotation data:', annotationData);
+        } else if (annotations && typeof annotations === 'object') {
+          // Handle other annotation formats
+          annotationData = annotations;
+          console.log('📝 Processing generic annotation data:', annotationData);
         } else {
-          // Fallback to default workbook structure
-          WORKBOOK_DATA.sheets = {
-            'sheet-01': {
-              id: 'sheet-01',
-              name: props.spreadsheetName,
-              cellData: {},
-              tabColor: '',
-              hidden: 0,
-              rowCount: props.initialRows,
-              columnCount: props.initialColumns,
-              zoomRatio: 1,
-              scrollTop: 0,
-              scrollLeft: 0,
-              defaultColumnWidth: 120,
-              defaultRowHeight: 27,
-              mergeData: [],
-              rowData: {},
-              columnData: {},
-              showGridlines: 1,
-              rowHeader: {
-                width: 46,
-                hidden: 0,
-              },
-              columnHeader: {
-                height: 20,
-                hidden: 0,
-              },
-              selections: ['A1'],
-              rightToLeft: 0,
-            }
-          };
-          WORKBOOK_DATA.sheetOrder = ['sheet-01'];
-          WORKBOOK_DATA.styles = {}; // Ensure styles property exists
+          console.log('⚠️ No valid annotation data provided');
+          return;
         }
 
-        // Create Univer instance with locales - exactly as in documentation
-        univer = new Univer({
-          locale: LocaleType.EN_US,
-          locales: {
-            [LocaleType.EN_US]: merge(
-              {},
-              DesignEnUS,
-              UIEnUS,
-              DocsUIEnUS,
-              SheetsEnUS,
-              SheetsUIEnUS,
-              SheetsFormulaUIEnUS,
-              SheetsNumfmtUIEnUS,
-              SheetsNoteUIEnUS,
-            ),
-          },
-        });
-
-        // Register plugins in exact order from documentation
-        univer.registerPlugin(UniverRenderEnginePlugin);
-        univer.registerPlugin(UniverFormulaEnginePlugin);
-        univer.registerPlugin(UniverUIPlugin, {
-          container: `univer-container-${props.spreadsheetId}`,
-        });
-
-        univer.registerPlugin(UniverDocsPlugin);
-        univer.registerPlugin(UniverDocsUIPlugin);
-
-        univer.registerPlugin(UniverSheetsPlugin);
-        univer.registerPlugin(UniverSheetsUIPlugin);
-        univer.registerPlugin(UniverSheetsFormulaPlugin);
-        univer.registerPlugin(UniverSheetsFormulaUIPlugin);
-        univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
-
-
-        // Register annotation plugins
-        univer.registerPlugin(UniverSheetsNotePlugin);
-        univer.registerPlugin(UniverSheetsNoteUIPlugin);
-
-        // Add custom menu directly using Univer's injector (official documentation pattern)
+        // Get the current SHEET_NOTE_PLUGIN data 
+        const notePluginResource = WORKBOOK_DATA.resources.find(
+          resource => resource.name === 'SHEET_NOTE_PLUGIN'
+        );
+        
+        if (!notePluginResource) {
+          console.warn('⚠️ SHEET_NOTE_PLUGIN resource not found');
+          return;
+        }
+        
+        // Parse the current data
+        let noteData = {};
         try {
-          console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
-          
-          // Wait for Univer to be fully initialized
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Try to get the injector through different methods
-          let injector = null;
-          
-          // Method 1: Try the internal injector property
-          if (univer._injector) {
-            injector = univer._injector;
-            console.log('✅ Got injector from _injector property');
-          }
-          // Method 2: Try through context
-          else if (univer.getContext && univer.getContext().injector) {
-            injector = univer.getContext().injector;
-            console.log('✅ Got injector from context');
-          }
-          // Method 3: Try accessing it differently
-          else if (univer.__container) {
-            injector = univer.__container;
-            console.log('✅ Got injector from __container property');
-          }
-          
-          if (!injector) {
-            console.warn('⚠️ Could not access injector, custom menu will not be added');
-            return;
-          }
-          
-          // Import custom menu dependencies
-          const { ICommandService, CommandType } = await import('@univerjs/core');
-          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType } = await import('@univerjs/ui');
-          
-          // Get services
-          const commandService = injector.get(ICommandService);
-          const menuManagerService = injector.get(IMenuManagerService);
-          const componentManager = injector.get(ComponentManager);
-          
-          console.log('✅ Got all required services from injector');
-          
-          // Define custom commands
-          const DROPDOWN_FIRST_ITEM_OPERATION = {
-            id: 'custom-menu.operation.dropdown-list-first-item',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Save spreadsheet functionality
-              console.log('💾 Save operation triggered from dropdown menu');
-              try {
-                await saveFunction();
-                console.log('✅ Save operation completed successfully');
-              } catch (error) {
-                console.error('❌ Save operation failed:', error);
-              }
-              return true;
-            },
-          };
-          
-          const DROPDOWN_SECOND_ITEM_OPERATION = {
-            id: 'custom-menu.operation.dropdown-list-second-item',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Delete spreadsheet functionality
-              console.log('🗑️ Delete operation triggered from dropdown menu');
-              if (props.canRemove) {
-                try {
-                  // Directly emit the delete event - parent component will handle confirmation
-                  emitFunction('remove-spreadsheet', props.spreadsheetId);
-                  console.log('✅ Delete operation initiated successfully');
-                } catch (error) {
-                  console.error('❌ Delete operation failed:', error);
-                }
-              } else {
-                alert('Cannot delete the last spreadsheet in a portfolio');
-                console.log('⚠️ Delete operation blocked - last spreadsheet in portfolio');
-              }
-              return true;
-            },
-          };
-          
-          const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
-          
-          // Register commands
-          commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
-          commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
-          console.log('✅ Custom menu commands registered');
-          
-          // Register simple icon components (using createElement directly)
-          const SaveIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C13.66 12 15 13.34 15 15S13.66 18 12 18 9 16.66 9 15 10.34 12 12 12'
-            }));
-          };
-          
-          const DeleteIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z'
-            }));
-          };
-          
-          const MainButtonIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
-            }));
-          };
-          
-          componentManager.register('SaveIcon', SaveIcon);
-          componentManager.register('DeleteIcon', DeleteIcon);
-          componentManager.register('MainButtonIcon', MainButtonIcon);
-          console.log('✅ Custom menu components registered');
-          
-          // Register menu items using proper factory functions
-          menuManagerService.mergeMenu({
-            [RibbonStartGroup.OTHERS]: {
-              [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
-                order: 10,
-                menuItemFactory: () => ({
-                  id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
-                  type: MenuItemType.SUBITEMS,
-                  icon: 'MainButtonIcon',
-                  tooltip: 'Spreadsheet Actions (Save & Delete)',
-                  title: 'Actions',
-                }),
-                [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
-                  order: 0,
-                  menuItemFactory: () => ({
-                    id: DROPDOWN_FIRST_ITEM_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    title: 'Save',
-                  }),
-                },
-                [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
-                  order: 1,
-                  menuItemFactory: () => ({
-                    id: DROPDOWN_SECOND_ITEM_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    title: 'Delete',
-                  }),
-                },
-              },
-            },
-          });
-          
-          console.log('✅ Custom menu items registered');
-          console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
-          
-          // Set up change detection for unsaved changes indicator
-          try {
-            console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
-            
-            // Listen for annotation-related commands
-            commandService.onCommandExecuted((command) => {
-              if (command.id.includes('comment') || command.id.includes('note') || command.id.includes('annotation')) {
-                console.log('📝 Annotation command detected:', command.id);
-                handleAnnotationChange(command);
-              }
-            });
-
-            // Listen for any command that modifies worksheet data
-            let commandDebounceTimer = null;
-            const originalExecuteCommand = commandService.executeCommand;
-            
-            commandService.executeCommand = function(...args) {
-              const commandId = args[0];
-              console.log(`🔥 Command executed:`, commandId, args);
-              
-              const result = originalExecuteCommand.apply(this, args);
-              
-              // Commands that indicate potential data changes
-              if (commandId && typeof commandId === 'string') {
-                if (commandId.includes('set-cell') || 
-                    commandId.includes('set-range') ||
-                    commandId.includes('paste') ||
-                    commandId.includes('cut') ||
-                    commandId.includes('clear') ||
-                    commandId.includes('delete') ||
-                    commandId.includes('insert') ||
-                    commandId.includes('formula')) {
-                  console.log(`🔥 Potential data-modifying command detected: ${commandId}`);
-                  
-                  // Clear any existing timer
-                  if (commandDebounceTimer) {
-                    clearTimeout(commandDebounceTimer);
-                  }
-                  
-                  // Wait before checking to ensure command is fully processed
-                  commandDebounceTimer = setTimeout(() => {
-                    markAsUnsaved(); // This now uses smart detection internally
-                  }, 300); // Wait 300ms for command to complete
-                }
-              }
-              
-              return result;
-            };
-            
-            console.log(`📝 Command interception set up for ${props.spreadsheetId}`);
-            
-          } catch (changeDetectionError) {
-            console.warn(`⚠️ Could not set up command detection for ${props.spreadsheetId}:`, changeDetectionError);
-          }
-          
-          // Smart fallback change detection via DOM events with debouncing
-          setTimeout(() => {
-            const container = document.getElementById(`univer-container-${props.spreadsheetId}`);
-            console.log(`🔥 Setting up smart DOM event detection for ${props.spreadsheetId}, container:`, container);
-            
-            if (container) {
-              let debounceTimer = null;
-              
-              // Debounced change handler that actually checks for real changes
-              const handlePotentialChange = () => {
-                console.log(`🔥 Potential DOM change detected in ${props.spreadsheetId}, checking...`);
-                
-                // Clear any existing timer
-                if (debounceTimer) {
-                  clearTimeout(debounceTimer);
-                }
-                
-                // Wait a bit before checking to ensure all DOM updates are complete
-                debounceTimer = setTimeout(() => {
-                  markAsUnsaved(); // This now uses smart detection internally
-                }, 500); // Wait 500ms to ensure change is complete
-              };
-              
-              // Listen for events that might indicate real changes
-              // Use 'blur' instead of 'input' to avoid false positives from just clicking
-              container.addEventListener('blur', handlePotentialChange, true);
-              container.addEventListener('paste', handlePotentialChange);
-              // Remove 'keypress' as it triggers on any key, add 'change' instead
-              container.addEventListener('change', handlePotentialChange);
-              
-              console.log(`📝 Smart DOM event detection set up for ${props.spreadsheetId} with debouncing`);
-            }
-          }, 3000); // Wait longer for DOM to be ready
-          
-        } catch (error) {
-          console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);
-          console.error('Error details:', error);
+          noteData = JSON.parse(notePluginResource.data);
+        } catch (e) {
+          noteData = { 'sheet-01': {} };
         }
-
-        // TASKSTATUS formula processor - fetches real task status from database
-        const processTaskStatusFormulas = async () => {
-          try {
-            const currentData = getCurrentSpreadsheetData();
-            if (!currentData || !currentData.sheets) return;
-            
-            let processedCount = 0;
-            let needsReload = false;
-            
-            // Helper function to format status for display
-            const formatTaskStatus = (status) => {
-              const statusMap = {
-                'not_started': 'Not Started',
-                'in_progress': 'In Progress',
-                'awaiting_external': 'Awaiting External',
-                'awaiting_internal': 'Awaiting Internal',
-                'completed': 'Completed'
-              };
-              return statusMap[status] || status || 'Unknown';
+        
+        // Ensure sheet-01 exists
+        if (!noteData['sheet-01']) {
+          noteData['sheet-01'] = {};
+        }
+        
+        // Update with the latest annotation
+        if (annotationData && annotationData.row !== undefined && annotationData.col !== undefined) {
+          const row = annotationData.row;
+          const col = annotationData.col;
+          
+          // Ensure row exists
+          if (!noteData['sheet-01'][row]) {
+            noteData['sheet-01'][row] = {};
+          }
+          
+          // Update the annotation
+          if (annotationData.note) {
+            noteData['sheet-01'][row][col] = {
+              width: annotationData.note.width || 160,
+              height: annotationData.note.height || 72,
+              note: annotationData.note.note || 'Annotation',
+              show: false
             };
             
-            // Process each sheet
-            for (const sheetId of Object.keys(currentData.sheets)) {
-              const sheet = currentData.sheets[sheetId];
-              if (!sheet.cellData) continue;
-              
-              // Process each row
-              for (const row of Object.keys(sheet.cellData)) {
-                // Process each column
-                for (const col of Object.keys(sheet.cellData[row])) {
-                  const cell = sheet.cellData[row][col];
-                  if (cell && cell.f && typeof cell.f === 'string') {
-                    const formula = cell.f.trim();
-                    const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
-                    
-                    if (taskStatusMatch) {
-                      const taskId = parseInt(taskStatusMatch[1], 10);
-                      if (!isNaN(taskId)) {
-                        try {
-                          console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
-                          
-                          // Fetch task from database
-                          const task = await taskStore.getTaskById(taskId);
-                          
-                          if (task && task.status) {
-                            const formattedStatus = formatTaskStatus(task.status);
-                            
-                            // Update the cell value and remove formula
-                            cell.v = formattedStatus;
-                            delete cell.f;
-                            
-                            console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
-                            
-                            // Show user notification
-                            ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
-                            
-                            processedCount++;
-                            needsReload = true;
-                          } else {
-                            // Task not found or has no status
-                            cell.v = 'Task Not Found';
-                            delete cell.f;
-                            
-                            console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
-                            ElMessage.warning(`Task ${taskId} not found or not accessible`);
-                            
-                            processedCount++;
-                            needsReload = true;
-                          }
-                        } catch (fetchError) {
-                          console.error(`❌ Error fetching task ${taskId}:`, fetchError);
-                          
-                          // Update cell with error message
-                          cell.v = 'Access Denied';
-                          delete cell.f;
-                          
-                          ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
-                          
-                          processedCount++;
-                          needsReload = true;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+            console.log(`📝 Updated annotation at [${row}, ${col}]:`, {
+              width: annotationData.note.width || 160,
+              height: annotationData.note.height || 72,
+              note: annotationData.note.note || 'Annotation'
+            });
+          } else {
+            // Remove annotation if note is null/undefined
+            if (noteData['sheet-01'][row][col]) {
+              delete noteData['sheet-01'][row][col];
+              console.log(`🗑️ Removed annotation at [${row}, ${col}]`);
             }
             
-            if (needsReload) {
-              console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
-              
-              // Update portfolio data
-              portfolioData.value = { ...currentData };
-              
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
-              }
-              
-              // Trigger data refresh
-              console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
+            // Clean up empty rows
+            if (Object.keys(noteData['sheet-01'][row]).length === 0) {
+              delete noteData['sheet-01'][row];
             }
-          } catch (error) {
-            console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
           }
-        };
+        }
         
-        // Start monitoring for TASKSTATUS formulas
-        console.log(`🔧 Starting TASKSTATUS formula processor (${props.spreadsheetId})...`);
-
-        // Create workbook with loaded data and styles
-        console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
-        univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
-
-        // Start formula processing after workbook is created
-        setTimeout(() => {
-          // Process immediately
-          processTaskStatusFormulas();
-          
-          // Then process every 2 seconds for faster response
-          const formulaInterval = setInterval(processTaskStatusFormulas, 2000);
-          
-          // Store interval for cleanup
-          if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
-          window.taskStatusIntervals.set(props.spreadsheetId, formulaInterval);
-          
-          console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
-          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
-        }, 1000);
-
-        // Enable change tracking with error handling
-        setTimeout(() => {
-          try {
-            trackSheetChanges();
-            updateLocalSheetData();
-            updateRowCount();
-            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
-          } catch (trackingError) {
-            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
-            // Continue without change tracking rather than failing completely
-          }
-        }, 500);
+        // Update the resource data
+        notePluginResource.data = JSON.stringify(noteData);
         
-        console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
-        
-        // Mark initialization as complete after a delay to ensure all setup is done
-        setTimeout(() => {
-          isInitializing.value = false;
-          
-          // Establish initial data state for comparison after initialization
-          try {
-            const currentData = getCurrentSpreadsheetData();
-            const currentHash = getDataHash(currentData);
-            lastKnownDataState.value = currentHash;
-            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
-          } catch (error) {
-            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
-          }
-          
-          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
-        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
+        console.log('✅ Updated SHEET_NOTE_PLUGIN data:', notePluginResource.data);
+        console.log('🔄 Updated WORKBOOK_DATA:', WORKBOOK_DATA);
         
       } catch (error) {
-        console.error(`❌ Failed to initialize Univer (${props.spreadsheetId}):`, error);
-        ElMessage.error(`Failed to initialize ${props.spreadsheetName}: ${error.message}`);
+        console.error('❌ Error updating workbook data with annotations:', error);
       }
-    };
+    }
 
-    onMounted(() => {
-      // Ensure DOM is ready before initialization
-      setTimeout(() => {
-        initializeUniver();
-      }, 100);
-    });
-
-    onBeforeUnmount(() => {
-      // Clean up TASKSTATUS formula processor
-      if (window.taskStatusIntervals && window.taskStatusIntervals.has(props.spreadsheetId)) {
-        clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
-        window.taskStatusIntervals.delete(props.spreadsheetId);
-        console.log(`🧹 Cleaned up TASKSTATUS processor for ${props.spreadsheetId}`);
-      }
-      
-      if (univer) {
-        try {
-          univer.dispose();
-          console.log(`📤 Univer disposed successfully (${props.spreadsheetId})`);
-        } catch (error) {
-          console.warn(`⚠️ Error disposing Univer (${props.spreadsheetId}):`, error);
-        }
-      }
-    });
 </script>
 
 <style scoped>

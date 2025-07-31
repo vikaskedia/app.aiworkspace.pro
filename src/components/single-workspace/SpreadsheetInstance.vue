@@ -248,6 +248,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
     };
     
     let univer = null;
+    let univerAPI = null;
     const portfolioData = ref({});
     const saving = ref(false);
     const portfolioId = ref(null);
@@ -400,7 +401,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
         });*/
 
 
-        const { univer, univerAPI } = createUniver({
+        const univerInstance = createUniver({
           locale: LocaleType.EN_US,
           locales: {
             [LocaleType.EN_US]: merge(
@@ -418,7 +419,11 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             }),
             UniverSheetsNotePreset(),
           ],
-        })
+        });
+        
+        // Store both univer and univerAPI for global access
+        univer = univerInstance.univer;
+        univerAPI = univerInstance.univerAPI;
 
         // Register plugins in exact order from 
         /*
@@ -534,17 +539,19 @@ import '@univerjs/preset-sheets-note/lib/index.css'
               // Get current cell selection for context
               const selection = getCurrentCellSelection();
               if (selection) {
-                const { row, col } = selection;
-                const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+                //const { row, col } = selection;
+                //const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+
+                showCellEditInfo();
                 
                 // Show info about the selected cell
-                ElMessage({
+                /*ElMessage({
                   message: `Edit info action triggered on cell ${cellRef}`,
                   type: 'info',
                   duration: 3000
                 });
                 
-                console.log(`✅ Edit info action executed on cell [${row}, ${col}] (${cellRef})`);
+                console.log(`✅ Edit info action executed on cell [${row}, ${col}] (${cellRef})`);*/
               } else {
                 ElMessage({
                   message: 'Edit info context menu action triggered',
@@ -1071,38 +1078,262 @@ import '@univerjs/preset-sheets-note/lib/index.css'
     // Function to get currently selected cell coordinates
     const getCurrentCellSelection = () => {
       try {
-        if (!univer || !univer.__getInjector) return null;
+        console.log('🔍 Getting current cell selection...');
+        console.log('🔍 Univer available:', !!univer);
+        console.log('🔍 UniverAPI available:', !!univerAPI);
         
-        const injector = univer.__getInjector();
-        const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
+        // Try using univerAPI first (modern approach)
+        if (univerAPI) {
+          try {
+            console.log('🔍 Trying univerAPI.getActiveWorkbook()...');
+            const activeWorkbook = univerAPI.getActiveWorkbook();
+            console.log('🔍 Active workbook from API:', activeWorkbook);
+            
+            if (activeWorkbook) {
+              console.log('🔍 Trying to get active sheet...');
+              const activeSheet = activeWorkbook.getActiveSheet();
+              console.log('🔍 Active sheet from API:', activeSheet);
+              
+                              if (activeSheet) {
+                  console.log('🔍 Trying to get selection from API...');
+                  const selection = activeSheet.getSelection();
+                  console.log('🔍 Selection from API:', selection);
+                  
+                  if (selection) {
+                    // Try to get selection from different possible structures
+                    let selectionData = null;
+                    
+                    // Method 1: Check _selections array
+                    if (selection._selections && selection._selections.length > 0) {
+                      selectionData = selection._selections[0];
+                      console.log('🔍 Found selection in _selections:', selectionData);
+                    }
+                    // Method 2: Check ranges array
+                    else if (selection.ranges && selection.ranges.length > 0) {
+                      selectionData = selection.ranges[0];
+                      console.log('🔍 Found selection in ranges:', selectionData);
+                    }
+                    // Method 3: Check if selection itself has the data
+                    else if (selection.primary || selection.range) {
+                      selectionData = selection.primary || selection.range;
+                      console.log('🔍 Found selection in primary/range:', selectionData);
+                    }
+                    
+                    if (selectionData) {
+                      console.log('🔍 Selection data structure:', selectionData);
+                      
+                      // Try different property names for row/column
+                      let row = undefined, col = undefined;
+                      
+                      // Method 1: Try selectionData.primary (from console logs)
+                      if (selectionData.primary) {
+                        console.log('🔍 Checking primary:', selectionData.primary);
+                        if (selectionData.primary.actualRow !== undefined && selectionData.primary.actualColumn !== undefined) {
+                          row = selectionData.primary.actualRow;
+                          col = selectionData.primary.actualColumn;
+                          console.log(`🔍 Using primary.actualRow/actualColumn: [${row}, ${col}]`);
+                        }
+                        else if (selectionData.primary.startRow !== undefined && selectionData.primary.startColumn !== undefined) {
+                          row = selectionData.primary.startRow;
+                          col = selectionData.primary.startColumn;
+                          console.log(`🔍 Using primary.startRow/startColumn: [${row}, ${col}]`);
+                        }
+                        else if (selectionData.primary.row !== undefined && selectionData.primary.col !== undefined) {
+                          row = selectionData.primary.row;
+                          col = selectionData.primary.col;
+                          console.log(`🔍 Using primary.row/col: [${row}, ${col}]`);
+                        }
+                      }
+                      
+                      // Method 2: Try selectionData.range if primary didn't work
+                      if (row === undefined && selectionData.range) {
+                        console.log('🔍 Checking range:', selectionData.range);
+                        if (selectionData.range.startRow !== undefined && selectionData.range.startColumn !== undefined) {
+                          row = selectionData.range.startRow;
+                          col = selectionData.range.startColumn;
+                          console.log(`🔍 Using range.startRow/startColumn: [${row}, ${col}]`);
+                        }
+                        else if (selectionData.range.actualRow !== undefined && selectionData.range.actualColumn !== undefined) {
+                          row = selectionData.range.actualRow;
+                          col = selectionData.range.actualColumn;
+                          console.log(`🔍 Using range.actualRow/actualColumn: [${row}, ${col}]`);
+                        }
+                      }
+                      
+                      // Method 3: Try direct properties (fallback)
+                      if (row === undefined) {
+                        console.log('🔍 Trying direct properties on selectionData');
+                        if (selectionData.actualRow !== undefined && selectionData.actualColumn !== undefined) {
+                          row = selectionData.actualRow;
+                          col = selectionData.actualColumn;
+                          console.log(`🔍 Using direct actualRow/actualColumn: [${row}, ${col}]`);
+                        }
+                        else if (selectionData.startRow !== undefined && selectionData.startColumn !== undefined) {
+                          row = selectionData.startRow;
+                          col = selectionData.startColumn;
+                          console.log(`🔍 Using direct startRow/startColumn: [${row}, ${col}]`);
+                        }
+                        else if (selectionData.row !== undefined && selectionData.col !== undefined) {
+                          row = selectionData.row;
+                          col = selectionData.col;
+                          console.log(`🔍 Using direct row/col: [${row}, ${col}]`);
+                        }
+                      }
+                      
+                      if (row !== undefined && col !== undefined) {
+                        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+                        console.log(`✅ Using API selection: [${row}, ${col}] (${cellRef} in spreadsheet terms)`);
+                        return { row, col };
+                      } else {
+                        console.log('⚠️ Could not extract coordinates from selection data');
+                      }
+                    }
+                  }
+                  
+                  // Try getting active cell from API
+                  console.log('🔍 Trying to get active cell from API...');
+                  const activeCell = activeSheet.getActiveCell();
+                  console.log('🔍 Active cell from API:', activeCell);
+                  
+                  if (activeCell) {
+                    let row = undefined, col = undefined;
+                    
+                    // Try different property combinations
+                    if (activeCell.row !== undefined && activeCell.column !== undefined) {
+                      row = activeCell.row;
+                      col = activeCell.column;
+                    } else if (activeCell.row !== undefined && activeCell.col !== undefined) {
+                      row = activeCell.row;
+                      col = activeCell.col;
+                    } else if (activeCell.actualRow !== undefined && activeCell.actualColumn !== undefined) {
+                      row = activeCell.actualRow;
+                      col = activeCell.actualColumn;
+                    }
+                    
+                    if (row !== undefined && col !== undefined) {
+                      console.log(`✅ Using API active cell: [${row}, ${col}] (${String.fromCharCode(65 + col)}${row + 1} in spreadsheet terms)`);
+                      return { row, col };
+                    }
+                  }
+                }
+            }
+          } catch (apiError) {
+            console.log('⚠️ UniverAPI approach failed:', apiError.message);
+          }
+        }
+        
+        // Fallback to direct univer instance access
+        if (!univer) {
+          console.log('⚠️ Univer not available');
+          return { row: 0, col: 0 };
+        }
+        
+        console.log('🔍 Trying direct univer access...');
+        
+        // Try multiple ways to get the injector (matching your existing patterns)
+        let injector = null;
+        
+        // Method 1: Try the _injector property (used elsewhere in your code)
+        if (univer._injector) {
+          injector = univer._injector;
+          console.log('✅ Got injector from _injector property');
+        }
+        // Method 2: Try __getInjector method
+        else if (univer.__getInjector && typeof univer.__getInjector === 'function') {
+          injector = univer.__getInjector();
+          console.log('✅ Got injector from __getInjector method');
+        }
+        // Method 3: Try getContext approach
+        else if (univer.getContext && univer.getContext().injector) {
+          injector = univer.getContext().injector;
+          console.log('✅ Got injector from context');
+        }
+        // Method 4: Try __container property
+        else if (univer.__container) {
+          injector = univer.__container;
+          console.log('✅ Got injector from __container property');
+        }
+        
+        if (!injector) {
+          console.log('⚠️ Could not access injector');
+          return { row: 0, col: 0 };
+        }
+        
+        console.log('🔍 Injector found, getting services...');
+        
+        // Try to get workbook service
+        let workbookService = null;
+        try {
+          workbookService = injector.get('IWorkbookService') || injector.get('WorkbookService');
+        } catch (serviceError) {
+          console.log('⚠️ Could not get workbook service:', serviceError.message);
+          return { row: 0, col: 0 };
+        }
+        
+        console.log('🔍 Workbook service:', workbookService);
         
         if (workbookService) {
           const activeWorkbook = workbookService.getCurrentWorkbook?.();
+          console.log('🔍 Active workbook:', activeWorkbook);
+          
           if (activeWorkbook) {
             const activeWorksheet = activeWorkbook.getActiveSheet?.();
+            console.log('🔍 Active worksheet:', activeWorksheet);
+            
             if (activeWorksheet) {
-              // Try to get selection
-              const selection = activeWorksheet.getSelection?.() || activeWorksheet.getActiveSelection?.();
-              if (selection) {
-                console.log(`📍 Current selection:`, selection);
-                
-                // Try different selection formats
-                if (selection.startRow !== undefined && selection.startColumn !== undefined) {
-                  return { row: selection.startRow, col: selection.startColumn };
+              // Try to get selection through different methods
+              console.log('🔍 Trying to get selection...');
+              
+              // Method 1: Try getSelection
+              try {
+                const selection = activeWorksheet.getSelection?.();
+                if (selection) {
+                  console.log(`📍 Found selection:`, selection);
+                  
+                  // Try different selection formats
+                  if (selection.startRow !== undefined && selection.startColumn !== undefined) {
+                    console.log(`✅ Using startRow/startColumn: [${selection.startRow}, ${selection.startColumn}]`);
+                    return { row: selection.startRow, col: selection.startColumn };
+                  }
+                  if (selection.row !== undefined && selection.col !== undefined) {
+                    console.log(`✅ Using row/col: [${selection.row}, ${selection.col}]`);
+                    return { row: selection.row, col: selection.col };
+                  }
+                  if (selection.range && selection.range.startRow !== undefined) {
+                    console.log(`✅ Using range: [${selection.range.startRow}, ${selection.range.startColumn}]`);
+                    return { row: selection.range.startRow, col: selection.range.startColumn };
+                  }
                 }
-                if (selection.row !== undefined && selection.col !== undefined) {
-                  return { row: selection.row, col: selection.col };
-                }
-                if (selection.range && selection.range.startRow !== undefined) {
-                  return { row: selection.range.startRow, col: selection.range.startColumn };
-                }
+              } catch (selectionError) {
+                console.log('⚠️ getSelection failed:', selectionError.message);
               }
               
-              // Fallback to active cell
-              const activeCell = activeWorksheet.getActiveCell?.();
-              if (activeCell) {
-                console.log(`📍 Active cell:`, activeCell);
-                return { row: activeCell.row || 0, col: activeCell.col || 0 };
+              // Method 2: Try getActiveSelection
+              try {
+                const activeSelection = activeWorksheet.getActiveSelection?.();
+                if (activeSelection) {
+                  console.log(`📍 Found active selection:`, activeSelection);
+                  if (activeSelection.startRow !== undefined && activeSelection.startColumn !== undefined) {
+                    console.log(`✅ Using active selection: [${activeSelection.startRow}, ${activeSelection.startColumn}]`);
+                    return { row: activeSelection.startRow, col: activeSelection.startColumn };
+                  }
+                }
+              } catch (activeSelectionError) {
+                console.log('⚠️ getActiveSelection failed:', activeSelectionError.message);
+              }
+              
+              // Method 3: Fallback to active cell
+              try {
+                const activeCell = activeWorksheet.getActiveCell?.();
+                if (activeCell) {
+                  console.log(`📍 Found active cell:`, activeCell);
+                  const row = activeCell.row !== undefined ? activeCell.row : 0;
+                  const col = activeCell.col !== undefined ? activeCell.col : 0;
+                  console.log(`✅ Using active cell: [${row}, ${col}]`);
+                  return { row, col };
+                }
+              } catch (activeCellError) {
+                console.log('⚠️ getActiveCell failed:', activeCellError.message);
               }
             }
           }
@@ -1140,6 +1371,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             message: `Cell ${editInfo.cellPosition}: "${editInfo.cellValue}"\nLast edited by: ${editInfo.lastEditedByName}\nDate: ${formattedDate}`,
             type: 'info',
             duration: 5000,
+            showClose: true,
             dangerouslyUseHTMLString: false
           });
           
@@ -1211,6 +1443,10 @@ import '@univerjs/preset-sheets-note/lib/index.css'
           console.warn(`⚠️ Error disposing Univer (${props.spreadsheetId}):`, error);
         }
       }
+      
+      // Clear the stored references
+      univer = null;
+      univerAPI = null;
     });
 
     // Computed height based on actual row count - exact fit without scrollbars

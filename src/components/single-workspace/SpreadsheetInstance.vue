@@ -476,7 +476,7 @@ import '@univerjs/preset-sheets-note/lib/index.css'
           
           // Import custom menu dependencies
           const { ICommandService, CommandType } = await import('@univerjs/core');
-          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType } = await import('@univerjs/ui');
+          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType, ContextMenuPosition, ContextMenuGroup } = await import('@univerjs/ui');
           
           // Get services
           const commandService = injector.get(ICommandService);
@@ -524,11 +524,45 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             },
           };
           
+          const CONTEXT_MENU_EDIT_INFO_OPERATION = {
+            id: 'custom-menu.operation.context-edit-info',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Edit info context menu action
+              console.log('📝 Edit info context menu item clicked');
+              
+              // Get current cell selection for context
+              const selection = getCurrentCellSelection();
+              if (selection) {
+                const { row, col } = selection;
+                const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+                
+                // Show info about the selected cell
+                ElMessage({
+                  message: `Edit info action triggered on cell ${cellRef}`,
+                  type: 'info',
+                  duration: 3000
+                });
+                
+                console.log(`✅ Edit info action executed on cell [${row}, ${col}] (${cellRef})`);
+              } else {
+                ElMessage({
+                  message: 'Edit info context menu action triggered',
+                  type: 'info',
+                  duration: 3000
+                });
+              }
+              
+              return true;
+            },
+          };
+          
           const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
           
           // Register commands
           commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
           commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
+          commandService.registerCommand(CONTEXT_MENU_EDIT_INFO_OPERATION);
           console.log('✅ Custom menu commands registered');
           
           // Register simple icon components (using createElement directly)
@@ -568,9 +602,22 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             }));
           };
           
+          const EditInfoIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
+            }));
+          };
+          
           componentManager.register('SaveIcon', SaveIcon);
           componentManager.register('DeleteIcon', DeleteIcon);
           componentManager.register('MainButtonIcon', MainButtonIcon);
+          componentManager.register('EditInfoIcon', EditInfoIcon);
           console.log('✅ Custom menu components registered');
           
           // Register menu items using proper factory functions
@@ -603,10 +650,26 @@ import '@univerjs/preset-sheets-note/lib/index.css'
                 },
               },
             },
+            // Add context menu configuration
+            [ContextMenuPosition.MAIN_AREA]: {
+              [ContextMenuGroup.OTHERS]: {
+                [CONTEXT_MENU_EDIT_INFO_OPERATION.id]: {
+                  order: 100,
+                  menuItemFactory: () => ({
+                    id: CONTEXT_MENU_EDIT_INFO_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'EditInfoIcon',
+                    title: 'Edit info',
+                    tooltip: 'This is an example context menu item'
+                  }),
+                },
+              },
+            },
           });
           
           console.log('✅ Custom menu items registered');
           console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
+          console.log(`🎯 Edit info context menu item should now appear when right-clicking on cells for ${props.spreadsheetId}!`);
           
           // Set up change detection for unsaved changes indicator
           try {

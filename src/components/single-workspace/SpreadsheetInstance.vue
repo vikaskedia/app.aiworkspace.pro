@@ -3,7 +3,7 @@
     <!-- Spreadsheet Container -->
     <div class="spreadsheet-container">
       <!-- State indicator -->
-      <!--div class="state-indicator" :class="{ 
+      <div class="state-indicator" :class="{ 
         'loading': isInitializing, 
         'unsaved': !isInitializing && hasUnsavedChanges,
         'saved': !isInitializing && !hasUnsavedChanges
@@ -19,7 +19,7 @@
             <span class="state-icon">✅</span> Saved
           </template>
         </span>
-      </div-->
+      </div>
       
       <!-- Debug controls (temporary) -->
       <!--div class="debug-controls" style="position: absolute; top: 40px; right: 8px; z-index: 1001; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px;">
@@ -323,6 +323,11 @@ export default {
         ElMessage.warning(`Cannot save ${props.spreadsheetName}: No workspace selected`);
         return;
       }
+
+      if (!hasUnsavedChanges.value) {
+        ElMessage.warning(`No changes to save`);
+        return;
+      }
       
       try {
         saving.value = true;
@@ -592,7 +597,7 @@ export default {
           return portfolioData.value;
         }
         
-        console.log(`🔄 Extracting current workbook data (${props.spreadsheetId})...`);
+        //console.log(`🔄 Extracting current workbook data (${props.spreadsheetId})...`);
         
         // First try to get data through the injector services
         try {
@@ -715,13 +720,13 @@ export default {
             }
           }
         } catch (serviceError) {
-          console.warn(`Service-based extraction failed (${props.spreadsheetId}):`, serviceError.message);
+          //console.warn(`Service-based extraction failed (${props.spreadsheetId}):`, serviceError.message);
         }
 
         // Try the original unit-based approach as final fallback
         try {
           const units = univer.getAllUnits?.() || [];
-          console.log(`📊 Trying unit-based extraction with ${units.length} units (${props.spreadsheetId})`);
+          //console.log(`📊 Trying unit-based extraction with ${units.length} units (${props.spreadsheetId})`);
           
           for (const unit of units) {
             if (unit.type === UniverInstanceType.UNIVER_SHEET || 

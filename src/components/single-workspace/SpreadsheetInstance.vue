@@ -46,7 +46,7 @@ import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
 
 // Univer core with locale support
-import { LocaleType, merge, Univer, UniverInstanceType } from '@univerjs/core';
+// import { LocaleType, merge, Univer, UniverInstanceType } from '@univerjs/core';
 
 // Locale imports
 import DesignEnUS from '@univerjs/design/locale/en-US';
@@ -72,8 +72,8 @@ import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
 
 // Note/Annotation plugin
-import { UniverSheetsNotePlugin } from '@univerjs/sheets-note';
-import { UniverSheetsNoteUIPlugin } from '@univerjs/sheets-note-ui';
+//import { UniverSheetsNotePlugin } from '@univerjs/sheets-note';
+//import { UniverSheetsNoteUIPlugin } from '@univerjs/sheets-note-ui';
 
 // Custom menu plugin
 
@@ -88,11 +88,22 @@ import '@univerjs/sheets-note-ui/lib/index.css';
 
 
 
-// Univer presets imports
-//import { createUniver, LocaleType, merge, UniverInstanceType } from '@univerjs/presets'
-//import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
-//import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 
+
+// Univer imports
+import  { FUniver, Univer, createUniver, LocaleType, merge, UniverInstanceType } from '@univerjs/presets'
+import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
+
+// plugin imports
+import { UniverSheetsNotePreset } from '@univerjs/preset-sheets-note'
+
+// Locale imports
+import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
+import UniverPresetSheetsNoteEnUS from '@univerjs/preset-sheets-note/locales/en-US'
+
+// CSS imports
+import '@univerjs/preset-sheets-core/lib/index.css'
+import '@univerjs/preset-sheets-note/lib/index.css'
 
 
     // Define props
@@ -371,7 +382,7 @@ import '@univerjs/sheets-note-ui/lib/index.css';
         }
 
         // Create Univer instance with locales - exactly as in documentation
-        univer = new Univer({
+        /*univer = new Univer({
           locale: LocaleType.EN_US,
           locales: {
             [LocaleType.EN_US]: merge(
@@ -386,28 +397,51 @@ import '@univerjs/sheets-note-ui/lib/index.css';
               SheetsNoteUIEnUS,
             ),
           },
-        });
+        });*/
 
-        // Register plugins in exact order from documentation
-        univer.registerPlugin(UniverRenderEnginePlugin);
-        univer.registerPlugin(UniverFormulaEnginePlugin);
-        univer.registerPlugin(UniverUIPlugin, {
-          container: `univer-container-${props.spreadsheetId}`,
-        });
 
-        univer.registerPlugin(UniverDocsPlugin);
-        univer.registerPlugin(UniverDocsUIPlugin);
+        const { univer, univerAPI } = createUniver({
+          locale: LocaleType.EN_US,
+          locales: {
+            [LocaleType.EN_US]: merge(
+              {},
+              UniverPresetSheetsCoreEnUS,
+              UniverPresetSheetsNoteEnUS
+            ),
+          },
+          presets: [
+            UniverSheetsCorePreset({
+              //container: container.value as HTMLElement,
+              container: `univer-container-${props.spreadsheetId}`,
+              header: true, // Show header when not readonly
+              toolbar: true, // Show toolbar when not readonly
+            }),
+            UniverSheetsNotePreset(),
+          ],
+        })
 
-        univer.registerPlugin(UniverSheetsPlugin);
-        univer.registerPlugin(UniverSheetsUIPlugin);
-        univer.registerPlugin(UniverSheetsFormulaPlugin);
-        univer.registerPlugin(UniverSheetsFormulaUIPlugin);
-        univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+        // Register plugins in exact order from 
+        /*
+        // those plugins are not needed for the new version of Univer for univerapi
+        //univer.registerPlugin(UniverRenderEnginePlugin);
+        //univer.registerPlugin(UniverFormulaEnginePlugin);
+        //univer.registerPlugin(UniverUIPlugin, {
+        //  container: `univer-container-${props.spreadsheetId}`,
+        //});
 
+        //univer.registerPlugin(UniverDocsPlugin);
+        //univer.registerPlugin(UniverDocsUIPlugin);
+
+        //univer.registerPlugin(UniverSheetsPlugin);
+        //univer.registerPlugin(UniverSheetsUIPlugin);
+        //univer.registerPlugin(UniverSheetsFormulaPlugin);
+        //univer.registerPlugin(UniverSheetsFormulaUIPlugin);
+        //univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+        */
 
         // Register annotation plugins
-        univer.registerPlugin(UniverSheetsNotePlugin);
-        univer.registerPlugin(UniverSheetsNoteUIPlugin);
+        //univer.registerPlugin(UniverSheetsNotePlugin);
+        //univer.registerPlugin(UniverSheetsNoteUIPlugin);
 
         // Add custom menu directly using Univer's injector (official documentation pattern)
         try {
@@ -887,7 +921,8 @@ import '@univerjs/sheets-note-ui/lib/index.css';
 
         // Create workbook with loaded data and styles
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
-        univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
+        // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
+        univerAPI.createWorkbook(WORKBOOK_DATA);
 
         // Start formula processing after workbook is created
         setTimeout(() => {

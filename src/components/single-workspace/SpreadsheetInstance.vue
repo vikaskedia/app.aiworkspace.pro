@@ -772,7 +772,69 @@ export default {
       }
     };
 
-    // Unsaved changes tracking
+    // Store last known data state for comparison
+    const lastKnownDataState = ref(null);
+    
+    // Helper function to create a simple hash of the data for comparison
+    const getDataHash = (data) => {
+      try {
+        if (!data || !data.sheets) return '';
+        
+        let hash = '';
+        Object.keys(data.sheets).forEach(sheetId => {
+          const sheet = data.sheets[sheetId];
+          if (sheet.cellData) {
+            Object.keys(sheet.cellData).forEach(row => {
+              Object.keys(sheet.cellData[row]).forEach(col => {
+                const cell = sheet.cellData[row][col];
+                if (cell && cell.v !== undefined) {
+                  hash += `${sheetId}-${row}-${col}-${cell.v}|`;
+                }
+              });
+            });
+          }
+        });
+        return hash;
+      } catch (error) {
+        console.warn('Error creating data hash:', error);
+        return '';
+      }
+    };
+    
+    // Smart change detection that only marks as unsaved if data actually changed
+    const checkForRealChanges = () => {
+      try {
+        if (isInitializing.value) {
+          console.log(`⏭️ Skipping change check - still initializing ${props.spreadsheetId}`);
+          return false;
+        }
+        
+        const currentData = getCurrentSpreadsheetData();
+        const currentHash = getDataHash(currentData);
+        
+        if (lastKnownDataState.value === null) {
+          // First time - store current state
+          lastKnownDataState.value = currentHash;
+          console.log(`📊 Initial data state stored for ${props.spreadsheetId}`);
+          return false;
+        }
+        
+        if (currentHash !== lastKnownDataState.value) {
+          console.log(`📝 Real data change detected for ${props.spreadsheetId}`);
+          lastKnownDataState.value = currentHash;
+          return true;
+        }
+        
+        console.log(`👀 No actual data change detected for ${props.spreadsheetId}`);
+        return false;
+      } catch (error) {
+        console.warn(`Error checking for changes in ${props.spreadsheetId}:`, error);
+        // Fallback to old behavior if there's an error
+        return true;
+      }
+    };
+
+    // Unsaved changes tracking - now with smart detection
     const markAsUnsaved = () => {
       console.log(`🔥 markAsUnsaved called for ${props.spreadsheetId}, initializing:`, isInitializing.value, ', current state:', hasUnsavedChanges.value);
       
@@ -782,9 +844,14 @@ export default {
         return;
       }
       
-      if (!hasUnsavedChanges.value) {
-        hasUnsavedChanges.value = true;
-        console.log(`📝 Marked ${props.spreadsheetId} as having unsaved changes - NEW STATE:`, hasUnsavedChanges.value);
+      // Only mark as unsaved if data actually changed
+      if (checkForRealChanges()) {
+        if (!hasUnsavedChanges.value) {
+          hasUnsavedChanges.value = true;
+          console.log(`📝 Marked ${props.spreadsheetId} as having unsaved changes - REAL CHANGE DETECTED`);
+        }
+      } else {
+        console.log(`👀 Skipping unsaved marking - no real data change detected for ${props.spreadsheetId}`);
       }
     };
     
@@ -793,6 +860,16 @@ export default {
       if (hasUnsavedChanges.value) {
         hasUnsavedChanges.value = false;
         console.log(`✅ Marked ${props.spreadsheetId} as saved - NEW STATE:`, hasUnsavedChanges.value);
+      }
+      
+      // Update the known data state to current state after saving
+      try {
+        const currentData = getCurrentSpreadsheetData();
+        const currentHash = getDataHash(currentData);
+        lastKnownDataState.value = currentHash;
+        console.log(`📊 Updated known data state after save for ${props.spreadsheetId}`);
+      } catch (error) {
+        console.warn(`Error updating known data state after save for ${props.spreadsheetId}:`, error);
       }
     };
 
@@ -1321,14 +1398,16 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
             });
 
             // Listen for any command that modifies worksheet data
+            let commandDebounceTimer = null;
             const originalExecuteCommand = commandService.executeCommand;
+            
             commandService.executeCommand = function(...args) {
               const commandId = args[0];
               console.log(`🔥 Command executed:`, commandId, args);
               
               const result = originalExecuteCommand.apply(this, args);
               
-              // Commands that indicate data changes - simplified detection
+              // Commands that indicate potential data changes
               if (commandId && typeof commandId === 'string') {
                 if (commandId.includes('set-cell') || 
                     commandId.includes('set-range') ||
@@ -1338,8 +1417,17 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
                     commandId.includes('delete') ||
                     commandId.includes('insert') ||
                     commandId.includes('formula')) {
-                  console.log(`🔥 Data-modifying command detected: ${commandId}`);
-                  markAsUnsaved();
+                  console.log(`🔥 Potential data-modifying command detected: ${commandId}`);
+                  
+                  // Clear any existing timer
+                  if (commandDebounceTimer) {
+                    clearTimeout(commandDebounceTimer);
+                  }
+                  
+                  // Wait before checking to ensure command is fully processed
+                  commandDebounceTimer = setTimeout(() => {
+                    markAsUnsaved(); // This now uses smart detection internally
+                  }, 300); // Wait 300ms for command to complete
                 }
               }
               
@@ -1352,24 +1440,37 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
             console.warn(`⚠️ Could not set up command detection for ${props.spreadsheetId}:`, changeDetectionError);
           }
           
-          // Simple fallback change detection via DOM events
+          // Smart fallback change detection via DOM events with debouncing
           setTimeout(() => {
             const container = document.getElementById(`univer-container-${props.spreadsheetId}`);
-            console.log(`🔥 Setting up DOM event detection for ${props.spreadsheetId}, container:`, container);
+            console.log(`🔥 Setting up smart DOM event detection for ${props.spreadsheetId}, container:`, container);
             
             if (container) {
-              // Simple approach - any input in the container
-              const handleChange = () => {
-                console.log(`🔥 DOM change detected in ${props.spreadsheetId}`);
-                markAsUnsaved();
+              let debounceTimer = null;
+              
+              // Debounced change handler that actually checks for real changes
+              const handlePotentialChange = () => {
+                console.log(`🔥 Potential DOM change detected in ${props.spreadsheetId}, checking...`);
+                
+                // Clear any existing timer
+                if (debounceTimer) {
+                  clearTimeout(debounceTimer);
+                }
+                
+                // Wait a bit before checking to ensure all DOM updates are complete
+                debounceTimer = setTimeout(() => {
+                  markAsUnsaved(); // This now uses smart detection internally
+                }, 500); // Wait 500ms to ensure change is complete
               };
               
-              // Listen for various events that indicate changes
-              container.addEventListener('input', handleChange);
-              container.addEventListener('keypress', handleChange);
-              container.addEventListener('paste', handleChange);
+              // Listen for events that might indicate real changes
+              // Use 'blur' instead of 'input' to avoid false positives from just clicking
+              container.addEventListener('blur', handlePotentialChange, true);
+              container.addEventListener('paste', handlePotentialChange);
+              // Remove 'keypress' as it triggers on any key, add 'change' instead
+              container.addEventListener('change', handlePotentialChange);
               
-              console.log(`📝 DOM event detection set up for ${props.spreadsheetId}`);
+              console.log(`📝 Smart DOM event detection set up for ${props.spreadsheetId} with debouncing`);
             }
           }, 3000); // Wait longer for DOM to be ready
           
@@ -1529,7 +1630,18 @@ const updateWorkbookDataWithAnnotations = (annotations) => {
         // Mark initialization as complete after a delay to ensure all setup is done
         setTimeout(() => {
           isInitializing.value = false;
-          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - change detection now active`);
+          
+          // Establish initial data state for comparison after initialization
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            const currentHash = getDataHash(currentData);
+            lastKnownDataState.value = currentHash;
+            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
+          } catch (error) {
+            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
+          }
+          
+          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
         }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
         
       } catch (error) {

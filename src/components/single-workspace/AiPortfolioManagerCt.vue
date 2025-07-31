@@ -54,23 +54,34 @@
                 <span class="tab-text">
                   {{ portfolio.name }}
                   <span class="tab-count">({{ getPortfolioSpreadsheetCount(portfolio.id) }})</span>
+                  <!-- Dropdown menu for portfolio actions -->
+                  <el-dropdown 
+                    @command="handlePortfolioAction" 
+                    trigger="click"
+                    @click.stop>
+                    <el-icon class="tab-dropdown-icon">
+                      <MoreFilled />
+                    </el-icon>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item 
+                          :command="{ action: 'edit', portfolio: portfolio }"
+                          @click.stop>
+                          <el-icon><Edit /></el-icon>
+                          Edit portfolio name
+                        </el-dropdown-item>
+                        <el-dropdown-item 
+                          v-if="portfolios.length > 1"
+                          :command="{ action: 'delete', portfolio: portfolio }"
+                          @click.stop
+                          divided>
+                          <el-icon><Delete /></el-icon>
+                          Delete portfolio
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </span>
-                <div class="tab-actions">
-                  <el-tooltip content="Edit portfolio name (or double-click)" placement="bottom" :show-after="500">
-                    <el-icon 
-                      class="tab-edit-icon" 
-                      @click.stop="editPortfolioName(portfolio)">
-                      <Edit />
-                    </el-icon>
-                  </el-tooltip>
-                  <el-tooltip content="Delete portfolio" placement="bottom" :show-after="500" v-if="portfolios.length > 1">
-                    <el-icon 
-                      class="tab-close-icon" 
-                      @click.stop="deletePortfolio(portfolio.id)">
-                      <Close />
-                    </el-icon>
-                  </el-tooltip>
-                </div>
               </span>
             </template>
             
@@ -263,7 +274,7 @@
 <script>
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Folder, Edit, Close } from '@element-plus/icons-vue';
+import { Plus, Delete, Folder, Edit, Close, MoreFilled } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/matter';
@@ -278,7 +289,8 @@ export default {
     Delete,
     Folder,
     Edit,
-    Close
+    Close,
+    MoreFilled
   },
   setup() {
     // Matter store for workspace context
@@ -372,6 +384,22 @@ export default {
       editPortfolioForm.value.name = portfolio.name;
       editingPortfolio.value = portfolio;
       editPortfolioDialogVisible.value = true;
+    };
+    
+    // Handle portfolio actions from dropdown menu
+    const handlePortfolioAction = (command) => {
+      const { action, portfolio } = command;
+      
+      switch (action) {
+        case 'edit':
+          editPortfolioName(portfolio);
+          break;
+        case 'delete':
+          deletePortfolio(portfolio.id);
+          break;
+        default:
+          console.warn('Unknown portfolio action:', action);
+      }
     };
     
     // Update portfolio name
@@ -950,6 +978,8 @@ export default {
       });
     };
 
+
+
     // Initialize component
     onMounted(async () => {
       const matterWatcher = watchMatterChanges();
@@ -1008,7 +1038,8 @@ export default {
       showContextMenu,
       hideContextMenu,
       editPortfolioName,
-      updatePortfolioName
+      updatePortfolioName,
+      handlePortfolioAction
     };
   },
 };
@@ -1112,6 +1143,24 @@ export default {
 .tab-close-icon:hover {
   color: #dc2626;
   background: rgba(220, 38, 38, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.tab-dropdown-icon {
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+.tab-dropdown-icon:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
   opacity: 1;
   transform: scale(1.1);
 }
@@ -1437,27 +1486,10 @@ export default {
     padding: 1px;
   }
   
-  .add-spreadsheet-section {
-    padding: 12px 0;
-  }
-  
-  :deep(.el-dialog) {
-    width: 95% !important;
-    margin: 0 auto;
-  }
-  
-  :deep(.el-tabs__item) {
-    font-size: 12px;
-    padding: 8px 10px;
-  }
-  
-  .context-menu {
-    min-width: 140px;
-  }
-  
-  .context-menu-item {
-    padding: 6px 12px;
-    font-size: 13px;
+  .tab-dropdown-icon {
+    font-size: 10px;
+    padding: 1px;
+    opacity: 0.8 !important; /* Always visible on mobile */
   }
 }
 
@@ -1496,6 +1528,15 @@ export default {
   .tab-close-icon:hover {
     color: #f87171;
     background: rgba(248, 113, 113, 0.1);
+  }
+  
+  .tab-dropdown-icon {
+    color: #64748b;
+  }
+  
+  .tab-dropdown-icon:hover {
+    color: #a5b4fc;
+    background: rgba(165, 180, 252, 0.1);
   }
   
   .context-menu {

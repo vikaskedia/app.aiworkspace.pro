@@ -127,6 +127,18 @@
           @click="insertTable">
           <el-icon><TableIcon /></el-icon>
         </el-button>
+        <el-button size="small" @click="addRowAfter" title="Add Row Below">
+          <div class="table-icon-add-row"></div>
+        </el-button>
+        <el-button size="small" @click="addColumnAfter" title="Add Column Right">
+          <div class="table-icon-add-column"></div>
+        </el-button>
+        <el-button size="small" @click="deleteRow" title="Delete Row">
+          <div class="table-icon-delete-row"></div>
+        </el-button>
+        <el-button size="small" @click="deleteColumn" title="Delete Column">
+          <div class="table-icon-delete-column"></div>
+        </el-button>
       </el-button-group>
 
       <!-- Undo/Redo -->
@@ -1072,7 +1084,19 @@ export default {
         .run()
       
       this.showTableDialog = false
-    }
+    },
+    addRowAfter() {
+    this.editor.chain().focus().addRowAfter().run();
+    },
+    addColumnAfter() {
+      this.editor.chain().focus().addColumnAfter().run();
+    },
+    deleteRow() {
+      this.editor.chain().focus().deleteRow().run();
+    },
+    deleteColumn() {
+      this.editor.chain().focus().deleteColumn().run();
+    },
   }
 }
 </script>
@@ -1624,5 +1648,33 @@ export default {
   font-weight: bold;
   font-size: 15px;
   line-height: 1;
+}
+
+/* Table icon CSS classes */
+.table-icon-add-row,
+.table-icon-add-column,
+.table-icon-delete-row,
+.table-icon-delete-column {
+  width: 12px;
+  height: 12px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.table-icon-add-row {
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='11' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3Crect x='6' y='11' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3Crect x='11' y='11' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3C/svg%3E");
+}
+
+.table-icon-add-column {
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='1' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3Crect x='11' y='6' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3Crect x='11' y='11' width='4' height='4' fill='%2367c23a' stroke='%2367c23a' stroke-width='0.5'/%3E%3C/svg%3E");
+}
+
+.table-icon-delete-row {
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='11' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='6' y='11' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='11' y='11' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3C/svg%3E");
+}
+
+.table-icon-delete-column {
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='1' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='1' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='6' y='11' width='4' height='4' fill='%23ccc' stroke='%23999' stroke-width='0.5'/%3E%3Crect x='11' y='1' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='11' y='6' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3Crect x='11' y='11' width='4' height='4' fill='%23f56c6c' stroke='%23f56c6c' stroke-width='0.5'/%3E%3C/svg%3E");
 }
 </style>

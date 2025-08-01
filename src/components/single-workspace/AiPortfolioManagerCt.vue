@@ -542,6 +542,39 @@ export default {
           console.warn('Error loading spreadsheets:', spreadsheetError);
         }
 
+        // Process spreadsheets and assign to portfolios
+        if (spreadsheetData && spreadsheetData.length > 0) {
+          // Create a map to track the latest record for each spreadsheet_id
+          const uniqueSpreadsheets = new Map();
+          
+          spreadsheetData.forEach(sheet => {
+            const spreadsheetId = sheet.spreadsheet_id;
+            if (spreadsheetId && !uniqueSpreadsheets.has(spreadsheetId)) {
+              // Only add the first occurrence (latest due to DESC order) of each spreadsheet_id
+              uniqueSpreadsheets.set(spreadsheetId, sheet);
+            }
+          });
+          
+          // Convert map values to array
+          const uniqueSpreadsheetArray = Array.from(uniqueSpreadsheets.values());
+          
+          spreadsheets.value = uniqueSpreadsheetArray.map(sheet => ({
+            id: sheet.spreadsheet_id,
+            name: sheet.name || 'Spreadsheet',
+            rows: 10,
+            columns: 10,
+            portfolioId: sheet.portfolio_id || portfolios.value[0]?.id, // Assign to first portfolio if no portfolio_id
+            createdAt: new Date(sheet.created_at)
+          }));
+          
+          console.log(`📊 Loaded ${spreadsheets.value.length} unique spreadsheets (from ${spreadsheetData.length} total records)`);
+        } else {
+          // Create default spreadsheet in first portfolio
+          if (portfolios.value.length > 0) {
+            await createDefaultSpreadsheet(portfolios.value[0].id);
+          }
+        }
+
         // Process portfolios
         if (portfolioData && portfolioData.length > 0) {
           portfolios.value = portfolioData.map(portfolio => ({
@@ -563,24 +596,6 @@ export default {
         } else {
           // Create default portfolio
           await createDefaultPortfolio();
-        }
-
-        // Process spreadsheets and assign to portfolios
-        if (spreadsheetData && spreadsheetData.length > 0) {
-          spreadsheets.value = spreadsheetData.map(sheet => ({
-            id: sheet.spreadsheet_id,
-            name: sheet.name || 'Spreadsheet',
-            rows: 10,
-            columns: 10,
-            portfolioId: sheet.portfolio_id || portfolios.value[0]?.id, // Assign to first portfolio if no portfolio_id
-            createdAt: new Date(sheet.created_at)
-          }));
-          console.log(`📊 Loaded ${spreadsheets.value.length} spreadsheets`);
-        } else {
-          // Create default spreadsheet in first portfolio
-          if (portfolios.value.length > 0) {
-            await createDefaultSpreadsheet(portfolios.value[0].id);
-          }
         }
 
         // Set active portfolio to first one

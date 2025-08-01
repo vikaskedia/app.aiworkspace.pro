@@ -33,6 +33,49 @@
         <button @click="markAsSaved" style="background: green; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Test Saved</button>
       </div-->
       <div :id="`univer-container-${spreadsheetId}`" class="univer-container" :style="{ height: containerHeight + 'px' }"></div>
+
+
+      <!-- History Modal -->
+      <div v-if="showHistoryModal" class="history-modal-overlay" @click="showHistoryModal = false">
+        <div class="history-modal" @click.stop>
+          <div class="history-modal-header">
+            <h3>Spreadsheet History</h3>
+            <button class="history-modal-close" @click="showHistoryModal = false">×</button>
+          </div>
+          
+          <div class="history-modal-content">
+            <div v-if="loadingHistory" class="history-loading">
+              <span class="loading-spinner">⏳</span> Loading history...
+            </div>
+            
+            <div v-else-if="historyData.length === 0" class="history-empty">
+              <span class="empty-icon">📚</span>
+              <p>No history found for this spreadsheet</p>
+            </div>
+            
+            <div v-else class="history-list">
+              <div 
+                v-for="record in historyData" 
+                :key="record.id" 
+                class="history-item"
+                @click="loadHistoryData(record)"
+              >
+                <div class="history-item-header">
+                  <span class="history-item-date">{{ record.formattedDate }}</span>
+                  <span class="history-item-relative">{{ record.relativeDate }}</span>
+                </div>
+                <div class="history-item-details">
+                  <span class="history-item-name">{{ record.name }}</span>
+                  <span v-if="record.userDisplay" class="history-item-user">by {{ record.userDisplay }}</span>
+                </div>
+                <div class="history-item-actions">
+                  <button class="history-load-btn">Load This Version</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -310,7 +353,16 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
             ]
     };
 
-    const initializeUniver = async () => {
+
+    const loadWorkbookData = async () => {
+      const workbookData = await loadPortfolioData();
+      if (workbookData && workbookData.sheets) {
+        Object.assign(WORKBOOK_DATA, workbookData);
+        portfolioData.value = workbookData;
+      }
+    }
+
+    const initializeUniver = async (workbookData = null) => {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
 
@@ -324,7 +376,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         const saveFunction = manualSave;
 
         // Load complete workbook data from Supabase first
-        const workbookData = await loadPortfolioData();
+        if (!workbookData) {
+          workbookData = await loadPortfolioData();
+        }
         
         // Use the loaded workbook data or create default structure
         if (workbookData && workbookData.sheets) {
@@ -653,6 +707,24 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               return true;
             },
           };
+
+
+          const HISTORY_OPERATION = {
+            id: 'custom-menu.operation.history',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // History functionality
+              console.log('📚 History operation triggered from dropdown menu');
+              try {
+                await showHistory();
+                console.log('✅ History operation completed successfully');
+              } catch (error) {
+                console.error('❌ History operation failed:', error);
+              }
+              return true;
+            },
+          };
+          
           
           const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
           
@@ -660,6 +732,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
           commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
           commandService.registerCommand(CONTEXT_MENU_EDIT_INFO_OPERATION);
+          commandService.registerCommand(HISTORY_OPERATION);
           console.log('✅ Custom menu commands registered');
           
           // Register simple icon components (using createElement directly)
@@ -710,11 +783,25 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
             }));
           };
+
+
+          const HistoryIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M13 3C8.03 3 4 7.03 4 12s4.03 9 9 9s9-4.03 9-9c0-.46-.04-.92-.1-1.36c-.98 1.37-2.58 2.26-4.4 2.26c-2.98 0-5.4-2.42-5.4-5.4c0-1.81.89-3.42 2.26-4.4C13.92 3.04 13.46 3 13 3z'
+            }));
+          };
           
           componentManager.register('SaveIcon', SaveIcon);
           componentManager.register('DeleteIcon', DeleteIcon);
           componentManager.register('MainButtonIcon', MainButtonIcon);
           componentManager.register('EditInfoIcon', EditInfoIcon);
+          componentManager.register('HistoryIcon', HistoryIcon);
           console.log('✅ Custom menu components registered');
           
           // Register menu items using proper factory functions
@@ -743,6 +830,16 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                     id: DROPDOWN_SECOND_ITEM_OPERATION.id,
                     type: MenuItemType.BUTTON,
                     title: 'Delete',
+                  }),
+                },
+                [HISTORY_OPERATION.id]: {
+                  order: 2,
+                  menuItemFactory: () => ({
+                    id: HISTORY_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'HistoryIcon',
+                    title: 'History',
+                    tooltip: 'View spreadsheet history'
                   }),
                 },
               },
@@ -3048,6 +3145,116 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
     }
 
+
+    // History functionality
+    const historyData = ref([]);
+    const showHistoryModal = ref(false);
+    const loadingHistory = ref(false);
+
+    // Fetch spreadsheet history
+    const fetchSpreadsheetHistory = async () => {
+      if (!currentMatterId.value) {
+        console.warn(`⚠️ No matter ID available for fetching history (${props.spreadsheetId})`);
+        ElMessage.warning(`Cannot fetch history: No workspace selected`);
+        return;
+      }
+
+      try {
+        loadingHistory.value = true;
+        console.log(`📚 Fetching history for spreadsheet ${props.spreadsheetId}...`);
+
+        // Build query to get all records for this spreadsheet
+        let query = supabase
+          .from('ai_portfolio_data')
+          .select('*')
+          .eq('spreadsheet_id', props.spreadsheetId)
+          .eq('matter_id', currentMatterId.value);
+        
+        // Add portfolio_id filter if provided
+        if (props.portfolioId) {
+          query = query.eq('portfolio_id', props.portfolioId);
+        }
+        
+        const { data, error } = await query
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Format history data with user-friendly dates and additional info
+          historyData.value = data.map(record => {
+            // Try to get user info from created_by if available
+            let userDisplay = 'Unknown User';
+            if (record.created_by) {
+              // If created_by is an email, extract the username part
+              if (record.created_by.includes('@')) {
+                userDisplay = record.created_by.split('@')[0];
+              } else {
+                userDisplay = record.created_by;
+              }
+            }
+            
+            return {
+              id: record.id,
+              name: record.name || props.spreadsheetName,
+              created_at: record.created_at,
+              created_by: record.created_by,
+              userDisplay: userDisplay,
+              data: record.data,
+              formattedDate: new Date(record.created_at).toLocaleString(),
+              relativeDate: getRelativeTimeString(record.created_at)
+            };
+          });
+          
+          console.log(`✅ Fetched ${historyData.value.length} history records for ${props.spreadsheetId}`);
+        } else {
+          historyData.value = [];
+          console.log(`ℹ️ No history found for ${props.spreadsheetId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching history (${props.spreadsheetId}):`, error);
+        ElMessage.error(`Failed to fetch history: ${error.message || 'Unknown error'}`);
+      } finally {
+        loadingHistory.value = false;
+      }
+    };
+
+    // Helper function to get relative time string
+    const getRelativeTimeString = (dateString) => {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInSeconds = Math.floor((now - date) / 1000);
+      
+      if (diffInSeconds < 60) return 'Just now';
+      if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+      if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+      if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+      return date.toLocaleDateString();
+    };
+
+    // Show history modal
+    const showHistory = async () => {
+      console.log(`📚 Showing history for ${props.spreadsheetId}...`);
+      showHistoryModal.value = true;
+      await fetchSpreadsheetHistory();
+    };
+
+    const loadHistoryData = async (historyRecord) => {
+      const workbookData =  historyRecord.data;
+      const cleanedHistoryData = cleanDataForSerialization(workbookData);
+      await initializeUniver(cleanedHistoryData);
+
+      // Close history modal
+      showHistoryModal.value = false;
+        
+      // Mark as saved since we loaded from history
+      markAsSaved();
+
+      console.log(`✅ History data loaded successfully from ${historyRecord.formattedDate}`);
+      ElMessage.success(`Loaded spreadsheet from ${historyRecord.formattedDate}`);
+
+    }
+
 </script>
 
 <style scoped>
@@ -3157,4 +3364,188 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 }
 
 /* Animations for smooth transitions */
+
+
+/* History Modal Styles */
+.history-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.history-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.history-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.history-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.history-modal-close:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.history-modal-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.history-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.loading-spinner {
+  margin-right: 8px;
+  animation: loadingRotate 2s linear infinite;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.history-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-item-date {
+  font-weight: 600;
+  color: #111827;
+  font-size: 14px;
+}
+
+.history-item-relative {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.history-item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-item-name {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.history-item-user {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.history-item-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-load-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-load-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.history-load-btn:active {
+  transform: translateY(0);
+}
 </style> 

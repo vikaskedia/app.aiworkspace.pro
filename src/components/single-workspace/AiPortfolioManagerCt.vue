@@ -54,6 +54,13 @@
                 <span class="tab-text">
                   {{ portfolio.name }}
                   <span class="tab-count">({{ getPortfolioSpreadsheetCount(portfolio.id) }})</span>
+                  <!-- Editing indicator -->
+                  <span v-if="getCurrentEditor(portfolio.id)" class="editing-indicator" :title="`${getCurrentEditor(portfolio.id)} is editing`">
+                    ✏️ {{ getCurrentEditor(portfolio.id) }}
+                  </span>
+                  <span v-else-if="!getPortfolioReadonlyState(portfolio.id)" class="editing-indicator editing-self" title="You are editing">
+                    ✏️ You
+                  </span>
                   <!-- Dropdown menu for portfolio actions -->
                   <el-dropdown 
                     @command="handlePortfolioAction" 
@@ -283,7 +290,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Delete, Folder, Edit, Close, MoreFilled } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
@@ -335,6 +342,7 @@ export default {
           return;
         }
         
+        // Load current user's preferences
         const { data, error } = await supabase
           .from('ai_portfolio_settings')
           .select('portfolio_id, view_mode')
@@ -358,8 +366,52 @@ export default {
         }
         
         portfolioReadonlyState.value = preferences;
+
+        // Also load information about who is currently editing each portfolio
+        await loadCurrentEditors();
+        
       } catch (error) {
         console.error('Error loading portfolio view mode preferences:', error);
+      }
+    };
+
+    // Load information about who is currently editing each portfolio
+    const loadCurrentEditors = async () => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) return;
+
+        // Get all users currently in edit mode for this workspace
+        const { data: editingUsers, error } = await supabase
+          .from('ai_portfolio_settings')
+          .select('portfolio_id, user_id')
+          .eq('matter_id', currentMatterId.value)
+          .eq('view_mode', false) // false = edit mode
+          .neq('user_id', user.user.id); // exclude current user
+
+        if (error) {
+          console.error('Error loading current editors:', error);
+          return;
+        }
+
+        if (editingUsers && editingUsers.length > 0) {
+          // Get user info for all editors
+          const editorInfo = {};
+          for (const editor of editingUsers) {
+            const { data: userData } = await supabase
+              .rpc('get_user_info_by_id', { user_id: editor.user_id });
+            
+            if (userData?.[0]?.email) {
+              const editorName = userData[0].email.split('@')[0];
+              editorInfo[editor.portfolio_id] = editorName;
+            }
+          }
+
+          currentEditor.value = editorInfo;
+          console.log(`📝 Loaded current editors:`, editorInfo);
+        }
+      } catch (error) {
+        console.error('Error loading current editors:', error);
       }
     };
     
@@ -420,16 +472,174 @@ export default {
           console.log('✅ Updated existing preference record');
         }
         
-        // Update local state
-        portfolioReadonlyState.value = {
-          ...portfolioReadonlyState.value,
-          [portfolioId]: isReadonly
-        };
-        
         console.log(`✅ Successfully saved view mode preference for portfolio ${portfolioId}: ${isReadonly ? 'readonly' : 'edit'}`);
       } catch (error) {
         console.error('Failed to save portfolio view mode preference:', error);
-        // Don't throw error to avoid disrupting the user experience
+        // Re-throw the error so handleReadonlyChange can handle constraint violations
+        throw error;
+      }
+    };
+
+    // Broadcast editing change to trigger real-time updates for other users
+    const broadcastEditingChange = async (portfolioId, isReadonly) => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) return;
+
+        // This function doesn't need to do anything special - the real-time subscription
+        // will automatically detect the changes in ai_portfolio_settings table
+        console.log(`📡 Edit mode change broadcasted for portfolio ${portfolioId}`);
+      } catch (error) {
+        console.warn('Failed to broadcast editing change:', error);
+      }
+    };
+
+    // Real-time subscription for collaborative editing
+    let editingSubscription = null;
+    const currentEditor = ref({}); // Track who is currently editing each portfolio
+
+    // Setup real-time subscription for collaborative editing
+    const setupEditingSubscription = () => {
+      if (!currentMatterId.value) return;
+
+      // Clean up existing subscription
+      if (editingSubscription) {
+        editingSubscription.unsubscribe();
+      }
+
+      console.log(`📡 Setting up collaborative editing subscription for workspace ${currentMatterId.value}`);
+
+      editingSubscription = supabase
+        .channel(`portfolio-editing-${currentMatterId.value}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_portfolio_settings',
+            filter: `matter_id=eq.${currentMatterId.value}`
+          },
+          async (payload) => {
+            console.log('📡 Received real-time editing update:', payload);
+            await handleEditingUpdate(payload);
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Editing subscription status:', status);
+        });
+    };
+
+    // Handle real-time editing updates from other users
+    const handleEditingUpdate = async (payload) => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) return;
+
+        // Skip updates from the current user
+        if (payload.new?.user_id === user.user.id || payload.old?.user_id === user.user.id) {
+          console.log('⏭️ Skipping own editing update');
+          return;
+        }
+
+        const portfolioId = payload.new?.portfolio_id || payload.old?.portfolio_id;
+        if (!portfolioId) return;
+
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const otherUserInEditMode = payload.new?.view_mode === false; // false = edit mode
+          
+          if (otherUserInEditMode) {
+            // Another user entered edit mode - force current user to readonly
+            console.log(`👤 Another user entered edit mode for portfolio ${portfolioId}`);
+            
+            // Get the other user's email for notification
+            const { data: otherUserData, error } = await supabase
+              .rpc('get_user_info_by_id', { user_id: payload.new.user_id });
+            
+            const otherUserEmail = otherUserData?.[0]?.email || 'Another user';
+            const otherUserName = otherUserEmail.split('@')[0];
+            const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
+
+            // Update local state to readonly mode
+            portfolioReadonlyState.value = {
+              ...portfolioReadonlyState.value,
+              [portfolioId]: true // Force to readonly
+            };
+
+            // Track who is currently editing
+            currentEditor.value = {
+              ...currentEditor.value,
+              [portfolioId]: otherUserName
+            };
+
+            // Show notification
+            ElMessage.info(`${otherUserName} started editing "${portfolioName}". Switching to view mode.`);
+          }
+        } else if (payload.eventType === 'DELETE' || (payload.new?.view_mode === true)) {
+          // Another user left edit mode or switched to readonly
+          console.log(`👤 Another user left edit mode for portfolio ${portfolioId}`);
+          
+          // Clear the current editor tracking
+          const { [portfolioId]: removed, ...remainingEditors } = currentEditor.value;
+          currentEditor.value = remainingEditors;
+
+          // Optionally notify that editing is now available
+          const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
+          ElMessage.success(`"${portfolioName}" is now available for editing.`);
+        }
+        
+      } catch (error) {
+        console.error('Error handling editing update:', error);
+      }
+    };
+
+    // Get the name of the user currently editing a portfolio
+    const getCurrentEditor = (portfolioId) => {
+      return currentEditor.value[portfolioId] || null;
+    };
+
+    // Handle editing conflict when constraint violation occurs
+    const handleEditingConflict = async (portfolioId) => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) return;
+
+        // Find who is currently editing this portfolio
+        const { data: existingEditors, error: checkError } = await supabase
+          .from('ai_portfolio_settings')
+          .select('user_id')
+          .eq('matter_id', currentMatterId.value)
+          .eq('portfolio_id', portfolioId)
+          .eq('view_mode', false) // false = edit mode
+          .neq('user_id', user.user.id); // exclude current user
+
+        if (checkError) {
+          console.error('Error finding existing editor:', checkError);
+          ElMessage.warning('Another user is already editing this portfolio. Please try again later.');
+          return;
+        }
+
+        if (existingEditors && existingEditors.length > 0) {
+          // Get user info using the existing RPC function
+          const { data: editorData } = await supabase
+            .rpc('get_user_info_by_id', { user_id: existingEditors[0].user_id });
+          
+          const editorEmail = editorData?.[0]?.email || 'Another user';
+          const editorName = editorEmail.split('@')[0];
+          const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
+          
+          // Update the current editor tracking
+          currentEditor.value = {
+            ...currentEditor.value,
+            [portfolioId]: editorName
+          };
+          
+          ElMessage.warning(`${editorName} is already editing "${portfolioName}". Please wait for them to finish.`);
+        } else {
+          ElMessage.warning('Another user is already editing this portfolio. Please try again later.');
+        }
+      } catch (error) {
+        console.error('Error handling editing conflict:', error);
+        ElMessage.warning('Another user is already editing this portfolio. Please try again later.');
       }
     };
     
@@ -1118,15 +1328,24 @@ export default {
             spreadsheets.value = [];
             activePortfolioId.value = '';
             portfolioReadonlyState.value = {}; // Clear previous preferences
+            currentEditor.value = {}; // Clear previous editor tracking
             initializePortfolios();
+            setupEditingSubscription(); // Setup collaborative editing subscription
           } else {
             isInitialized = true;
             initializePortfolios();
+            setupEditingSubscription(); // Setup collaborative editing subscription
           }
         } else {
           portfolios.value = [];
           spreadsheets.value = [];
           activePortfolioId.value = '';
+          currentEditor.value = {}; // Clear editor tracking
+          // Clean up subscription when no matter is selected
+          if (editingSubscription) {
+            editingSubscription.unsubscribe();
+            editingSubscription = null;
+          }
         }
         
         return currentMatter.value?.id;
@@ -1144,7 +1363,7 @@ export default {
       });
     };
 
-    // Handle readonly state change for a portfolio
+    // Handle readonly state change for a portfolio with collaborative editing
     const handleReadonlyChange = async (portfolioId, checked) => {
       console.log(`🔄 handleReadonlyChange called for portfolio ${portfolioId} with checked=${checked}`);
       
@@ -1153,8 +1372,14 @@ export default {
         return;
       }
 
+      // For edit mode, we'll let the database constraint handle conflicts
+      // and catch any constraint violations
+
       try {
-        // Update the local state first and trigger reactivity
+        // Save to database FIRST before updating local state
+        await savePortfolioViewModePreference(portfolioId, checked);
+        
+        // Only update local state after successful database save
         portfolioReadonlyState.value = {
           ...portfolioReadonlyState.value,
           [portfolioId]: checked
@@ -1162,18 +1387,41 @@ export default {
         
         console.log(`✅ Updated readonly state for portfolio ${portfolioId}:`, portfolioReadonlyState.value);
         
-        await savePortfolioViewModePreference(portfolioId, checked);
-        
         const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
         ElMessage.success(`Portfolio "${portfolioName}" is now ${checked ? 'Readonly' : 'Editable'}.`);
+        
+        // Broadcast the change to other users via real-time subscription
+        await broadcastEditingChange(portfolioId, checked);
+        
       } catch (error) {
         console.error('Error updating portfolio readonly state:', error);
-        ElMessage.error('Failed to update portfolio readonly state: ' + error.message);
+        
+        // Check if this is a constraint violation (duplicate key error)
+        const errorMsg = error.message || error.details || String(error);
+        console.log('Full error details:', error);
+        
+        if (errorMsg && (
+          errorMsg.includes('duplicate key') || 
+          errorMsg.includes('unique constraint') ||
+          errorMsg.includes('idx_ai_portfolio_settings_single_editor') ||
+          errorMsg.includes('violates unique constraint')
+        )) {
+          // Another user is already editing - find out who
+          console.log('🚫 Constraint violation detected - another user is editing');
+          await handleEditingConflict(portfolioId);
+        } else {
+          ElMessage.error('Failed to update portfolio readonly state: ' + errorMsg);
+        }
+        
         // Revert the local state if the database update failed
+        console.log(`🔄 Reverting portfolio ${portfolioId} to ${!checked ? 'readonly' : 'edit'} mode due to error`);
         portfolioReadonlyState.value = {
           ...portfolioReadonlyState.value,
           [portfolioId]: !checked
         };
+        
+        // Force reactive update
+        await nextTick();
       }
     };
 
@@ -1196,6 +1444,12 @@ export default {
     onBeforeUnmount(() => {
       document.removeEventListener('click', hideContextMenu);
       document.removeEventListener('contextmenu', hideContextMenu);
+      
+      // Clean up collaborative editing subscription
+      if (editingSubscription) {
+        editingSubscription.unsubscribe();
+        editingSubscription = null;
+      }
     });
 
     return {
@@ -1240,7 +1494,8 @@ export default {
       updatePortfolioName,
       handlePortfolioAction,
       handleReadonlyChange,
-      getPortfolioReadonlyState
+      getPortfolioReadonlyState,
+      getCurrentEditor
     };
   },
 };
@@ -1302,6 +1557,25 @@ export default {
   font-size: 12px;
   color: #94a3b8;
   font-weight: 500;
+}
+
+.editing-indicator {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  background: #fef3cd;
+  color: #8b5a00;
+  border: 1px solid #fbbf24;
+  cursor: help;
+}
+
+.editing-indicator.editing-self {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
 }
 
 .tab-actions {

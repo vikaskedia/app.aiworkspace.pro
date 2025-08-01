@@ -56,20 +56,20 @@ import UIEnUS from '@univerjs/ui/locale/en-US';
 import DocsUIEnUS from '@univerjs/docs-ui/locale/en-US';
 import SheetsEnUS from '@univerjs/sheets/locale/en-US';
 import SheetsUIEnUS from '@univerjs/sheets-ui/locale/en-US';
-import SheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
+// import SheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
 import SheetsNumfmtUIEnUS from '@univerjs/sheets-numfmt-ui/locale/en-US';
 import SheetsNoteUIEnUS from '@univerjs/sheets-note-ui/locale/en-US';
 
 // Plugin imports
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
-import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
+// import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
 import { UniverUIPlugin } from '@univerjs/ui';
 import { UniverDocsPlugin } from '@univerjs/docs';
 import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
 import { UniverSheetsPlugin } from '@univerjs/sheets';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
-import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
-import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
+// import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
+// import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
 
@@ -84,7 +84,7 @@ import '@univerjs/design/lib/index.css';
 import '@univerjs/ui/lib/index.css';
 import '@univerjs/docs-ui/lib/index.css';
 import '@univerjs/sheets-ui/lib/index.css';
-import '@univerjs/sheets-formula-ui/lib/index.css';
+// import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-numfmt-ui/lib/index.css';
 import '@univerjs/sheets-note-ui/lib/index.css';
 
@@ -405,7 +405,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               DocsUIEnUS,
               SheetsEnUS,
               SheetsUIEnUS,
-              SheetsFormulaUIEnUS,
+              // SheetsFormulaUIEnUS,
               SheetsNumfmtUIEnUS,
               SheetsNoteUIEnUS,
             ),
@@ -992,6 +992,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         }
 
         // TASKSTATUS formula processor - fetches real task status from database
+        // Cache to prevent re-processing the same formula repeatedly
+        const taskStatusCache = new Map();
+        
         const processTaskStatusFormulas = async () => {
           try {
             const currentData = getCurrentSpreadsheetData();
@@ -1029,6 +1032,23 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                     if (taskStatusMatch) {
                       const taskId = parseInt(taskStatusMatch[1], 10);
                       if (!isNaN(taskId)) {
+                        // Create cache key to prevent re-processing the same formula
+                        const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
+                        const now = Date.now();
+                        const cacheEntry = taskStatusCache.get(cacheKey);
+                        
+                        // Skip if processed within the last 30 seconds
+                        if (cacheEntry && (now - cacheEntry.timestamp) < 30000) {
+                          continue;
+                        }
+                        
+                        // Skip if cell already has a value (unless it's an error)
+                        if (cell.v && !String(cell.v).startsWith('Access Denied') && !String(cell.v).includes('Not Found')) {
+                          // Cache successful results for 30 seconds
+                          taskStatusCache.set(cacheKey, { timestamp: now, status: 'cached' });
+                          continue;
+                        }
+                        
                         try {
                           console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
                           
@@ -1038,24 +1058,30 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                           if (task && task.status) {
                             const formattedStatus = formatTaskStatus(task.status);
                             
-                            // Update the cell value and remove formula
+                            // Update the cell value but keep formula (like predefined formulas)
                             cell.v = formattedStatus;
-                            delete cell.f;
+                            // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                             
                             console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
                             
                             // Show user notification
                             ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
                             
+                            // Cache this result for 30 seconds
+                            taskStatusCache.set(cacheKey, { timestamp: now, status: 'processed' });
+                            
                             processedCount++;
                             needsReload = true;
                           } else {
-                            // Task not found or has no status
+                            // Task not found or has no status - keep formula
                             cell.v = 'Task Not Found';
-                            delete cell.f;
+                            // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                             
                             console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
                             ElMessage.warning(`Task ${taskId} not found or not accessible`);
+                            
+                            // Cache this result for 30 seconds
+                            taskStatusCache.set(cacheKey, { timestamp: now, status: 'not_found' });
                             
                             processedCount++;
                             needsReload = true;
@@ -1063,11 +1089,14 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                         } catch (fetchError) {
                           console.error(`❌ Error fetching task ${taskId}:`, fetchError);
                           
-                          // Update cell with error message
+                          // Update cell with error message but keep formula
                           cell.v = 'Access Denied';
-                          delete cell.f;
+                          // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                           
                           ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
+                          
+                          // Cache this error for 30 seconds to prevent repeated failed calls
+                          taskStatusCache.set(cacheKey, { timestamp: now, status: 'error' });
                           
                           processedCount++;
                           needsReload = true;
@@ -1110,6 +1139,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         univerAPI.createWorkbook(WORKBOOK_DATA);
 
         // APICALL formula processor - makes HTTP requests and extracts JSON values
+        // Cache to prevent re-processing the same formula repeatedly
+        const apiCallCache = new Map();
+        
         const processApiCallFormulas = async () => {
           try {
             const currentData = getCurrentSpreadsheetData();
@@ -1155,6 +1187,23 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                       const url = apiCallMatch[1];
                       const key = apiCallMatch[2];
                       
+                      // Create cache key to prevent re-processing the same formula
+                      const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
+                      const now = Date.now();
+                      const cacheEntry = apiCallCache.get(cacheKey);
+                      
+                      // Skip if processed within the last 30 seconds
+                      if (cacheEntry && (now - cacheEntry.timestamp) < 30000) {
+                        continue;
+                      }
+                      
+                      // Skip if cell already has a value (unless it's an error)
+                      if (cell.v && !String(cell.v).startsWith('Error:') && !String(cell.v).includes('not found')) {
+                        // Cache successful results for 30 seconds
+                        apiCallCache.set(cacheKey, { timestamp: now, status: 'cached' });
+                        continue;
+                      }
+                      
                       try {
                         console.log(`🌐 Making API call to ${url} for key '${key}' at [${row}, ${col}] (${props.spreadsheetId})`);
                         
@@ -1186,20 +1235,23 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                         const value = extractValue(data, key);
                         
                         if (value === undefined || value === null) {
-                          // Key not found
+                          // Key not found - keep formula but set error value
                           cell.v = `Key '${key}' not found`;
-                          delete cell.f;
+                          // Keep cell.f - don't delete the formula
                           
                           console.warn(`⚠️ APICALL: Key '${key}' not found in response from ${url}`);
                           ElMessage.warning(`APICALL: Key '${key}' not found in API response`);
                         } else {
-                          // Success - update cell with the extracted value
+                          // Success - keep formula and set calculated value
                           cell.v = String(value);
-                          delete cell.f;
+                          // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                           
                           console.log(`✅ Processed APICALL(${url}, ${key}) → "${value}" at [${row}, ${col}] (${props.spreadsheetId})`);
                           ElMessage.success(`APICALL: Got ${key} = ${value}`);
                         }
+                        
+                        // Cache this result for 30 seconds
+                        apiCallCache.set(cacheKey, { timestamp: now, status: 'processed' });
                         
                         processedCount++;
                         needsReload = true;
@@ -1207,11 +1259,14 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                       } catch (apiError) {
                         console.error(`❌ APICALL Error for ${url}:`, apiError);
                         
-                        // Update cell with error message
+                        // Update cell with error message but keep formula
                         cell.v = `Error: ${apiError.message || 'API call failed'}`;
-                        delete cell.f;
+                        // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                         
                         ElMessage.error(`APICALL failed: ${apiError.message || 'Unknown error'}`);
+                        
+                        // Cache this error for 30 seconds to prevent repeated failed calls
+                        apiCallCache.set(cacheKey, { timestamp: now, status: 'error' });
                         
                         processedCount++;
                         needsReload = true;

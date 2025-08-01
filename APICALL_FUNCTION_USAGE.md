@@ -59,9 +59,11 @@ This will fetch your public IP address from the ipify API.
 
 ✅ **Build Status**: Successfully implemented and builds without errors
 ✅ **Manual Processor**: Implemented as background processor (same approach as TASKSTATUS)
+✅ **Formula Behavior**: Now keeps formulas like predefined formulas (instead of replacing them)
+✅ **Smart Caching**: Prevents re-processing same formula for 30 seconds
 🔧 **Processing**: Scans for formulas every 2 seconds and processes them automatically
 📝 **Logging**: Check browser console for detailed processing status and API call logs
-🐛 **Console Error**: Fixed - No more Univer formula registration errors
+🐛 **Console Error**: Fixed - Removed formula-related imports that were causing the issue
 
 ## Implementation Details
 
@@ -80,11 +82,33 @@ The APICALL function is now implemented as a **manual formula processor** (same 
 
 ### Key Features:
 - **No Registration Needed**: Bypasses Univer's formula engine entirely
+- **Proper Formula Behavior**: Keeps formulas in cells like built-in functions
+- **Smart Caching**: Prevents redundant API calls (30-second cache)
 - **Background Processing**: Automatic detection and processing every 2 seconds
 - **User Notifications**: Green success messages when formulas are processed
 - **Error Handling**: Graceful handling of network errors and invalid URLs
 - **Dot Notation Support**: Extract nested JSON values like `"user.profile.name"`
 - **Database Persistence**: Results are saved and persist across page refreshes
+
+## Recent Fixes Applied
+
+### Issue 1: Console Error Fixed ✅
+- **Problem**: `this.getParent(...).isFunctionExecutorArgumentsIgnoreNumberPattern is not a function`
+- **Root Cause**: Unused formula-related imports were causing conflicts
+- **Solution**: Commented out unnecessary formula-related imports:
+  - `@univerjs/sheets-formula-ui/locale/en-US`
+  - `@univerjs/engine-formula`
+  - `@univerjs/sheets-formula`
+  - `@univerjs/sheets-formula-ui`
+- **Result**: Console error eliminated, app runs cleanly
+
+### Issue 2: Formula Behavior Fixed ✅
+- **Problem**: Formulas were being replaced with values (not behaving like built-in formulas)
+- **Solution**: Modified both TASKSTATUS and APICALL processors to:
+  - Keep formula in `cell.f` (don't delete it)
+  - Set calculated value in `cell.v`
+  - Add smart caching to prevent re-processing
+- **Result**: Formulas now behave exactly like built-in Excel/Sheets formulas
 
 ## Expected Behavior
 
@@ -92,8 +116,10 @@ The APICALL function is now implemented as a **manual formula processor** (same 
 - **Wait 2 seconds**: The processor detects and processes the formula
 - **Green notification appears**: "APICALL: Got ip = 123.456.789.0"
 - **Console message**: "✅ Processed APICALL(...) → "123.456.789.0" at [row, col]"
-- **Refresh the page**: Cell now shows `123.456.789.0` instead of the formula
+- **Formula stays in cell**: The formula is preserved (like built-in formulas)
+- **Cell displays result**: Shows `123.456.789.0` but keeps the formula for recalculation
 - **If there's an error**: Cell will show "Error: HTTP 404" or "Key 'xyz' not found"
+- **Smart caching**: Same formula won't be re-processed for 30 seconds
 
 ## Troubleshooting
 

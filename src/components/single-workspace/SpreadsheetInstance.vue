@@ -709,8 +709,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                 const { workbook, worksheet, row, col, link } = params;
                 console.log(`📝 Adding hyperlink at [${row}, ${col}]: ${link}`);
                 
-                // Mark as unsaved when hyperlinks are added
-                markAsUnsaved();
+                // Force mark as unsaved for hyperlink changes (bypass smart detection)
+                hasUnsavedChanges.value = true;
+                console.log(`📝 Forced unsaved state for hyperlink addition at [${row}, ${col}]`);
               });
               
               // Listen for link update events (should work in v0.9.4)
@@ -722,8 +723,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                     const { workbook, worksheet, row, column, id, payload } = params;
                     console.log(`📝 Updating hyperlink at [${row}, ${column}] with ID ${id}:`, payload);
                     
-                    // Mark as unsaved when hyperlinks are updated
-                    markAsUnsaved();
+                    // Force mark as unsaved for hyperlink changes (bypass smart detection)
+                    hasUnsavedChanges.value = true;
+                    console.log(`📝 Forced unsaved state for hyperlink update at [${row}, ${column}]`);
                   });
                 }
               } catch (updateError) {
@@ -739,8 +741,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                     const { workbook, worksheet, row, column, id } = params;
                     console.log(`🗑️ Deleting hyperlink at [${row}, ${column}] with ID ${id}`);
                     
-                    // Mark as unsaved when hyperlinks are deleted
-                    markAsUnsaved();
+                    // Force mark as unsaved for hyperlink changes (bypass smart detection)
+                    hasUnsavedChanges.value = true;
+                    console.log(`📝 Forced unsaved state for hyperlink deletion at [${row}, ${column}]`);
                   });
                 }
               } catch (deleteError) {
@@ -770,7 +773,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                   if (commandId && typeof commandId === 'string' && 
                       (commandId.includes('hyperlink') || commandId.includes('link'))) {
                     console.log(`🔗 Hyperlink command detected: ${commandId}`);
-                    markAsUnsaved();
+                    // Force mark as unsaved for hyperlink changes (bypass smart detection)
+                    hasUnsavedChanges.value = true;
+                    console.log(`📝 Forced unsaved state for hyperlink command: ${commandId}`);
                   }
                   
                   return result;
@@ -1563,8 +1568,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               console.log(`✅ Inserted hyperlink "${text}" -> "${url}" in cell [${row}, ${col}]`);
               ElMessage.success(`Hyperlink added to cell ${cellRef}`);
               
-              // Mark as unsaved to trigger save indicator
-              markAsUnsaved();
+              // Force mark as unsaved for hyperlink changes (bypass smart detection)
+              hasUnsavedChanges.value = true;
+              console.log(`📝 Forced unsaved state for hyperlink insertion at [${row}, ${col}]`);
             } else {
               console.error(`❌ newRichText method not available - unexpected for v0.9.4`);
               ElMessage.error(`Hyperlink functionality not available. Please check Univer version compatibility.`);
@@ -1656,7 +1662,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           console.log(`✅ Updated hyperlink ${linkId} to "${newUrl}" in cell [${row}, ${col}]`);
           ElMessage.success(`Hyperlink updated in cell ${cellRef}`);
           
-          markAsUnsaved();
+          // Force mark as unsaved for hyperlink changes (bypass smart detection)
+          hasUnsavedChanges.value = true;
+          console.log(`📝 Forced unsaved state for hyperlink update at [${row}, ${col}]`);
         } else {
           console.log(`⚠️ updateLink method not available or no cell value found`);
           ElMessage.warning('Could not update hyperlink. Please ensure the cell contains a hyperlink and try using the UI instead.');
@@ -1698,7 +1706,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           console.log(`✅ Removed hyperlink ${linkId} from cell [${row}, ${col}]`);
           ElMessage.success(`Hyperlink removed from cell ${cellRef}`);
           
-          markAsUnsaved();
+          // Force mark as unsaved for hyperlink changes (bypass smart detection)
+          hasUnsavedChanges.value = true;
+          console.log(`📝 Forced unsaved state for hyperlink removal at [${row}, ${col}]`);
         } else {
           console.log(`⚠️ cancelLink method not available or no cell value found`);
           ElMessage.warning('Could not remove hyperlink. Please ensure the cell contains a hyperlink and try using the UI instead.');
@@ -2415,8 +2425,23 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
             Object.keys(sheet.cellData).forEach(row => {
               Object.keys(sheet.cellData[row]).forEach(col => {
                 const cell = sheet.cellData[row][col];
-                if (cell && cell.v !== undefined) {
-                  hash += `${sheetId}-${row}-${col}-${cell.v}|`;
+                if (cell) {
+                  // Include cell value
+                  if (cell.v !== undefined) {
+                    hash += `${sheetId}-${row}-${col}-v:${cell.v}|`;
+                  }
+                  // Include rich text data for hyperlinks
+                  if (cell.p !== undefined) {
+                    hash += `${sheetId}-${row}-${col}-p:${JSON.stringify(cell.p)}|`;
+                  }
+                  // Include style data
+                  if (cell.s !== undefined) {
+                    hash += `${sheetId}-${row}-${col}-s:${JSON.stringify(cell.s)}|`;
+                  }
+                  // Include formula data
+                  if (cell.f !== undefined) {
+                    hash += `${sheetId}-${row}-${col}-f:${cell.f}|`;
+                  }
                 }
               });
             });

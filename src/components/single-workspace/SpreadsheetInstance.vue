@@ -98,14 +98,17 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 
 // plugin imports
 import { UniverSheetsNotePreset } from '@univerjs/preset-sheets-note'
+import { UniverSheetsHyperLinkPreset } from '@univerjs/preset-sheets-hyper-link'
 
 // Locale imports
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import UniverPresetSheetsNoteEnUS from '@univerjs/preset-sheets-note/locales/en-US'
+import UniverPresetSheetsHyperLinkEnUS from '@univerjs/preset-sheets-hyper-link/locales/en-US'
 
 // CSS imports
 import '@univerjs/preset-sheets-core/lib/index.css'
 import '@univerjs/preset-sheets-note/lib/index.css'
+import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
 
     // Define props
@@ -414,7 +417,8 @@ import '@univerjs/preset-sheets-note/lib/index.css'
             [LocaleType.EN_US]: merge(
               {},
               UniverPresetSheetsCoreEnUS,
-              UniverPresetSheetsNoteEnUS
+              UniverPresetSheetsNoteEnUS,
+              UniverPresetSheetsHyperLinkEnUS
             ),
           },
           presets: [
@@ -425,6 +429,12 @@ import '@univerjs/preset-sheets-note/lib/index.css'
               toolbar: !props.readonly, // Show toolbar when not readonly
             }),
             UniverSheetsNotePreset(),
+            UniverSheetsHyperLinkPreset({
+              // Customize the way external links are opened
+              urlHandler: {
+                navigateToOtherWebsite: url => window.open(`${url}?utm_source=AI+Workspace`, '_blank', 'noopener,noreferrer'),
+              },
+            }),
           ],
         })
 
@@ -686,6 +696,92 @@ import '@univerjs/preset-sheets-note/lib/index.css'
           console.log('✅ Custom menu items registered');
           console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
           console.log(`🎯 Edit info context menu item should now appear when right-clicking on cells for ${props.spreadsheetId}!`);
+          
+          // Setup hyperlink event listeners (v0.9.4 compatible)
+          try {
+            console.log(`🔗 Setting up hyperlink event listeners for ${props.spreadsheetId}...`);
+            
+            // Check if hyperlink events are available in this version
+            if (univerAPI.Event && univerAPI.Event.BeforeSheetLinkAdd) {
+              // Listen for link addition events
+              const linkAddDisposable = univerAPI.addEvent(univerAPI.Event.BeforeSheetLinkAdd, (params) => {
+                console.log('🔗 Link being added:', params);
+                const { workbook, worksheet, row, col, link } = params;
+                console.log(`📝 Adding hyperlink at [${row}, ${col}]: ${link}`);
+                
+                // Mark as unsaved when hyperlinks are added
+                markAsUnsaved();
+              });
+              
+              // Listen for link update events (should work in v0.9.4)
+              let linkUpdateDisposable = null;
+              try {
+                if (univerAPI.Event.BeforeSheetLinkUpdate) {
+                  linkUpdateDisposable = univerAPI.addEvent(univerAPI.Event.BeforeSheetLinkUpdate, (params) => {
+                    console.log('🔗 Link being updated:', params);
+                    const { workbook, worksheet, row, column, id, payload } = params;
+                    console.log(`📝 Updating hyperlink at [${row}, ${column}] with ID ${id}:`, payload);
+                    
+                    // Mark as unsaved when hyperlinks are updated
+                    markAsUnsaved();
+                  });
+                }
+              } catch (updateError) {
+                console.log('ℹ️ Link update events not available in this version');
+              }
+              
+              // Listen for link deletion events (should work in v0.9.4)
+              let linkDeleteDisposable = null;
+              try {
+                if (univerAPI.Event.BeforeSheetLinkCancel) {
+                  linkDeleteDisposable = univerAPI.addEvent(univerAPI.Event.BeforeSheetLinkCancel, (params) => {
+                    console.log('🔗 Link being deleted:', params);
+                    const { workbook, worksheet, row, column, id } = params;
+                    console.log(`🗑️ Deleting hyperlink at [${row}, ${column}] with ID ${id}`);
+                    
+                    // Mark as unsaved when hyperlinks are deleted
+                    markAsUnsaved();
+                  });
+                }
+              } catch (deleteError) {
+                console.log('ℹ️ Link deletion events not available in this version');
+              }
+              
+              // Store disposables for cleanup
+              if (!window.hyperlinkDisposables) window.hyperlinkDisposables = new Map();
+              window.hyperlinkDisposables.set(props.spreadsheetId, {
+                linkAdd: linkAddDisposable,
+                linkUpdate: linkUpdateDisposable,
+                linkDelete: linkDeleteDisposable
+              });
+              
+              console.log(`✅ Hyperlink event listeners set up successfully for ${props.spreadsheetId}`);
+            } else {
+              console.log(`ℹ️ Hyperlink events not available in this version, using fallback detection`);
+              
+              // Fallback: Monitor for hyperlink-related commands
+              if (commandService) {
+                const originalExecuteCommand = commandService.executeCommand;
+                commandService.executeCommand = function(...args) {
+                  const commandId = args[0];
+                  const result = originalExecuteCommand.apply(this, args);
+                  
+                  // Detect hyperlink-related commands
+                  if (commandId && typeof commandId === 'string' && 
+                      (commandId.includes('hyperlink') || commandId.includes('link'))) {
+                    console.log(`🔗 Hyperlink command detected: ${commandId}`);
+                    markAsUnsaved();
+                  }
+                  
+                  return result;
+                };
+              }
+            }
+            
+          } catch (hyperlinkError) {
+            console.warn(`⚠️ Failed to set up hyperlink event listeners for ${props.spreadsheetId}:`, hyperlinkError);
+            console.log(`ℹ️ Hyperlink functionality will still work, but without event tracking`);
+          }
           
           // Set up change detection for unsaved changes indicator
           try {
@@ -1429,11 +1525,200 @@ import '@univerjs/preset-sheets-note/lib/index.css'
       }
     };
 
+    // Hyperlink helper functions (v0.9.4 compatible)
+    const insertHyperlinkInCell = (row, col, text, url) => {
+      try {
+        if (!univerAPI) {
+          console.warn('UniverAPI not available');
+          ElMessage.warning('Spreadsheet not ready. Please wait for initialization to complete.');
+          return;
+        }
+        
+        // Wait a bit to ensure Univer is fully loaded
+        setTimeout(() => {
+          try {
+            const fWorkbook = univerAPI.getActiveWorkbook();
+            if (!fWorkbook) {
+              console.warn('No active workbook');
+              ElMessage.warning('No active workbook found');
+              return;
+            }
+            
+            const fWorksheet = fWorkbook.getActiveSheet();
+            if (!fWorksheet) {
+              console.warn('No active worksheet');
+              ElMessage.warning('No active worksheet found');
+              return;
+            }
+            
+            // Create a hyperlink in the specified cell
+            const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+            const fRange = fWorksheet.getRange(cellRef);
+            
+            // v0.9.4 should have full hyperlink support
+            if (univerAPI.newRichText && typeof univerAPI.newRichText === 'function') {
+              const richText = univerAPI.newRichText().insertLink(text, url);
+              fRange.setRichTextValueForCell(richText);
+              
+              console.log(`✅ Inserted hyperlink "${text}" -> "${url}" in cell [${row}, ${col}]`);
+              ElMessage.success(`Hyperlink added to cell ${cellRef}`);
+              
+              // Mark as unsaved to trigger save indicator
+              markAsUnsaved();
+            } else {
+              console.error(`❌ newRichText method not available - unexpected for v0.9.4`);
+              ElMessage.error(`Hyperlink functionality not available. Please check Univer version compatibility.`);
+            }
+          } catch (innerError) {
+            console.error('❌ Error in delayed hyperlink insertion:', innerError);
+            ElMessage.error(`Failed to insert hyperlink: ${innerError.message}`);
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.error('❌ Error inserting hyperlink:', error);
+        ElMessage.error(`Failed to insert hyperlink: ${error.message}`);
+      }
+    };
+    
+    const insertHyperlinkInCurrentCell = (text, url) => {
+      try {
+        const selection = getCurrentCellSelection();
+        if (selection) {
+          insertHyperlinkInCell(selection.row, selection.col, text, url);
+        } else {
+          ElMessage.warning('Please select a cell first');
+        }
+      } catch (error) {
+        console.error('❌ Error inserting hyperlink in current cell:', error);
+      }
+    };
+    
+    const getHyperlinksInCell = (row, col) => {
+      try {
+        if (!univerAPI) {
+          console.warn('UniverAPI not available');
+          return [];
+        }
+        
+        const fWorkbook = univerAPI.getActiveWorkbook();
+        if (!fWorkbook) return [];
+        
+        const fWorksheet = fWorkbook.getActiveSheet();
+        if (!fWorksheet) return [];
+        
+        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+        const fRange = fWorksheet.getRange(cellRef);
+        
+        const cellValue = fRange.getValue(true);
+        if (cellValue && typeof cellValue.getLinks === 'function') {
+          const hyperlinks = cellValue.getLinks();
+          console.log(`📋 Found ${hyperlinks.length} hyperlinks in cell [${row}, ${col}]:`, hyperlinks);
+          return hyperlinks;
+        }
+        
+        console.log(`ℹ️ No hyperlinks found in cell [${row}, ${col}] or getLinks method not available`);
+        return [];
+      } catch (error) {
+        console.error('❌ Error getting hyperlinks:', error);
+        return [];
+      }
+    };
+    
+    const updateHyperlinkInCell = (row, col, linkId, newUrl) => {
+      try {
+        if (!univerAPI) {
+          console.warn('UniverAPI not available');
+          ElMessage.warning('Spreadsheet not ready');
+          return;
+        }
+        
+        const fWorkbook = univerAPI.getActiveWorkbook();
+        if (!fWorkbook) {
+          ElMessage.warning('No active workbook found');
+          return;
+        }
+        
+        const fWorksheet = fWorkbook.getActiveSheet();
+        if (!fWorksheet) {
+          ElMessage.warning('No active worksheet found');
+          return;
+        }
+        
+        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+        const fRange = fWorksheet.getRange(cellRef);
+        
+        const cellValue = fRange.getValue(true);
+        if (cellValue && typeof cellValue.updateLink === 'function') {
+          const newRichText = cellValue.copy().updateLink(linkId, newUrl);
+          fRange.setRichTextValueForCell(newRichText);
+          
+          console.log(`✅ Updated hyperlink ${linkId} to "${newUrl}" in cell [${row}, ${col}]`);
+          ElMessage.success(`Hyperlink updated in cell ${cellRef}`);
+          
+          markAsUnsaved();
+        } else {
+          console.log(`⚠️ updateLink method not available or no cell value found`);
+          ElMessage.warning('Could not update hyperlink. Please ensure the cell contains a hyperlink and try using the UI instead.');
+        }
+      } catch (error) {
+        console.error('❌ Error updating hyperlink:', error);
+        ElMessage.error(`Failed to update hyperlink: ${error.message}`);
+      }
+    };
+    
+    const removeHyperlinkInCell = (row, col, linkId) => {
+      try {
+        if (!univerAPI) {
+          console.warn('UniverAPI not available');
+          ElMessage.warning('Spreadsheet not ready');
+          return;
+        }
+        
+        const fWorkbook = univerAPI.getActiveWorkbook();
+        if (!fWorkbook) {
+          ElMessage.warning('No active workbook found');
+          return;
+        }
+        
+        const fWorksheet = fWorkbook.getActiveSheet();
+        if (!fWorksheet) {
+          ElMessage.warning('No active worksheet found');
+          return;
+        }
+        
+        const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+        const fRange = fWorksheet.getRange(cellRef);
+        
+        const cellValue = fRange.getValue(true);
+        if (cellValue && typeof cellValue.cancelLink === 'function') {
+          const newRichText = cellValue.copy().cancelLink(linkId);
+          fRange.setRichTextValueForCell(newRichText);
+          
+          console.log(`✅ Removed hyperlink ${linkId} from cell [${row}, ${col}]`);
+          ElMessage.success(`Hyperlink removed from cell ${cellRef}`);
+          
+          markAsUnsaved();
+        } else {
+          console.log(`⚠️ cancelLink method not available or no cell value found`);
+          ElMessage.warning('Could not remove hyperlink. Please ensure the cell contains a hyperlink and try using the UI instead.');
+        }
+      } catch (error) {
+        console.error('❌ Error removing hyperlink:', error);
+        ElMessage.error(`Failed to remove hyperlink: ${error.message}`);
+      }
+    };
+
     // Expose functions for manual testing and edit info viewing
     defineExpose({
       testEditTracking,
       showCellEditInfo,
-      getCellEditInfo
+      getCellEditInfo,
+      insertHyperlinkInCell,
+      insertHyperlinkInCurrentCell,
+      getHyperlinksInCell,
+      updateHyperlinkInCell,
+      removeHyperlinkInCell
     });
 
     onMounted(() => {
@@ -1449,6 +1734,26 @@ import '@univerjs/preset-sheets-note/lib/index.css'
         clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
         window.taskStatusIntervals.delete(props.spreadsheetId);
         console.log(`🧹 Cleaned up TASKSTATUS processor for ${props.spreadsheetId}`);
+      }
+      
+      // Clean up hyperlink event listeners
+      if (window.hyperlinkDisposables && window.hyperlinkDisposables.has(props.spreadsheetId)) {
+        const disposables = window.hyperlinkDisposables.get(props.spreadsheetId);
+        try {
+          if (disposables.linkAdd && typeof disposables.linkAdd.dispose === 'function') {
+            disposables.linkAdd.dispose();
+          }
+          if (disposables.linkUpdate && typeof disposables.linkUpdate.dispose === 'function') {
+            disposables.linkUpdate.dispose();
+          }
+          if (disposables.linkDelete && typeof disposables.linkDelete.dispose === 'function') {
+            disposables.linkDelete.dispose();
+          }
+          window.hyperlinkDisposables.delete(props.spreadsheetId);
+          console.log(`🧹 Cleaned up hyperlink event listeners for ${props.spreadsheetId}`);
+        } catch (error) {
+          console.warn(`⚠️ Error cleaning up hyperlink listeners for ${props.spreadsheetId}:`, error);
+        }
       }
       
       if (univer) {

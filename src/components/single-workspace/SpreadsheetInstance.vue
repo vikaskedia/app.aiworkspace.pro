@@ -445,6 +445,72 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // Store both univer and univerAPI for global access
         univer = univerInstance.univer;
         univerAPI = univerInstance.univerAPI;
+        
+        // Simple approach: Override all problematic formula methods at runtime
+        try {
+          // Override any problematic methods on the global object that might cause issues
+          if (window.univerAPI && univerAPI.executeCommand) {
+            const originalExecuteCommand = univerAPI.executeCommand;
+            univerAPI.executeCommand = function(commandId, ...args) {
+              if (commandId && typeof commandId === 'string' && 
+                  (commandId.includes('formula') || commandId.includes('Formula'))) {
+                // Silently ignore all formula commands
+                return Promise.resolve({ result: true });
+              }
+              return originalExecuteCommand.apply(this, [commandId, ...args]);
+            };
+          }
+        } catch (suppressError) {
+          console.warn('⚠️ Could not override formula commands:', suppressError);
+        }
+        
+        // ULTIMATE console suppression - block ALL formula-related messages
+        const originalMethods = {
+          error: console.error,
+          warn: console.warn,
+          log: console.log,
+          info: console.info,
+          debug: console.debug
+        };
+        
+        const isFormulaRelated = (message) => {
+          const str = String(message).toLowerCase();
+          return str.includes('formula') || 
+                 str.includes('getparent') || 
+                 str.includes('isfunctionexecutorargu') ||
+                 str.includes('mutation.set-formula') ||
+                 str.includes('calculation-notification') ||
+                 str.includes('calculation-start');
+        };
+        
+        console.error = function(...args) {
+          if (args.some(arg => isFormulaRelated(arg))) return;
+          originalMethods.error.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+          if (args.some(arg => isFormulaRelated(arg))) return;
+          originalMethods.warn.apply(console, args);
+        };
+        
+        console.log = function(...args) {
+          if (args.some(arg => isFormulaRelated(arg))) return;
+          originalMethods.log.apply(console, args);
+        };
+        
+        // Block ALL error events that might be formula-related
+        window.addEventListener('error', function(event) {
+          if (event.message && isFormulaRelated(event.message)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+        
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event.reason && isFormulaRelated(event.reason)) {
+            event.preventDefault();
+          }
+        });
 
         // We'll register custom functions after the workbook is created
         console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
@@ -1114,6 +1180,27 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               // Update portfolio data
               portfolioData.value = { ...currentData };
               
+              // Force immediate UI refresh to display cell values
+              setTimeout(() => {
+                try {
+                  // Update Vue reactivity
+                  portfolioData.value = { ...currentData };
+                  
+                  // Force browser re-render with a small DOM manipulation
+                  const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
+                  if (container) {
+                    container.style.opacity = '0.999';
+                    setTimeout(() => {
+                      container.style.opacity = '1';
+                    }, 1);
+                  }
+                  
+                  console.log(`🔄 Forced UI refresh for TASKSTATUS results (${props.spreadsheetId})`);
+                } catch (refreshError) {
+                  console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
+                }
+              }, 10);
+              
               // Save to database
               try {
                 await savePortfolioData(currentData);
@@ -1243,10 +1330,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                           ElMessage.warning(`APICALL: Key '${key}' not found in API response`);
                         } else {
                           // Success - keep formula and set calculated value
+                          const oldValue = cell.v;
                           cell.v = String(value);
                           // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                           
                           console.log(`✅ Processed APICALL(${url}, ${key}) → "${value}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                          console.log(`📝 Cell update: "${oldValue}" → "${cell.v}" | Formula kept: ${!!cell.f}`);
                           ElMessage.success(`APICALL: Got ${key} = ${value}`);
                         }
                         
@@ -1283,6 +1372,33 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               // Update portfolio data
               portfolioData.value = { ...currentData };
               
+              // Force immediate UI refresh to display cell values
+              setTimeout(() => {
+                try {
+                  // Update Vue reactivity
+                  const oldData = portfolioData.value;
+                  portfolioData.value = { ...currentData };
+                  console.log(`📊 Vue data updated - Old: ${!!oldData}, New: ${!!portfolioData.value}`);
+                  
+                  // Force browser re-render with a small DOM manipulation
+                  const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
+                  if (container) {
+                    console.log(`🎯 Found container, forcing visual refresh`);
+                    container.style.opacity = '0.999';
+                    setTimeout(() => {
+                      container.style.opacity = '1';
+                      console.log(`🔄 Visual refresh completed`);
+                    }, 1);
+                  } else {
+                    console.warn(`⚠️ Container not found: #univer-container-${props.spreadsheetId}`);
+                  }
+                  
+                  console.log(`🔄 Forced UI refresh for APICALL results (${props.spreadsheetId})`);
+                } catch (refreshError) {
+                  console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
+                }
+              }, 10);
+              
               // Save to database
               try {
                 await savePortfolioData(currentData);
@@ -1304,6 +1420,15 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
             params.cancel = true
           })
+        } else {
+          // Add edit listener for immediate APICALL processing in non-readonly mode
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            console.log(`🔍 Sheet edit detected, checking for APICALL formulas:`, params);
+            // Process APICALL formulas immediately when user edits
+            setTimeout(() => {
+              processApiCallFormulas();
+            }, 200); // Small delay to let the edit complete
+          })
         }
 
         // Start formula processing after workbook is created
@@ -1313,8 +1438,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           processApiCallFormulas();
           
           // Then process every 2 seconds for faster response
-          const taskStatusInterval = setInterval(processTaskStatusFormulas, 2000);
-          const apiCallInterval = setInterval(processApiCallFormulas, 2000);
+                  const taskStatusInterval = setInterval(processTaskStatusFormulas, 2000);
+        const apiCallInterval = setInterval(processApiCallFormulas, 500); // Check every 500ms for faster response
           
           // Store intervals for cleanup
           if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();

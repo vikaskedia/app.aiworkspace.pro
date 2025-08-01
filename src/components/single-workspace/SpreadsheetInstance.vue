@@ -501,6 +501,22 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         univer = univerInstance.univer;
         univerAPI = univerInstance.univerAPI;
         
+        // Check if Univer instance creation was successful
+        if (!univer || !univerAPI) {
+          console.error(`❌ Failed to create Univer instance for ${props.spreadsheetId}:`, {
+            univer: !!univer,
+            univerAPI: !!univerAPI,
+            readonly: props.readonly
+          });
+          throw new Error('Univer instance creation failed');
+        }
+        
+        console.log(`✅ Univer instance created successfully for ${props.spreadsheetId}:`, {
+          univer: !!univer,
+          univerAPI: !!univerAPI,
+          readonly: props.readonly
+        });
+        
         // Simple approach: Override all problematic formula methods at runtime
         try {
           // Override any problematic methods on the global object that might cause issues
@@ -597,6 +613,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         try {
           console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
           
+          // Check if univer instance was created successfully
+          if (!univer) {
+            console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
+            return;
+          }
+          
           // Wait for Univer to be fully initialized
           await new Promise(resolve => setTimeout(resolve, 1000));
           
@@ -604,17 +626,17 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           let injector = null;
           
           // Method 1: Try the internal injector property
-          if (univer._injector) {
+          if (univer && univer._injector) {
             injector = univer._injector;
             console.log('✅ Got injector from _injector property');
           }
           // Method 2: Try through context
-          else if (univer.getContext && univer.getContext().injector) {
+          else if (univer && univer.getContext && univer.getContext().injector) {
             injector = univer.getContext().injector;
             console.log('✅ Got injector from context');
           }
           // Method 3: Try accessing it differently
-          else if (univer.__container) {
+          else if (univer && univer.__container) {
             injector = univer.__container;
             console.log('✅ Got injector from __container property');
           }
@@ -2764,6 +2786,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         
         // First try to get data through the injector services
         try {
+          if (!univer || !univer.__getInjector) {
+            throw new Error('Univer instance not available');
+          }
           const injector = univer.__getInjector();
           if (injector) {
             const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');

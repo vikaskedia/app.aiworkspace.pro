@@ -82,7 +82,7 @@
                           @click.stop
                           divided>
                           <el-checkbox 
-                            v-model="portfolioReadonlyState[portfolio.id]" 
+                            :model-value="getPortfolioReadonlyState(portfolio.id)" 
                             @change="handleReadonlyChange(portfolio.id, $event)"
                             @click.stop>
                             Readonly
@@ -319,9 +319,126 @@ export default {
     // Readonly state for portfolios
     const portfolioReadonlyState = ref({}); // Store readonly state for each portfolio
     
+    // Load portfolio view mode preferences from Supabase
+    const loadPortfolioViewModePreferences = async () => {
+      if (!currentMatterId.value) {
+        console.warn('⚠️ No current matter ID, cannot load portfolio preferences');
+        return;
+      }
+
+      try {
+        console.log(`🔍 Loading portfolio view mode preferences for workspace ${currentMatterId.value}...`);
+        const { data: user } = await supabase.auth.getUser();
+        
+        if (!user?.user?.id) {
+          console.warn('⚠️ No user found, using default view mode preferences');
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('ai_portfolio_settings')
+          .select('portfolio_id, view_mode')
+          .eq('user_id', user.user.id)
+          .eq('matter_id', currentMatterId.value);
+        
+        if (error) {
+          console.error('Error loading portfolio view mode preferences:', error);
+          return;
+        }
+        
+        // Convert array to object for easier lookup
+        const preferences = {};
+        if (data && data.length > 0) {
+          data.forEach(setting => {
+            preferences[setting.portfolio_id] = setting.view_mode;
+          });
+          console.log(`✅ Loaded ${data.length} portfolio view mode preferences:`, preferences);
+        } else {
+          console.log('ℹ️ No portfolio view mode preferences found, will use defaults (readonly mode)');
+        }
+        
+        portfolioReadonlyState.value = preferences;
+      } catch (error) {
+        console.error('Error loading portfolio view mode preferences:', error);
+      }
+    };
+    
+    // Save portfolio view mode preference to Supabase
+    const savePortfolioViewModePreference = async (portfolioId, isReadonly) => {
+      if (!currentMatterId.value) {
+        console.warn('⚠️ No current matter ID, cannot save portfolio preference');
+        return;
+      }
+
+      try {
+        console.log(`💾 Saving portfolio view mode preference for ${portfolioId}: ${isReadonly ? 'readonly' : 'edit'}`);
+        const { data: user } = await supabase.auth.getUser();
+        
+        if (!user?.user?.id) {
+          console.warn('⚠️ No user found, cannot save preference');
+          return;
+        }
+        
+        // First try to update existing record
+        const { data: updateData, error: updateError } = await supabase
+          .from('ai_portfolio_settings')
+          .update({
+            view_mode: isReadonly,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.user.id)
+          .eq('matter_id', currentMatterId.value)
+          .eq('portfolio_id', portfolioId)
+          .select();
+        
+        if (updateError) {
+          console.error('Error updating portfolio view mode preference:', updateError);
+          throw updateError;
+        }
+        
+        // If no rows were updated, insert a new record
+        if (!updateData || updateData.length === 0) {
+          console.log('📝 No existing preference found, creating new record...');
+          const { error: insertError } = await supabase
+            .from('ai_portfolio_settings')
+            .insert({
+              user_id: user.user.id,
+              matter_id: currentMatterId.value,
+              portfolio_id: portfolioId,
+              view_mode: isReadonly,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          
+          if (insertError) {
+            console.error('Error inserting portfolio view mode preference:', insertError);
+            throw insertError;
+          }
+          
+          console.log('✅ Created new preference record');
+        } else {
+          console.log('✅ Updated existing preference record');
+        }
+        
+        // Update local state
+        portfolioReadonlyState.value = {
+          ...portfolioReadonlyState.value,
+          [portfolioId]: isReadonly
+        };
+        
+        console.log(`✅ Successfully saved view mode preference for portfolio ${portfolioId}: ${isReadonly ? 'readonly' : 'edit'}`);
+      } catch (error) {
+        console.error('Failed to save portfolio view mode preference:', error);
+        // Don't throw error to avoid disrupting the user experience
+      }
+    };
+    
     // Computed function to get readonly state for a portfolio
     const getPortfolioReadonlyState = (portfolioId) => {
-      const readonlyState = portfolioReadonlyState.value[portfolioId] || false;
+      // Use the stored preference if it exists, otherwise default to readonly mode (true)
+      const readonlyState = portfolioReadonlyState.value[portfolioId] !== undefined 
+        ? portfolioReadonlyState.value[portfolioId] 
+        : true; // Default to readonly mode
       console.log(`🔍 Getting readonly state for portfolio ${portfolioId}:`, readonlyState);
       return readonlyState;
     };
@@ -582,21 +699,17 @@ export default {
             name: portfolio.portfolio_name,
             createdAt: new Date(portfolio.created_at),
             lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
-            isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : true
+            isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false // Default to edit mode
           }));
-          
-          // Initialize readonly state for each portfolio (default to true)
-          const newReadonlyState = {};
-          portfolioData.forEach(portfolio => {
-            newReadonlyState[portfolio.portfolio_id] = portfolio.is_readonly !== undefined ? portfolio.is_readonly : true;
-          });
-          portfolioReadonlyState.value = newReadonlyState;
           
           console.log(`📊 Loaded ${portfolios.value.length} portfolios`);
         } else {
           // Create default portfolio
           await createDefaultPortfolio();
         }
+
+        // Load view mode preferences after portfolios are loaded
+        await loadPortfolioViewModePreferences();
 
         // Set active portfolio to first one
         if (portfolios.value.length > 0) {
@@ -606,6 +719,7 @@ export default {
         }
 
         console.log(`✅ Portfolios initialized: ${portfolios.value.length} portfolios, ${spreadsheets.value.length} spreadsheets`);
+        console.log(`✅ View mode preferences loaded:`, portfolioReadonlyState.value);
         
         // Ensure page title is updated even if no portfolios were set as active
         if (portfolios.value.length === 0) {
@@ -647,14 +761,8 @@ export default {
           name: 'Portfolio 1',
           createdAt: new Date(),
           lastUpdated: 'Just created',
-          isReadonly: true
+          isReadonly: false // Default to edit mode
         }];
-        
-        // Initialize readonly state for the new portfolio
-        portfolioReadonlyState.value = {
-          ...portfolioReadonlyState.value,
-          [portfolioId]: true
-        };
         
         console.log(`✅ Created default portfolio: ${portfolioId}`);
       } catch (error) {
@@ -757,16 +865,10 @@ export default {
           name: newPortfolioForm.value.name,
           createdAt: new Date(),
           lastUpdated: 'Just created',
-          isReadonly: true
+          isReadonly: false // Default to edit mode
         };
         
         portfolios.value.push(newPortfolio);
-        
-        // Initialize readonly state for the new portfolio
-        portfolioReadonlyState.value = {
-          ...portfolioReadonlyState.value,
-          [portfolioId]: true
-        };
         
         // Create default spreadsheet in new portfolio
         await createDefaultSpreadsheet(portfolioId);
@@ -1015,6 +1117,7 @@ export default {
             portfolios.value = [];
             spreadsheets.value = [];
             activePortfolioId.value = '';
+            portfolioReadonlyState.value = {}; // Clear previous preferences
             initializePortfolios();
           } else {
             isInitialized = true;
@@ -1059,20 +1162,7 @@ export default {
         
         console.log(`✅ Updated readonly state for portfolio ${portfolioId}:`, portfolioReadonlyState.value);
         
-        /*
-        const { error } = await supabase
-          .from('portfolio_data')
-          .update({ is_readonly: checked })
-          .eq('portfolio_id', portfolioId)
-          .eq('matter_id', currentMatterId.value);
-
-        if (error) throw error;
-        */
-
-        const portfolioIndex = portfolios.value.findIndex(p => p.id === portfolioId);
-        if (portfolioIndex > -1) {
-          portfolios.value[portfolioIndex].isReadonly = checked;
-        }
+        await savePortfolioViewModePreference(portfolioId, checked);
         
         const portfolioName = portfolios.value.find(p => p.id === portfolioId)?.name || 'Portfolio';
         ElMessage.success(`Portfolio "${portfolioName}" is now ${checked ? 'Readonly' : 'Editable'}.`);
@@ -1099,7 +1189,7 @@ export default {
       // Add event listener for context menu
       document.addEventListener('click', hideContextMenu);
       document.addEventListener('contextmenu', hideContextMenu);
-      
+       
       console.log('✅ AI Portfolio Manager with Portfolio Tabs initialized!');
     });
 

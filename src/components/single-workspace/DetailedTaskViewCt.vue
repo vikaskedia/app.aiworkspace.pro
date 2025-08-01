@@ -650,7 +650,12 @@
                           </el-button>
                           <template #dropdown>
                             <el-dropdown-menu>
-                              <el-dropdown-item @click="startEditing(comment)">Edit</el-dropdown-item>
+                              <el-dropdown-item 
+                                v-if="comment.user_id === currentUser?.id" 
+                                @click="startEditing(comment)"
+                              >
+                                Edit
+                              </el-dropdown-item>
                               <el-dropdown-item @click="toggleCommentHistory(comment)" v-if="comment.comment_edit_history?.length">
                                 {{ expandedCommentHistories.has(comment.id) ? 'Close History' : `Show History (${comment.comment_edit_history.length})` }}
                               </el-dropdown-item>

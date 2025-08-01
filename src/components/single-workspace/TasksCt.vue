@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
 import TasksList from './TasksList.vue';
-import { ArrowDown, Close, Folder, Loading, Check } from '@element-plus/icons-vue';
+import { ArrowDown, Close, Folder, Loading, Check, Plus } from '@element-plus/icons-vue';
 import QuickActionDrawer from '../common/QuickActionDrawer.vue';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import TaskBoardCt from './TaskBoardCt.vue';
@@ -40,6 +40,7 @@ export default {
     Loading,
     TiptapEditor,
     Check,
+    Plus,
     TaskBoardCt
   },
   data() {
@@ -1665,13 +1666,15 @@ export default {
             @click="dialogVisible = true"
             type="primary" 
             size="small"
+            title="Create New Task"
             :disabled="!currentMatter">
-            New Task
+            <el-icon><Plus /></el-icon>
           </el-button>
           <el-button 
             @click="showFilters = !showFilters"
             type="info" 
             size="small"
+            class="filters-button"
             plain>
             {{ showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
           </el-button>
@@ -2514,4 +2517,9 @@ label.el-checkbox.task-checkbox {
 .filter-form .el-form-item {
   margin-bottom: 0;
 }
+
+.filters-button {
+  margin-left: 0px !important;
+}
+
 </style> 

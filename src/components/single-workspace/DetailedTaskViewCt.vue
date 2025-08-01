@@ -11,6 +11,14 @@
       </div>
       <div class="header-actions">
         <el-button 
+          type="primary"
+          @click="showCreateTaskDialog"
+          size="small"
+          class="create-task-btn"
+          title="Create New Task">
+          <el-icon><Plus /></el-icon>
+        </el-button>
+        <el-button 
           type="info"
           @click="shareDialogVisible = true"
           size="small"
@@ -1335,6 +1343,100 @@
       :positionOnlyMode="true"
       @positions-set="handleSignaturePositionsSet"
     />
+
+    <!-- Create Task Dialog -->
+    <el-dialog
+      v-model="createTaskDialogVisible"
+      title="Create New Task" 
+      class="create-task-dialog"
+      width="500px">
+      <el-form :model="newTask" label-position="top">
+        <!-- Essential fields always shown -->
+        <el-form-item label="Title" required>
+          <el-input v-model="newTask.title" />
+        </el-form-item>
+        <el-form-item label="Description">
+          <TiptapEditor
+            v-model="newTask.description"
+            placeholder="Write a description..."
+            :task-title="newTask.title || 'New Task'"
+            :shared-users="sharedUsers"
+            :enable-typeahead="false"
+          />
+        </el-form-item>
+
+        <!-- Show more/less button -->
+        <div class="show-more-container">
+          <el-button 
+            link 
+            type="primary" 
+            @click="showMoreFields = !showMoreFields">
+            {{ showMoreFields ? 'Show Less' : 'Show More Options' }}
+            <el-icon class="el-icon--right">
+              <component :is="showMoreFields ? 'ArrowUp' : 'ArrowDown'" />
+            </el-icon>
+          </el-button>
+        </div>
+
+        <!-- Additional fields in collapse transition -->
+        <el-collapse-transition>
+          <div v-show="showMoreFields">
+            <el-form-item label="Parent Task">
+              <el-select 
+                v-model="newTask.parent_task_id" 
+                style="width: 100%" 
+                filterable 
+                clearable
+                placeholder="Select parent task (optional)">
+                <el-option
+                  v-for="task in flattenedTasks"
+                  :key="task.id"
+                  :label="task.title"
+                  :value="task.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Priority">
+              <el-select v-model="newTask.priority" style="width: 100%">
+                <el-option label="High" value="high" />
+                <el-option label="Medium" value="medium" />
+                <el-option label="Low" value="low" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Due Date">
+              <el-date-picker
+                v-model="newTask.due_date"
+                type="date"
+                style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="Assignee">
+              <el-select 
+                v-model="newTask.assignee" 
+                style="width: 100%"
+                filterable
+                clearable
+                placeholder="Select assignee">
+                <el-option
+                  v-for="user in sortedSharedUsers"
+                  :key="user.id"
+                  :label="user.email"
+                  :value="user.id" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </el-collapse-transition>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="createTaskDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="createNewTask"
+            :disabled="!newTask.title">
+            Create
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
   <div v-else class="loading-state">
     <el-skeleton :rows="3" animated />
@@ -1541,6 +1643,19 @@ export default {
       pendingPdfFileName: '',
       pendingPdfFileObj: null,
       pendingSignaturePositions: [],
+      
+      // Create task dialog properties
+      createTaskDialogVisible: false,
+      newTask: {
+        title: '',
+        description: '',
+        status: 'not_started',
+        priority: 'medium',
+        due_date: null,
+        assignee: null,
+        parent_task_id: null
+      },
+      showMoreFields: false,
     };
   },
   async created() {
@@ -4572,6 +4687,134 @@ ${comment.content}
       }
     },
 
+    showCreateTaskDialog() {
+      this.createTaskDialogVisible = true;
+      this.resetNewTask();
+    },
+
+    resetNewTask() {
+      this.newTask = {
+        title: '',
+        description: '',
+        status: 'not_started',
+        priority: 'medium',
+        due_date: null,
+        assignee: null,
+        parent_task_id: null
+      };
+      this.showMoreFields = false;
+    },
+
+    async createNewTask() {
+      if (!this.currentMatter) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'Please select a workspace first'
+        });
+        return;
+      }
+
+      if (!this.newTask.title.trim()) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'Task title is required'
+        });
+        return;
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const taskData = {
+          ...this.newTask,
+          title: this.newTask.title.trim(),
+          matter_id: this.currentMatter.id,
+          created_by: user.id
+        };
+
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert([taskData])
+          .select();
+
+        if (error) throw error;
+
+        // Create notification if task is assigned to someone
+        if (taskData.assignee && taskData.assignee !== user.id) {
+          await this.createNotification(
+            taskData.assignee,
+            'task_assigned',
+            { task_id: data[0].id, task_title: data[0].title }
+          );
+        }
+
+        // Parse description for mentions and create notifications
+        if (taskData.description) {
+          const mentionRegex = /<span data-mention[^>]*data-id="([^"]+)"[^>]*>@([^<]+)<\/span>/g;
+          const mentions = [...taskData.description.matchAll(mentionRegex)];
+          
+          for (const mention of mentions) {
+            const userId = mention[1];
+            if (userId && userId !== user.id) {
+              await this.createNotification(
+                userId,
+                'mention',
+                { 
+                  task_id: data[0].id, 
+                  task_title: data[0].title,
+                  comment_by: user.email
+                }
+              );
+            }
+          }
+        }
+
+        // Log task creation activity
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: data[0].id,
+            user_id: user.id,
+            content: 'Created this task',
+            type: 'activity',
+            matter_id: this.currentMatter.id,
+            metadata: {
+              action: 'create',
+              task_title: data[0].title
+            }
+          });
+        
+        // Update cache
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const updatedTasks = [data[0], ...cachedTasks];
+        this.taskStore.setCachedTasks(this.currentMatter.id, updatedTasks);
+        
+        // Update matter activity
+        await updateMatterActivity(this.currentMatter.id);
+
+        // Send Telegram notification
+        await sendTelegramNotification({
+          matterId: this.currentMatter.id,
+          activityType: 'TASK_CREATED',
+          message: `New task created: "${data[0].title}"\nCreated by: ${user.email}`
+        });
+
+        this.createTaskDialogVisible = false;
+        this.resetNewTask();
+        
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task created successfully'
+        });
+      } catch (error) {
+        console.error('Error creating task:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to create task: ' + error.message
+        });
+      }
+    },
+
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -4604,6 +4847,11 @@ ${comment.content}
     createChildTaskDialogVisible(newVal) {
       if (!newVal) {
         this.resetChildTaskForm();
+      }
+    },
+    createTaskDialogVisible(newVal) {
+      if (newVal) {
+        this.resetNewTask();
       }
     }
   },
@@ -4696,6 +4944,9 @@ ${comment.content}
       flatten(organizedTasks);
       
       return flattened;
+    },
+    sortedSharedUsers() {
+      return this.sharedUsers.sort((a, b) => a.email.localeCompare(b.email));
     },
     filteredComments() {
       return this.comments.filter(comment => {
@@ -7461,5 +7712,25 @@ table.editor-table {
 
 .comment-history .previous-content p {
   margin: 8px 0;
+}
+
+/* Create task button styles */
+.create-task-btn {
+  min-width: 40px;
+  padding: 8px 12px;
+}
+
+.create-task-btn .el-icon {
+  font-size: 16px;
+}
+
+/* Create task dialog styles */
+.create-task-dialog .el-dialog__body {
+  padding: 20px;
+}
+
+.show-more-container {
+  margin: 16px 0;
+  text-align: center;
 }
 </style>

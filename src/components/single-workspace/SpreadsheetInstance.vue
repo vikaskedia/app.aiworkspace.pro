@@ -2379,6 +2379,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
     };
 
+    
     // Save complete workbook data with all features to Supabase
     const savePortfolioData = async (data = null) => {
       if (saving.value) {
@@ -2434,53 +2435,44 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           throw new Error('Data contains non-serializable content: ' + serializeError.message);
         }
         
-        if (portfolioId.value) {
-          // Update existing record - verify it belongs to current workspace
-          console.log(`📝 Updating existing record ID (${props.spreadsheetId}):`, portfolioId.value);
-          const { error } = await supabase
-            .from('ai_portfolio_data')
-            .update({ 
-              data: cleanedData,
-              name: props.spreadsheetName,
-              spreadsheet_id: props.spreadsheetId,
-              matter_id: currentMatterId.value,
-              portfolio_id: props.portfolioId,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', portfolioId.value)
-            .eq('matter_id', currentMatterId.value); // Extra security: ensure we only update records from current workspace
+        // Always create new record for history tracking
+        console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentMatterId.value}...`);
+        const { data: newRecord, error } = await supabase
+          .from('ai_portfolio_data')
+          .insert([{ 
+            data: cleanedData,
+            name: props.spreadsheetName,
+            spreadsheet_id: props.spreadsheetId,
+            matter_id: currentMatterId.value,
+            portfolio_id: props.portfolioId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
 
-          if (error) {
-            console.error(`❌ Supabase update error (${props.spreadsheetId}):`, error);
-            throw error;
-          }
-          console.log(`✅ Successfully updated existing record (${props.spreadsheetId}) for workspace ${currentMatterId.value}`);
-        } else {
-          // Create new record
-          console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentMatterId.value}...`);
-          const { data: newRecord, error } = await supabase
-            .from('ai_portfolio_data')
-            .insert([{ 
-              data: cleanedData,
-              name: props.spreadsheetName,
-              spreadsheet_id: props.spreadsheetId,
-              matter_id: currentMatterId.value,
-              portfolio_id: props.portfolioId,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error(`❌ Supabase insert error (${props.spreadsheetId}):`, error);
-            throw error;
-          }
+        if (error) {
+          console.error(`❌ Supabase insert error (${props.spreadsheetId}):`, error);
+          throw error;
+        }
+        
+        console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, newRecord.id);
+        
+        // Now fetch the latest record from Supabase by created_at date
+        console.log(`🔄 Fetching latest record from Supabase after save...`);
+        const latestData = await fetchLatestRecordFromSupabase();
+        
+        if (latestData) {
+          portfolioData.value = latestData;
           portfolioId.value = newRecord.id;
-          console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, newRecord.id);
+          console.log(`✅ Updated local data with latest record from Supabase`);
+        } else {
+          // Fallback to the data we just saved
+          portfolioData.value = cleanedData;
+          portfolioId.value = newRecord.id;
+          console.log(`⚠️ Could not fetch latest record, using saved data as fallback`);
         }
 
-        portfolioData.value = cleanedData;
         lastSaved.value = new Date().toLocaleTimeString();
         
         const sheetCount = cleanedData.sheets ? Object.keys(cleanedData.sheets).length : 0;
@@ -2501,6 +2493,106 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         throw error; // Re-throw for caller to handle
       } finally {
         saving.value = false;
+      }
+    };
+
+
+    // Helper function to fetch the latest record from Supabase
+    const fetchLatestRecordFromSupabase = async () => {
+      if (!currentMatterId.value) {
+        console.warn(`⚠️ No matter ID available for fetching latest record (${props.spreadsheetId})`);
+        return null;
+      }
+
+      try {
+        console.log(`📊 Fetching latest record from Supabase for ${props.spreadsheetId}...`);
+        
+        // Build query to get the latest record
+        let query = supabase
+          .from('ai_portfolio_data')
+          .select('*')
+          .eq('spreadsheet_id', props.spreadsheetId)
+          .eq('matter_id', currentMatterId.value);
+        
+        // Add portfolio_id filter if provided
+        if (props.portfolioId) {
+          query = query.eq('portfolio_id', props.portfolioId);
+        }
+        
+        const { data, error } = await query
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error(`❌ Error fetching latest record:`, error);
+          return null;
+        }
+
+        if (data && data.length > 0) {
+          const latestRecord = data[0];
+          console.log(`📅 Fetched latest record from: ${new Date(latestRecord.created_at).toLocaleString()}`);
+          
+          const loadedData = latestRecord.data || {};
+          
+          // Check if this is a complete Univer workbook format or legacy format
+          if (loadedData.id && loadedData.sheets && loadedData.sheetOrder) {
+            // This is a complete Univer workbook format with all features
+            console.log(`📊 Fetched complete Univer workbook with formatting and features (${props.spreadsheetId})`);
+            return loadedData;
+          } else if (loadedData.sheets) {
+            // This is a sheets-only format, wrap it in workbook structure
+            const workbookData = {
+              id: `workbook-${props.spreadsheetId}`,
+              locale: 'en-US',
+              name: props.spreadsheetName,
+              sheetOrder: Object.keys(loadedData.sheets),
+              sheets: loadedData.sheets
+            };
+            return workbookData;
+          } else if (Object.keys(loadedData).some(key => key.startsWith('sheet-'))) {
+            // Legacy multi-sheet format - convert to complete workbook
+            const workbookData = {
+              id: `workbook-${props.spreadsheetId}`,
+              locale: 'en-US',
+              name: props.spreadsheetName,
+              sheetOrder: Object.keys(loadedData),
+              sheets: {}
+            };
+            
+            // Convert each sheet to proper format
+            Object.keys(loadedData).forEach(sheetId => {
+              workbookData.sheets[sheetId] = {
+                id: sheetId,
+                name: sheetId === 'sheet-01' ? props.spreadsheetName : `Sheet ${sheetId.split('-')[1]}`,
+                cellData: loadedData[sheetId] || {}
+              };
+            });
+            
+            return workbookData;
+          } else {
+            // Very old format - single sheet data
+            const workbookData = {
+              id: `workbook-${props.spreadsheetId}`,
+              locale: 'en-US',
+              name: props.spreadsheetName,
+              sheetOrder: ['sheet-01'],
+              sheets: {
+                'sheet-01': {
+                  id: 'sheet-01',
+                  name: props.spreadsheetName,
+                  cellData: loadedData
+                }
+              }
+            };
+            return workbookData;
+          }
+        } else {
+          console.log(`ℹ️ No records found in Supabase for ${props.spreadsheetId}`);
+          return null;
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching latest record from Supabase (${props.spreadsheetId}):`, error);
+        return null;
       }
     };
 

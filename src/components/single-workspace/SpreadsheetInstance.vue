@@ -105,6 +105,8 @@ import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-
 import UniverPresetSheetsNoteEnUS from '@univerjs/preset-sheets-note/locales/en-US'
 import UniverPresetSheetsHyperLinkEnUS from '@univerjs/preset-sheets-hyper-link/locales/en-US'
 
+// Note: APICALL function is implemented as a manual processor, not a registered Univer function
+
 // CSS imports
 import '@univerjs/preset-sheets-core/lib/index.css'
 import '@univerjs/preset-sheets-note/lib/index.css'
@@ -443,6 +445,9 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // Store both univer and univerAPI for global access
         univer = univerInstance.univer;
         univerAPI = univerInstance.univerAPI;
+
+        // We'll register custom functions after the workbook is created
+        console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
 
         // Register plugins in exact order from 
         /*
@@ -1104,6 +1109,141 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
 
+        // APICALL formula processor - makes HTTP requests and extracts JSON values
+        const processApiCallFormulas = async () => {
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            if (!currentData || !currentData.sheets) return;
+            
+            let processedCount = 0;
+            let needsReload = false;
+            
+            // Helper function to extract value from JSON using dot notation
+            const extractValue = (obj, key) => {
+              if (!obj || typeof obj !== 'object') return undefined;
+              
+              const keys = key.split('.');
+              let current = obj;
+              
+              for (const k of keys) {
+                if (current && typeof current === 'object' && k in current) {
+                  current = current[k];
+                } else {
+                  return undefined;
+                }
+              }
+              
+              return current;
+            };
+            
+            // Process each sheet
+            for (const sheetId of Object.keys(currentData.sheets)) {
+              const sheet = currentData.sheets[sheetId];
+              if (!sheet.cellData) continue;
+              
+              // Process each row
+              for (const row of Object.keys(sheet.cellData)) {
+                // Process each column
+                for (const col of Object.keys(sheet.cellData[row])) {
+                  const cell = sheet.cellData[row][col];
+                  if (cell && cell.f && typeof cell.f === 'string') {
+                    const formula = cell.f.trim();
+                    // Match APICALL("url", "key") pattern
+                    const apiCallMatch = formula.match(/^=APICALL\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
+                    
+                    if (apiCallMatch) {
+                      const url = apiCallMatch[1];
+                      const key = apiCallMatch[2];
+                      
+                      try {
+                        console.log(`🌐 Making API call to ${url} for key '${key}' at [${row}, ${col}] (${props.spreadsheetId})`);
+                        
+                        // Validate URL format
+                        try {
+                          new URL(url);
+                        } catch (urlError) {
+                          throw new Error('Invalid URL format');
+                        }
+                        
+                        // Make the HTTP request
+                        const response = await fetch(url, {
+                          method: 'GET',
+                          headers: {
+                            'Accept': 'application/json',
+                          },
+                          mode: 'cors',
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        // Parse JSON response
+                        const data = await response.json();
+                        console.log(`📊 APICALL: Received data from ${url}:`, data);
+                        
+                        // Extract the requested value
+                        const value = extractValue(data, key);
+                        
+                        if (value === undefined || value === null) {
+                          // Key not found
+                          cell.v = `Key '${key}' not found`;
+                          delete cell.f;
+                          
+                          console.warn(`⚠️ APICALL: Key '${key}' not found in response from ${url}`);
+                          ElMessage.warning(`APICALL: Key '${key}' not found in API response`);
+                        } else {
+                          // Success - update cell with the extracted value
+                          cell.v = String(value);
+                          delete cell.f;
+                          
+                          console.log(`✅ Processed APICALL(${url}, ${key}) → "${value}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                          ElMessage.success(`APICALL: Got ${key} = ${value}`);
+                        }
+                        
+                        processedCount++;
+                        needsReload = true;
+                        
+                      } catch (apiError) {
+                        console.error(`❌ APICALL Error for ${url}:`, apiError);
+                        
+                        // Update cell with error message
+                        cell.v = `Error: ${apiError.message || 'API call failed'}`;
+                        delete cell.f;
+                        
+                        ElMessage.error(`APICALL failed: ${apiError.message || 'Unknown error'}`);
+                        
+                        processedCount++;
+                        needsReload = true;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (needsReload) {
+              console.log(`📊 Processed ${processedCount} APICALL formulas (${props.spreadsheetId})`);
+              
+              // Update portfolio data
+              portfolioData.value = { ...currentData };
+              
+              // Save to database
+              try {
+                await savePortfolioData(currentData);
+                console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
+              } catch (saveError) {
+                console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
+              }
+              
+              // Trigger data refresh
+              console.log(`🔄 APICALL data updated, will reflect on next reload (${props.spreadsheetId})`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing APICALL formulas (${props.spreadsheetId}):`, error);
+          }
+        };
+
         // Add readonly event listener if needed
         if (props.readonly) {
           editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
@@ -1115,16 +1255,22 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         setTimeout(() => {
           // Process immediately
           processTaskStatusFormulas();
+          processApiCallFormulas();
           
           // Then process every 2 seconds for faster response
-          const formulaInterval = setInterval(processTaskStatusFormulas, 2000);
+          const taskStatusInterval = setInterval(processTaskStatusFormulas, 2000);
+          const apiCallInterval = setInterval(processApiCallFormulas, 2000);
           
-          // Store interval for cleanup
+          // Store intervals for cleanup
           if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
-          window.taskStatusIntervals.set(props.spreadsheetId, formulaInterval);
+          if (!window.apiCallIntervals) window.apiCallIntervals = new Map();
+          window.taskStatusIntervals.set(props.spreadsheetId, taskStatusInterval);
+          window.apiCallIntervals.set(props.spreadsheetId, apiCallInterval);
           
           console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
+          console.log(`✅ APICALL formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
           console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
+          console.log(`🌐 APICALL Usage: Type "=APICALL('https://api.ipify.org/?format=json', 'ip')" in any cell to fetch your IP address from the API. Works with any JSON API.`);
         }, 1000);
 
         // Enable change tracking with error handling
@@ -1744,6 +1890,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
         window.taskStatusIntervals.delete(props.spreadsheetId);
         console.log(`🧹 Cleaned up TASKSTATUS processor for ${props.spreadsheetId}`);
+      }
+      
+      // Clean up APICALL formula processor
+      if (window.apiCallIntervals && window.apiCallIntervals.has(props.spreadsheetId)) {
+        clearInterval(window.apiCallIntervals.get(props.spreadsheetId));
+        window.apiCallIntervals.delete(props.spreadsheetId);
+        console.log(`🧹 Cleaned up APICALL processor for ${props.spreadsheetId}`);
       }
       
       // Clean up hyperlink event listeners

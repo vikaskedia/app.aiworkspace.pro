@@ -65,12 +65,13 @@
                   <span class="history-item-relative">{{ record.relativeDate }}</span>
                 </div>
                 <div class="history-item-details">
-                  <span class="history-item-name">{{ record.name }}</span>
+                  <!-- <span class="history-item-name">{{ record.name }}</span> -->
                   <span v-if="record.userDisplay" class="history-item-user">by {{ record.userDisplay }}</span>
-                </div>
-                <div class="history-item-actions">
                   <button class="history-load-btn">Load This Version</button>
                 </div>
+                <!-- <div class="history-item-actions">
+                  <button class="history-load-btn">Load This Version</button>
+                </div> -->
               </div>
             </div>
           </div>
@@ -2596,6 +2597,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
     };
 
+    
+
     // Helper function to clean data for serialization
     const cleanDataForSerialization = (data) => {
       try {
@@ -3062,6 +3065,17 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         
         // Get current workbook data directly from Univer
         const currentData = getCurrentSpreadsheetData();
+
+
+        // get current user
+        await getCurrentUser(); // this is a promise
+
+        if (currentUser.value) {
+          // Add simple edit metadata
+          currentData.created_by = currentUser.value.email;
+          currentData.created_by_id = currentUser.value.id;
+        }
+
         
         if (!currentData || Object.keys(currentData).length === 0) {
           console.warn(`⚠️ No workbook data to save (${props.spreadsheetId})`);
@@ -3277,12 +3291,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           historyData.value = data.map(record => {
             // Try to get user info from created_by if available
             let userDisplay = 'Unknown User';
-            if (record.created_by) {
+            if (record.data.created_by) {
               // If created_by is an email, extract the username part
-              if (record.created_by.includes('@')) {
-                userDisplay = record.created_by.split('@')[0];
+              if (record.data.created_by.includes('@')) {
+                userDisplay = record.data.created_by.split('@')[0];
               } else {
-                userDisplay = record.created_by;
+                userDisplay = record.data.created_by;
               }
             }
             
@@ -3293,7 +3307,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               created_by: record.created_by,
               userDisplay: userDisplay,
               data: record.data,
-              formattedDate: new Date(record.created_at).toLocaleString(),
+              formattedDate:  getFormattedDate(record.created_at),
               relativeDate: getRelativeTimeString(record.created_at)
             };
           });
@@ -3311,10 +3325,27 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
     };
 
+    const getFormattedDate = (dateString) => {
+      const date = new Date(dateString+'Z');
+
+      const formatted = new Intl.DateTimeFormat('en-US', {
+          month: 'short',    // "Jan"
+          day: 'numeric',    // "21"
+          year: 'numeric',   // "2025"
+          hour: 'numeric',   // "8"
+          minute: '2-digit', // "12"
+          hour12: true       // "AM/PM"
+        }).format(date);
+      return formatted.replace(',', ''); 
+    }
+
     // Helper function to get relative time string
     const getRelativeTimeString = (dateString) => {
-      const date = new Date(dateString);
+      const date = new Date(dateString+'Z');
       const now = new Date();
+      // get current utc date
+      //const utcNow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds());  
+
       const diffInSeconds = Math.floor((now - date) / 1000);
       
       if (diffInSeconds < 60) return 'Just now';

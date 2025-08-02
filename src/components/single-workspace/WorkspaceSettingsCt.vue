@@ -94,6 +94,7 @@ export default {
         title: ''
       },
       availableWorkspaces: [],
+      allWorkspaces: [],
     };
   },
   components: {
@@ -117,6 +118,7 @@ export default {
           this.loadPhoneNumbers();
           this.loadPhoneTextActions();
           this.loadAvailableWorkspaces();
+          this.loadAllWorkspaces();
           this.parentWorkspace.id = newMatter?.parent_matter_id || null;
         }
       },
@@ -124,6 +126,30 @@ export default {
     }
   },
   methods: {
+    async loadAllWorkspaces() {
+      try {
+        const { data: workspaces, error } = await supabase
+          .from('matters')
+          .select('id, title')
+          .neq('id', this.currentMatter?.id) // Exclude current workspace
+          .eq('archived', false);
+
+        if (error) throw error;
+        this.allWorkspaces = workspaces || [];
+        console.log('All workspaces:', this.allWorkspaces);
+        
+        // Set current parent workspace title if it exists
+        if (this.currentMatter?.parent_matter_id) {
+          const parent = this.allWorkspaces.find(w => w.id === this.currentMatter.parent_matter_id);
+          if (parent) {
+            this.parentWorkspace.title = parent.title;
+          }
+        }
+
+      } catch (error) {
+        ElMessage.error('Error loading all workspaces: ' + error.message);
+      }
+    },
     async loadAvailableWorkspaces() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -842,7 +868,7 @@ export default {
                   label="None"
                   :value="null" />
                 <el-option
-                  v-for="workspace in availableWorkspaces"
+                  v-for="workspace in allWorkspaces"
                   :key="workspace.id"
                   :label="workspace.title"
                   :value="workspace.id" />

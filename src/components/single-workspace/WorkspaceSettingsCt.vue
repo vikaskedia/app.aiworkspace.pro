@@ -89,6 +89,11 @@ export default {
         action_name: '',
         post_url: ''
       },
+      parentWorkspace: {
+        id: this.currentMatter?.parent_matter_id || null,
+        title: ''
+      },
+      availableWorkspaces: [],
     };
   },
   components: {
@@ -111,12 +116,74 @@ export default {
           this.loadTelegramGroups();
           this.loadPhoneNumbers();
           this.loadPhoneTextActions();
+          this.loadAvailableWorkspaces();
+          this.parentWorkspace.id = newMatter?.parent_matter_id || null;
         }
       },
       immediate: true
     }
   },
   methods: {
+    async loadAvailableWorkspaces() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // First get the matter IDs the user has access to
+        const { data: accessData, error: accessError } = await supabase
+          .from('workspace_access')
+          .select('matter_id')
+          .eq('shared_with_user_id', user.id);
+
+        if (accessError) throw accessError;
+
+        const accessibleMatterIds = accessData?.map(row => row.matter_id) || [];
+
+        // Then get the workspaces
+        const { data: workspaces, error } = await supabase
+          .from('matters')
+          .select('id, title')
+          .eq('archived', false)
+          .neq('id', this.currentMatter?.id) // Exclude current workspace
+          .in('id', accessibleMatterIds);
+
+        if (error) throw error;
+        
+        this.availableWorkspaces = workspaces || [];
+        console.log('Available workspaces:', this.availableWorkspaces);
+        
+        // Set current parent workspace title if it exists
+        if (this.currentMatter?.parent_matter_id) {
+          const parent = this.availableWorkspaces.find(w => w.id === this.currentMatter.parent_matter_id);
+          if (parent) {
+            this.parentWorkspace.title = parent.title;
+          }
+        }
+      } catch (error) {
+        ElMessage.error('Error loading workspaces: ' + error.message);
+      }
+    },
+
+    async updateParentWorkspace() {
+      try {
+        const { data, error } = await supabase
+          .from('matters')
+          .update({
+            parent_matter_id: this.parentWorkspace.id
+          })
+          .eq('id', this.currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update the Pinia store
+        this.currentMatter = data;
+        ElMessage.success('Parent workspace updated successfully');
+      } catch (error) {
+        ElMessage.error('Error updating parent workspace: ' + error.message);
+      }
+    },
     async loadSharedUsers() {
       try {
         const { data: shares, error } = await supabase
@@ -756,6 +823,42 @@ export default {
               :disabled="!editingMatter.title">
               Save Changes
             </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- Parent Workspace Section -->
+      <div class="section">
+        <h3>Select Parent Workspace</h3>
+        <el-form label-position="top">
+          <el-form-item label="Parent Workspace">
+            <div class="horizontal-form-layout">
+              <el-select 
+                v-model="parentWorkspace.id" 
+                placeholder="Select a parent workspace"
+                clearable
+                style="width: 100%">
+                <el-option
+                  label="None"
+                  :value="null" />
+                <el-option
+                  v-for="workspace in availableWorkspaces"
+                  :key="workspace.id"
+                  :label="workspace.title"
+                  :value="workspace.id" />
+              </el-select>
+              <el-button 
+                type="primary"
+                @click="updateParentWorkspace"
+                :disabled="parentWorkspace.id === (currentMatter?.parent_matter_id || null)">
+                Save Changes
+              </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <el-text class="text-sm text-gray-500">
+              Select a parent workspace to create a hierarchical relationship. This workspace will be considered a child of the selected parent.
+            </el-text>
           </el-form-item>
         </el-form>
       </div>
@@ -1463,5 +1566,8 @@ h4 {
 <style>
 .ai-settings .el-form-item__content {
     display: block;
+}
+.el-select__wrapper {
+  min-width: 150px;
 }
 </style>

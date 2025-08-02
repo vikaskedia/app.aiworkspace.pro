@@ -29,7 +29,7 @@
            - Individual save/load functionality per spreadsheet
            
            💾 Enhanced Save System captures ALL Univer features! -->
-     
+
       <!-- Portfolio Tabs -->
       <div class="portfolio-tabs-container" v-if="currentMatter">
         <el-tabs 
@@ -661,7 +661,7 @@ export default {
     const updatingPortfolio = ref(false);
     const addingSpreadsheet = ref(false);
     const targetPortfolioId = ref(''); // For adding spreadsheets to specific portfolio
-    
+    const childMatters = ref([]); // Child matters for the current workspace
     // Context menu states
     const contextMenuVisible = ref(false);
     const contextMenuX = ref(0);
@@ -835,6 +835,86 @@ export default {
     const getPortfolioSpreadsheetCount = (portfolioId) => {
       return getPortfolioSpreadsheets(portfolioId).length;
     };
+
+    const loadChildMatters = async () => {
+      if (!currentMatterId.value) {
+        console.warn('⚠️ No current matter selected, cannot load child matters');
+        return;
+      }
+
+      try {
+        console.log(`👶 Loading child matters for workspace ${currentMatterId.value}...`);
+
+        // Get child matters where parent_matter_id = current matter id
+        const { data: childMattersData, error } = await supabase
+          .from('matters')
+          .select('id, title, description')
+          .eq('parent_matter_id', currentMatterId.value)
+          .eq('archived', false)
+          .order('title');
+
+          childMatters.value = childMattersData || [];
+          console.log(`✅ Loaded ${childMatters.value.length} child matters`);
+
+        if (error) {
+          console.warn('Error loading child matters:', error);
+          childMatters.value = [];
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading child matters:', error);
+        childMatters.value = [];
+      }
+    }
+
+    // Get child matter portfolios
+  const getChildMatterPortfolios = async () => {
+    if (!childMatters.value.length) {
+      console.log('👶 No child matters to load portfolios from');
+      return [];
+    }
+
+    try {
+      console.log(`📊 Loading child matter portfolios...`);
+      
+      const childMatterIds = childMatters.value.map(child => child.id);
+      const allChildPortfolios = [];
+
+      // Load portfolios for each child matter
+      for (const childMatter of childMatters.value) {
+        const { data: childPortfolioData, error: childPortfolioError } = await supabase
+          .from('portfolio_data')
+          .select('*')
+          .eq('matter_id', childMatter.id)
+          .order('created_at', { ascending: true });
+
+        if (childPortfolioError) {
+          console.warn(`Error loading portfolios for child matter ${childMatter.id}:`, childPortfolioError);
+          continue;
+        }
+
+        const childPortfolios = childPortfolioData?.map(portfolio => ({
+          id: portfolio.portfolio_id,
+          name: `${portfolio.portfolio_name}`, // `${childMatter.title} - ${portfolio.portfolio_name}`
+          matterId: portfolio.matter_id,
+          childMatterId: childMatter.id,
+          childMatterTitle: childMatter.title,
+          createdAt: new Date(portfolio.created_at),
+          lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
+          isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false
+        })) || [];
+
+        allChildPortfolios.push(...childPortfolios);
+      }
+
+      console.log(`📊 Loaded ${allChildPortfolios.length} child matter portfolios`);
+      return allChildPortfolios;
+      
+    } catch (error) {
+      console.error('Error loading child matter portfolios:', error);
+      return [];
+    }
+  };
     
     // Initialize portfolios and spreadsheets for current workspace
     const initializePortfolios = async () => {
@@ -845,7 +925,33 @@ export default {
 
       try {
         console.log(`📊 Loading portfolios for workspace ${currentMatterId.value}...`);
-        
+
+        // Load child matters first (before loading portfolios)
+        await loadChildMatters();
+        // Load child matter portfolios
+        const childMatterPortfolios = await getChildMatterPortfolios();
+        console.log(`📊 Loaded ${childMatterPortfolios.length} child matter portfolios`);
+
+        // Load spreadsheets from child matters
+        const childMatterIds = childMatters.value.map(child => child.id);
+        let childSpreadsheetData = [];
+
+        if (childMatterIds.length > 0) {
+          const { data: childSpreadsheets, error: childSpreadsheetError } = await supabase
+            .from('ai_portfolio_data')
+            .select('*')
+            .in('matter_id', childMatterIds)
+            .not('spreadsheet_id', 'is', null)
+            .order('created_at', { ascending: false });
+
+          if (childSpreadsheetError) {
+            console.warn('Error loading child matter spreadsheets:', childSpreadsheetError);
+          } else {
+            childSpreadsheetData = childSpreadsheets || [];
+            console.log(`📊 Loaded ${childSpreadsheetData.length} child matter spreadsheets`);
+          }
+        }
+
         // Load portfolios from portfolio_data table
         const { data: portfolioData, error: portfolioError } = await supabase
           .from('portfolio_data')
@@ -874,7 +980,7 @@ export default {
           // Create a map to track the latest record for each spreadsheet_id
           const uniqueSpreadsheets = new Map();
           
-          spreadsheetData.forEach(sheet => {
+          [...spreadsheetData, ...childSpreadsheetData].forEach(sheet => {
             const spreadsheetId = sheet.spreadsheet_id;
             if (spreadsheetId && !uniqueSpreadsheets.has(spreadsheetId)) {
               // Only add the first occurrence (latest due to DESC order) of each spreadsheet_id
@@ -902,17 +1008,19 @@ export default {
           }
         }
 
+        // console.log(`📊 Loaded child portfolios:`, childMatterPortfolios);
+        const allPortfolios = [...portfolioData, ...childMatterPortfolios];
         // Process portfolios
         if (portfolioData && portfolioData.length > 0) {
-          portfolios.value = portfolioData.map(portfolio => ({
-            id: portfolio.portfolio_id,
-            name: portfolio.portfolio_name,
+          portfolios.value = allPortfolios.map(portfolio => ({
+            id: portfolio.portfolio_id || portfolio.id,
+            name: portfolio.portfolio_name || portfolio.name,
             createdAt: new Date(portfolio.created_at),
             lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
+            childMatterId: portfolio?.childMatterId || null,
             isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false // Default to edit mode
           }));
-          
-          console.log(`📊 Loaded ${portfolios.value.length} portfolios`);
+          // console.log(`📊 Loaded all ${portfolios.value.length} portfolios`);
         } else {
           // Create default portfolio
           await createDefaultPortfolio();
@@ -1455,6 +1563,8 @@ export default {
     return {
       currentMatter,
       currentMatterId,
+      loadChildMatters,
+      getChildMatterPortfolios,
       portfolios,
       activePortfolioId,
       spreadsheets,

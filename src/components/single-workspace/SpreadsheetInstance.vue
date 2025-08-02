@@ -8,7 +8,7 @@
         'unsaved': !isInitializing && hasUnsavedChanges,
         'saved': !isInitializing && !hasUnsavedChanges
       }">
-        <span class="state-text">
+        <span class="state-text" v-if="!isViewingHistory">
           <template v-if="isInitializing">
             <span class="state-icon">⏳</span> Loading...
           </template>
@@ -18,7 +18,15 @@
           <template v-else>
             <span class="state-icon">✅</span> Saved
           </template>
+
+          
         </span>
+      </div>
+      
+      <!-- Close History Button - appears when viewing history -->
+      <div v-if="isViewingHistory" class="close-history-btn" @click="closeHistoryView">
+        <span class="close-icon">✕</span>
+        <!-- <span class="close-text">Close History</span> -->
       </div>
       
       <!-- Debug controls (temporary) -->
@@ -211,6 +219,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     
     // Cell edit tracking for user history
     const currentUser = ref(null);
+    const isReadonly = ref(false);
     
     // Enhanced function to get current user with debugging
     const getCurrentUser = async () => {
@@ -363,9 +372,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
     }
 
-    const initializeUniver = async (workbookData = null) => {
+    const initializeUniver = async (workbookData = null, forceReadonly = false) => {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
+
+        // Determine readonly state - use forceReadonly if provided, otherwise use props.readonly
+        const readonlyState = forceReadonly ? true : props.readonly;
+        console.log(`📝 Initializing with readonly=${readonlyState} (forceReadonly=${forceReadonly}, props.readonly=${props.readonly})`);
 
         // Load current user for edit tracking
         console.log(`🚀 Loading user for edit tracking in ${props.spreadsheetId}...`);
@@ -482,8 +495,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
             UniverSheetsCorePreset({
               //container: container.value as HTMLElement,
               container: `univer-container-${props.spreadsheetId}`,
-              header: !props.readonly, // Show header when not readonly
-              toolbar: !props.readonly, // Show toolbar when not readonly
+              header: !readonlyState, // Show header when not readonly
+              toolbar: !readonlyState, // Show toolbar when not readonly
             }),
             UniverSheetsNotePreset(),
             UniverSheetsHyperLinkPreset({
@@ -500,8 +513,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // Store both univer and univerAPI for global access
         univer = univerInstance.univer;
         univerAPI = univerInstance.univerAPI;
-        
-        // Check if Univer instance creation was successful
+
+         // Check if Univer instance creation was successful
         if (!univer || !univerAPI) {
           console.error(`❌ Failed to create Univer instance for ${props.spreadsheetId}:`, {
             univer: !!univer,
@@ -516,6 +529,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           univerAPI: !!univerAPI,
           readonly: props.readonly
         });
+        
         
         // Simple approach: Override all problematic formula methods at runtime
         try {
@@ -612,12 +626,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // Add custom menu directly using Univer's injector (official documentation pattern)
         try {
           console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
-          
+
           // Check if univer instance was created successfully
           if (!univer) {
             console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
             return;
           }
+          
           
           // Wait for Univer to be fully initialized
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1536,7 +1551,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         };
 
         // Add readonly event listener if needed
-        if (props.readonly) {
+        if (readonlyState) {
           editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
             params.cancel = true
           })
@@ -3281,6 +3296,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     const historyData = ref([]);
     const showHistoryModal = ref(false);
     const loadingHistory = ref(false);
+    const isViewingHistory = ref(false);
 
     // Fetch spreadsheet history
     const fetchSpreadsheetHistory = async () => {
@@ -3387,20 +3403,64 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       await fetchSpreadsheetHistory();
     };
 
-    const loadHistoryData = async (historyRecord) => {
-      const workbookData =  historyRecord.data;
-      const cleanedHistoryData = cleanDataForSerialization(workbookData);
-      await initializeUniver(cleanedHistoryData);
-
-      // Close history modal
-      showHistoryModal.value = false;
+        const loadHistoryData = async (historyRecord) => {
+      try {
+        console.log(`🔄 Loading history data for record ${historyRecord.id} in readonly mode...`);
         
-      // Mark as saved since we loaded from history
-      markAsSaved();
+        // Set readonly mode for history loading
+        isReadonly.value = true;
+        isViewingHistory.value = true;
+        
+        const workbookData = historyRecord.data;
+        const cleanedHistoryData = cleanDataForSerialization(workbookData);
+        
+        // Pass readonly=true to initializeUniver for history loading
+        await initializeUniver(cleanedHistoryData, true);
 
-      console.log(`✅ History data loaded successfully from ${historyRecord.formattedDate}`);
-      ElMessage.success(`Loaded spreadsheet from ${historyRecord.formattedDate}`);
+        // Close history modal
+        showHistoryModal.value = false;
+        
+        // Mark as saved since we loaded from history
+        markAsSaved();
+        
+        console.log(`✅ History data loaded successfully from ${historyRecord.formattedDate} in readonly mode`);
+        ElMessage.success(`Loaded spreadsheet from ${historyRecord.formattedDate} (Read-only mode)`);
+        
+      } catch (error) {
+        console.error(`❌ Error loading history data:`, error);
+        ElMessage.error(`Failed to load history data: ${error.message || 'Unknown error'}`);
+        // Reset readonly mode on error
+        isReadonly.value = false;
+        isViewingHistory.value = false;
+      }
+    }
 
+    // Close history view and load current spreadsheet from profile
+    const closeHistoryView = async () => {
+      try {
+        console.log(`🔄 Closing history view and loading current spreadsheet...`);
+        
+        // Reset readonly mode
+        isReadonly.value = false;
+        isViewingHistory.value = false;
+        
+        // Load the current spreadsheet data from profile (latest record)
+        const currentWorkbookData = await loadPortfolioData();
+        const cleanedCurrentData = cleanDataForSerialization(currentWorkbookData);
+        
+        // Initialize with current data in normal mode (not readonly)
+        await initializeUniver(cleanedCurrentData, false);
+        
+        console.log(`✅ Successfully closed history view and loaded current spreadsheet`);
+        ElMessage.success(`Switched back to current spreadsheet`);
+        
+      } catch (error) {
+        console.error(`❌ Error closing history view:`, error);
+        ElMessage.error(`Failed to load current spreadsheet: ${error.message || 'Unknown error'}`);
+        // Reset states on error
+        isReadonly.value = false;
+        isViewingHistory.value = false;
+      }
     }
 
 </script>
@@ -3695,5 +3755,45 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
 .history-load-btn:active {
   transform: translateY(0);
+}
+
+/* Close History Button Styles */
+.close-history-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1000;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.close-history-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.close-history-btn:active {
+  transform: translateY(0);
+}
+
+.close-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.close-text {
+  font-size: 11px;
 }
 </style> 

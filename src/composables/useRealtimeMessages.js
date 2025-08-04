@@ -411,7 +411,7 @@ export function useRealtimeMessages(matterId) {
         },
         body: JSON.stringify({ 
           conversationId,
-          matterId: matterId.value
+          workspaceId: matterId.value
         })
       })
       

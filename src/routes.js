@@ -426,11 +426,11 @@ router.beforeEach(async (to, from, next) => {
     try {
       await matterStore.loadMatters();
       const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.matterId));
-      if (matter) {
-        matterStore.setCurrentMatter(matter);
+      if (workspace) {
+        matterStore.setCurrentMatter(workspace);
       }
     } catch (error) {
-      console.error('Error loading matter:', error);
+      console.error('Error loading workspace:', error);
     }
   }
 

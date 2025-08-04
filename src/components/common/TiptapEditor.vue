@@ -708,7 +708,7 @@ export default {
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // Use currentMatter from Pinia store instead of this.$store
-        if (!this.currentMatter) throw new Error('No matter selected');
+        if (!this.currentMatter) throw new Error('No workspace selected');
         
         // Convert file to base64
         const base64Content = await new Promise((resolve) => {

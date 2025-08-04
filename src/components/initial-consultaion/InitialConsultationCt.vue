@@ -173,7 +173,7 @@
       title="Consultation Complete"
       width="500px">
       <div class="completion-content">
-        <p>The initial consultation is complete. Would you like to create a new matter with the following information?</p>
+        <p>The initial consultation is complete. Would you like to create a new workspace with the following information?</p>
         <div class="summary-section">
           <h4>Summary:</h4>
           <ul>
@@ -515,7 +515,7 @@ export default {
     const uploadDialogVisible = ref(false)
     const fileList = ref([])
 
-    const handleConsultationComplete = async () => { ///// SSSSSSRRRRRRRR actual function creating matter and goals and tasks and events etc.
+    const handleConsultationComplete = async () => { ///// SSSSSSRRRRRRRR actual function creating workspace and goals and tasks and events etc.
       console.log('L646: handleConsultationComplete');
       try {
         loading.value = true
@@ -528,7 +528,7 @@ export default {
         const matterRepoName = `matter-${Date.now()}`
         const emailStorage = `${Date.now()}@associateattorney.ai`
 
-        // Create matter repository in Gitea first
+        // Create workspace repository in Gitea first
         await fetch(`${giteaHost}/api/v1/org/associateattorney/repos`, {
           method: 'POST',
           headers: {
@@ -539,7 +539,7 @@ export default {
           },
           body: JSON.stringify({
             name: matterRepoName,
-            description: `Repository for matter ${matterRepoName}`,
+            description: `Repository for workspace ${matterRepoName}`,
             private: true,
             auto_init: true,
             trust_model: 'collaborator'
@@ -547,7 +547,7 @@ export default {
         })
 
 
-        // Create new matter in Supabase
+        // Create new workspace in Supabase
         const { data: matter, error: matterError } = await supabase
           .from('workspaces')
           .insert([{
@@ -600,7 +600,7 @@ export default {
 
           if (filesResponse.ok) {
             const files = await filesResponse.json()
-            // Copy each file to the new matter repo
+            // Copy each file to the new workspace repo
             if(files.length > 0) {
               for (const file of files) {
                 if (file.type === 'file') {
@@ -617,7 +617,7 @@ export default {
                 // Safely convert content to base64
                 const base64Content = toBase64(content)
 
-                // Upload to new matter repo
+                // Upload to new workspace repo
                   await fetch(
                     `${giteaHost}/api/v1/repos/associateattorney/${matterRepoName}/contents/initial-consultation/${file.name}`,
                     {
@@ -731,7 +731,7 @@ export default {
 
         if (error) throw error;
 
-        // Get the latest activity for each matter and sort
+        // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
@@ -787,7 +787,7 @@ export default {
 
         if (error) throw error;
 
-        // Get the latest activity for each matter and sort
+        // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
@@ -1006,7 +1006,7 @@ export default {
         } else {
           currentQuestion.value = ''
           ElMessage({
-            message: 'Consultation complete! Would you like to create a matter with the collected information?',
+            message: 'Consultation complete! Would you like to create a workspace with the collected information?',
             type: 'success',
             duration: 0,
             showClose: true

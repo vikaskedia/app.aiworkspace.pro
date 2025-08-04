@@ -14,7 +14,7 @@ CREATE TABLE portfolio_data (
 );
 
 COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each matter/workspace.
-Each matter can have one portfolio with:
+Each workspace can have one portfolio with:
 1. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
 2. data: JSON array containing row data [{ item: "Stock A", value: "1000", status: "Active" }]
 3. system_prompt: Text prompt for AI analysis of the portfolio data

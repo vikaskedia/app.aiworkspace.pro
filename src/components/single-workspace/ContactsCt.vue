@@ -302,7 +302,7 @@
         <el-form-item label="Workspace">
           <el-input 
             v-model="contactForm.matter_text" 
-            placeholder="Enter matter description"
+            placeholder="Enter workspace description"
             maxlength="200"
           />
         </el-form-item>
@@ -598,7 +598,7 @@ export default {
 
     async saveContact() {
       if (!this.currentMatter) {
-        ElMessage.warning('Please select a matter first');
+        ElMessage.warning('Please select a workspace first');
         return;
       }
 
@@ -667,7 +667,7 @@ export default {
           editTags: data.tags || []
         });
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         this.dialogVisible = false;
@@ -743,7 +743,7 @@ export default {
         contact.tags = contact.editTags;
         contact.editing = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Contact updated successfully');
@@ -787,7 +787,7 @@ export default {
         // Remove from local state
         this.contacts = this.contacts.filter(c => c.id !== contact.id);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Contact deleted successfully');

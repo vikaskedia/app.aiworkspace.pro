@@ -21,7 +21,7 @@ CREATE INDEX idx_message_internal_comments_archived ON message_internal_comments
 -- Add RLS (Row Level Security)
 ALTER TABLE message_internal_comments ENABLE ROW LEVEL SECURITY;
 
--- Create policy for internal comments - only attorneys with access to the matter can view/edit
+-- Create policy for internal comments - only attorneys with access to the workspace can view/edit
 CREATE POLICY "message_internal_comments_select_policy" ON message_internal_comments
   FOR SELECT USING (
     matter_id IN (
@@ -58,7 +58,7 @@ CREATE TRIGGER update_message_internal_comments_updated_at
 COMMENT ON TABLE message_internal_comments IS 'Internal comments on SMS/phone messages - visible only to team members';
 COMMENT ON COLUMN message_internal_comments.message_id IS 'ID of the message being commented on';
 COMMENT ON COLUMN message_internal_comments.conversation_id IS 'ID of the conversation this comment belongs to';
-COMMENT ON COLUMN message_internal_comments.matter_id IS 'ID of the matter this comment belongs to';
+COMMENT ON COLUMN message_internal_comments.matter_id IS 'ID of the workspace this comment belongs to';
 COMMENT ON COLUMN message_internal_comments.content IS 'The internal comment content';
 COMMENT ON COLUMN message_internal_comments.created_by IS 'ID of the attorney who created the comment';
 COMMENT ON COLUMN message_internal_comments.archived IS 'Whether this comment is archived/deleted'; 

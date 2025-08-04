@@ -334,7 +334,7 @@ export default {
           if (error) throw error;
         }
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(task.matter_id);
         
         // Emit an event to notify the parent component

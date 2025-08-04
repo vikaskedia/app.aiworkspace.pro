@@ -693,7 +693,7 @@ export default {
           if (error) throw error;
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(task.matter_id);
 
         // Update the task in the local state
@@ -891,7 +891,7 @@ export default {
         result = result.filter(task => task.priority === this.filters.priority);
       }
       
-      // Apply matter filter
+      // Apply workspace filter
       if (this.filters.matter?.length) {
         result = result.filter(task => this.filters.matter.includes(task.matter_id));
       }
@@ -1045,7 +1045,7 @@ export default {
 
         await this.taskStore.updateTask(updatedTask);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(updatedTask.matter_id);
         
         // Clear cache and reload tasks

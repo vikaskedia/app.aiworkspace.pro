@@ -3520,7 +3520,7 @@ export default {
     },
     
     goToSettings() {
-      // Navigate to matter settings page
+      // Navigate to workspace settings page
       this.$router.push(`/single-workspace/${this.currentMatter.id}/settings`);
     },
 
@@ -4353,7 +4353,7 @@ export default {
 
         if (error) throw error;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         // Clear input and reload notes

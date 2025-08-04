@@ -9,7 +9,7 @@ DROP POLICY IF EXISTS "Users can update external shares they created" ON task_ex
 DROP POLICY IF EXISTS "Anonymous users can read tasks through external shares" ON tasks;
 DROP POLICY IF EXISTS "Anonymous users can read task comments through external shares" ON task_comments;
 DROP POLICY IF EXISTS "External users can add comments to shared tasks" ON task_comments;
-DROP POLICY IF EXISTS "Anonymous users can read matter info through external shares" ON workspaces;
+DROP POLICY IF EXISTS "Anonymous users can read workspace info through external shares" ON workspaces;
 
 -- Step 3: Create new RLS policies for task_external_shares
 CREATE POLICY "Users can view their own external shares" ON task_external_shares
@@ -90,7 +90,7 @@ CREATE POLICY "External users can add comments to shared tasks" ON task_comments
   );
 
 -- Allow reading workspaces through external task shares
-CREATE POLICY "Anonymous users can read matter info through external shares" ON workspaces
+CREATE POLICY "Anonymous users can read workspace info through external shares" ON workspaces
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM tasks 

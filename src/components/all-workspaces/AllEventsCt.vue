@@ -171,7 +171,7 @@ export default {
         const workspacesData = JSON.parse(workspacesActive);
         console.log('Raw workspaces data from localStorage:', workspacesData);
         
-        // Extract IDs from matter objects
+        // Extract IDs from workspace objects
         let matterIds;
         if (Array.isArray(workspacesData)) {
           matterIds = workspacesData.map(matter => matter.id || matter);
@@ -181,10 +181,10 @@ export default {
           return;
         }
         
-        console.log('Extracted matter IDs:', matterIds);
+        console.log('Extracted workspace IDs:', matterIds);
         
         if (!matterIds || matterIds.length === 0) {
-          console.log('No active matter IDs found');
+          console.log('No active workspace IDs found');
           this.events = [];
           return;
         }
@@ -262,8 +262,8 @@ export default {
     },
 
     getMatterTitle(matterId) {
-      const matter = this.workspaces.find(matter => matter.id === matterId);
-      return matter ? matter.title : 'Unknown Workspace';
+      const workspace = this.workspaces.find(matter => matter.id === matterId);
+      return workspace ? matter.title : 'Unknown Workspace';
     }
   },
   async mounted() {

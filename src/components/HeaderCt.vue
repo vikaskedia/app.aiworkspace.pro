@@ -249,7 +249,7 @@ export default {
             break;
         }
       } else {
-        // Clear current matter when navigating to "All" views
+        // Clear current workspace when navigating to "All" views
         matterStore.setCurrentMatter(null);
         
         switch(command) {
@@ -311,7 +311,7 @@ export default {
         case 'task_updated':
           return `${actorEmail} updated task: ${notification.data.task_title}`;
         case 'matter_shared':
-          return `${actorEmail} shared a matter with you: ${notification.data.matter_title}`;
+          return `${actorEmail} shared a workspace with you: ${notification.data.matter_title}`;
         case 'mention':
           return `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;
         default:
@@ -445,7 +445,7 @@ export default {
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <!-- Show these options when a specific matter is selected -->
+              <!-- Show these options when a specific workspace is selected -->
               <template v-if="currentMatter">
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/dashboard`">Dashboard</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/goals`">Goals</a></el-dropdown-item>

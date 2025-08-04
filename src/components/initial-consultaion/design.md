@@ -1,4 +1,4 @@
-Our Associate attorney AI system has workspaces and below each matter there are:
+Our Associate attorney AI system has workspaces and below each workspace there are:
 1. Events - input from the user
 2. Files - input from the user
 3. Goals - output from the AI
@@ -7,16 +7,16 @@ Our Associate attorney AI system has workspaces and below each matter there are:
 # Legal Workspace Initial consultation Design
 
 ## Overview
-The initial consultation system uses AI to conduct an interactive interview with users to gather information (i.e. Events and files) about their legal matter and create a structured plan of action (i.e. Goals and Tasks).
+The initial consultation system uses AI to conduct an interactive interview with users to gather information (i.e. Events and files) about their legal workspace and create a structured plan of action (i.e. Goals and Tasks).
 
 ## Tech implementation
 
 - accessed from route /initial-consultation
 - user has to be logged in
 - once user is logged in there are 3 possibilites:
-  -- 0 matter ->            system detects if there is no matter then it automatically sends the user to /initial-consultation
-  -- 1 matter ->            if there is a single matter then the user is sent to https://app.aiworkspace.pro/workspace/40/dashboard
-  -- more than 1 matter ->  if there is more than one matter the user is sent to https://app.aiworkspace.pro/all-workspaces/dashboard
+  -- 0 workspace ->            system detects if there is no workspace then it automatically sends the user to /initial-consultation
+  -- 1 workspace ->            if there is a single workspace then the user is sent to https://app.aiworkspace.pro/workspace/40/dashboard
+  -- more than 1 workspace ->  if there is more than one workspace the user is sent to https://app.aiworkspace.pro/all-workspaces/dashboard
 - initial-consultation can also be accessed by clicking on profile icon and then clicking on Initial consultation.
 
 
@@ -40,7 +40,7 @@ What is the output of the intial consultation?
 Goals with priority and below each goal:
     -- Tasks with priority
 
-Once the user agrees on the plan below the matter the following are created:
+Once the user agrees on the plan below the workspace the following are created:
 1. Events
 2. Files
 3. Goals  

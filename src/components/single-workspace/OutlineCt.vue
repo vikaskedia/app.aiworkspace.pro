@@ -446,7 +446,7 @@ export default {
 
       // Then fetch from Supabase
       try {
-        // Get the latest main outline for this matter (not task outlines)
+        // Get the latest main outline for this workspace (not task outlines)
         const { data: outlineData, error: outlineError } = await supabase
           .from('outlines')
           .select('*')
@@ -675,7 +675,7 @@ export default {
 
     async function saveOutline() {
       if (!matterId.value) {
-        console.error('No matter ID available');
+        console.error('No workspace ID available');
         return;
       }
 
@@ -823,7 +823,7 @@ export default {
 
         if (versionError) throw versionError;
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(matterId.value);
 
         // Show success notification
@@ -1807,7 +1807,7 @@ export default {
       const giteaHost = import.meta.env.VITE_GITEA_HOST;
       
       if (!matterId) {
-        throw new Error('No matter ID found');
+        throw new Error('No workspace ID found');
       }
       
       // Create repo name for the matter

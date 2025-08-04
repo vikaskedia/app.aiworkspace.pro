@@ -310,7 +310,7 @@ export default {
           }
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
 
         this.newComment = '';
@@ -447,7 +447,7 @@ export default {
           .single();
 
         if (matterError) {
-          throw new Error('Failed to fetch matter details');
+          throw new Error('Failed to fetch workspace details');
         }
 
         if (!matter?.git_repo) {
@@ -1159,7 +1159,7 @@ Please provide assistance based on this context, the comment history, the availa
         // Update local task title
         this.task.title = this.editingTitle;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
         
         this.isEditingTitle = false;
@@ -1204,7 +1204,7 @@ Please provide assistance based on this context, the comment history, the availa
           this.task.task_stars = [...(this.task.task_stars || []), data[0]];
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
 
         // Emit update event
@@ -1233,7 +1233,7 @@ Please provide assistance based on this context, the comment history, the availa
         // Emit events to update parent components
         this.$emit('status-updated', { taskId: this.task.id, status })
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Status updated successfully')
@@ -1274,7 +1274,7 @@ Please provide assistance based on this context, the comment history, the availa
         // Emit events to update parent components
         this.$emit('priority-updated', { taskId: this.task.id, priority })
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Priority updated successfully')
@@ -1322,7 +1322,7 @@ Please provide assistance based on this context, the comment history, the availa
           due_date: this.tempDueDate
         });
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
         
         ElMessage.success('Due date updated successfully');
@@ -1353,7 +1353,7 @@ Please provide assistance based on this context, the comment history, the availa
         // Update local task data
         this.$emit('update:task', { ...this.task, ...data });
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
         
         this.isEditingDescription = false;
@@ -1418,7 +1418,7 @@ Please provide assistance based on this context, the comment history, the availa
           requiresReorder: true
         });
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.task.matter_id);
 
         ElMessage.success('Assignee updated successfully');

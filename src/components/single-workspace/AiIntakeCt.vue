@@ -537,7 +537,7 @@ function updatePageTitle() {
   setWorkspaceTitle('AI Intake', workspaceName);
 }
 
-// Watch for matter changes and page title changes
+// Watch for workspace changes and page title changes
 watch(currentMatter, () => {
   updatePageTitle();
 }, { immediate: true });

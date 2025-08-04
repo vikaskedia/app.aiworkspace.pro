@@ -19,7 +19,7 @@ CREATE TABLE workspaces (
 COMMENT ON TABLE workspaces IS 'Matters can be soft deleted but not permanently deleted. 
 Soft delete requires both deleted_by and deleted_at to be set.
 
-Each matter has:
+Each workspace has:
 1. A name and description which can be edited by anyone with edit rights.
 2. An associated email address for communication. 
 -- so attorneys can send email to 19fl002753@associateattorney.ai and that email will be associated with the matter.
@@ -28,17 +28,17 @@ Each matter has:
 5. Events (see events.sql)
 6. Files stored in gitea repository
 
-The user who created the matter is:
+The user who created the workspace is:
 1A. Automatically given edit rights
 1B. Can later give up his edit rights
 1C. Not treated special than anyone else who has edit rights to the matter';
 
 -- Add comments for the new columns
-COMMENT ON COLUMN workspaces.git_repo IS 'Repository name in Gitea where all files for this matter are stored. Files are managed through the Gitea server as described in FilesCt.vue';
+COMMENT ON COLUMN workspaces.git_repo IS 'Repository name in Gitea where all files for this workspace are stored. Files are managed through the Gitea server as described in FilesCt.vue';
 
-COMMENT ON COLUMN workspaces.email_storage IS 'Email address where communications for this matter are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this matter''s address as described in EmailsCt.vue';
+COMMENT ON COLUMN workspaces.email_storage IS 'Email address where communications for this workspace are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this matter''s address as described in EmailsCt.vue';
 
--- Automatically add creator toworkspace_access on matter creation
+-- Automatically add creator toworkspace_access on workspace creation
 CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$
 DECLARE
     creator_id uuid;

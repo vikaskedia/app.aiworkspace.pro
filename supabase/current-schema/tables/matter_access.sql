@@ -12,16 +12,16 @@ CREATE TABLEworkspace_access (
 );
 
 COMMENT ON TABLEworkspace_access IS 'Manages access control for workspaces. 
-1. Each matter has View rights and edit rights.
+1. Each workspace has View rights and edit rights.
 
 2. Users with edit rights can:
 2A. Give View rights or edit rights to other users.
-2B. Edit the matter name or description.
+2B. Edit the workspace name or description.
 2C. Soft delete the matter.
 2D. Add, Edit or Soft delete -> goals, tasks, events, and files.
 
 3. Users with View rights can only view:
-3A. The matter name and description.
+3A. The workspace name and description.
 3B. Goals (see goals.sql)
 3C. Tasks (see tasks.sql)
 3D. Events (see events.sql)
@@ -35,7 +35,7 @@ CREATE INDEX workspace_access_granted_by_uuid_idx ON public.workspace_access USI
 ALTER TABLEworkspace_access ENABLE ROW LEVEL SECURITY;
 
 -- Policy for selecting data
-CREATE POLICY "Users can view matter access" ONworkspace_access
+CREATE POLICY "Users can view workspace access" ONworkspace_access
 AS PERMISSIVE
 FOR SELECT 
 TO authenticated 
@@ -73,7 +73,7 @@ USING (
     )
 );
 
---Allow the Creator to Have Edit Access: When a new matter is created, the user who creates it should automatically be granted edit access.
+--Allow the Creator to Have Edit Access: When a new workspace is created, the user who creates it should automatically be granted edit access.
 CREATE POLICY "Allow creators to insert initial access" ONworkspace_access
 AS PERMISSIVE
 FOR INSERT 

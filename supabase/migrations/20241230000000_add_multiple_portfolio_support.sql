@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_analysis_results_portfolio_id ON portfo
 
 -- Update comments
 COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each matter/workspace.
-Each matter can have multiple portfolios, each with:
+Each workspace can have multiple portfolios, each with:
 1. portfolio_id: Unique identifier for this portfolio within the matter
 2. portfolio_name: User-friendly name for the portfolio
 3. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
@@ -60,7 +60,7 @@ COMMENT ON COLUMN portfolio_data.portfolio_name IS 'User-friendly name for the p
 
 COMMENT ON TABLE portfolio_analysis_results IS 'Stores AI analysis results for portfolio data.
 Each analysis contains:
-1. matter_id: The matter this analysis belongs to
+1. matter_id: The workspace this analysis belongs to
 2. portfolio_id: The specific portfolio this analysis was run on
 3. system_prompt: The prompt used for AI analysis
 4. spreadsheet_data: Snapshot of the spreadsheet data at time of analysis

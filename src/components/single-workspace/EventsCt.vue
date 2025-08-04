@@ -85,7 +85,7 @@ export default {
 
     async createEvent() {
       if (!this.currentMatter) {
-        ElMessage.warning('Please select a matter first');
+        ElMessage.warning('Please select a workspace first');
         return;
       }
 
@@ -108,7 +108,7 @@ export default {
         
         this.events.push(data[0]);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         this.dialogVisible = false;
@@ -148,7 +148,7 @@ export default {
 
         this.events = this.events.filter(e => e.id !== event.id);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Event archived successfully');
@@ -159,7 +159,7 @@ export default {
 
     async syncWithGoogleCalendar() {
       if (!this.currentMatter?.google_calendar_id) {
-        ElMessage.warning('Please set up Google Calendar ID in matter settings first');
+        ElMessage.warning('Please set up Google Calendar ID in workspace settings first');
         return;
       }
 
@@ -269,7 +269,7 @@ export default {
           // Refresh the events list to show newly synced events
           await this.loadEvents();
           
-          // Update matter activity
+          // Update workspace activity
           await updateMatterActivity(this.currentMatter.id);
           
           ElMessage.success(`Successfully synced ${newEventsToInsert.length} new events from Google Calendar`);

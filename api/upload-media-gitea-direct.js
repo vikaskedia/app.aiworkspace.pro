@@ -76,7 +76,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'No files provided' })
       }
 
-      console.log(`📁 Processing ${files.length} files for matter ${matter_id}`);
+      console.log(`📁 Processing ${files.length} files for workspace ${matter_id}`);
 
       const uploadedFiles = [];
 

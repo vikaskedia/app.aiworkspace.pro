@@ -148,7 +148,7 @@ export default async function handler(req, res) {
       if (matterError) throw matterError;
       matterId = null;
       let matchedMatter = null;
-      for (const matter of workspaces) {
+      for (const workspace of workspaces) {
         if (matter.phone_numbers && Array.isArray(matter.phone_numbers)) {
           const phoneMatch = matter.phone_numbers.find(phone => {
             const phoneNum = phone.number;
@@ -167,9 +167,9 @@ export default async function handler(req, res) {
         }
       }
       if (!matterId) {
-        // No matching matter found, return error
-        console.log('❌ No matter matches for these phone numbers to create new conversation');
-        return res.status(400).json({ error: 'No matter matches for these phone numbers to create new conversation' });
+        // No matching workspace found, return error
+        console.log('❌ No workspace matches for these phone numbers to create new conversation');
+        return res.status(400).json({ error: 'No workspace matches for these phone numbers to create new conversation' });
       }
       // Replace 4-digit phone numbers with full numbers from matter
       if (parsed.from_phone_number && parsed.from_phone_number.length === 4) {

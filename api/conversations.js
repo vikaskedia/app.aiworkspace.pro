@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fetch conversations for the matter using pagination to get ALL records
+    // Fetch conversations for the workspace using pagination to get ALL records
     let allConversations = []
     let offset = 0
     const batchSize = 1000

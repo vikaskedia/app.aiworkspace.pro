@@ -88,7 +88,7 @@ CREATE POLICY "External users can add comments to shared tasks" ON task_comments
   );
 
 -- Allow reading workspaces through external task shares
-CREATE POLICY "Anonymous users can read matter info through external shares" ON workspaces
+CREATE POLICY "Anonymous users can read workspace info through external shares" ON workspaces
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM tasks 

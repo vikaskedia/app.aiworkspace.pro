@@ -2267,7 +2267,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Load complete portfolio workbook data from Supabase
     const loadPortfolioData = async () => {
       if (!currentMatterId.value) {
-        console.warn(`⚠️ No matter ID available for loading portfolio data (${props.spreadsheetId})`);
+        console.warn(`⚠️ No workspace ID available for loading portfolio data (${props.spreadsheetId})`);
         return {};
       }
 
@@ -2426,7 +2426,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
       
       if (!currentMatterId.value) {
-        console.warn(`⚠️ No matter ID available for saving portfolio data (${props.spreadsheetId})`);
+        console.warn(`⚠️ No workspace ID available for saving portfolio data (${props.spreadsheetId})`);
         ElMessage.warning(`Cannot save ${props.spreadsheetName}: No workspace selected`);
         return;
       }
@@ -2538,7 +2538,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Helper function to fetch the latest record from Supabase
     const fetchLatestRecordFromSupabase = async () => {
       if (!currentMatterId.value) {
-        console.warn(`⚠️ No matter ID available for fetching latest record (${props.spreadsheetId})`);
+        console.warn(`⚠️ No workspace ID available for fetching latest record (${props.spreadsheetId})`);
         return null;
       }
 
@@ -3301,7 +3301,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Fetch spreadsheet history
     const fetchSpreadsheetHistory = async () => {
       if (!currentMatterId.value) {
-        console.warn(`⚠️ No matter ID available for fetching history (${props.spreadsheetId})`);
+        console.warn(`⚠️ No workspace ID available for fetching history (${props.spreadsheetId})`);
         ElMessage.warning(`Cannot fetch history: No workspace selected`);
         return;
       }

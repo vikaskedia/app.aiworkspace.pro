@@ -70,10 +70,10 @@ export default {
 
         workspaces.value = workspacesWithActivity;
 
-        // After loading workspaces, check URL for matter ID
+        // After loading workspaces, check URL for workspace ID
         const matterId = route.params.matterId;
         if (matterId) {
-          const matter = workspaces.value.find(m => m.id === parseInt(matterId));
+          const workspace = workspaces.value.find(m => m.id === parseInt(matterId));
           if (matter) {
             selectedMatter.value = matter;
             emit('matter-selected', matter);
@@ -119,7 +119,7 @@ export default {
           throw new Error('Failed to create Gitea repository');
         }
 
-        // Create matter in database with repository info
+        // Create workspace in database with repository info
         const { data, error } = await supabase
           .from('workspaces')
           .insert([{
@@ -134,7 +134,7 @@ export default {
 
         if (error) throw error;
 
-        // Add the new matter to the list
+        // Add the new workspace to the list
         workspaces.value.unshift(data);
         
         // Close dialog and reset form
@@ -269,7 +269,7 @@ export default {
     width="500px">
     <el-form :model="newMatter" label-position="top">
       <el-form-item label="Title" required>
-        <el-input v-model="newMatter.title" placeholder="Enter matter title" />
+        <el-input v-model="newMatter.title" placeholder="Enter workspace title" />
       </el-form-item>
       
       <el-form-item label="Description">
@@ -277,7 +277,7 @@ export default {
           v-model="newMatter.description"
           type="textarea"
           rows="3"
-          placeholder="Enter matter description" />
+          placeholder="Enter workspace description" />
       </el-form-item>
     </el-form>
     

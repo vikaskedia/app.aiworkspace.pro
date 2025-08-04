@@ -204,7 +204,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                           <el-tooltip
                             :show-after="500"
                             :enterable="true"
-                            :content="'This is the matter name.'"
+                            :content="'This is the workspace name.'"
                             placement="top">
                             <el-tag class="matter-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-matter', task.matter_id)">
                               {{ task.matter?.title || 'No Workspace' }}
@@ -897,7 +897,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       },
 
       async handleTaskUpdate(updatedTask) {
-        // Update matter activity
+        // Update workspace activity
         const matterId = updatedTask.matter_id || this.currentMatter?.id;
         if (matterId) {
           await updateMatterActivity(matterId);
@@ -921,7 +921,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
           
-          // Update matter activity
+          // Update workspace activity
           const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
           if (matterId) {
             await updateMatterActivity(matterId);
@@ -935,7 +935,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         if (taskIndex !== -1) {
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
           
-          // Update matter activity
+          // Update workspace activity
           const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
           if (matterId) {
             await updateMatterActivity(matterId);

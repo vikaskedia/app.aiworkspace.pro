@@ -315,7 +315,7 @@ export default {
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
     
-    // Computed matter ID for workspace filtering
+    // Computed workspace ID for workspace filtering
     const currentMatterId = computed(() => currentMatter.value?.id);
     
     // Portfolio management
@@ -329,7 +329,7 @@ export default {
     // Load portfolio view mode preferences from Supabase
     const loadPortfolioViewModePreferences = async () => {
       if (!currentMatterId.value) {
-        console.warn('⚠️ No current matter ID, cannot load portfolio preferences');
+        console.warn('⚠️ No current workspace ID, cannot load portfolio preferences');
         return;
       }
 
@@ -418,7 +418,7 @@ export default {
     // Save portfolio view mode preference to Supabase
     const savePortfolioViewModePreference = async (portfolioId, isReadonly) => {
       if (!currentMatterId.value) {
-        console.warn('⚠️ No current matter ID, cannot save portfolio preference');
+        console.warn('⚠️ No current workspace ID, cannot save portfolio preference');
         return;
       }
 
@@ -838,14 +838,14 @@ export default {
 
     const loadChildMatters = async () => {
       if (!currentMatterId.value) {
-        console.warn('⚠️ No current matter selected, cannot load child workspaces');
+        console.warn('⚠️ No current workspace selected, cannot load child workspaces');
         return;
       }
 
       try {
         console.log(`👶 Loading child workspaces for workspace ${currentMatterId.value}...`);
 
-        // Get child workspaces where parent_workspace_id = current matter id
+        // Get child workspaces where parent_workspace_id = current workspace id
         const { data: childMattersData, error } = await supabase
           .from('workspaces')
           .select('id, title, description')
@@ -867,7 +867,7 @@ export default {
       }
     }
 
-    // Get child matter portfolios
+    // Get child workspace portfolios
   const getChildMatterPortfolios = async () => {
     if (!childMatters.value.length) {
       console.log('👶 No child workspaces to load portfolios from');
@@ -875,7 +875,7 @@ export default {
     }
 
     try {
-      console.log(`📊 Loading child matter portfolios...`);
+      console.log(`📊 Loading child workspace portfolios...`);
       
       const childMatterIds = childMatters.value.map(child => child.id);
       const allChildPortfolios = [];
@@ -889,7 +889,7 @@ export default {
           .order('created_at', { ascending: true });
 
         if (childPortfolioError) {
-          console.warn(`Error loading portfolios for child matter ${childMatter.id}:`, childPortfolioError);
+          console.warn(`Error loading portfolios for child workspace ${childMatter.id}:`, childPortfolioError);
           continue;
         }
 
@@ -907,11 +907,11 @@ export default {
         allChildPortfolios.push(...childPortfolios);
       }
 
-      console.log(`📊 Loaded ${allChildPortfolios.length} child matter portfolios`);
+      console.log(`📊 Loaded ${allChildPortfolios.length} child workspace portfolios`);
       return allChildPortfolios;
       
     } catch (error) {
-      console.error('Error loading child matter portfolios:', error);
+      console.error('Error loading child workspace portfolios:', error);
       return [];
     }
   };
@@ -919,7 +919,7 @@ export default {
     // Initialize portfolios and spreadsheets for current workspace
     const initializePortfolios = async () => {
       if (!currentMatterId.value) {
-        console.warn('⚠️ No current matter selected, cannot load portfolios');
+        console.warn('⚠️ No current workspace selected, cannot load portfolios');
         return;
       }
 
@@ -928,9 +928,9 @@ export default {
 
         // Load child workspaces first (before loading portfolios)
         await loadChildMatters();
-        // Load child matter portfolios
+        // Load child workspace portfolios
         const childMatterPortfolios = await getChildMatterPortfolios();
-        console.log(`📊 Loaded ${childMatterPortfolios.length} child matter portfolios`);
+        console.log(`📊 Loaded ${childMatterPortfolios.length} child workspace portfolios`);
 
         // Load spreadsheets from child workspaces
         const childMatterIds = childMatters.value.map(child => child.id);
@@ -945,10 +945,10 @@ export default {
             .order('created_at', { ascending: false });
 
           if (childSpreadsheetError) {
-            console.warn('Error loading child matter spreadsheets:', childSpreadsheetError);
+            console.warn('Error loading child workspace spreadsheets:', childSpreadsheetError);
           } else {
             childSpreadsheetData = childSpreadsheets || [];
-            console.log(`📊 Loaded ${childSpreadsheetData.length} child matter spreadsheets`);
+            console.log(`📊 Loaded ${childSpreadsheetData.length} child workspace spreadsheets`);
           }
         }
 
@@ -1422,7 +1422,7 @@ export default {
       setComponentTitle('AI Portfolio', workspaceName, portfolioName);
     };
 
-    // Watch for matter changes and reload portfolios
+    // Watch for workspace changes and reload portfolios
     const watchMatterChanges = () => {
       let isInitialized = false;
       
@@ -1449,7 +1449,7 @@ export default {
           spreadsheets.value = [];
           activePortfolioId.value = '';
           currentEditor.value = {}; // Clear editor tracking
-          // Clean up subscription when no matter is selected
+          // Clean up subscription when no workspace is selected
           if (editingSubscription) {
             editingSubscription.unsubscribe();
             editingSubscription = null;

@@ -115,7 +115,7 @@ async function handleMessageReceived(eventData) {
     const hasMedia = eventData.media && eventData.media.length > 0;
     const messageType = hasMedia ? 'MMS' : 'SMS';
 
-    // Find the matter based on the receiving phone number
+    // Find the workspace based on the receiving phone number
     const { data: workspaces, error: matterError } = await supabase
       .from('workspaces')
       .select('id, phone_numbers')
@@ -124,7 +124,7 @@ async function handleMessageReceived(eventData) {
     if (matterError) throw matterError;
 
     let matterId = null;
-    for (const matter of workspaces || []) {
+    for (const workspace of workspaces || []) {
       const phoneNumbers = matter.phone_numbers || [];
       if (phoneNumbers.some(p => p.number === toPhone)) {
         matterId = matter.id;
@@ -133,7 +133,7 @@ async function handleMessageReceived(eventData) {
     }
 
     if (!matterId) {
-      console.error('No matter found for phone number:', toPhone);
+      console.error('No workspace found for phone number:', toPhone);
       return;
     }
 

@@ -93,10 +93,10 @@ const filteredItems = computed(() => {
   return result;
 });
 
-// Load files when matter changes
+// Load files when workspace changes
 watch(currentMatter, async (newMatter) => {
   if (newMatter?.id) {
-    // Clear split views when matter changes
+    // Clear split views when workspace changes
     splitViews.value = [];
     selectedFile.value = null;
     await Promise.all([loadFolders(), loadFiles()]);
@@ -115,7 +115,7 @@ const updatePageTitle = () => {
   setWorkspaceTitle('Files', workspaceName);
 };
 
-// Load matter if not already loaded
+// Load workspace if not already loaded
 onMounted(async () => {
   // if (route.params.matterId && !currentMatter.value) {
   //   const { data, error } = await supabase
@@ -229,7 +229,7 @@ function getFileType(filename) {
 
 async function handleFileUpload(file) {
   if (!currentMatter.value) {
-    ElMessage.warning('Please select a matter first');
+    ElMessage.warning('Please select a workspace first');
     return;
   }
 
@@ -298,7 +298,7 @@ async function handleFileUpload(file) {
     fileList.value = [];
     selectedTags.value = [];
     
-    // Update matter activity
+    // Update workspace activity
     await updateMatterActivity(currentMatter.value.id);
     
     ElMessage.success('File uploaded successfully');
@@ -338,7 +338,7 @@ async function deleteFile(file) {
     // Remove from local state
     files.value = files.value.filter(f => f.id !== file.id);
     
-    // Update matter activity
+    // Update workspace activity
     await updateMatterActivity(currentMatter.value.id);
     
     ElMessage.success('File deleted successfully');
@@ -379,7 +379,7 @@ function handleFileUpdate(updatedFile) {
 
 async function loadFolders() {
   if (!currentMatter.value) {
-    console.warn('No current matter selected');
+    console.warn('No current workspace selected');
     return;
   }
   
@@ -478,7 +478,7 @@ async function createFolder() {
     newFolderDialogVisible.value = false;
     newFolderName.value = '';
     
-    // Update matter activity
+    // Update workspace activity
     await updateMatterActivity(currentMatter.value.id);
     
     ElMessage.success('Folder created successfully');

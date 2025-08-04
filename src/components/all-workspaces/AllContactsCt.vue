@@ -266,7 +266,7 @@ export default {
 
         if (accessError) throw accessError;
 
-        // Get matter IDs from workspace access
+        // Get workspace IDs from workspace access
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
@@ -278,7 +278,7 @@ export default {
 
         if (userMattersError) throw userMattersError;
 
-        // Combine all accessible matter IDs
+        // Combine all accessible workspace IDs
         const allMatterIds = [...new Set([...accessibleMatterIds, ...userMatters.map(m => m.id)])];
 
         if (allMatterIds.length === 0) {
@@ -314,7 +314,7 @@ export default {
 
         if (accessError) throw accessError;
 
-        // Get matter IDs from workspace access
+        // Get workspace IDs from workspace access
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
@@ -326,7 +326,7 @@ export default {
 
         if (userMattersError) throw userMattersError;
 
-        // Combine all accessible matter IDs
+        // Combine all accessible workspace IDs
         const allMatterIds = [...new Set([...accessibleMatterIds, ...userMatters.map(m => m.id)])];
 
         if (allMatterIds.length === 0) {
@@ -350,7 +350,7 @@ export default {
 
         if (error) throw error;
         
-        // Transform data to include matter title
+        // Transform data to include workspace title
         this.contacts = contacts.map(contact => ({
           ...contact,
           matter_title: contact.workspaces.title

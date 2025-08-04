@@ -117,7 +117,7 @@ export default {
           this.setupRealtimeSubscription();
           this.updatePageTitle();
         } else if (newMatter) {
-          // When matter changes, reload tasks and shared users
+          // When workspace changes, reload tasks and shared users
           await Promise.all([
             this.loadTasks(),
             this.loadSharedUsers()
@@ -388,7 +388,7 @@ export default {
 
     async createTask() {
       if (!this.currentMatter) {
-        ElMessage.warning('Please select a matter first');
+        ElMessage.warning('Please select a workspace first');
         return;
       }
 
@@ -462,7 +462,7 @@ export default {
         // Update UI
         this.tasks = this.organizeTasksHierarchy(updatedTasks);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         this.dialogVisible = false;
@@ -683,7 +683,7 @@ export default {
             });
         }
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         this.editDialogVisible = false;
@@ -765,7 +765,7 @@ export default {
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Task deleted successfully');
@@ -797,7 +797,7 @@ export default {
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Task restored successfully');
@@ -1367,7 +1367,7 @@ export default {
             });
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElMessage.success('Task title updated successfully');

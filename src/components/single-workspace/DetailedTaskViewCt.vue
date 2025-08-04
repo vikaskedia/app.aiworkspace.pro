@@ -1712,7 +1712,7 @@ export default {
       // Update cache
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
       
       ElNotification.success({
@@ -1746,7 +1746,7 @@ export default {
       // Update cache
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
       
       ElNotification.success({
@@ -1797,7 +1797,7 @@ export default {
       // Update cache
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
       
       ElNotification.success({
@@ -1858,7 +1858,7 @@ export default {
       // Update cache
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
       
       ElNotification.success({
@@ -1929,7 +1929,7 @@ export default {
       // Update cache
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
       
       ElNotification.success({
@@ -2053,7 +2053,7 @@ export default {
             }
           });
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElNotification.success({
@@ -2091,7 +2091,7 @@ export default {
         // Update cache
         this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElNotification.success({
@@ -2142,7 +2142,7 @@ export default {
         this.task.task_stars = [...(this.task.task_stars || []), data[0]];
       }
 
-      // Update matter activity
+      // Update workspace activity
       await updateMatterActivity(this.currentMatter.id);
 
       ElNotification.success({
@@ -2357,7 +2357,7 @@ export default {
           }
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         this.newComment = '';
@@ -2908,7 +2908,7 @@ export default {
           .eq('id', this.currentMatter.id)
           .single();
 
-        if (matterError) throw new Error('Failed to fetch matter details');
+        if (matterError) throw new Error('Failed to fetch workspace details');
         if (!matter?.git_repo) throw new Error('No git repository found for this matter');
 
         const path = this.currentSelectorFolder?.path || '';
@@ -3037,7 +3037,7 @@ export default {
           };
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         this.cancelEditing();
@@ -3346,7 +3346,7 @@ export default {
 
         if (error) throw error;
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         this.logHoursDialogVisible = false;
@@ -3448,7 +3448,7 @@ export default {
             }
           });
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElNotification.success({
@@ -3495,7 +3495,7 @@ export default {
         // Update local comment
         comment.archived = newArchivedState;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElNotification.success({
@@ -3725,7 +3725,7 @@ ${comment.content}
           message: `Child task created under "${this.task.title}"\n\nChild Task: "${this.newChildTask.title}"\nCreated by: ${user.email}`
         });
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         // Reset form
@@ -3817,7 +3817,7 @@ ${comment.content}
           // Continue without failing the status update
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElNotification.success({
@@ -3897,7 +3897,7 @@ ${comment.content}
           // Continue without failing the priority update
         }
 
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         ElNotification.success({
@@ -4111,7 +4111,7 @@ ${comment.content}
             }
           });
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         this.lastSavedOutlineContent = JSON.parse(JSON.stringify(outlineToSave));
@@ -4789,7 +4789,7 @@ ${comment.content}
         const updatedTasks = [data[0], ...cachedTasks];
         this.taskStore.setCachedTasks(this.currentMatter.id, updatedTasks);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
 
         // Send Telegram notification

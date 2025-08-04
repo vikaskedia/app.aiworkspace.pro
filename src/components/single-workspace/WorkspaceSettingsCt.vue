@@ -155,7 +155,7 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // First get the matter IDs the user has access to
+        // First get the workspace IDs the user has access to
         const { data: accessData, error: accessError } = await supabase
           .from('workspace_access')
           .select('matter_id')
@@ -564,7 +564,7 @@ export default {
         .from('workspaces')
         .select('id, phone_numbers');
       if (error) throw error;
-      for (const matter of data) {
+      for (const workspace of data) {
         if (!matter.phone_numbers) continue;
         try {
           const numbers = Array.isArray(matter.phone_numbers) ? matter.phone_numbers : JSON.parse(matter.phone_numbers);
@@ -1164,7 +1164,7 @@ export default {
             <div class="horizontal-form-layout">
               <el-input 
                 v-model="emailSettings.address" 
-                placeholder="Enter email address for matter storage"
+                placeholder="Enter email address for workspace storage"
                 maxlength="50" />
               <el-button 
                 type="primary"
@@ -1176,7 +1176,7 @@ export default {
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
-              All emails related to this matter will be stored at this address
+              All emails related to this workspace will be stored at this address
             </el-text>
           </el-form-item>
         </el-form>

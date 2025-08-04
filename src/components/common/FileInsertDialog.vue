@@ -271,7 +271,7 @@
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN
       const giteaHost = import.meta.env.VITE_GITEA_HOST;
       
-      if (!currentMatter.value) throw new Error('No matter selected')
+      if (!currentMatter.value) throw new Error('No workspace selected')
       
       // Generate unique filename for new uploads only
       const uniqueFileName = getUniqueFileName(file.name)

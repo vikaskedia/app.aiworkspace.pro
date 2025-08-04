@@ -6,7 +6,7 @@
       <p>We collect information you provide directly to us, including:</p>
       <ul>
         <li>Account information (name, email, etc.)</li>
-        <li>Legal matter details</li>
+        <li>Legal workspace details</li>
         <li>Documents and files you upload</li>
         <li>Communications with our AI system</li>
       </ul>

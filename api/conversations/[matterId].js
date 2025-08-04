@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Workspace ID is required' })
     }
 
-    // Fetch conversations for the matter with latest message info
+    // Fetch conversations for the workspace with latest message info
     const { data: conversations, error } = await supabase
       .from('conversations')
       .select(`

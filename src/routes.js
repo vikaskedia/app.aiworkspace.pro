@@ -331,7 +331,7 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  // If authenticated, check matter count and handle redirects
+  // If authenticated, check workspace count and handle redirects
   if (session && to.path !== '/initial-consultation') {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -414,18 +414,18 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  // Clear matter context when navigating to all-workspaces routes
+  // Clear workspace context when navigating to all-workspaces routes
   if (to.path.startsWith('/all-workspace')) {
     const matterStore = useMatterStore();
     matterStore.setCurrentMatter(null);
   }
 
-  // Handle matter context
+  // Handle workspace context
   if (session && to.params.matterId) {
     const matterStore = useMatterStore();
     try {
       await matterStore.loadMatters();
-      const matter = matterStore.workspaces.find(m => m.id === parseInt(to.params.matterId));
+      const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.matterId));
       if (matter) {
         matterStore.setCurrentMatter(matter);
       }

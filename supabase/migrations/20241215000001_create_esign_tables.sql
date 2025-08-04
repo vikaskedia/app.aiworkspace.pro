@@ -73,7 +73,7 @@ CREATE POLICY "task_documents_authenticated_read" ON task_documents
                 -- Allow if user is the task creator
                 t.created_by = auth.uid()
                 OR
-                -- Allow if user is the matter creator
+                -- Allow if user is the workspace creator
                 m.created_by = auth.uid()
                 OR
                 -- Allow if user has explicit access to the matter
@@ -99,7 +99,7 @@ CREATE POLICY "task_documents_authenticated_write" ON task_documents
                 -- Allow if user is the task creator
                 t.created_by = auth.uid()
                 OR
-                -- Allow if user is the matter creator
+                -- Allow if user is the workspace creator
                 m.created_by = auth.uid()
                 OR
                 -- Allow if user has explicit access to the matter

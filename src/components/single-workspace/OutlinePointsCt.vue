@@ -774,11 +774,11 @@ export default {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
-        // Get the matter ID from the route
+        // Get the workspace ID from the route
         const matterId = this.route.params.matterId;
         
         if (!matterId) {
-          throw new Error('No matter ID found');
+          throw new Error('No workspace ID found');
         }
         
         // Create repo name for the matter

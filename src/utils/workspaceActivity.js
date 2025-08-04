@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 
 /**
  * Function to record activity for a matter
- * @param {number} matterId - The matter ID
+ * @param {number} matterId - The workspace ID
  */
 export async function updateMatterActivity(matterId) {
   try {
@@ -10,7 +10,7 @@ export async function updateMatterActivity(matterId) {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('No authenticated user found for matter activity tracking');
+      console.warn('No authenticated user found for workspace activity tracking');
       return;
     }
 
@@ -59,14 +59,14 @@ export async function updateMatterActivity(matterId) {
         });
     }
   } catch (error) {
-    console.error('Error recording matter activity:', error);
+    console.error('Error recording workspace activity:', error);
     // Don't throw error to avoid breaking the main functionality
   }
 }
 
 /**
  * Function to get recent activities for a matter
- * @param {number} matterId - The matter ID
+ * @param {number} matterId - The workspace ID
  * @param {number} limit - Number of activities to fetch (default: 10)
  */
 export async function getMatterActivities(matterId, limit = 10) {
@@ -104,7 +104,7 @@ export async function getMatterActivities(matterId, limit = 10) {
 
     return activitiesWithUsers;
   } catch (error) {
-    console.error('Error fetching matter activities:', error);
+    console.error('Error fetching workspace activities:', error);
     return [];
   }
 }

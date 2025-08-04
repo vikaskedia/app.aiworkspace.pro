@@ -82,7 +82,7 @@
       width="500px">
       <el-form :model="newMatter" label-position="top">
         <el-form-item label="Title" required>
-          <el-input id="idOfInputMatterTitle" v-model="newMatter.title" placeholder="Enter matter title" />
+          <el-input id="idOfInputMatterTitle" v-model="newMatter.title" placeholder="Enter workspace title" />
         </el-form-item>
         
         <el-form-item label="Description">
@@ -91,7 +91,7 @@
             type="textarea"
             rows="3"
             id="idOfInputMatterDescription"
-            placeholder="Enter matter description" />
+            placeholder="Enter workspace description" />
         </el-form-item>
       </el-form>
       
@@ -116,7 +116,7 @@
       width="500px">
       <el-form :model="editingMatter" label-position="top">
         <el-form-item label="Title" required>
-          <el-input v-model="editingMatter.title" placeholder="Enter matter title" />
+          <el-input v-model="editingMatter.title" placeholder="Enter workspace title" />
         </el-form-item>
         
         <el-form-item label="Description">
@@ -124,7 +124,7 @@
             v-model="editingMatter.description"
             type="textarea"
             rows="3"
-            placeholder="Enter matter description" />
+            placeholder="Enter workspace description" />
         </el-form-item>
       </el-form>
       
@@ -299,7 +299,7 @@ export default {
           upcoming_events: events.data?.length || 0
         };
       } catch (error) {
-        console.error('Error loading matter stats:', error);
+        console.error('Error loading workspace stats:', error);
         return {};
       }
     },
@@ -351,7 +351,7 @@ export default {
           throw new Error('Failed to create Gitea repository');
         }
 
-        // Create matter in database with repository info
+        // Create workspace in database with repository info
         const matterData = {
           title: this.newMatter.title,
           description: this.newMatter.description,

@@ -190,7 +190,7 @@ export default async function handler(req, res) {
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>
-                    <p><strong>${actorInfo[0].email}</strong> shared a matter with you:</p>
+                    <p><strong>${actorInfo[0].email}</strong> shared a workspace with you:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #17a2b8;">
                       ${notification.data.matter_title}
                       <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {

@@ -18,7 +18,7 @@ CREATE TABLE contacts (
 );
 
 COMMENT ON TABLE contacts IS 'Contacts associated with workspaces/workspaces.
-Each contact belongs to a specific matter and can have:
+Each contact belongs to a specific workspace and can have:
 1. Name (required)
 2. Phone number (optional)
 3. Tags (array of text tags for categorization)

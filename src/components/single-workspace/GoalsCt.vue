@@ -113,7 +113,7 @@ export default {
     },
     async createGoal() {
       if (!this.currentMatter) {
-        ElMessage.warning('Please select a matter first');
+        ElMessage.warning('Please select a workspace first');
         return;
       }
 
@@ -163,7 +163,7 @@ export default {
         // Update local state
         this.goals.unshift(data);
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         this.dialogVisible = false;
@@ -354,7 +354,7 @@ export default {
         // Close the specific goal's popover
         goal.statusPopoverVisible = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Goal status updated successfully');
@@ -393,7 +393,7 @@ export default {
         goal.title = goal.editingTitle;
         goal.isEditingTitle = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Goal title updated successfully');
@@ -414,7 +414,7 @@ export default {
 
         if (error) throw error;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Progress updated successfully');
@@ -450,7 +450,7 @@ export default {
         goal.description = goal.editingDescription;
         goal.isEditingDescription = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Goal description updated successfully');
@@ -494,7 +494,7 @@ export default {
         goal.priority = newPriority;
         goal.priorityPopoverVisible = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Goal priority updated successfully');
@@ -522,7 +522,7 @@ export default {
         goal.due_date = goal.tempDueDate;
         goal.dueDatePopoverVisible = false;
         
-        // Update matter activity
+        // Update workspace activity
         await updateMatterActivity(this.currentMatter.id);
         
         ElMessage.success('Due date updated successfully');

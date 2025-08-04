@@ -24,8 +24,7 @@
           size="small"
           class="move-to-btn"
           title="Move to Workspace">
-          <el-icon><Share /></el-icon>
-          Move to
+          <el-icon><Position /></el-icon>
         </el-button>
         <el-button 
           type="info"
@@ -1495,7 +1494,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload, Position } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/workspace';
@@ -1548,6 +1547,7 @@ export default {
     ReusableOutlineCt,
     InfoFilled,
     Upload,
+    Position,
     PdfSignatureModal,
   },
   setup() {
@@ -7971,7 +7971,7 @@ table.editor-table {
 
 /* Move to button styles */
 .move-to-btn {
-  min-width: 80px;
+  min-width: 40px;
   padding: 8px 12px;
 }
 

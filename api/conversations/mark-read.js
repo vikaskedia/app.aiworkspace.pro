@@ -22,16 +22,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { conversationId, matterId } = req.body
+    const { conversationId, workspaceId } = req.body
 
     console.log('Marking conversation as read:', conversationId)
-    console.log('Workspace ID:', matterId)
+    console.log('Workspace ID:', workspaceId)
 
     if (!conversationId) {
       return res.status(400).json({ error: 'Conversation ID is required' })
     }
 
-    if (!matterId) {
+    if (!workspaceId) {
       return res.status(400).json({ error: 'Workspace ID is required' })
     }
 
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       .rpc('mark_conversation_as_read_for_user', {
         conversation_id_param: conversationId,
         user_id_param: userId,
-        matter_id_param: parseInt(matterId)
+        matter_id_param: parseInt(workspaceId)
       })
 
     if (error) throw error

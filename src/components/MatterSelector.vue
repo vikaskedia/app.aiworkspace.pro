@@ -19,7 +19,7 @@ export default {
     const workspaces = ref([]);
     const workspaceTree = ref([]);
     const userAccessMap = ref(new Map()); // Track which workspaces user has access to
-    const selectedMatter = ref(null);
+    const selectedWorkspace = ref(null);
     const dialogVisible = ref(false);
     const searchQuery = ref('');
     const newMatter = ref({
@@ -34,7 +34,7 @@ export default {
 
     // Watch for changes in the store's currentMatter
     watch(currentMatter, (newMatter) => {
-      selectedMatter.value = newMatter;
+      selectedWorkspace.value = newMatter;
     });
 
     // Computed property for filtered workspaces based on search query
@@ -168,11 +168,11 @@ export default {
         workspaceTree.value = buildWorkspaceTree(workspacesWithActivity, userAccess);
 
         // After loading workspaces, check URL for workspace ID
-        const matterId = route.params.matterId;
-        if (matterId) {
-          const workspace = workspacesWithActivity.find(m => m.id === parseInt(matterId));
+        const worksspaceId = route.params.worksspaceId;
+        if (worksspaceId) {
+          const workspace = workspacesWithActivity.find(m => m.id === parseInt(worksspaceId));
           if (workspace && userAccess.has(workspace.id)) {
-            selectedMatter.value = workspace;
+            selectedWorkspace.value = workspace;
             emit('workspace-selected', workspace);
           }
         }
@@ -241,7 +241,7 @@ export default {
         ElMessage.success('Workspace created successfully');
 
         // Select the newly created workspace
-        selectedMatter.value = data;
+        selectedWorkspace.value = data;
         emit('workspace-selected', data);
       } catch (error) {
         if (error.message.includes('JWT')) {
@@ -255,7 +255,7 @@ export default {
     const handleWorkspaceClick = (workspace) => {
 
       if (workspace === null) {
-        selectedMatter.value = null;
+        selectedWorkspace.value = null;
         matterStore.setCurrentMatter(null);
         router.push('/all-workspace/tasks');
       } else {
@@ -264,7 +264,7 @@ export default {
           ElMessage.warning(`You don't have access to "${workspace.title}". Please contact the workspace owner for access.`);
           return;
         }
-        selectedMatter.value = workspace;
+        selectedWorkspace.value = workspace;
         matterStore.setCurrentMatter(workspace);
         
         // Get the current route path segments
@@ -303,26 +303,26 @@ export default {
     };
 
     const handleMatterCommand = (command) => {
-      if (!selectedMatter.value) return;
+      if (!selectedWorkspace.value) return;
       
       switch(command) {
         case 'dashboard':
-          router.push(`/single-workspace/${selectedMatter.value.id}`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}`);
           break;
         case 'goals':
-          router.push(`/single-workspace/${selectedMatter.value.id}/goals`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}/goals`);
           break;
         case 'tasks':
-          router.push(`/single-workspace/${selectedMatter.value.id}/tasks`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}/tasks`);
           break;
         case 'events':
-          router.push(`/single-workspace/${selectedMatter.value.id}/events`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}/events`);
           break;
         case 'files':
-          router.push(`/single-workspace/${selectedMatter.value.id}/files`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}/files`);
           break;
         case 'settings':
-          router.push(`/single-workspace/${selectedMatter.value.id}/settings`);
+          router.push(`/single-workspace/${selectedWorkspace.value.id}/settings`);
           break;
       }
     };
@@ -357,7 +357,7 @@ export default {
       workspaces,
       workspaceTree,
       userAccessMap,
-      selectedMatter,
+      selectedWorkspace,
       dialogVisible,
       searchQuery,
       newMatter,
@@ -380,7 +380,7 @@ export default {
   <div class="workspace-selector">
     <el-dropdown trigger="click" @visible-change="handleDropdownVisibleChange">
       <span class="workspace-dropdown-link">
-        {{ selectedMatter?.title || 'All Workspaces' }}
+        {{ selectedWorkspace?.title || 'All Workspaces' }}
         <el-icon><caret-bottom /></el-icon>
       </span>
       

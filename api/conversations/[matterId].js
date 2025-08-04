@@ -22,16 +22,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract matterId from path or query
-    const { matterId } = req.query
-    const pathMatterId = req.url?.split('/').pop()
-    const finalMatterId = matterId || pathMatterId
+    // Extract workspaceId from path or query
+    const { workspaceId } = req.query
+    const pathWorkspaceId = req.url?.split('/').pop()
+    const finalWorkspaceId = workspaceId || pathWorkspaceId
 
-    console.log('Conversations API called with matterId:', finalMatterId)
+    console.log('Conversations API called with workspaceId:', finalWorkspaceId)
     console.log('Request URL:', req.url)
     console.log('Query params:', req.query)
 
-    if (!finalMatterId) {
+    if (!finalWorkspaceId) {
       return res.status(400).json({ error: 'Workspace ID is required' })
     }
 
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
           status
         )
       `)
-      .eq('matter_id', finalMatterId)
+      .eq('matter_id', finalWorkspaceId)
       .order('last_message_at', { ascending: false })
       .limit(10000)
 

@@ -81,13 +81,13 @@ const routes = [
     ]
   },
   { 
-    path: '/single-workspace/:matterId?',
+    path: '/single-workspace/:workspaceId?',
     component: WorkspaceLayout,
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
-        redirect: to => `/single-workspace/${to.params.matterId}/dashboard`
+        redirect: to => `/single-workspace/${to.params.workspaceId}/dashboard`
       },
       {
         path: 'dashboard',
@@ -409,7 +409,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Rest of your existing navigation guard code
-  if (to.path.startsWith('/single-workspace/') && (!to.params.matterId || to.params.matterId === '')) {
+  if (to.path.startsWith('/single-workspace/') && (!to.params.workspaceId || to.params.workspaceId === '')) {
     next('/all-workspace');
     return;
   }
@@ -421,11 +421,11 @@ router.beforeEach(async (to, from, next) => {
   }
 
   // Handle workspace context
-  if (session && to.params.matterId) {
+  if (session && to.params.workspaceId) {
     const matterStore = useMatterStore();
     try {
       await matterStore.loadMatters();
-      const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.matterId));
+      const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.workspaceId));
       if (workspace) {
         matterStore.setCurrentMatter(workspace);
       }

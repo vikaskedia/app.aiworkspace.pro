@@ -4056,7 +4056,7 @@ ${comment.content}
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error loading task outline:', error);
@@ -4096,7 +4096,7 @@ ${comment.content}
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (existingOutline) {
           // Update existing outline

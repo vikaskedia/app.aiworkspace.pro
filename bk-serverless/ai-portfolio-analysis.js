@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { systemPrompt, spreadsheetData, matterId } = req.body;
+    const { systemPrompt, spreadsheetData, workspaceId } = req.body;
 
     if (!systemPrompt || !spreadsheetData) {
       return res.status(400).json({ error: 'Missing required fields' });

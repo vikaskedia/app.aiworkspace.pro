@@ -87,7 +87,7 @@
             </el-form-item>
             <el-form-item label="Workspace">
               <el-select
-                v-model="filters.matter"
+                v-model="filters.workspace"
                 placeholder="All workspaces"
                 multiple
                 collapse-tags
@@ -242,13 +242,13 @@
         :group-by="boardGroupBy"
         :is-all-tasks-context="true"
         :workspaces="workspaces"
-        :current-matter="selectedMatter"
+        :current-workspace="selectedWorkspace"
         :shared-users="assignees"
         v-model:filters="filters"
         @update-task="updateTask"
         @filter-by-status="handleFilterByStatus"
         @filter-by-priority="handleFilterByPriority"
-        @filter-by-matter="handleFilterByMatter"
+        @filter-by-workspace="handleFilterByWorkspace"
       />
     </div>
   </div>
@@ -317,7 +317,7 @@ import TasksList from '../single-workspace/TasksList.vue';
 import TaskBoardCt from '../single-workspace/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {
@@ -351,7 +351,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
-        matter: [],
+        workspace: [],
         assignee: [],
         createdBy: [],
         starred: false,
@@ -366,7 +366,7 @@ export default {
       selectedTask: null,
       quickViewVisible: false,
       boardGroupBy: 'status',
-      selectedMatter: null,
+      selectedWorkspace: null,
       isUpdating: false
     };
   },
@@ -378,7 +378,7 @@ export default {
       if (this.filters.excludeStatus?.length) count++;
       if (this.filters.priority) count++;
       if (this.filters.dueDate) count++;
-      if (this.filters.matter?.length) count++;
+      if (this.filters.workspace?.length) count++;
       if (this.filters.assignee?.length) count++;
       if (this.filters.createdBy?.length) count++;
       if (this.filters.starred) count++;
@@ -409,9 +409,9 @@ export default {
           .from('tasks')
           .select(`
             *,
-            matter:workspaces!inner(
+            workspace:workspaces(
               title,
-             workspace_access!inner(shared_with_user_id)
+             workspace_access(shared_with_user_id)
             ),
             task_stars!left(
               user_id
@@ -422,7 +422,7 @@ export default {
             )
           `)
           .eq('deleted', false)
-          .eq('workspace.workspace_access.shared_with_user_id', user.id);
+          .in('workspace.workspace_access.shared_with_user_id', [user.id]);
 
         const { data: tasks, error } = await query;
         if (error) throw error;
@@ -437,7 +437,7 @@ export default {
 
           return {
             ...task,
-            matter_title: task.matter?.title || 'Unknown Workspace',
+            matter_title: task.workspace?.title || 'Unknown Workspace',
             assignee_email: assigneeEmail,
             starred: task.task_stars?.some(star => star.user_id === user.id) || false,
             total_hours: task.task_hours_logs?.reduce((sum, log) => {
@@ -479,7 +479,7 @@ export default {
         if (this.filters.priority && task.priority !== this.filters.priority) {
           return false;
         }
-        if (this.filters.matter?.length && !this.filters.workspace.includes(task.matter_id)) {
+        if (this.filters.workspace?.length && !this.filters.workspace.includes(task.matter_id)) {
           return false;
         }
         if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
@@ -534,7 +534,7 @@ export default {
         excludeStatus: ['completed'],
         priority: null,
         dueDate: null,
-        matter: [],
+        workspace: [],
         assignee: [],
         createdBy: [],
         starred: false,
@@ -559,11 +559,11 @@ export default {
       this.quickViewVisible = true;
     },
 
-    navigateToMatter(matterId) {
-      this.router.push(`/single-workspace/${matterId}`);
+    navigateToWorkspace(workspaceId) {
+      this.router.push(`/single-workspace/${workspaceId}`);
     },
 
-    async loadMatters() {
+    async loadWorkspaces() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: workspaces, error } = await supabase
@@ -814,7 +814,7 @@ export default {
 
     async initializeComponent() {
       await this.loadSavedFilters();
-      await this.loadMatters();
+      await this.loadWorkspaces();
       await this.loadAssignees();
       await this.loadTasksWithCache();
     },
@@ -892,7 +892,7 @@ export default {
       }
       
       // Apply workspace filter
-      if (this.filters.matter?.length) {
+      if (this.filters.workspace?.length) {
         result = result.filter(task => this.filters.workspace.includes(task.matter_id));
       }
       
@@ -1046,7 +1046,7 @@ export default {
         await this.taskStore.updateTask(updatedTask);
         
         // Update workspace activity
-        await updateMatterActivity(updatedTask.matter_id);
+        await updateWorkspaceActivity(updatedTask.matter_id);
         
         // Clear cache and reload tasks
         await this.loadTasksWithCache();
@@ -1144,8 +1144,8 @@ export default {
       }
     },
 
-    handleFilterByMatter(matterId) {
-      this.filters.matter = [matterId];
+    handleFilterByWorkspace(workspaceId) {
+      this.filters.workspace = [workspaceId];
       //this.showFilters = true;
       this.loadTasksWithCache();
     },
@@ -1166,7 +1166,7 @@ export default {
     this.loadAssignees().then(() => {
       this.filteredAssignees = this.assignees;
     });
-    this.loadMatters();
+    this.loadWorkspaces();
     this.loadTasksWithCache();
     this.loadFilterFromUrl();
     
@@ -1214,8 +1214,8 @@ export default {
     workspaces: {
       immediate: true,
       handler(workspaces) {
-        if (workspaces.length > 0 && !this.selectedMatter) {
-          this.selectedMatter = workspaces[0];
+        if (workspaces.length > 0 && !this.selectedWorkspace) {
+          this.selectedWorkspace = workspaces[0];
         }
       }
     },

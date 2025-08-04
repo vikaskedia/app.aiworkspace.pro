@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   try {
     const { method } = req;
-    const { outlineId, matterId, sequenceNumber, diffs } = req.body || {};
+    const { outlineId, workspaceId, sequenceNumber, diffs } = req.body || {};
 
     switch (method) {
       case 'GET':
@@ -33,8 +33,8 @@ export default async function handler(req, res) {
 
       case 'POST':
         // Simple test response for now
-        if (!outlineId || !matterId || !diffs || !Array.isArray(diffs)) {
-          return res.status(400).json({ error: 'outlineId, matterId, and diffs array are required' });
+        if (!outlineId || !workspaceId || !diffs || !Array.isArray(diffs)) {
+          return res.status(400).json({ error: 'outlineId, workspaceId, and diffs array are required' });
         }
 
         // Return success response for now

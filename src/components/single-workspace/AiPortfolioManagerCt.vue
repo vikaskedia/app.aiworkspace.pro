@@ -71,9 +71,19 @@
                     </el-icon>
                     <template #dropdown>
                       <el-dropdown-menu>
+                        <!-- Workspace Information Header -->
+                        <el-dropdown-item 
+                          disabled
+                          class="workspace-info-header">
+                          <div class="workspace-info">
+                            <span class="workspace-label">Workspace:</span>
+                            <span class="workspace-name">{{ getPortfolioWorkspaceName(portfolio) }}</span>
+                          </div>
+                        </el-dropdown-item>
                         <el-dropdown-item 
                           :command="{ action: 'edit', portfolio: portfolio }"
-                          @click.stop>
+                          @click.stop
+                          divided>
                           <el-icon><Edit /></el-icon>
                           Edit portfolio name
                         </el-dropdown-item>
@@ -907,6 +917,17 @@ export default {
       return getPortfolioSpreadsheets(portfolioId).length;
     };
 
+    // Get workspace name for a portfolio
+    const getPortfolioWorkspaceName = (portfolio) => {
+      if (portfolio.childMatterId && portfolio.childMatterTitle) {
+        // This is a child workspace portfolio
+        return portfolio.childMatterTitle;
+      } else {
+        // This belongs to the current workspace
+        return currentMatter.value?.title || 'Current Workspace';
+      }
+    };
+
     const loadChildMatters = async () => {
       if (!currentMatterId.value) {
         console.warn('⚠️ No current workspace selected, cannot load child workspaces');
@@ -1089,6 +1110,7 @@ export default {
             createdAt: new Date(portfolio.created_at),
             lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
             childMatterId: portfolio?.childMatterId || null,
+            childMatterTitle: portfolio?.childMatterTitle || null,
             isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false // Default to edit mode
           }));
           // console.log(`📊 Loaded all ${portfolios.value.length} portfolios`);
@@ -1789,6 +1811,7 @@ export default {
       spreadsheetFormRules,
       getPortfolioSpreadsheets,
       getPortfolioSpreadsheetCount,
+      getPortfolioWorkspaceName,
       handlePortfolioChange,
       showAddPortfolioDialog,
       addNewPortfolio,
@@ -2419,6 +2442,43 @@ export default {
 /* Alert styling override */
 :deep(.el-alert--warning) {
   border-radius: 6px;
+}
+
+/* Workspace Information Header Styling */
+:deep(.workspace-info-header) {
+  padding: 8px 16px !important;
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  cursor: default !important;
+  opacity: 1 !important;
+}
+
+:deep(.workspace-info-header:hover) {
+  background-color: #f8fafc !important;
+}
+
+.workspace-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-label {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.workspace-name {
+  font-size: 12px;
+  color: #1e293b;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 </style>
 

@@ -90,7 +90,7 @@ export default {
         post_url: ''
       },
       parentWorkspace: {
-        id: this.currentMatter?.parent_matter_id || null,
+        id: this.currentMatter?.parent_workspace_id || null,
         title: ''
       },
       availableWorkspaces: [],
@@ -119,7 +119,7 @@ export default {
           this.loadPhoneTextActions();
           this.loadAvailableWorkspaces();
           this.loadAllWorkspaces();
-          this.parentWorkspace.id = newMatter?.parent_matter_id || null;
+          this.parentWorkspace.id = newMatter?.parent_workspace_id || null;
         }
       },
       immediate: true
@@ -139,8 +139,8 @@ export default {
         console.log('All workspaces:', this.allWorkspaces);
         
         // Set current parent workspace title if it exists
-        if (this.currentMatter?.parent_matter_id) {
-          const parent = this.allWorkspaces.find(w => w.id === this.currentMatter.parent_matter_id);
+        if (this.currentMatter?.parent_workspace_id) {
+          const parent = this.allWorkspaces.find(w => w.id === this.currentMatter.parent_workspace_id);
           if (parent) {
             this.parentWorkspace.title = parent.title;
           }
@@ -179,8 +179,8 @@ export default {
         console.log('Available workspaces:', this.availableWorkspaces);
         
         // Set current parent workspace title if it exists
-        if (this.currentMatter?.parent_matter_id) {
-          const parent = this.availableWorkspaces.find(w => w.id === this.currentMatter.parent_matter_id);
+        if (this.currentMatter?.parent_workspace_id) {
+          const parent = this.availableWorkspaces.find(w => w.id === this.currentMatter.parent_workspace_id);
           if (parent) {
             this.parentWorkspace.title = parent.title;
           }
@@ -195,7 +195,7 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .update({
-            parent_matter_id: this.parentWorkspace.id
+            parent_workspace_id: this.parentWorkspace.id
           })
           .eq('id', this.currentMatter.id)
           .select()
@@ -876,7 +876,7 @@ export default {
               <el-button 
                 type="primary"
                 @click="updateParentWorkspace"
-                :disabled="parentWorkspace.id === (currentMatter?.parent_matter_id || null)">
+                :disabled="parentWorkspace.id === (currentMatter?.parent_workspace_id || null)">
                 Save Changes
               </el-button>
             </div>

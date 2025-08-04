@@ -845,11 +845,11 @@ export default {
       try {
         console.log(`👶 Loading child workspaces for workspace ${currentMatterId.value}...`);
 
-        // Get child workspaces where parent_matter_id = current matter id
+        // Get child workspaces where parent_workspace_id = current matter id
         const { data: childMattersData, error } = await supabase
           .from('workspaces')
           .select('id, title, description')
-          .eq('parent_matter_id', currentMatterId.value)
+          .eq('parent_workspace_id', currentMatterId.value)
           .eq('archived', false)
           .order('title');
 

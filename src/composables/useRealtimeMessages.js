@@ -289,10 +289,9 @@ export function useRealtimeMessages(matterId) {
   // Load conversations from database
   const loadConversations = async () => {
     if (!matterId.value) return
-    
     try {
       const token = await getAuthToken()
-      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?matterId=${matterId.value}`, {
+      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?workspaceId=${matterId.value}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

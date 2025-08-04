@@ -116,23 +116,23 @@ async function handleMessageReceived(eventData) {
     const messageType = hasMedia ? 'MMS' : 'SMS';
 
     // Find the workspace based on the receiving phone number
-    const { data: workspaces, error: matterError } = await supabase
+    const { data: workspaces, error: workspaceError } = await supabase
       .from('workspaces')
       .select('id, phone_numbers')
       .not('phone_numbers', 'is', null);
 
-    if (matterError) throw matterError;
+    if (workspaceError) throw workspaceError;
 
-    let matterId = null;
+    let workspaceId = null;
     for (const workspace of workspaces || []) {
-      const phoneNumbers = matter.phone_numbers || [];
+      const phoneNumbers = workspace.phone_numbers || [];
       if (phoneNumbers.some(p => p.number === toPhone)) {
-        matterId = matter.id;
+        workspaceId = workspace.id;
         break;
       }
     }
 
-    if (!matterId) {
+    if (!workspaceId) {
       console.error('No workspace found for phone number:', toPhone);
       return;
     }
@@ -176,7 +176,7 @@ async function handleMessageReceived(eventData) {
             participants: groupNumbers,
             last_message_at: new Date().toISOString(),
             last_message_preview: previewText.substring(0, 100),
-            matter_id: matterId
+            matter_id: workspaceId
           }
         ], { onConflict: 'group_key'});
       if (groupConvError) {
@@ -192,7 +192,7 @@ async function handleMessageReceived(eventData) {
     let { data: conv, error: convError } = await supabase
       .from('conversations')
       .select('*')
-      .eq('matter_id', matterId)
+      .eq('matter_id', workspaceId)
       .eq('from_phone_number', toPhone)
       .eq('to_phone_number', fromPhone)
       .single();
@@ -204,7 +204,7 @@ async function handleMessageReceived(eventData) {
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
         .insert({
-          matter_id: matterId,
+          matter_id: workspaceId,
           from_phone_number: toPhone,
           to_phone_number: fromPhone,
           contact_name: null,

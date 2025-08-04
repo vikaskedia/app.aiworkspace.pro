@@ -547,7 +547,7 @@ export default {
 
     async loadPhoneNumbers() {
       try {
-        // Phone numbers are stored in the current matter's phone_numbers field
+        // Phone numbers are stored in the current workspace's phone_numbers field
         this.phoneNumbers = this.currentMatter?.phone_numbers || [];
       } catch (error) {
         ElMessage.error('Error loading phone numbers: ' + error.message);

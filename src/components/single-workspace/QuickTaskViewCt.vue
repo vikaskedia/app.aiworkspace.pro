@@ -439,7 +439,7 @@ export default {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
-        // First get the matter's git repo
+        // First get the workspace's git repo
         const { data: matter, error: matterError } = await supabase
           .from('workspaces')
           .select('git_repo')

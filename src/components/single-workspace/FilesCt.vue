@@ -1,7 +1,7 @@
 <!-- 
 Architecture description:
 All the files are stored in the Gitea server.
-The files are stored in the matter's repository.
+The files are stored in the workspace's repository.
 -->
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';

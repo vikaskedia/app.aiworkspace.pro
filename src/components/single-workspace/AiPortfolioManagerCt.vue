@@ -95,6 +95,13 @@
                             Readonly
                           </el-checkbox>
                         </el-dropdown-item>
+                        <el-dropdown-item 
+                          :command="{ action: 'move', portfolio: portfolio }"
+                          @click.stop
+                          divided>
+                          <el-icon><Folder /></el-icon>
+                          Move to workspace
+                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
@@ -282,6 +289,62 @@
             @click="addNewSpreadsheet"
             :loading="addingSpreadsheet">
             Add Spreadsheet
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+    
+    <!-- Move Portfolio Dialog -->
+    <el-dialog
+      v-model="movePortfolioDialogVisible"
+      title="Move Portfolio to Workspace"
+      width="500px"
+      :close-on-click-modal="false">
+      <div class="move-portfolio-content">
+        <p class="move-description">
+          Select the workspace you want to move "<strong>{{ portfolioToMove?.name }}</strong>" to:
+        </p>
+        
+        <el-form label-width="120px">
+          <el-form-item label="Destination:" required>
+            <el-select 
+              v-model="selectedDestinationMatterId" 
+              placeholder="Select workspace"
+              style="width: 100%"
+              @change="handleWorkspaceSelection">
+              <el-option
+                v-for="workspace in availableWorkspaces"
+                :key="workspace.id"
+                :label="workspace.title"
+                :value="workspace.id">
+                <span style="float: left">{{ workspace.title }}</span>
+                <span style="float: right; color: #8492a6; font-size: 13px">
+                  ID: {{ workspace.id }}
+                </span>
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+        
+        <el-alert
+          v-if="selectedDestinationMatterId"
+          title="Note: This action cannot be undone"
+          type="warning"
+          show-icon
+          :closable="false"
+          style="margin-top: 16px;">
+        </el-alert>
+      </div>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="movePortfolioDialogVisible = false; resetMoveDialog()">Cancel</el-button>
+          <el-button 
+            type="primary" 
+            @click="confirmMovePortfolio"
+            :disabled="!selectedDestinationMatterId"
+            :loading="movingPortfolio">
+            Move Portfolio
           </el-button>
         </span>
       </template>
@@ -662,6 +725,11 @@ export default {
     const addingSpreadsheet = ref(false);
     const targetPortfolioId = ref(''); // For adding spreadsheets to specific portfolio
     const childMatters = ref([]); // Child workspaces for the current workspace
+    const movePortfolioDialogVisible = ref(false); // New dialog for moving portfolio
+    const selectedDestinationMatterId = ref(''); // ID of the destination workspace
+    const availableWorkspaces = ref([]); // Available workspaces user has access to
+    const portfolioToMove = ref(null); // Portfolio being moved
+    const movingPortfolio = ref(false); // Loading state for move operation
     // Context menu states
     const contextMenuVisible = ref(false);
     const contextMenuX = ref(0);
@@ -744,6 +812,9 @@ export default {
           break;
         case 'delete':
           deletePortfolio(portfolio.id);
+          break;
+        case 'move':
+          movePortfolio(portfolio.id);
           break;
         default:
           console.warn('Unknown portfolio action:', action);
@@ -1533,6 +1604,133 @@ export default {
       }
     };
 
+    // Load available workspaces for moving portfolios
+    const loadAvailableWorkspaces = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // First get the workspace IDs the user has access to
+        const { data: accessData, error: accessError } = await supabase
+          .from('workspace_access')
+          .select('matter_id')
+          .eq('shared_with_user_id', user.id);
+
+        if (accessError) throw accessError;
+
+        const accessibleMatterIds = accessData?.map(row => row.matter_id) || [];
+
+        // Then get the workspaces
+        const { data: workspaces, error } = await supabase
+          .from('workspaces')
+          .select('id, title')
+          .eq('archived', false)
+          .neq('id', currentMatterId.value) // Exclude current workspace
+          .in('id', accessibleMatterIds);
+
+        if (error) throw error;
+        
+        availableWorkspaces.value = workspaces || [];
+        
+      } catch (error) {
+        console.error('Error loading available workspaces:', error);
+        ElMessage.error('Error loading workspaces: ' + error.message);
+      }
+    };
+
+    // Move portfolio to a different workspace - show dialog
+    const movePortfolio = async (portfolioId) => {
+      if (!currentMatterId.value) {
+        ElMessage.error('No workspace selected');
+        return;
+      }
+
+      try {
+        const portfolio = portfolios.value.find(p => p.id === portfolioId);
+        if (!portfolio) {
+          ElMessage.error('Portfolio not found');
+          return;
+        }
+
+        portfolioToMove.value = portfolio;
+        
+        // Load available workspaces
+        await loadAvailableWorkspaces();
+        
+        if (availableWorkspaces.value.length === 0) {
+          ElMessage.warning('No other workspaces available to move this portfolio to.');
+          return;
+        }
+
+        movePortfolioDialogVisible.value = true;
+
+      } catch (error) {
+        console.error('Error preparing move portfolio:', error);
+        ElMessage.error('Failed to prepare move operation: ' + error.message);
+      }
+    };
+
+    // Handle workspace selection in move dialog
+    const handleWorkspaceSelection = (workspaceId) => {
+      selectedDestinationMatterId.value = workspaceId;
+    };
+
+    // Reset move dialog state
+    const resetMoveDialog = () => {
+      selectedDestinationMatterId.value = '';
+      portfolioToMove.value = null;
+      availableWorkspaces.value = [];
+    };
+
+    // Confirm and execute the portfolio move
+    const confirmMovePortfolio = async () => {
+      if (!portfolioToMove.value || !selectedDestinationMatterId.value) {
+        ElMessage.error('Please select a destination workspace');
+        return;
+      }
+
+      try {
+        movingPortfolio.value = true;
+
+        const destinationWorkspace = availableWorkspaces.value.find(w => w.id === selectedDestinationMatterId.value);
+        
+        const { error } = await supabase
+          .from('portfolio_data')
+          .update({ matter_id: selectedDestinationMatterId.value })
+          .eq('portfolio_id', portfolioToMove.value.id)
+          .eq('matter_id', currentMatterId.value);
+
+        if (error) throw error;
+
+        // Also update ai_portfolio_data table if there are spreadsheets
+        const { error: aiError } = await supabase
+          .from('ai_portfolio_data')
+          .update({ matter_id: selectedDestinationMatterId.value })
+          .eq('portfolio_id', portfolioToMove.value.id)
+          .eq('matter_id', currentMatterId.value);
+
+        if (aiError) {
+          console.warn('Error updating ai_portfolio_data:', aiError);
+          // Don't fail the whole operation for this
+        }
+
+        // Close dialog and reset state
+        movePortfolioDialogVisible.value = false;
+        resetMoveDialog();
+
+        // Reload portfolios to reflect the change
+        await initializePortfolios();
+
+        ElMessage.success(`Portfolio "${portfolioToMove.value?.name}" moved successfully to "${destinationWorkspace?.title}".`);
+
+      } catch (error) {
+        console.error('Error moving portfolio:', error);
+        ElMessage.error('Failed to move portfolio: ' + error.message);
+      } finally {
+        movingPortfolio.value = false;
+      }
+    };
+
 
     // Initialize component
     onMounted(async () => {
@@ -1605,7 +1803,17 @@ export default {
       handlePortfolioAction,
       handleReadonlyChange,
       getPortfolioReadonlyState,
-      getCurrentEditor
+              getCurrentEditor,
+        movePortfolioDialogVisible,
+        selectedDestinationMatterId,
+        availableWorkspaces,
+        portfolioToMove,
+        movingPortfolio,
+        movePortfolio,
+        loadAvailableWorkspaces,
+        handleWorkspaceSelection,
+        resetMoveDialog,
+        confirmMovePortfolio
     };
   },
 };
@@ -2150,6 +2358,67 @@ export default {
   .add-spreadsheet-section {
     border-color: #475569;
   }
+}
+
+/* Context Menu Styling */
+.context-menu {
+  z-index: 9999;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Move Portfolio Dialog Styling */
+.move-portfolio-content {
+  padding: 8px 0;
+}
+
+.move-description {
+  margin-bottom: 20px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.move-description strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+:deep(.el-select__wrapper) {
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-select__wrapper:hover) {
+  border-color: #667eea;
+}
+
+:deep(.el-select__wrapper.is-focused) {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+/* Dialog Button Styling */
+:deep(.el-button) {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+:deep(.el-button--primary:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Alert styling override */
+:deep(.el-alert--warning) {
+  border-radius: 6px;
 }
 </style>
 

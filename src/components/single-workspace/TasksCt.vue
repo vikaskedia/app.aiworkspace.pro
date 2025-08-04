@@ -85,8 +85,10 @@ export default {
         showDeleted: false,
         starredBy: [],
         viewType: 'tree',
-        orderBy: 'priority_desc'
+        orderBy: 'priority_desc',
+        workspaces: []
       },
+      availableWorkspaces: [],
       showTypeahead: false,
       typeaheadSuggestions: [],
       typeaheadSelectedIndex: -1,
@@ -112,7 +114,8 @@ export default {
 
           await Promise.all([
             this.loadTasks(),
-            this.loadSharedUsers()
+            this.loadSharedUsers(),
+            this.loadAvailableWorkspaces()
           ]);
           this.setupRealtimeSubscription();
           this.updatePageTitle();
@@ -120,7 +123,8 @@ export default {
           // When workspace changes, reload tasks and shared users
           await Promise.all([
             this.loadTasks(),
-            this.loadSharedUsers()
+            this.loadSharedUsers(),
+            this.loadAvailableWorkspaces()
           ]);
           // Reset subscription for new matter
           if (this.subscription) {
@@ -200,6 +204,33 @@ export default {
         //console.log('Processed shared users:', this.sharedUsers);
       } catch (error) {
         ElMessage.error('Error loading shared users: ' + error.message);
+      }
+    },
+
+    async loadAvailableWorkspaces() {
+      try {
+        if (!this.currentMatter) return;
+
+        // Get current workspace
+        const currentWorkspace = {
+          id: this.currentMatter.id,
+          title: this.currentMatter.title
+        };
+
+        // Get child workspaces where parent_workspace_id = current workspace id
+        const { data: childWorkspaces, error } = await supabase
+          .from('workspaces')
+          .select('id, title')
+          .eq('parent_workspace_id', this.currentMatter.id)
+          .eq('archived', false);
+
+        if (error) throw error;
+
+        // Combine current workspace with child workspaces
+        this.availableWorkspaces = [currentWorkspace, ...(childWorkspaces || [])];
+      } catch (error) {
+        console.error('Error loading available workspaces:', error);
+        ElMessage.error('Error loading available workspaces: ' + error.message);
       }
     },
     async getUserEmail(userId) {
@@ -527,7 +558,8 @@ export default {
         showDeleted: false,
         starredBy: [],
         viewType: 'tree',
-        orderBy: currentOrderBy
+        orderBy: currentOrderBy,
+        workspaces: []
       };
       this.loadSharedUsers();
     },
@@ -1037,6 +1069,11 @@ export default {
             filters.orderBy = 'priority_desc';
           }
           
+          // Ensure workspaces is an array if not set
+          if (!filters.workspaces) {
+            filters.workspaces = [];
+          }
+          
           // Set the filters
           this.filters = filters;
           
@@ -1073,6 +1110,11 @@ export default {
         // Ensure orderBy has a default value
         if (!filters.orderBy) {
           filters.orderBy = 'priority_desc';
+        }
+        
+        // Ensure workspaces is an array if not set
+        if (!filters.workspaces) {
+          filters.workspaces = [];
         }
         
         // Set the filters
@@ -1421,7 +1463,8 @@ export default {
         showDeleted: false,
         starredBy: [],
         viewType: 'list',
-        orderBy: 'priority_desc'
+        orderBy: 'priority_desc',
+        workspaces: []
       };
       this.boardGroupBy = 'status';
       this.saveFilters(); // Save the cleared state
@@ -1529,6 +1572,13 @@ export default {
           result = filterTasksRecursively(result, task => 
             task.title.toLowerCase().includes(searchTerm) ||
             (task.description && task.description.toLowerCase().includes(searchTerm))
+          );
+        }
+        
+        // Apply workspace filter
+        if (this.filters.workspaces?.length) {
+          result = filterTasksRecursively(result, task => 
+            this.filters.workspaces.includes(task.matter_id)
           );
         }
         
@@ -1730,6 +1780,22 @@ export default {
                 placeholder="Search tasks..."
                 clearable
               />
+            </el-form-item>
+            <el-form-item label="Workspace">
+              <el-select
+                v-model="filters.workspaces"
+                placeholder="All workspaces"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                clearable
+                style="width: 200px">
+                <el-option
+                  v-for="workspace in availableWorkspaces"
+                  :key="workspace.id"
+                  :label="workspace.title"
+                  :value="workspace.id" />
+              </el-select>
             </el-form-item>
             <el-form-item label="Status">
               <el-select

@@ -93,8 +93,7 @@ export default {
         id: this.currentMatter?.parent_workspace_id || null,
         title: ''
       },
-      availableWorkspaces: [],
-      allWorkspaces: [],
+              availableWorkspaces: [],
     };
   },
   components: {
@@ -118,38 +117,13 @@ export default {
           this.loadPhoneNumbers();
           this.loadPhoneTextActions();
           this.loadAvailableWorkspaces();
-          this.loadAllWorkspaces();
           this.parentWorkspace.id = newMatter?.parent_workspace_id || null;
         }
       },
       immediate: true
     }
   },
-  methods: {
-    async loadAllWorkspaces() {
-      try {
-        const { data: workspaces, error } = await supabase
-          .from('workspaces')
-          .select('id, title')
-          .neq('id', this.currentMatter?.id) // Exclude current workspace
-          .eq('archived', false);
-
-        if (error) throw error;
-        this.allWorkspaces = workspaces || [];
-        console.log('All workspaces:', this.allWorkspaces);
-        
-        // Set current parent workspace title if it exists
-        if (this.currentMatter?.parent_workspace_id) {
-          const parent = this.allWorkspaces.find(w => w.id === this.currentMatter.parent_workspace_id);
-          if (parent) {
-            this.parentWorkspace.title = parent.title;
-          }
-        }
-
-      } catch (error) {
-        ElMessage.error('Error loading all workspaces: ' + error.message);
-      }
-    },
+      methods: {
     async loadAvailableWorkspaces() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -863,12 +837,13 @@ export default {
                 v-model="parentWorkspace.id" 
                 placeholder="Select a parent workspace"
                 clearable
+                filterable
                 style="width: 100%">
                 <el-option
                   label="None"
                   :value="null" />
                 <el-option
-                  v-for="workspace in allWorkspaces"
+                  v-for="workspace in availableWorkspaces"
                   :key="workspace.id"
                   :label="workspace.title"
                   :value="workspace.id" />

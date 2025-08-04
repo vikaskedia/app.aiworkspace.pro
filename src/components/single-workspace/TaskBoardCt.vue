@@ -64,9 +64,9 @@
                             <template #dropdown>
                               <el-dropdown-menu>
                                 <el-dropdown-item 
-                                  v-for="matter in workspaces" 
+                                  v-for="workspace in workspaces" 
                                   :key="workspace.id"
-                                  :command="matter">
+                                  :command="workspace">
                                   {{ workspace.title }}
                                 </el-dropdown-item>
                               </el-dropdown-menu>

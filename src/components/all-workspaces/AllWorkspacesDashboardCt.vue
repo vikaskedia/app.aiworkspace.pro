@@ -15,13 +15,13 @@
     </div>
 
     <div class="workspaces-grid" v-loading="loading">
-      <el-card v-for="matter in workspaces" :key="workspace.id" class="matter-card">
+      <el-card v-for="workspace in workspaces" :key="workspace.id" class="matter-card">
         <template #header>
           <div class="matter-header">
-            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', matter)" class="matter-title-link">
+            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', workspace)" class="matter-title-link">
               <h3 class="clickable-title">{{ workspace.title }}</h3>
             </a>
-            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, workspace)">
               <el-button type="primary" link>
                 <el-icon><More /></el-icon>
               </el-button>

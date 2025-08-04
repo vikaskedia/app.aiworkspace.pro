@@ -96,7 +96,7 @@
                 filterable
                 style="width: 200px">
                 <el-option 
-                  v-for="matter in workspaces"
+                  v-for="workspace in workspaces"
                   :key="workspace.id"
                   :label="workspace.title"
                   :value="workspace.id"

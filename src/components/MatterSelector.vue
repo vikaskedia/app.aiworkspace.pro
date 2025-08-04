@@ -225,17 +225,17 @@ export default {
     };
 
     const handleWorkspaceClick = (workspace) => {
-      // Check if user has access to this workspace
-      if (!userAccessMap.value.has(workspace.id)) {
-        ElMessage.warning(`You don't have access to "${workspace.title}". Please contact the workspace owner for access.`);
-        return;
-      }
 
       if (workspace === null) {
         selectedMatter.value = null;
         matterStore.setCurrentMatter(null);
         router.push('/all-workspace/tasks');
       } else {
+        // Check if user has access to this workspace
+        if (!userAccessMap.value.has(workspace.id)) {
+          ElMessage.warning(`You don't have access to "${workspace.title}". Please contact the workspace owner for access.`);
+          return;
+        }
         selectedMatter.value = workspace;
         matterStore.setCurrentMatter(workspace);
         

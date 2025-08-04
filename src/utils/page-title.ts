@@ -115,7 +115,7 @@ export function setComponentTitle(componentName: string, workspaceName?: string,
 }
 
 /**
- * Sets title for workspace/matter specific pages
+ * Sets title for workspace/workspace specific pages
  */
 export function setWorkspaceTitle(componentName: string, workspaceName?: string): void {
   setPageTitle({

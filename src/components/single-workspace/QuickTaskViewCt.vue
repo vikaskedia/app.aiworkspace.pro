@@ -6,7 +6,7 @@ import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
 import TiptapEditor from '../common/TiptapEditor.vue';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 
 export default {
   components: {

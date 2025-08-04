@@ -271,7 +271,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   import draggable from 'vuedraggable'
   import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom, Calendar, Timer } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
-  import { useMatterStore } from '../../store/matter'
+  import { useMatterStore } from '../../store/workspace'
   import { storeToRefs } from 'pinia'
   import { supabase } from '../../supabase'
   import QuickTaskViewCt from './QuickTaskViewCt.vue'
@@ -357,7 +357,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     methods: {
       async updateMatterActivity(matterId) {
         // Import and use the activity tracking function
-        const { updateMatterActivity } = await import('../../utils/matterActivity.js');
+        const { updateMatterActivity } = await import('../../utils/workspaceActivity.js');
         await updateMatterActivity(matterId);
       },
 

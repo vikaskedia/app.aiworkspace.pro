@@ -1447,7 +1447,7 @@
 import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
@@ -1455,7 +1455,7 @@ import { ElNotification, ElMessageBox, ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
 import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
 import PdfSignatureModal from '../common/PdfSignatureModal.vue';

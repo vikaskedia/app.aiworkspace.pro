@@ -174,7 +174,7 @@
 <script>
 import { ElMessage } from 'element-plus';
 import { Setting } from '@element-plus/icons-vue';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';

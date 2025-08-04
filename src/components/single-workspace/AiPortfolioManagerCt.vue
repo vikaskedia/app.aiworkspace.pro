@@ -295,7 +295,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Delete, Folder, Edit, Close, MoreFilled } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle, setComponentTitle } from '../../utils/page-title';
 
@@ -311,7 +311,7 @@ export default {
     MoreFilled
   },
   setup() {
-    // Matter store for workspace context
+    // Workspace store for workspace context
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
     
@@ -1431,7 +1431,7 @@ export default {
           const matterId = currentMatter.value.id;
           
           if (isInitialized) {
-            console.log(`🔄 Matter changed to ${matterId}, reloading portfolios...`);
+            console.log(`🔄 Workspace changed to ${matterId}, reloading portfolios...`);
             portfolios.value = [];
             spreadsheets.value = [];
             activePortfolioId.value = '';

@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage, ElAlert, ElButton } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../store/workspace';
 import { useCacheStore } from '../store/cache';
 import { ref } from 'vue';
 import { MP } from '../mixpanel';

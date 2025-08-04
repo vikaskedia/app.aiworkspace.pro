@@ -125,7 +125,7 @@
 
 <script>
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import { setWorkspaceTitle } from '../../utils/page-title';

@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { useRouter, useRoute } from 'vue-router';
-import { useMatterStore } from '../store/matter';
+import { useMatterStore } from '../store/workspace';
 import { storeToRefs } from 'pinia';
 import { CaretBottom, More } from '@element-plus/icons-vue';
 

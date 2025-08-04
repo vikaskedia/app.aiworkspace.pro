@@ -7,11 +7,11 @@ The files are stored in the matter's repository.
 import { ref, onMounted, watch, computed } from 'vue';
 import { Plus, UploadFilled, Folder, FolderAdd } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import FilePreviewPane from './FilePreviewPane.vue';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 const route = useRoute();

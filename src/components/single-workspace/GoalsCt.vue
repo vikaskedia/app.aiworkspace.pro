@@ -2,12 +2,12 @@
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
 import goalsAiTaskResponce from '../../../public/goals-ai-task-responce.json';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {

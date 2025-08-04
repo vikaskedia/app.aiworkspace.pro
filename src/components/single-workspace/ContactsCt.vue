@@ -101,7 +101,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="matter_text" label="Matter" min-width="150">
+        <el-table-column prop="matter_text" label="Workspace" min-width="150">
           <template #default="{ row }">
             <div v-if="!row.editing">
               <span v-if="row.matter_text">{{ row.matter_text }}</span>
@@ -299,7 +299,7 @@
           />
         </el-form-item>
 
-        <el-form-item label="Matter">
+        <el-form-item label="Workspace">
           <el-input 
             v-model="contactForm.matter_text" 
             placeholder="Enter matter description"
@@ -358,9 +358,9 @@
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Check, Close, User } from '@element-plus/icons-vue';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 
 export default {
   name: 'ContactsCt',

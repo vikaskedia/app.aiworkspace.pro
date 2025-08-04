@@ -25,14 +25,14 @@ export default async function handler(req, res) {
     const { conversationId, matterId } = req.body
 
     console.log('Marking conversation as read:', conversationId)
-    console.log('Matter ID:', matterId)
+    console.log('Workspace ID:', matterId)
 
     if (!conversationId) {
       return res.status(400).json({ error: 'Conversation ID is required' })
     }
 
     if (!matterId) {
-      return res.status(400).json({ error: 'Matter ID is required' })
+      return res.status(400).json({ error: 'Workspace ID is required' })
     }
 
     // Get user from Authorization header if provided

@@ -163,7 +163,7 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase.js';
 
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle } from '../../utils/page-title';
 

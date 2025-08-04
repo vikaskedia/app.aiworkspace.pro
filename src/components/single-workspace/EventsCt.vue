@@ -1,12 +1,12 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
 import ICAL from 'ical.js';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {

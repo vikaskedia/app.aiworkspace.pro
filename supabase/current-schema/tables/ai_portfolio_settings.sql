@@ -13,7 +13,7 @@ create table ai_portfolio_settings (
 comment on table ai_portfolio_settings is 'Stores user-specific view mode preferences for AI Portfolio Manager.
 Each record represents a user''s preference for a specific portfolio within a workspace:
 1. user_id: The user who owns this preference
-2. matter_id: The workspace/matter this preference applies to
+2. matter_id: The workspace/workspace this preference applies to
 3. portfolio_id: The specific portfolio/tab this preference applies to
 4. view_mode: false = edit mode, true = readonly mode (default when no preference exists)
 5. Standard audit fields (created_at, updated_at)';

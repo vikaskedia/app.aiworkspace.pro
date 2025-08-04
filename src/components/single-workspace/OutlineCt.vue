@@ -177,9 +177,9 @@ import { ElNotification, ElMessageBox } from 'element-plus';
 import { Clock, Refresh, Search } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setOutlineTitle, getCleanText } from '../../utils/page-title';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 
 // Add debounce utility with cancellation support
 function debounce(func, wait) {

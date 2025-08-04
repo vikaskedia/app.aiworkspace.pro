@@ -93,7 +93,7 @@
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
 
@@ -207,7 +207,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     const emit = defineEmits(['remove-spreadsheet'])
 
 
-    // Matter store for workspace context
+    // Workspace store for workspace context
     const matterStore = useMatterStore();
     const { currentMatter } = storeToRefs(matterStore);
     

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
-import { useMatterStore } from './store/matter';
+import { useMatterStore } from './store/workspace';
 import DashboardCt from './components/single-workspace/DashboardCt.vue';
 import ManageFilesCt from './components/single-workspace/FilesCt.vue';
 import GoalsCt from './components/single-workspace/GoalsCt.vue';

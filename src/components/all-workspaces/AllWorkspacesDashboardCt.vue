@@ -149,7 +149,7 @@ import { Plus, More } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {

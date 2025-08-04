@@ -5,7 +5,7 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 
 export default {
   name: 'TasksList',

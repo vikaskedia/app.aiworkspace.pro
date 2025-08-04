@@ -338,7 +338,7 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue'
 import { FileUpload } from '../../extensions/FileUpload'
-import { useMatterStore } from '../../store/matter'
+import { useMatterStore } from '../../store/workspace'
 import { storeToRefs } from 'pinia'
 import { Typeahead } from '../../extensions/Typeahead'
 import debounce from 'lodash/debounce'

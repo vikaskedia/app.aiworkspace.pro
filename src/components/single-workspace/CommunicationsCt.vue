@@ -141,7 +141,7 @@
   import { ElMessage } from 'element-plus'
   import { Refresh, Document, Search } from '@element-plus/icons-vue'
   import dayjs from 'dayjs'
-  import { useMatterStore } from '../../store/matter';
+  import { useMatterStore } from '../../store/workspace';
   import { storeToRefs } from 'pinia';
   
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL

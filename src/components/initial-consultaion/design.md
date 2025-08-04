@@ -15,7 +15,7 @@ The initial consultation system uses AI to conduct an interactive interview with
 - user has to be logged in
 - once user is logged in there are 3 possibilites:
   -- 0 matter ->            system detects if there is no matter then it automatically sends the user to /initial-consultation
-  -- 1 matter ->            if there is a single matter then the user is sent to https://app.aiworkspace.pro/matter/40/dashboard
+  -- 1 matter ->            if there is a single matter then the user is sent to https://app.aiworkspace.pro/workspace/40/dashboard
   -- more than 1 matter ->  if there is more than one matter the user is sent to https://app.aiworkspace.pro/all-workspaces/dashboard
 - initial-consultation can also be accessed by clicking on profile icon and then clicking on Initial consultation.
 

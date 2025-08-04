@@ -800,7 +800,7 @@
                 </div>
               </div>
               <div class="detail-row">
-                <el-icon size="15" color="#69696b"><Document /></el-icon><span class="contact-detail-label">Matter</span>
+                <el-icon size="15" color="#69696b"><Document /></el-icon><span class="contact-detail-label">Workspace</span>
                 <div class="detail-value cursor-pointer">
                   <template v-if="editingField === 'matter_text'">
                     <el-input ref="matter_textInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact('matter_text')" @keydown="handleContactFieldKeydown($event, 'matter_text')" />
@@ -1634,12 +1634,12 @@ import {
   MessageBox,
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
-import { useMatterStore } from '../../store/matter';
+import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
-import { updateMatterActivity } from '../../utils/matterActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {

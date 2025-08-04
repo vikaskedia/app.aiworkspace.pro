@@ -317,7 +317,7 @@ import TasksList from '../single-workspace/TasksList.vue';
 import TaskBoardCt from '../single-workspace/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
-import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
+import { updateMatterctivity } from '../../utils/workspaceActivity';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {
@@ -1046,7 +1046,7 @@ export default {
         await this.taskStore.updateTask(updatedTask);
         
         // Update workspace activity
-        await updateWorkspaceActivity(updatedTask.matter_id);
+        await updateMatterActivity(updatedTask.matter_id);
         
         // Clear cache and reload tasks
         await this.loadTasksWithCache();

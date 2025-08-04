@@ -1,5 +1,5 @@
 <script>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { useRouter, useRoute } from 'vue-router';
@@ -21,6 +21,7 @@ export default {
     const userAccessMap = ref(new Map()); // Track which workspaces user has access to
     const selectedMatter = ref(null);
     const dialogVisible = ref(false);
+    const searchQuery = ref('');
     const newMatter = ref({
       title: '',
       description: '',
@@ -35,6 +36,33 @@ export default {
     watch(currentMatter, (newMatter) => {
       selectedMatter.value = newMatter;
     });
+
+    // Computed property for filtered workspaces based on search query
+    const filteredWorkspaces = computed(() => {
+      const flattened = flattenTree(renderWorkspaceTree(workspaceTree.value));
+      if (!searchQuery.value.trim()) {
+        return flattened;
+      }
+      
+      const query = searchQuery.value.toLowerCase();
+      return flattened.filter(workspace => 
+        workspace.title.toLowerCase().includes(query)
+      );
+    });
+
+    // Show "All Workspaces" option only if search query is empty or matches
+    const showAllWorkspacesOption = computed(() => {
+      if (!searchQuery.value.trim()) return true;
+      return 'all workspaces'.includes(searchQuery.value.toLowerCase());
+    });
+
+    // Handle dropdown visibility changes
+    const handleDropdownVisibleChange = (visible) => {
+      if (!visible) {
+        // Clear search when dropdown closes
+        searchQuery.value = '';
+      }
+    };
 
     const buildWorkspaceTree = (workspacesList, userAccess) => {
       const workspaceMap = new Map();
@@ -331,6 +359,7 @@ export default {
       userAccessMap,
       selectedMatter,
       dialogVisible,
+      searchQuery,
       newMatter,
       createMatter,
       handleMatterSelect,
@@ -338,7 +367,10 @@ export default {
       handleWorkspaceClick,
       renderWorkspaceTree,
       flattenTree,
-      route
+      route,
+      filteredWorkspaces,
+      showAllWorkspacesOption,
+      handleDropdownVisibleChange
     };
   }
 };
@@ -346,7 +378,7 @@ export default {
 
 <template>
   <div class="workspace-selector">
-    <el-dropdown trigger="click">
+    <el-dropdown trigger="click" @visible-change="handleDropdownVisibleChange">
       <span class="workspace-dropdown-link">
         {{ selectedMatter?.title || 'All Workspaces' }}
         <el-icon><caret-bottom /></el-icon>
@@ -354,15 +386,27 @@ export default {
       
       <template #dropdown>
         <el-dropdown-menu class="workspace-dropdown-menu">
-          <el-dropdown-item @click="handleWorkspaceClick(null)">
+          <div class="search-container">
+            <el-input
+              v-model="searchQuery"
+              placeholder="Search workspaces..."
+              size="small"
+              clearable
+              @click.stop
+              @keydown.stop
+              class="workspace-search"
+            />
+          </div>
+          
+          <el-dropdown-item @click="handleWorkspaceClick(null)" v-if="showAllWorkspacesOption">
             <div class="workspace-item">
               <el-icon><document /></el-icon>
               <span>All Workspaces</span>
             </div>
           </el-dropdown-item>
-          <el-dropdown-item divided />
+          <el-dropdown-item divided v-if="showAllWorkspacesOption && filteredWorkspaces.length > 0" />
           
-          <template v-for="workspace in flattenTree(renderWorkspaceTree(workspaceTree))" :key="workspace.id">
+          <template v-for="workspace in filteredWorkspaces" :key="workspace.id">
             <el-dropdown-item @click="handleWorkspaceClick(workspace)">
               <div class="workspace-item" :class="{ 'no-access': !workspace.hasAccess }" :style="{ paddingLeft: (workspace.level * 20) + 'px' }">
                 <el-icon>
@@ -376,12 +420,16 @@ export default {
             </el-dropdown-item>
           </template>
           
-          <el-dropdown-item divided @click="dialogVisible = true">
+          <el-dropdown-item divided @click="dialogVisible = true" v-if="filteredWorkspaces.length > 0 || showAllWorkspacesOption">
             <div class="workspace-item">
               <el-icon><more /></el-icon>
               <span>New Workspace</span>
             </div>
           </el-dropdown-item>
+          
+          <div v-if="!showAllWorkspacesOption && filteredWorkspaces.length === 0" class="no-results">
+            No workspaces found
+          </div>
         </el-dropdown-menu>
       </template>
     </el-dropdown>
@@ -470,6 +518,28 @@ export default {
 .workspace-dropdown-menu {
   max-height: 400px;
   overflow-y: auto;
+  min-width: 250px;
+}
+
+.search-container {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 4px;
+}
+
+.workspace-search {
+  width: 100%;
+}
+
+:deep(.workspace-search .el-input__wrapper) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.no-results {
+  padding: 12px;
+  text-align: center;
+  color: #909399;
+  font-size: 14px;
 }
 
 .workspace-item {
@@ -563,16 +633,7 @@ export default {
   padding-top: 8px;
 }
 
-:deep(.el-select-dropdown__item) {
-  padding: 8px 20px;
-}
 
-/* Remove default link styling */
-:deep(.el-dropdown-menu__item a) {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-  width: 100%;
-  height: 100%;
-}
+
+
 </style> 

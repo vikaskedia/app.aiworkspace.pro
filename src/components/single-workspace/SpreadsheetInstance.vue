@@ -559,13 +559,30 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         };
         
         const isFormulaRelated = (message) => {
-          const str = String(message).toLowerCase();
-          return str.includes('formula') || 
-                 str.includes('getparent') || 
-                 str.includes('isfunctionexecutorargu') ||
-                 str.includes('mutation.set-formula') ||
-                 str.includes('calculation-notification') ||
-                 str.includes('calculation-start');
+          try {
+            // Safely convert message to string
+            let str;
+            if (typeof message === 'string') {
+              str = message;
+            } else if (message && typeof message.toString === 'function') {
+              str = message.toString();
+            } else if (message && typeof message === 'object') {
+              str = JSON.stringify(message);
+            } else {
+              str = String(message);
+            }
+            
+            const lowerStr = str.toLowerCase();
+            return lowerStr.includes('formula') || 
+                   lowerStr.includes('getparent') || 
+                   lowerStr.includes('isfunctionexecutorargu') ||
+                   lowerStr.includes('mutation.set-formula') ||
+                   lowerStr.includes('calculation-notification') ||
+                   lowerStr.includes('calculation-start');
+          } catch (error) {
+            // If conversion fails, assume it's not formula related
+            return false;
+          }
         };
         
         console.error = function(...args) {

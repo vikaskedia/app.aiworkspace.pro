@@ -12,7 +12,7 @@ export default {
     CaretBottom,
     More
   },
-  emits: ['matter-selected'],
+  emits: ['workspace-selected'],
   setup(props, { emit }) {
     const workspaces = ref([]);
     const selectedMatter = ref(null);
@@ -56,9 +56,9 @@ export default {
         if (error) throw error;
 
         // Process workspaces and add latest activity
-        const workspacesWithActivity = workspacesData.map(matter => ({
-          ...matter,
-          latest_activity: matter.workspace_activities?.[0]?.updated_at || matter.created_at
+        const workspacesWithActivity = workspacesData.map(workspace => ({
+          ...workspace,
+          latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at
         }));
 
         // Sort by latest activity (most recent first)
@@ -74,9 +74,9 @@ export default {
         const matterId = route.params.matterId;
         if (matterId) {
           const workspace = workspaces.value.find(m => m.id === parseInt(matterId));
-          if (matter) {
-            selectedMatter.value = matter;
-            emit('matter-selected', matter);
+          if (workspace) {
+            selectedMatter.value = workspace;
+            emit('workspace-selected', workspace);
           }
         }
       } catch (error) {
@@ -142,33 +142,33 @@ export default {
         newMatter.value = { title: '', description: '' };
         ElMessage.success('Workspace created successfully');
 
-        // Select the newly created matter
+        // Select the newly created workspace
         selectedMatter.value = data;
-        emit('matter-selected', data);
+        emit('workspace-selected', data);
       } catch (error) {
         if (error.message.includes('JWT')) {
           ElMessage.error('Your session has expired. Please log in again.');
         } else {
-          ElMessage.error('Error creating matter: ' + error.message);
+          ElMessage.error('Error creating workspace: ' + error.message);
         }
       }
     };
 
-    const handleMatterSelect = (matter) => {
-      if (matter === null) {
+    const handleMatterSelect = (workspace) => {
+      if (workspace === null) {
         selectedMatter.value = null;
         matterStore.setCurrentMatter(null);
         router.push('/all-workspace/tasks');
       } else {
-        selectedMatter.value = matter;
-        matterStore.setCurrentMatter(matter);
+        selectedMatter.value = workspace;
+        matterStore.setCurrentMatter(workspace);
         
         // Get the current route path segments
         const currentPath = route.path;
         
         // If we're in all-workspaces/tasks or any tasks view, always go to tasks
         if (currentPath.includes('/tasks')) {
-          router.push(`/single-workspace/${matter.id}/tasks`);
+          router.push(`/single-workspace/${workspace.id}/tasks`);
           return;
         }
         
@@ -178,19 +178,19 @@ export default {
         
         switch(lastSegment) {
           case 'goals':
-            router.push(`/single-workspace/${matter.id}/goals`);
+            router.push(`/single-workspace/${workspace.id}/goals`);
             break;
           case 'events':
-            router.push(`/single-workspace/${matter.id}/events`);
+            router.push(`/single-workspace/${workspace.id}/events`);
             break;
           case 'files':
-            router.push(`/single-workspace/${matter.id}/files`);
+            router.push(`/single-workspace/${workspace.id}/files`);
             break;
           default:
-            router.push(`/single-workspace/${matter.id}/tasks`); // Default to tasks instead of dashboard
+            router.push(`/single-workspace/${workspace.id}/tasks`); // Default to tasks instead of dashboard
         }
         
-        emit('matter-selected', matter);
+        emit('workspace-selected', workspace);
       }
     };
 
@@ -238,9 +238,9 @@ export default {
 </script>
 
 <template>
-  <div class="matter-selector">
+  <div class="workspace-selector">
     <el-dropdown trigger="click">
-      <span class="matter-dropdown-link">
+      <span class="workspace-dropdown-link">
         {{ selectedMatter?.title || 'All Workspaces' }}
         <el-icon><caret-bottom /></el-icon>
       </span>
@@ -252,9 +252,9 @@ export default {
           </el-dropdown-item>
           <el-dropdown-item divided />
           <el-dropdown-item
-            v-for="matter in workspaces"
-            :key="matter.id">
-            <a :href="`/single-workspace/${matter.id}/tasks`">{{ matter.title }}</a>
+            v-for="workspace in workspaces"
+            :key="workspace.id">
+            <a :href="`/single-workspace/${workspace.id}/tasks`">{{ workspace.title }}</a>
           </el-dropdown-item>
           <el-dropdown-item divided @click="dialogVisible = true">
             New Workspace
@@ -296,13 +296,13 @@ export default {
 </template>
 
 <style scoped>
-.matter-selector {
+.workspace-selector {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.matter-dropdown-link {
+.workspace-dropdown-link {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -312,7 +312,7 @@ export default {
   transition: background-color 0.2s;
 }
 
-.matter-dropdown-link:hover {
+.workspace-dropdown-link:hover {
   background-color: rgba(0, 0, 0, 0.03);
 }
 

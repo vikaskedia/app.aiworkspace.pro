@@ -19,6 +19,15 @@
           <el-icon><Plus /></el-icon>
         </el-button>
         <el-button 
+          type="success"
+          @click="showMoveToDialog"
+          size="small"
+          class="move-to-btn"
+          title="Move to Workspace">
+          <el-icon><Share /></el-icon>
+          Move to
+        </el-button>
+        <el-button 
           type="info"
           @click="shareDialogVisible = true"
           size="small"
@@ -1437,6 +1446,48 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Move to Workspace Dialog -->
+    <el-dialog
+      v-model="moveToDialogVisible"
+      title="Move to Workspace" 
+      class="move-to-dialog"
+      width="500px">
+      <div class="move-to-content">
+        <p class="move-to-description">
+          Select a workspace to move this task to. The task and all its associated data (comments, hours logs) will be moved to the selected workspace.
+        </p>
+        
+        <el-form :model="moveToForm" label-position="top">
+          <el-form-item label="Select Workspace" required>
+            <el-select 
+              v-model="moveToForm.targetWorkspaceId" 
+              style="width: 100%"
+              filterable
+              clearable
+              placeholder="Choose a workspace to move the task to">
+              <el-option
+                v-for="workspace in availableWorkspaces"
+                :key="workspace.id"
+                :label="workspace.title"
+                :value="workspace.id" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="moveToDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="moveTaskToWorkspace"
+            :disabled="!moveToForm.targetWorkspaceId"
+            :loading="movingTask">
+            Move Task
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
   <div v-else class="loading-state">
     <el-skeleton :rows="3" animated />
@@ -1656,6 +1707,14 @@ export default {
         parent_task_id: null
       },
       showMoreFields: false,
+      
+      // Move to workspace dialog properties
+      moveToDialogVisible: false,
+      moveToForm: {
+        targetWorkspaceId: null
+      },
+      availableWorkspaces: [],
+      movingTask: false,
     };
   },
   async created() {
@@ -4815,6 +4874,182 @@ ${comment.content}
       }
     },
 
+    showMoveToDialog() {
+      this.moveToDialogVisible = true;
+      this.loadAvailableWorkspaces();
+      this.resetMoveToForm();
+    },
+
+    resetMoveToForm() {
+      this.moveToForm = {
+        targetWorkspaceId: null
+      };
+    },
+
+    async loadAvailableWorkspaces() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get workspaces the user has access to (excluding current workspace)
+        const { data: accessData, error: accessError } = await supabase
+          .from('workspace_access')
+          .select('matter_id')
+          .eq('shared_with_user_id', user.id);
+
+        if (accessError) throw accessError;
+
+        const accessibleMatterIds = accessData?.map(row => row.matter_id) || [];
+
+        // Get the workspaces
+        const { data: workspaces, error } = await supabase
+          .from('workspaces')
+          .select('id, title')
+          .eq('archived', false)
+          .neq('id', this.currentMatter?.id) // Exclude current workspace
+          .in('id', accessibleMatterIds);
+
+        if (error) throw error;
+        
+        this.availableWorkspaces = workspaces || [];
+      } catch (error) {
+        console.error('Error loading available workspaces:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to load available workspaces'
+        });
+      }
+    },
+
+    async moveTaskToWorkspace() {
+      if (!this.moveToForm.targetWorkspaceId) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'Please select a workspace to move the task to'
+        });
+        return;
+      }
+
+      if (!this.task) {
+        ElNotification.error({
+          title: 'Error',
+          message: 'No task selected to move'
+        });
+        return;
+      }
+
+      this.movingTask = true;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Start a transaction to move the task and all related data
+        const { error: taskError } = await supabase
+          .from('tasks')
+          .update({ 
+            matter_id: this.moveToForm.targetWorkspaceId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.task.id);
+
+        if (taskError) throw taskError;
+
+        try {
+        // Update task comments if record exists
+        const { data: comments, error: commentsError } = await supabase
+          .from('task_comments')
+          .select('id')
+          .eq('task_id', this.task.id);
+
+        if (commentsError) {
+          console.error('Error moving task comments:', commentsError);
+        } else {
+          const { error: commentsError } = await supabase
+          .from('task_comments')
+          .update({ 
+            matter_id: this.moveToForm.targetWorkspaceId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('task_id', this.task.id);
+        }
+                
+       
+          // Update task hours logs if record exists
+          const { data: hoursLogs, error: hoursLogsError } = await supabase
+            .from('task_hours_logs')
+            .select('id')
+            .eq('task_id', this.task.id);
+
+          if (hoursLogsError) {
+            console.error('Error moving task hours logs:', hoursLogsError);
+          } else {
+            const { error: hoursError } = await supabase
+            .from('task_hours_logs')
+            .update({ 
+              matter_id: this.moveToForm.targetWorkspaceId,
+              updated_at: new Date().toISOString()
+            })
+            .eq('task_id', this.task.id);
+          }
+        } catch (error) {
+          console.error('Error moving task hours logs:', error);
+        }
+
+        // Clear task cache for both source and target workspaces
+        this.taskStore.clearTaskCache(this.currentMatter.id);
+        this.taskStore.clearTaskCache(this.moveToForm.targetWorkspaceId);
+        this.taskStore.clearTaskDetailCache(this.task.id);
+
+        /*
+        // Log the move activity
+        await supabase
+          .from('task_comments')
+          .insert({
+            task_id: this.task.id,
+            user_id: user.id,
+            content: `Moved this task to workspace: ${this.availableWorkspaces.find(w => w.id === this.moveToForm.targetWorkspaceId)?.title || 'Unknown'}`,
+            type: 'activity',
+            matter_id: this.moveToForm.targetWorkspaceId,
+            metadata: {
+              action: 'move',
+              from_workspace_id: this.currentMatter.id,
+              to_workspace_id: this.moveToForm.targetWorkspaceId,
+              from_workspace_title: this.currentMatter.title,
+              to_workspace_title: this.availableWorkspaces.find(w => w.id === this.moveToForm.targetWorkspaceId)?.title || 'Unknown'
+            }
+          });
+          */
+
+        // Update workspace activity for both workspaces
+        await Promise.all([
+          updateMatterActivity(this.currentMatter.id),
+          updateMatterActivity(this.moveToForm.targetWorkspaceId)
+        ]);
+
+        ElNotification.success({
+          title: 'Success',
+          message: 'Task moved successfully to the selected workspace'
+        });
+
+        const targetWorkspace = this.availableWorkspaces.find(w => w.id === this.moveToForm.targetWorkspaceId);
+        // Close dialog and reset form
+        this.moveToDialogVisible = false;
+        this.resetMoveToForm();
+
+        // Navigate to the new workspace's task list
+        this.$router.push(`/single-workspace/${targetWorkspace.id}/tasks`);
+
+      } catch (error) {
+        console.error('Error moving task:', error);
+        ElNotification.error({
+          title: 'Error',
+          message: 'Failed to move task: ' + error.message
+        });
+      } finally {
+        this.movingTask = false;
+      }
+    },
+
   },
   watch: {
     shareDialogVisible(newVal) {
@@ -7732,5 +7967,32 @@ table.editor-table {
 .show-more-container {
   margin: 16px 0;
   text-align: center;
+}
+
+/* Move to button styles */
+.move-to-btn {
+  min-width: 80px;
+  padding: 8px 12px;
+}
+
+.move-to-btn .el-icon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+/* Move to dialog styles */
+.move-to-dialog .el-dialog__body {
+  padding: 20px;
+}
+
+.move-to-content {
+  margin-bottom: 16px;
+}
+
+.move-to-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
 }
 </style>

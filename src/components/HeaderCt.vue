@@ -198,9 +198,9 @@ export default {
       // If we're in a sub-route (goals, tasks, etc.), preserve it
       if (segments.length > 3) {
         const subRoute = segments[3]; // 'goals', 'tasks', etc.
-        //this.$router.push(`/single-workspace/${matter.id}/${subRoute}`);
+        //this.$router.push(`/single-workspace/${workspace.id}/${subRoute}`);
       } else {
-        this.$router.push(`/single-workspace/${matter.id}`);
+        this.$router.push(`/single-workspace/${workspace.id}`);
       }
     },
     handleMatterCommand(command) {
@@ -310,7 +310,7 @@ export default {
           return `${actorEmail} created a new task: ${notification.data.task_title}`;
         case 'task_updated':
           return `${actorEmail} updated task: ${notification.data.task_title}`;
-        case 'matter_shared':
+        case 'workspace_shared':
           return `${actorEmail} shared a workspace with you: ${notification.data.matter_title}`;
         case 'mention':
           return `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;

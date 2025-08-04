@@ -54,9 +54,9 @@
                 style="width: 300px">
                 <el-option 
                   v-for="matter in workspaces"
-                  :key="matter.id"
-                  :label="matter.title"
-                  :value="matter.id"
+                  :key="workspace.id"
+                  :label="workspace.title"
+                  :value="workspace.id"
                 />
               </el-select>
             </el-form-item>
@@ -148,7 +148,7 @@ export default {
       // Filter by workspaces if any are selected
       if (this.filters.matter?.length) {
         filtered = filtered.filter(event => 
-          this.filters.matter.includes(event.matter_id)
+          this.filters.workspace.includes(event.matter_id)
         );
       }
       
@@ -174,7 +174,7 @@ export default {
         // Extract IDs from workspace objects
         let matterIds;
         if (Array.isArray(workspacesData)) {
-          matterIds = workspacesData.map(matter => matter.id || matter);
+          matterIds = workspacesData.map(matter => workspace.id || matter);
         } else {
           console.log('Invalid workspaces data format');
           this.events = [];
@@ -227,8 +227,8 @@ export default {
           const workspacesData = JSON.parse(workspacesActive);
           if (Array.isArray(workspacesData)) {
             this.workspaces = workspacesData.map(matter => ({
-              id: matter.id || matter,
-              title: matter.title || `Workspace ${matter.id || matter}`
+              id: workspace.id || matter,
+              title: workspace.title || `Workspace ${workspace.id || matter}`
             }));
           }
         }
@@ -262,8 +262,8 @@ export default {
     },
 
     getMatterTitle(matterId) {
-      const workspace = this.workspaces.find(matter => matter.id === matterId);
-      return workspace ? matter.title : 'Unknown Workspace';
+      const workspace = this.workspaces.find(matter => workspace.id === matterId);
+      return workspace ? workspace.title : 'Unknown Workspace';
     }
   },
   async mounted() {

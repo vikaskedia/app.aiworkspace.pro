@@ -806,7 +806,7 @@
                     <el-input ref="matter_textInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact('matter_text')" @keydown="handleContactFieldKeydown($event, 'matter_text')" />
                   </template>
                   <template v-else>
-                    <span @click="startEditContact('matter_text')">{{ selectedContactDetails.matter_text || 'Set a matter...' }}</span>
+                    <span @click="startEditContact('matter_text')">{{ selectedContactDetails.matter_text || 'Set a workspace...' }}</span>
                   </template>
                 </div>
               </div>

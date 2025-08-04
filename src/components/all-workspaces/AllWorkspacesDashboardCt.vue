@@ -15,11 +15,11 @@
     </div>
 
     <div class="workspaces-grid" v-loading="loading">
-      <el-card v-for="matter in workspaces" :key="matter.id" class="matter-card">
+      <el-card v-for="matter in workspaces" :key="workspace.id" class="matter-card">
         <template #header>
           <div class="matter-header">
-            <a :href="`/single-workspace/${matter.id}`" @click="handleCommand('view', matter)" class="matter-title-link">
-              <h3 class="clickable-title">{{ matter.title }}</h3>
+            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', matter)" class="matter-title-link">
+              <h3 class="clickable-title">{{ workspace.title }}</h3>
             </a>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, matter)">
               <el-button type="primary" link>
@@ -42,34 +42,34 @@
         </template>
 
         <div class="matter-stats">
-          <a :href="`/single-workspace/${matter.id}/goals`" @click="navigateToGoals(matter)" class="stat-link">
+          <a :href="`/single-workspace/${workspace.id}/goals`" @click="navigateToGoals(matter)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Goals</h4>
               <div class="stat-numbers">
-                <span>{{ matter.stats?.goals_total || 0 }} Total</span>
-                <span>{{ matter.stats?.goals_completed || 0 }} Completed</span>
+                <span>{{ workspace.stats?.goals_total || 0 }} Total</span>
+                <span>{{ workspace.stats?.goals_completed || 0 }} Completed</span>
               </div>
             </div>
           </a>
-          <a :href="`/single-workspace/${matter.id}/tasks`" @click="navigateToTasks(matter)" class="stat-link">
+          <a :href="`/single-workspace/${workspace.id}/tasks`" @click="navigateToTasks(matter)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Tasks</h4>
               <div class="stat-numbers">
-                <span>{{ matter.stats?.tasks_total || 0 }} Total</span>
-                <span>{{ matter.stats?.tasks_completed || 0 }} Completed</span>
+                <span>{{ workspace.stats?.tasks_total || 0 }} Total</span>
+                <span>{{ workspace.stats?.tasks_completed || 0 }} Completed</span>
               </div>
             </div>
           </a>
-          <a :href="`/single-workspace/${matter.id}/events`" @click="navigateToEvents(matter)" class="stat-link">
+          <a :href="`/single-workspace/${workspace.id}/events`" @click="navigateToEvents(matter)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Upcoming Events</h4>
-              <span>{{ matter.stats?.upcoming_events || 0 }}</span>
+              <span>{{ workspace.stats?.upcoming_events || 0 }}</span>
             </div>
           </a>
         </div>
 
-        <div class="matter-description" v-if="matter.description">
-          <p>{{ matter.description }}</p>
+        <div class="matter-description" v-if="workspace.description">
+          <p>{{ workspace.description }}</p>
         </div>
       </el-card>
     </div>
@@ -245,7 +245,7 @@ export default {
         // Process workspaces and add latest activity
         const workspacesWithActivity = (workspaces || []).map(matter => ({
           ...matter,
-          latest_activity: matter.workspace_activities?.[0]?.updated_at || matter.created_at
+          latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at
         }));
 
         // Sort by latest activity (most recent first)
@@ -257,7 +257,7 @@ export default {
 
         // Load statistics for each matter
         const workspacesWithStats = await Promise.all(workspacesWithActivity.map(async (matter) => {
-          const stats = await this.loadMatterStats(matter.id);
+          const stats = await this.loadMatterStats(workspace.id);
           return { ...matter, stats };
         }));
 
@@ -439,11 +439,11 @@ export default {
             archived_at: new Date().toISOString(),
             archived_by: user.id
           })
-          .eq('id', matter.id);
+          .eq('id', workspace.id);
 
         if (error) throw error;
 
-        this.workspaces = this.workspaces.filter(m => m.id !== matter.id);
+        this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
         // Clear cache when archiving matter
         this.clearMattersCache();
@@ -463,11 +463,11 @@ export default {
             archived_at: null,
             archived_by: null
           })
-          .eq('id', matter.id);
+          .eq('id', workspace.id);
 
         if (error) throw error;
 
-        this.workspaces = this.workspaces.filter(m => m.id !== matter.id);
+        this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
         // Clear cache when restoring matter
         this.clearMattersCache();
@@ -482,13 +482,13 @@ export default {
       switch(command) {
         case 'view':
           this.matterStore.setCurrentMatter(matter);
-          this.router.push(`/single-workspace/${matter.id}`);
+          this.router.push(`/single-workspace/${workspace.id}`);
           break;
         case 'edit':
           this.editingMatter = {
-            id: matter.id,
-            title: matter.title,
-            description: matter.description || ''
+            id: workspace.id,
+            title: workspace.title,
+            description: workspace.description || ''
           };
           this.editMatterDialog = true;
           break;
@@ -528,17 +528,17 @@ export default {
 
     navigateToGoals(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-workspace/${matter.id}/goals`);
+      this.router.push(`/single-workspace/${workspace.id}/goals`);
     },
 
     navigateToTasks(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-workspace/${matter.id}/tasks`);
+      this.router.push(`/single-workspace/${workspace.id}/tasks`);
     },
 
     navigateToEvents(matter) {
       this.matterStore.setCurrentMatter(matter);
-      this.router.push(`/single-workspace/${matter.id}/events`);
+      this.router.push(`/single-workspace/${workspace.id}/events`);
     },
   }
 };

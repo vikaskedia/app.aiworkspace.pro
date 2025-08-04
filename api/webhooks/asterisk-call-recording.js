@@ -134,23 +134,23 @@ export default async function handler(req, res) {
     if (convError) throw convError;
 
     let conversation;
-    let matterId;
+    let workspaceId;
     let fullFromPhone = parsed.from_phone_number;
     let fullToPhone = parsed.to_phone_number;
 
     if (!conversations || conversations.length === 0) {
-      // No conversation found, try to find a matching matter
-      console.log('📞 No existing conversation found, searching for matching matter');
-      const { data: workspaces, error: matterError } = await supabase
+      // No conversation found, try to find a matching workspace
+      console.log('📞 No existing conversation found, searching for matching workspace');
+      const { data: workspaces, error: workspaceError } = await supabase
         .from('workspaces')
         .select('id, phone_numbers')
         .not('phone_numbers', 'is', null);
-      if (matterError) throw matterError;
-      matterId = null;
+      if (workspaceError) throw workspaceError;
+      workspaceId = null;
       let matchedMatter = null;
       for (const workspace of workspaces) {
-        if (matter.phone_numbers && Array.isArray(matter.phone_numbers)) {
-          const phoneMatch = matter.phone_numbers.find(phone => {
+        if (workspace.phone_numbers && Array.isArray(workspace.phone_numbers)) {
+          const phoneMatch = workspace.phone_numbers.find(phone => {
             const phoneNum = phone.number;
             return (
               phoneNum === parsed.from_phone_number ||
@@ -160,18 +160,18 @@ export default async function handler(req, res) {
             );
           });
           if (phoneMatch) {
-            matterId = matter.id;
-            matchedMatter = matter;
+            workspaceId = workspace.id;
+            matchedMatter = workspace;
             break;
           }
         }
       }
-      if (!matterId) {
+      if (!workspaceId) {
         // No matching workspace found, return error
         console.log('❌ No workspace matches for these phone numbers to create new conversation');
         return res.status(400).json({ error: 'No workspace matches for these phone numbers to create new conversation' });
       }
-      // Replace 4-digit phone numbers with full numbers from matter
+      // Replace 4-digit phone numbers with full numbers from workspace
       if (parsed.from_phone_number && parsed.from_phone_number.length === 4) {
         const match = matchedMatter.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.from_phone_number);
         if (match) fullFromPhone = match.number;
@@ -183,7 +183,7 @@ export default async function handler(req, res) {
       const { data: newConversation, error: createConvError } = await supabase
         .from('conversations')
         .insert({
-          matter_id: matterId,
+          matter_id: workspaceId,
           from_phone_number: fullFromPhone,
           to_phone_number: fullToPhone
         })
@@ -194,7 +194,7 @@ export default async function handler(req, res) {
       console.log('✅ Created new conversation:', conversation);
     } else {
       conversation = conversations[0];
-      matterId = conversation.matter_id;
+      workspaceId = conversation.matter_id;
     }
 
     // Insert into call_recordings (no Gitea, only Supabase public URL)

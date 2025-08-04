@@ -22,7 +22,7 @@ Soft delete requires both deleted_by and deleted_at to be set.
 Each workspace has:
 1. A name and description which can be edited by anyone with edit rights.
 2. An associated email address for communication. 
--- so attorneys can send email to 19fl002753@associateattorney.ai and that email will be associated with the matter.
+-- so attorneys can send email to 19fl002753@associateattorney.ai and that email will be associated with the workspace.
 3. Goals (see goals.sql)
 4. Tasks (see tasks.sql)
 5. Events (see events.sql)

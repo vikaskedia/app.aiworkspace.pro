@@ -17,7 +17,7 @@ COMMENT ON TABLEworkspace_access IS 'Manages access control for workspaces.
 2. Users with edit rights can:
 2A. Give View rights or edit rights to other users.
 2B. Edit the workspace name or description.
-2C. Soft delete the matter.
+2C. Soft delete the workspace.
 2D. Add, Edit or Soft delete -> goals, tasks, events, and files.
 
 3. Users with View rights can only view:

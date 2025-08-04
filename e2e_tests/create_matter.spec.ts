@@ -26,7 +26,7 @@ test('Create workspace after login and edit it', async ({ page }) => {
     const button = page.locator('#idOfButtonToCreateNewMatter');
     await button.waitFor({ state: 'visible', timeout: 50000 }); // Wait until button appears
 
-    // Click the button to create a new matter
+    // Click the button to create a new workspace
     await button.click();
 
     // Wait for the dialog with the specific ID to appear
@@ -35,13 +35,13 @@ test('Create workspace after login and edit it', async ({ page }) => {
 
     // Generate a unique timestamped title
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-'); // Format timestamp
-    const matterTitle = `Sample Workspace ${timestamp}`;
+    const workspaceTitle = `Sample Workspace ${timestamp}`;
 
     // Fill in the Title field
-    await page.fill('#idOfInputMatterTitle', matterTitle);
+    await page.fill('#idOfInputMatterTitle', workspaceTitle);
 
     // Fill in the Description field
-    await page.fill('#idOfInputMatterDescription', 'This is a sample description for the new matter.');
+    await page.fill('#idOfInputMatterDescription', 'This is a sample description for the new workspace.');
 
     // Locate the "Create Workspace" button inside the dialog
     const createButton = dialog.locator('.el-button--primary:has-text("Create Workspace")');
@@ -53,21 +53,21 @@ test('Create workspace after login and edit it', async ({ page }) => {
     await createButton.click();
 
     // Wait for the workspace to appear in the grid
-    const matterGrid = page.locator('.workspaces-grid');
-    await matterGrid.waitFor({ state: 'visible', timeout: 10000 });
+    const workspaceGrid = page.locator('.workspaces-grid');
+    await workspaceGrid.waitFor({ state: 'visible', timeout: 10000 });
 
     // Verify the new workspace appears in the list
-    const newMatter = matterGrid.locator(`.matter-card h3:has-text("${matterTitle}")`);
+    const newMatter = workspaceGrid.locator(`.workspace-card h3:has-text("${workspaceTitle}")`);
     await expect(newMatter).toBeVisible();
 
-    console.log(`✅ Workspace "${matterTitle}" successfully created and found in the list.`);
+    console.log(`✅ Workspace "${workspaceTitle}" successfully created and found in the list.`);
 
     // Locate and click the button next to the correct workspace title
     const buttonToClick = newMatter.locator('..').locator('.el-dropdown button'); // Move to parent and find button
     await buttonToClick.waitFor({ state: 'visible', timeout: 5000 });
     await buttonToClick.click();
 
-    console.log(`✅ Workspace "${matterTitle}" created and button clicked.`);
+    console.log(`✅ Workspace "${workspaceTitle}" created and button clicked.`);
 
     const ariaControlsValue = await buttonToClick.getAttribute('aria-controls');
     console.log('Dropdown aria-controls value:', ariaControlsValue);
@@ -79,14 +79,14 @@ test('Create workspace after login and edit it', async ({ page }) => {
 
     await expect(page).toHaveURL(new RegExp('/single-workspace/\\d+/dashboard$'));
     
-    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard`);
+    console.log(`✅ Workspace "${workspaceTitle}" created and navigated to view dashboard`);
 
-    // Verify in this page the workspace title is visible which is in <header> tag under matter-selector class
-    const matterTitleInHeader = page.locator('header .matter-selector');
-    await matterTitleInHeader.waitFor({ state: 'visible', timeout: 5000 });
-    await expect(matterTitleInHeader).toHaveText(matterTitle);
+    // Verify in this page the workspace title is visible which is in <header> tag under workspace-selector class
+    const workspaceTitleInHeader = page.locator('header .workspace-selector');
+    await workspaceTitleInHeader.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(workspaceTitleInHeader).toHaveText(workspaceTitle);
 
-    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard and verified the workspace title is visible`);
+    console.log(`✅ Workspace "${workspaceTitle}" created and navigated to view dashboard and verified the workspace title is visible`);
     
     // Click on the Dashboard section in the header
     const currentSection = page.locator('header .current-section');
@@ -107,13 +107,13 @@ test('Create workspace after login and edit it', async ({ page }) => {
     await expect(page).toHaveURL(new RegExp('/single-workspace/\\d+/settings$'));
 
     // Verify the workspace title is visible in the settings page in the first input field to edit
-    const matterTitleInSettings = page.locator('.section .el-form input.el-input__inner').first();
-    await matterTitleInSettings.waitFor({ state: 'visible', timeout: 5000 });
-    await expect(matterTitleInSettings).toHaveValue(matterTitle);
+    const workspaceTitleInSettings = page.locator('.section .el-form input.el-input__inner').first();
+    await workspaceTitleInSettings.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(workspaceTitleInSettings).toHaveValue(workspaceTitle);
 
     // Now edit the workspace title
-    const currentTitle = await matterTitleInSettings.inputValue();
-    await matterTitleInSettings.fill(currentTitle + ' edited');
+    const currentTitle = await workspaceTitleInSettings.inputValue();
+    await workspaceTitleInSettings.fill(currentTitle + ' edited');
     
     // Click on the save changes button to edit the workspace title
     const saveButton = page.locator('.section .el-button--primary:has-text("Save Changes")').first();
@@ -124,8 +124,8 @@ test('Create workspace after login and edit it', async ({ page }) => {
     await page.waitForSelector('.el-message--success');
 
     // Verify the workspace title is updated
-    await expect(matterTitleInHeader).toHaveText(currentTitle + ' edited');
+    await expect(workspaceTitleInHeader).toHaveText(currentTitle + ' edited');
 
-    console.log(`✅ Workspace "${matterTitle}" created and navigated to view dashboard and verified the workspace title is visible and edited`);  
+    console.log(`✅ Workspace "${workspaceTitle}" created and navigated to view dashboard and verified the workspace title is visible and edited`);  
     
 });

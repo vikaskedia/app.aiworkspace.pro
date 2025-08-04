@@ -215,9 +215,9 @@ export default {
         >
           <el-option
             v-for="matter in workspaces"
-            :key="matter.id"
-            :label="matter.title"
-            :value="matter.id"
+            :key="workspace.id"
+            :label="workspace.title"
+            :value="workspace.id"
           />
         </el-select>
 
@@ -303,9 +303,9 @@ export default {
           <el-select v-model="form.matter_id" placeholder="Select matter" style="width: 100%">
             <el-option
               v-for="matter in workspaces"
-              :key="matter.id"
-              :label="matter.title"
-              :value="matter.id"
+              :key="workspace.id"
+              :label="workspace.title"
+              :value="workspace.id"
             />
           </el-select>
         </el-form-item>

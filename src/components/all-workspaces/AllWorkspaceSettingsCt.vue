@@ -59,7 +59,7 @@
             <el-checkbox label="task_assignments">Task assignments</el-checkbox>
             <el-checkbox label="task_updates">Task updates</el-checkbox>
             <el-checkbox label="goal_updates">Goal updates</el-checkbox>
-            <el-checkbox label="matter_updates">Workspace updates</el-checkbox>
+            <el-checkbox label="workspace_updates">Workspace updates</el-checkbox>
             <el-checkbox label="comments">New comments</el-checkbox>
           </el-checkbox-group>
         </div>

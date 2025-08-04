@@ -186,7 +186,7 @@ export default async function handler(req, res) {
                     ` : ''}
                   </div>`;
                 break;
-              case 'matter_shared':
+              case 'workspace_shared':
                 emailHtml = `
                   <div style="font-family: Arial, sans-serif; padding: 20px;">
                     <p>Hi,</p>

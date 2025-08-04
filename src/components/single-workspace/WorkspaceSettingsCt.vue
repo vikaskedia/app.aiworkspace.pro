@@ -8,8 +8,8 @@ import { EditPen, Delete} from '@element-plus/icons-vue';
 export default {
   name: 'WorkspaceSettingsCt',
   setup() {
-    const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const workspaceStore = useMatterStore();
+    const { currentMatter } = storeToRefs(workspaceStore);
     return { currentMatter };
   },
   data() {
@@ -59,7 +59,7 @@ export default {
       notificationTypeOptions: [
         { label: 'Task Updates', value: 'task_updates' },
         { label: 'Goal Updates', value: 'goal_updates' },
-        { label: 'Workspace Updates', value: 'matter_updates' },
+        { label: 'Workspace Updates', value: 'workspace_updates' },
         { label: 'Comments', value: 'comments' },
         { label: 'Document Updates', value: 'document_updates' }
       ],
@@ -262,7 +262,7 @@ export default {
         this.currentMatter = data;
         ElMessage.success('Workspace updated successfully');
       } catch (error) {
-        ElMessage.error('Error updating matter: ' + error.message);
+        ElMessage.error('Error updating workspace: ' + error.message);
       }
     },
 
@@ -315,7 +315,7 @@ export default {
         // Create notification for the user
         await this.createNotification(
           userId,
-          'matter_shared',
+          'workspace_shared',
           { 
             matter_id: this.currentMatter.id,
             matter_title: this.currentMatter.title,
@@ -327,7 +327,7 @@ export default {
         this.dialogVisible = false;
         ElMessage.success('Workspace shared successfully');
       } catch (error) {
-        ElMessage.error('Error sharing matter: ' + error.message);
+        ElMessage.error('Error sharing workspace: ' + error.message);
       }
     },
 
@@ -565,12 +565,12 @@ export default {
         .select('id, phone_numbers');
       if (error) throw error;
       for (const workspace of data) {
-        if (!matter.phone_numbers) continue;
+        if (!workspace.phone_numbers) continue;
         try {
-          const numbers = Array.isArray(matter.phone_numbers) ? matter.phone_numbers : JSON.parse(matter.phone_numbers);
+          const numbers = Array.isArray(workspace.phone_numbers) ? workspace.phone_numbers : JSON.parse(workspace.phone_numbers);
           if (numbers.some(p => p.number === number)) {
             // If it's the current workspace, skip (already checked above)
-            if (matter.id !== this.currentMatter.id) return 'other';
+            if (workspace.id !== this.currentMatter.id) return 'other';
           }
         } catch (e) {
           // Ignore parse errors
@@ -824,7 +824,7 @@ export default {
 </script>
 
 <template>
-  <div class="manage-matter">
+  <div class="manage-workspace">
     <div class="content">
 
       <!-- Workspace Details Section -->
@@ -963,7 +963,7 @@ export default {
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
-              This namespace will serve as a Git repository and email storage to store all files related to this matter
+              This namespace will serve as a Git repository and email storage to store all files related to this workspace
             </el-text>
           </el-form-item>
         </el-form>
@@ -992,7 +992,7 @@ export default {
           </el-form-item>
           <el-form-item>
             <el-text class="text-sm text-gray-500">
-              This calendar address will be used to sync events related to this matter
+              This calendar address will be used to sync events related to this workspace
             </el-text>
           </el-form-item>
         </el-form>
@@ -1357,7 +1357,7 @@ export default {
 </template>
 
 <style scoped>
-.manage-matter {
+.manage-workspace {
   padding: 2rem;
 }
 
@@ -1414,7 +1414,7 @@ h4 {
 }
 
 @media (max-width: 640px) {
-  .manage-matter {
+  .manage-workspace {
     padding: 1rem;
   }
 

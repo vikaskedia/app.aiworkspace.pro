@@ -1108,7 +1108,7 @@ export default {
 
           // Upload to Gitea
           const response = await fetch(
-            `${giteaHost}/api/v1/repos/associateattorney/${this.matter.git_repo}/contents/${filePath}`,
+            `${giteaHost}/api/v1/repos/associateattorney/${this.workspace.git_repo}/contents/${filePath}`,
             {
               method: 'POST',
               headers: {

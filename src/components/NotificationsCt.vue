@@ -117,7 +117,7 @@ export default {
           return `${actorEmail} created a new task: ${notification.data.task_title}`;
         case 'task_updated':
           return `${actorEmail} updated task: ${notification.data.task_title}`;
-        case 'matter_shared':
+        case 'workspace_shared':
           return `${actorEmail} shared a workspace with you: ${notification.data.matter_title}`;
         default:
           return notification.message;

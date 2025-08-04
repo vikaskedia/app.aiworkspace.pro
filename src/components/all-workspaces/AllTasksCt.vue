@@ -97,9 +97,9 @@
                 style="width: 200px">
                 <el-option 
                   v-for="matter in workspaces"
-                  :key="matter.id"
-                  :label="matter.title"
-                  :value="matter.id"
+                  :key="workspace.id"
+                  :label="workspace.title"
+                  :value="workspace.id"
                 />
               </el-select>
             </el-form-item>
@@ -422,7 +422,7 @@ export default {
             )
           `)
           .eq('deleted', false)
-          .eq('matter.workspace_access.shared_with_user_id', user.id);
+          .eq('workspace.workspace_access.shared_with_user_id', user.id);
 
         const { data: tasks, error } = await query;
         if (error) throw error;
@@ -479,7 +479,7 @@ export default {
         if (this.filters.priority && task.priority !== this.filters.priority) {
           return false;
         }
-        if (this.filters.matter?.length && !this.filters.matter.includes(task.matter_id)) {
+        if (this.filters.matter?.length && !this.filters.workspace.includes(task.matter_id)) {
           return false;
         }
         if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
@@ -893,7 +893,7 @@ export default {
       
       // Apply workspace filter
       if (this.filters.matter?.length) {
-        result = result.filter(task => this.filters.matter.includes(task.matter_id));
+        result = result.filter(task => this.filters.workspace.includes(task.matter_id));
       }
       
       // Apply assignee filter

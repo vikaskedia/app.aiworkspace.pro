@@ -28,10 +28,10 @@
             style="width: 250px; margin-right: 1rem;"
           >
             <el-option
-              v-for="matter in workspaces"
-              :key="matter.id"
-              :label="matter.title"
-              :value="matter.id"
+              v-for="workspace in workspaces"
+              :key="workspace.id"
+              :label="workspace.title"
+              :value="workspace.id"
             />
           </el-select>
           <el-select
@@ -95,9 +95,9 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="matter_title" label="Workspace" min-width="200" sortable>
+        <el-table-column prop="workspace_title" label="Workspace" min-width="200" sortable>
           <template #default="{ row }">
-            <span class="matter-name">{{ row.matter_title }}</span>
+            <span class="workspace-name">{{ row.workspace_title }}</span>
           </template>
         </el-table-column>
         
@@ -156,7 +156,7 @@
         </div>
         <div class="detail-row">
           <label>Workspace:</label>
-          <span>{{ selectedContact.matter_title }}</span>
+          <span>{{ selectedContact.workspace_title }}</span>
         </div>
         <div class="detail-row">
           <label>Created:</label>
@@ -228,7 +228,7 @@ export default {
         );
       }
 
-      // Filter by matter
+      // Filter by workspace
       if (this.selectedMatter) {
         filtered = filtered.filter(contact => contact.matter_id === this.selectedMatter);
       }
@@ -444,7 +444,7 @@ export default {
   font-weight: 500;
 }
 
-.matter-name {
+.workspace-name {
   color: #409eff;
   font-weight: 500;
 }

@@ -550,7 +550,6 @@ export default {
 }
 
 :deep(.el-dropdown-menu__item) {
-  padding: 8px 16px;
   line-height: 1.4;
 }
 

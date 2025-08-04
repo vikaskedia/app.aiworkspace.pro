@@ -13,8 +13,8 @@ CREATE TRIGGER update_events_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_matters_updated_at 
-    BEFORE UPDATE ON matters 
+CREATE TRIGGER update_workspaces_updated_at 
+    BEFORE UPDATE ON workspaces 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 

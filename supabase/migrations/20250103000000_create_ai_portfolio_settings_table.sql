@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS ai_portfolio_settings (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    matter_id BIGINT REFERENCES matters(id) ON DELETE CASCADE NOT NULL,
+    matter_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE NOT NULL,
     portfolio_id TEXT NOT NULL,
     view_mode BOOLEAN NOT NULL DEFAULT true, -- false = edit mode, true = readonly mode (default)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

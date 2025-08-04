@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.conversation_read_status (
   CONSTRAINT conversation_read_status_pkey PRIMARY KEY (id),
   CONSTRAINT conversation_read_status_conversation_id_user_id_key UNIQUE (conversation_id, user_id),
   CONSTRAINT conversation_read_status_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
-  CONSTRAINT conversation_read_status_matter_id_fkey FOREIGN KEY (matter_id) REFERENCES matters (id) ON DELETE CASCADE,
+  CONSTRAINT conversation_read_status_matter_id_fkey FOREIGN KEY (matter_id) REFERENCES workspaces (id) ON DELETE CASCADE,
   CONSTRAINT conversation_read_status_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
 ) TABLESPACE pg_default;
 

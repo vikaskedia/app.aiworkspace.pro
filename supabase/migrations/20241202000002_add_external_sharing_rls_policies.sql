@@ -87,13 +87,13 @@ CREATE POLICY "External users can add comments to shared tasks" ON task_comments
     )
   );
 
--- Allow reading matters through external task shares
-CREATE POLICY "Anonymous users can read matter info through external shares" ON matters
+-- Allow reading workspaces through external task shares
+CREATE POLICY "Anonymous users can read matter info through external shares" ON workspaces
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM tasks 
       JOIN task_external_shares ON task_external_shares.task_id = tasks.id
-      WHERE tasks.matter_id = matters.id 
+      WHERE tasks.matter_id = workspaces.id 
       AND task_external_shares.status = 'active' 
       AND task_external_shares.expires_at > NOW()
     )

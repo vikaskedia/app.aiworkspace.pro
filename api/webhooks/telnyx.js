@@ -116,15 +116,15 @@ async function handleMessageReceived(eventData) {
     const messageType = hasMedia ? 'MMS' : 'SMS';
 
     // Find the matter based on the receiving phone number
-    const { data: matters, error: matterError } = await supabase
-      .from('matters')
+    const { data: workspaces, error: matterError } = await supabase
+      .from('workspaces')
       .select('id, phone_numbers')
       .not('phone_numbers', 'is', null);
 
     if (matterError) throw matterError;
 
     let matterId = null;
-    for (const matter of matters || []) {
+    for (const matter of workspaces || []) {
       const phoneNumbers = matter.phone_numbers || [];
       if (phoneNumbers.some(p => p.number === toPhone)) {
         matterId = matter.id;

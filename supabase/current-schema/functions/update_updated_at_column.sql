@@ -57,25 +57,25 @@ AS $function$
   WHERE id = user_id;
 $function$
 
-    -- Function: get_assignees_for_accessible_matters
-    CREATE OR REPLACE FUNCTION get_assignees_for_accessible_matters(user_uuid uuid)
+    -- Function: get_assignees_for_accessible_workspaces
+    CREATE OR REPLACE FUNCTION get_assignees_for_accessible_workspaces(user_uuid uuid)
     RETURNS TABLE (
       id uuid,
       email text
     ) AS $$
     BEGIN
       RETURN QUERY
-      WITH accessible_matters AS (
-        SELECT DISTINCT matters.id AS matter_id
-        FROM matters
-        INNER JOINworkspace_access ON matters.id =workspace_access.matter_id
+      WITH accessible_workspaces AS (
+        SELECT DISTINCT workspaces.id AS matter_id
+        FROM workspaces
+        INNER JOINworkspace_access ON workspaces.id =workspace_access.matter_id
         WHEREworkspace_access.shared_with_user_id = user_uuid
-          AND matters.deleted = false
+          AND workspaces.deleted = false
       ),
       assignees AS (
         SELECT DISTINCT tasks.assignee
         FROM tasks
-        WHERE tasks.matter_id IN (SELECT matter_id FROM accessible_matters)
+        WHERE tasks.matter_id IN (SELECT matter_id FROM accessible_workspaces)
           AND tasks.assignee IS NOT NULL
           AND tasks.deleted = false
       )

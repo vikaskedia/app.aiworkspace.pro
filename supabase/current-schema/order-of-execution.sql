@@ -1,5 +1,5 @@
 -- Import tables
-\ir tables/matters.sql
+\ir tables/workspaces.sql
 \ir tables/workspace_access.sql
 \ir tables/events.sql
 \ir tables/tasks.sql

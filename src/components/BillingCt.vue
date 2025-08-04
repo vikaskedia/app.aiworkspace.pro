@@ -9,7 +9,7 @@ export default {
   setup() {
     const loading = ref(false);
     const workHours = ref([]);
-    const matters = ref([]);
+    const workspaces = ref([]);
     const users = ref([]);
     const dialogVisible = ref(false);
     const form = ref({
@@ -61,7 +61,7 @@ export default {
           .from('work_hours')
           .select(`
             *,
-            matters (
+            workspaces (
               title
             )
           `)
@@ -83,7 +83,7 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -95,9 +95,9 @@ export default {
           .eq('workspace_access.shared_with_user_id', user.id);
 
         if (error) throw error;
-        matters.value = data;
+        workspaces.value = data;
       } catch (error) {
-        ElMessage.error('Error loading matters: ' + error.message);
+        ElMessage.error('Error loading workspaces: ' + error.message);
       }
     };
 
@@ -167,7 +167,7 @@ export default {
     return {
       loading,
       workHours,
-      matters,
+      workspaces,
       users,
       dialogVisible,
       form,
@@ -214,7 +214,7 @@ export default {
           style="width: 200px"
         >
           <el-option
-            v-for="matter in matters"
+            v-for="matter in workspaces"
             :key="matter.id"
             :label="matter.title"
             :value="matter.id"
@@ -266,7 +266,7 @@ export default {
     
     <div v-else class="billing-content">
       <el-table :data="filteredWorkHours" style="width: 100%">
-        <el-table-column prop="matters.title" label="Workspace" min-width="200" />
+        <el-table-column prop="workspaces.title" label="Workspace" min-width="200" />
         <el-table-column label="Time" width="150">
           <template #default="scope">
             {{ Math.floor(scope.row.minutes / 60) }}h {{ scope.row.minutes % 60 }}m
@@ -302,7 +302,7 @@ export default {
         <el-form-item label="Workspace">
           <el-select v-model="form.matter_id" placeholder="Select matter" style="width: 100%">
             <el-option
-              v-for="matter in matters"
+              v-for="matter in workspaces"
               :key="matter.id"
               :label="matter.title"
               :value="matter.id"

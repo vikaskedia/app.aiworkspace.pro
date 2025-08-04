@@ -1,5 +1,5 @@
 CREATE TABLEworkspace_access (
-  matter_id bigint REFERENCES matters(id) NOT NULL,
+  matter_id bigint REFERENCES workspaces(id) NOT NULL,
   shared_with_user_id uuid REFERENCES auth.users(id) NOT NULL,
   access_type character varying NOT NULL CHECK (access_type IN ('view', 'edit')),
   granted_by_uuid uuid REFERENCES auth.users(id) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLEworkspace_access (
     )
 );
 
-COMMENT ON TABLEworkspace_access IS 'Manages access control for matters. 
+COMMENT ON TABLEworkspace_access IS 'Manages access control for workspaces. 
 1. Each matter has View rights and edit rights.
 
 2. Users with edit rights can:

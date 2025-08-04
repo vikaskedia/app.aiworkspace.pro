@@ -661,7 +661,7 @@ export default {
     const updatingPortfolio = ref(false);
     const addingSpreadsheet = ref(false);
     const targetPortfolioId = ref(''); // For adding spreadsheets to specific portfolio
-    const childMatters = ref([]); // Child matters for the current workspace
+    const childMatters = ref([]); // Child workspaces for the current workspace
     // Context menu states
     const contextMenuVisible = ref(false);
     const contextMenuX = ref(0);
@@ -838,31 +838,31 @@ export default {
 
     const loadChildMatters = async () => {
       if (!currentMatterId.value) {
-        console.warn('⚠️ No current matter selected, cannot load child matters');
+        console.warn('⚠️ No current matter selected, cannot load child workspaces');
         return;
       }
 
       try {
-        console.log(`👶 Loading child matters for workspace ${currentMatterId.value}...`);
+        console.log(`👶 Loading child workspaces for workspace ${currentMatterId.value}...`);
 
-        // Get child matters where parent_matter_id = current matter id
+        // Get child workspaces where parent_matter_id = current matter id
         const { data: childMattersData, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('id, title, description')
           .eq('parent_matter_id', currentMatterId.value)
           .eq('archived', false)
           .order('title');
 
           childMatters.value = childMattersData || [];
-          console.log(`✅ Loaded ${childMatters.value.length} child matters`);
+          console.log(`✅ Loaded ${childMatters.value.length} child workspaces`);
 
         if (error) {
-          console.warn('Error loading child matters:', error);
+          console.warn('Error loading child workspaces:', error);
           childMatters.value = [];
           return;
         }
       } catch (error) {
-        console.error('Error loading child matters:', error);
+        console.error('Error loading child workspaces:', error);
         childMatters.value = [];
       }
     }
@@ -870,7 +870,7 @@ export default {
     // Get child matter portfolios
   const getChildMatterPortfolios = async () => {
     if (!childMatters.value.length) {
-      console.log('👶 No child matters to load portfolios from');
+      console.log('👶 No child workspaces to load portfolios from');
       return [];
     }
 
@@ -926,13 +926,13 @@ export default {
       try {
         console.log(`📊 Loading portfolios for workspace ${currentMatterId.value}...`);
 
-        // Load child matters first (before loading portfolios)
+        // Load child workspaces first (before loading portfolios)
         await loadChildMatters();
         // Load child matter portfolios
         const childMatterPortfolios = await getChildMatterPortfolios();
         console.log(`📊 Loaded ${childMatterPortfolios.length} child matter portfolios`);
 
-        // Load spreadsheets from child matters
+        // Load spreadsheets from child workspaces
         const childMatterIds = childMatters.value.map(child => child.id);
         let childSpreadsheetData = [];
 

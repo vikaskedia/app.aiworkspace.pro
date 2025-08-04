@@ -88,7 +88,7 @@
             <el-form-item label="Workspace">
               <el-select
                 v-model="filters.matter"
-                placeholder="All matters"
+                placeholder="All workspaces"
                 multiple
                 collapse-tags
                 collapse-tags-tooltip
@@ -96,7 +96,7 @@
                 filterable
                 style="width: 200px">
                 <el-option 
-                  v-for="matter in matters"
+                  v-for="matter in workspaces"
                   :key="matter.id"
                   :label="matter.title"
                   :value="matter.id"
@@ -241,7 +241,7 @@
         :loading="loading"
         :group-by="boardGroupBy"
         :is-all-tasks-context="true"
-        :matters="matters"
+        :workspaces="workspaces"
         :current-matter="selectedMatter"
         :shared-users="assignees"
         v-model:filters="filters"
@@ -343,7 +343,7 @@ export default {
       tasks: [],
       loading: false,
       showFilters: false,
-      matters: [],
+      workspaces: [],
       assignees: [],
       filters: {
         search: '',
@@ -409,7 +409,7 @@ export default {
           .from('tasks')
           .select(`
             *,
-            matter:matters!inner(
+            matter:workspaces!inner(
               title,
              workspace_access!inner(shared_with_user_id)
             ),
@@ -566,8 +566,8 @@ export default {
     async loadMatters() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const { data: matters, error } = await supabase
-          .from('matters')
+        const { data: workspaces, error } = await supabase
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -580,9 +580,9 @@ export default {
           .order('title');
         
         if (error) throw error;
-        this.matters = matters;
+        this.workspaces = workspaces;
       } catch (error) {
-        console.error('Error loading matters:', error);
+        console.error('Error loading workspaces:', error);
       }
     },
 
@@ -590,7 +590,7 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: users, error } = await supabase
-          .rpc('get_assignees_for_accessible_matters', {
+          .rpc('get_assignees_for_accessible_workspaces', {
             user_uuid: user.id
           });
           
@@ -1211,11 +1211,11 @@ export default {
         }
       }
     },
-    matters: {
+    workspaces: {
       immediate: true,
-      handler(matters) {
-        if (matters.length > 0 && !this.selectedMatter) {
-          this.selectedMatter = matters[0];
+      handler(workspaces) {
+        if (workspaces.length > 0 && !this.selectedMatter) {
+          this.selectedMatter = workspaces[0];
         }
       }
     },

@@ -441,7 +441,7 @@ export default {
         
         // First get the matter's git repo
         const { data: matter, error: matterError } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('git_repo')
           .eq('id', this.task.matter_id)
           .single();

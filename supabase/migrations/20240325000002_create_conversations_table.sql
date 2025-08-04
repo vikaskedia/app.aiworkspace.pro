@@ -1,7 +1,7 @@
 -- Create conversations table
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    matter_id UUID NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+    matter_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     from_phone_number VARCHAR(20) NOT NULL,
     to_phone_number VARCHAR(20) NOT NULL,
     contact_name VARCHAR(255),

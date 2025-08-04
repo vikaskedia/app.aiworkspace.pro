@@ -372,8 +372,8 @@ router.beforeEach(async (to, from, next) => {
         localStorage.removeItem('referralCode');
       }
 
-      const { data: matters, error } = await supabase
-        .from('matters')
+      const { data: workspaces, error } = await supabase
+        .from('workspaces')
         .select(`
           *,
          workspace_access!inner (
@@ -387,18 +387,18 @@ router.beforeEach(async (to, from, next) => {
       if (error) throw error;
 
       // Handle the 3 scenarios
-      /*if (matters.length === 0) {
+      /*if (workspaces.length === 0) {
         next('/initial-consultation');
         return;
-      } else if (matters.length === 1 && to.path === '/') {
-        next(`/single-workspace/${matters[0].id}/dashboard`);
+      } else if (workspaces.length === 1 && to.path === '/') {
+        next(`/single-workspace/${workspaces[0].id}/dashboard`);
         return;
-      } else if (matters.length > 1 && to.path === '/') {
+      } else if (workspaces.length > 1 && to.path === '/') {
         next('/all-workspaces/dashboard');
         return;
       }*/
     } catch (error) {
-      console.error('Error checking matters:', error);
+      console.error('Error checking workspaces:', error);
     }
   }
 
@@ -425,7 +425,7 @@ router.beforeEach(async (to, from, next) => {
     const matterStore = useMatterStore();
     try {
       await matterStore.loadMatters();
-      const matter = matterStore.matters.find(m => m.id === parseInt(to.params.matterId));
+      const matter = matterStore.workspaces.find(m => m.id === parseInt(to.params.matterId));
       if (matter) {
         matterStore.setCurrentMatter(matter);
       }

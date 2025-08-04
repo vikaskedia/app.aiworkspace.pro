@@ -1,7 +1,7 @@
 -- Create portfolio_data table for storing AI Portfolio Manager spreadsheet data
 CREATE TABLE IF NOT EXISTS portfolio_data (
     id BIGSERIAL PRIMARY KEY,
-    matter_id BIGINT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+    matter_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     columns JSONB NOT NULL DEFAULT '[]'::jsonb,
     data JSONB NOT NULL DEFAULT '[]'::jsonb,
     system_prompt TEXT DEFAULT '',
@@ -76,7 +76,7 @@ CREATE TRIGGER update_portfolio_data_updated_at
 -- Create portfolio_analysis_results table for storing AI analysis results
 CREATE TABLE IF NOT EXISTS portfolio_analysis_results (
     id BIGSERIAL PRIMARY KEY,
-    matter_id BIGINT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+    matter_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     system_prompt TEXT NOT NULL,
     spreadsheet_data JSONB NOT NULL,
     ai_response TEXT NOT NULL,

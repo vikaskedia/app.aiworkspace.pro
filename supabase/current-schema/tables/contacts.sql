@@ -3,7 +3,7 @@ CREATE TABLE contacts (
   name character varying NOT NULL,
   phone_number character varying,
   tags text[] DEFAULT '{}',
-  matter_id bigint REFERENCES matters(id) NOT NULL,
+  matter_id bigint REFERENCES workspaces(id) NOT NULL,
   created_by uuid REFERENCES auth.users(id) NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE contacts (
   )
 );
 
-COMMENT ON TABLE contacts IS 'Contacts associated with matters/workspaces.
+COMMENT ON TABLE contacts IS 'Contacts associated with workspaces/workspaces.
 Each contact belongs to a specific matter and can have:
 1. Name (required)
 2. Phone number (optional)

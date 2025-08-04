@@ -141,14 +141,14 @@ export default async function handler(req, res) {
     if (!conversations || conversations.length === 0) {
       // No conversation found, try to find a matching matter
       console.log('📞 No existing conversation found, searching for matching matter');
-      const { data: matters, error: matterError } = await supabase
-        .from('matters')
+      const { data: workspaces, error: matterError } = await supabase
+        .from('workspaces')
         .select('id, phone_numbers')
         .not('phone_numbers', 'is', null);
       if (matterError) throw matterError;
       matterId = null;
       let matchedMatter = null;
-      for (const matter of matters) {
+      for (const matter of workspaces) {
         if (matter.phone_numbers && Array.isArray(matter.phone_numbers)) {
           const phoneMatch = matter.phone_numbers.find(phone => {
             const phoneNum = phone.number;

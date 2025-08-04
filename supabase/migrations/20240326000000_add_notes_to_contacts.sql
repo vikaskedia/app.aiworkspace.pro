@@ -2,7 +2,7 @@
 ALTER TABLE contacts ADD COLUMN notes text DEFAULT '';
 
 -- Update the table comment to include notes field
-COMMENT ON TABLE contacts IS 'Contacts associated with matters/workspaces.
+COMMENT ON TABLE contacts IS 'Contacts associated with workspaces/workspaces.
 Each contact belongs to a specific matter and can have:
 1. Name (required)
 2. Phone number (optional)

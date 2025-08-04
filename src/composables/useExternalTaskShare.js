@@ -228,7 +228,7 @@ export function useExternalTaskShare() {
             due_date,
             created_at,
             updated_at,
-            matters:matter_id (
+            workspaces:matter_id (
               id,
               title,
               git_repo

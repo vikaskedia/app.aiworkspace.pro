@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="matters-header">
+    <div class="workspaces-header">
       <div class="header-actions">
         <el-switch
           v-model="showArchived"
@@ -14,8 +14,8 @@
       </div>
     </div>
 
-    <div class="matters-grid" v-loading="loading">
-      <el-card v-for="matter in matters" :key="matter.id" class="matter-card">
+    <div class="workspaces-grid" v-loading="loading">
+      <el-card v-for="matter in workspaces" :key="matter.id" class="matter-card">
         <template #header>
           <div class="matter-header">
             <a :href="`/single-workspace/${matter.id}`" @click="handleCommand('view', matter)" class="matter-title-link">
@@ -165,7 +165,7 @@ export default {
   },
   data() {
     return {
-      matters: [],
+      workspaces: [],
       loading: false,
       createMatterDialog: false,
       editMatterDialog: false,
@@ -196,7 +196,7 @@ export default {
     },
 
     getCacheKey() {
-      return `matters_${this.showArchived ? 'archived' : 'active'}`;
+      return `workspaces_${this.showArchived ? 'archived' : 'active'}`;
     },
 
     async loadMattersWithCache() {
@@ -207,13 +207,13 @@ export default {
         
         if (cachedData) {
           // Display cached data immediately
-          this.matters = JSON.parse(cachedData);
+          this.workspaces = JSON.parse(cachedData);
         }
         
         // Always fetch fresh data
         await this.loadMatters();
       } catch (error) {
-        ElMessage.error('Error loading matters: ' + error.message);
+        ElMessage.error('Error loading workspaces: ' + error.message);
       }
     },
 
@@ -222,9 +222,9 @@ export default {
         this.loading = false;
         const { data: { user } } = await supabase.auth.getUser();
 
-        // Get all matters with their activity in a single query
+        // Get all workspaces with their activity in a single query
         const query = supabase
-          .from('matters')
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -239,35 +239,35 @@ export default {
           .eq('workspace_access.shared_with_user_id', user.id)
           .eq('workspace_activities.user_id', user.id);
 
-        const { data: matters, error } = await query;
+        const { data: workspaces, error } = await query;
         if (error) throw error;
 
-        // Process matters and add latest activity
-        const mattersWithActivity = (matters || []).map(matter => ({
+        // Process workspaces and add latest activity
+        const workspacesWithActivity = (workspaces || []).map(matter => ({
           ...matter,
           latest_activity: matter.workspace_activities?.[0]?.updated_at || matter.created_at
         }));
 
         // Sort by latest activity (most recent first)
-        mattersWithActivity.sort((a, b) => {
+        workspacesWithActivity.sort((a, b) => {
           const dateA = new Date(a.latest_activity);
           const dateB = new Date(b.latest_activity);
           return dateB - dateA;
         });
 
         // Load statistics for each matter
-        const mattersWithStats = await Promise.all(mattersWithActivity.map(async (matter) => {
+        const workspacesWithStats = await Promise.all(workspacesWithActivity.map(async (matter) => {
           const stats = await this.loadMatterStats(matter.id);
           return { ...matter, stats };
         }));
 
         // Update cache with new data
         const cacheKey = this.getCacheKey();
-        localStorage.setItem(cacheKey, JSON.stringify(mattersWithStats));
+        localStorage.setItem(cacheKey, JSON.stringify(workspacesWithStats));
 
-        this.matters = mattersWithStats;
+        this.workspaces = workspacesWithStats;
       } catch (error) {
-        ElMessage.error('Error loading matters: ' + error.message);
+        ElMessage.error('Error loading workspaces: ' + error.message);
       } finally {
         this.loading = false;
       }
@@ -361,14 +361,14 @@ export default {
         };
 
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .insert([matterData])
           .select()
           .single();
 
         if (error) throw error;
 
-        this.matters.unshift({ 
+        this.workspaces.unshift({ 
           ...data, 
           stats: { 
             goals_total: 0, 
@@ -400,7 +400,7 @@ export default {
       try {
         this.loading = true;
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             title: this.editingMatter.title,
             description: this.editingMatter.description
@@ -411,9 +411,9 @@ export default {
 
         if (error) throw error;
 
-        const index = this.matters.findIndex(m => m.id === this.editingMatter.id);
+        const index = this.workspaces.findIndex(m => m.id === this.editingMatter.id);
         if (index !== -1) {
-          this.matters[index] = { ...this.matters[index], ...data };
+          this.workspaces[index] = { ...this.workspaces[index], ...data };
         }
 
         // Clear cache when updating matter
@@ -433,7 +433,7 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         
         const { error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({ 
             archived: true,
             archived_at: new Date().toISOString(),
@@ -443,7 +443,7 @@ export default {
 
         if (error) throw error;
 
-        this.matters = this.matters.filter(m => m.id !== matter.id);
+        this.workspaces = this.workspaces.filter(m => m.id !== matter.id);
         
         // Clear cache when archiving matter
         this.clearMattersCache();
@@ -457,7 +457,7 @@ export default {
     async restoreMatter(matter) {
       try {
         const { error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({ 
             archived: false,
             archived_at: null,
@@ -467,7 +467,7 @@ export default {
 
         if (error) throw error;
 
-        this.matters = this.matters.filter(m => m.id !== matter.id);
+        this.workspaces = this.workspaces.filter(m => m.id !== matter.id);
         
         // Clear cache when restoring matter
         this.clearMattersCache();
@@ -494,7 +494,7 @@ export default {
           break;
         case 'archive':
           ElMessageBox.confirm(
-            'Are you sure you want to archive this matter? You can restore it later from the archived matters section.',
+            'Are you sure you want to archive this matter? You can restore it later from the archived workspaces section.',
             'Warning',
             {
               confirmButtonText: 'Archive',
@@ -522,8 +522,8 @@ export default {
     },
 
     clearMattersCache() {
-      localStorage.removeItem('matters_active');
-      localStorage.removeItem('matters_archived');
+      localStorage.removeItem('workspaces_active');
+      localStorage.removeItem('workspaces_archived');
     },
 
     navigateToGoals(matter) {
@@ -545,20 +545,20 @@ export default {
 </script>
 
 <style scoped>
-.matters-header {
+.workspaces-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
 }
 
-.matters-header h2 {
+.workspaces-header h2 {
   margin: 0;
   color: #303133;
   font-size: 1.8rem;
 }
 
-.matters-grid {
+.workspaces-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
@@ -629,16 +629,16 @@ export default {
   align-items: center;
 }
 
-.matters-header :deep(.el-switch) {
+.workspaces-header :deep(.el-switch) {
   margin-right: 1rem;
 }
 
 @media (max-width: 640px) {
-  .matters-header h2 {
+  .workspaces-header h2 {
     font-size: 1.5rem;
   }
 
-  .matters-grid {
+  .workspaces-grid {
     grid-template-columns: 1fr;
   }
 

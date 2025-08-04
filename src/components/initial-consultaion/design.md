@@ -1,4 +1,4 @@
-Our Associate attorney AI system has matters and below each matter there are:
+Our Associate attorney AI system has workspaces and below each matter there are:
 1. Events - input from the user
 2. Files - input from the user
 3. Goals - output from the AI

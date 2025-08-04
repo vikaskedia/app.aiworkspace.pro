@@ -110,7 +110,7 @@ export async function getMatterActivities(matterId, limit = 10) {
 }
 
 /**
- * Function to get user's recent activities across all matters
+ * Function to get user's recent activities across all workspaces
  * @param {string} userId - The user ID (optional, defaults to current user)
  * @param {number} limit - Number of activities to fetch (default: 20)
  */
@@ -132,7 +132,7 @@ export async function getUserActivities(userId = null, limit = 20) {
       .from('workspace_activities')
       .select(`
         *,
-        matters!inner (
+        workspaces!inner (
           title,
           matter_number
         )

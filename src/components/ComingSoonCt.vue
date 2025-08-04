@@ -2,7 +2,7 @@
   <div>
     <div class="message-container">
       <h2>{{ title }}</h2>
-      <p>This feature is coming soon! We're working hard to bring you a comprehensive view of all {{ feature }} across your matters.</p>
+      <p>This feature is coming soon! We're working hard to bring you a comprehensive view of all {{ feature }} across your workspaces.</p>
       <el-button type="primary" @click="$router.push('/all-workspace')">
         Return to All Workspaces
       </el-button>

@@ -129,7 +129,7 @@ export default {
     async loadAllWorkspaces() {
       try {
         const { data: workspaces, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('id, title')
           .neq('id', this.currentMatter?.id) // Exclude current workspace
           .eq('archived', false);
@@ -167,7 +167,7 @@ export default {
 
         // Then get the workspaces
         const { data: workspaces, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('id, title')
           .eq('archived', false)
           .neq('id', this.currentMatter?.id) // Exclude current workspace
@@ -193,7 +193,7 @@ export default {
     async updateParentWorkspace() {
       try {
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             parent_matter_id: this.parentWorkspace.id
           })
@@ -246,7 +246,7 @@ export default {
     async updateMatter() {
       try {
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             title: this.editingMatter.title,
             description: this.editingMatter.description,
@@ -351,7 +351,7 @@ export default {
     async updateGitSettings() {
       try {
         const { error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             git_repo: this.gitSettings.repoName
           })
@@ -367,7 +367,7 @@ export default {
     async updateCalendarSettings() {
       try {
         const { error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             google_calendar_id: this.calendarSettings.calendarId
           })
@@ -383,7 +383,7 @@ export default {
     async updateEmailSettings() {
       try {
         const { error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({
             email_storage: this.emailSettings.address
           })
@@ -559,9 +559,9 @@ export default {
       if (this.phoneNumbers && this.phoneNumbers.some(p => p.number === number)) {
         return 'current'; // Already in this workspace
       }
-      // Query all matters and check if the phone number exists in any other workspace
+      // Query all workspaces and check if the phone number exists in any other workspace
       const { data, error } = await supabase
-        .from('matters')
+        .from('workspaces')
         .select('id, phone_numbers');
       if (error) throw error;
       for (const matter of data) {
@@ -601,7 +601,7 @@ export default {
         const updatedPhoneNumbers = [...this.phoneNumbers, newPhone];
 
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
           .eq('id', this.currentMatter.id)
           .select()
@@ -622,7 +622,7 @@ export default {
         const updatedPhoneNumbers = this.phoneNumbers.filter(p => p.id !== phoneId);
 
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
           .eq('id', this.currentMatter.id)
           .select()
@@ -724,7 +724,7 @@ export default {
         );
         
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
           .eq('id', this.currentMatter.id)
           .select()

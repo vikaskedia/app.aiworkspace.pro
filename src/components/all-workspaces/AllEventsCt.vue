@@ -45,7 +45,7 @@
             <el-form-item label="Workspace">
               <el-select
                 v-model="filters.matter"
-                placeholder="All matters"
+                placeholder="All workspaces"
                 multiple
                 collapse-tags
                 collapse-tags-tooltip
@@ -53,7 +53,7 @@
                 filterable
                 style="width: 300px">
                 <el-option 
-                  v-for="matter in matters"
+                  v-for="matter in workspaces"
                   :key="matter.id"
                   :label="matter.title"
                   :value="matter.id"
@@ -130,7 +130,7 @@ export default {
       loading: false,
       showFilters: false,
       savedFilters: [],
-      matters: [],
+      workspaces: [],
       filters: {
         matter: []
       }
@@ -145,7 +145,7 @@ export default {
     filteredEvents() {
       let filtered = [...this.events];
       
-      // Filter by matters if any are selected
+      // Filter by workspaces if any are selected
       if (this.filters.matter?.length) {
         filtered = filtered.filter(event => 
           this.filters.matter.includes(event.matter_id)
@@ -160,23 +160,23 @@ export default {
       try {
         this.loading = true;
         
-        // Get active matters from localStorage
-        const mattersActive = localStorage.getItem('matters_active');
-        if (!mattersActive) {
-          console.log('No matters_active found in localStorage');
+        // Get active workspaces from localStorage
+        const workspacesActive = localStorage.getItem('workspaces_active');
+        if (!workspacesActive) {
+          console.log('No workspaces_active found in localStorage');
           this.events = [];
           return;
         }
         
-        const mattersData = JSON.parse(mattersActive);
-        console.log('Raw matters data from localStorage:', mattersData);
+        const workspacesData = JSON.parse(workspacesActive);
+        console.log('Raw workspaces data from localStorage:', workspacesData);
         
         // Extract IDs from matter objects
         let matterIds;
-        if (Array.isArray(mattersData)) {
-          matterIds = mattersData.map(matter => matter.id || matter);
+        if (Array.isArray(workspacesData)) {
+          matterIds = workspacesData.map(matter => matter.id || matter);
         } else {
-          console.log('Invalid matters data format');
+          console.log('Invalid workspaces data format');
           this.events = [];
           return;
         }
@@ -189,16 +189,16 @@ export default {
           return;
         }
         
-        // First, let's check the total count for these matters
+        // First, let's check the total count for these workspaces
         const { count, error: countError } = await supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
           .in('matter_id', matterIds);
         
         if (countError) throw countError;
-        console.log('Total events for active matters:', count);
+        console.log('Total events for active workspaces:', count);
         
-        // Load events only from active matters
+        // Load events only from active workspaces
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
@@ -221,19 +221,19 @@ export default {
 
     async loadMatters() {
       try {
-        // Get matters from localStorage for now
-        const mattersActive = localStorage.getItem('matters_active');
-        if (mattersActive) {
-          const mattersData = JSON.parse(mattersActive);
-          if (Array.isArray(mattersData)) {
-            this.matters = mattersData.map(matter => ({
+        // Get workspaces from localStorage for now
+        const workspacesActive = localStorage.getItem('workspaces_active');
+        if (workspacesActive) {
+          const workspacesData = JSON.parse(workspacesActive);
+          if (Array.isArray(workspacesData)) {
+            this.workspaces = workspacesData.map(matter => ({
               id: matter.id || matter,
               title: matter.title || `Workspace ${matter.id || matter}`
             }));
           }
         }
       } catch (error) {
-        console.error('Error loading matters:', error);
+        console.error('Error loading workspaces:', error);
       }
     },
 
@@ -262,7 +262,7 @@ export default {
     },
 
     getMatterTitle(matterId) {
-      const matter = this.matters.find(matter => matter.id === matterId);
+      const matter = this.workspaces.find(matter => matter.id === matterId);
       return matter ? matter.title : 'Unknown Workspace';
     }
   },

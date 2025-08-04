@@ -24,7 +24,7 @@ CREATE POLICY "task_documents_authenticated_read" ON task_documents
         -- Allow if user has access to the task
         EXISTS (
             SELECT 1 FROM tasks t
-            JOIN matters m ON t.matter_id = m.id
+            JOIN workspaces m ON t.matter_id = m.id
             WHERE t.id = task_documents.task_id
             AND (
                 -- Allow if user is the task creator
@@ -50,7 +50,7 @@ CREATE POLICY "task_documents_authenticated_write" ON task_documents
     USING (
         EXISTS (
             SELECT 1 FROM tasks t
-            JOIN matters m ON t.matter_id = m.id
+            JOIN workspaces m ON t.matter_id = m.id
             WHERE t.id = task_documents.task_id
             AND (
                 -- Allow if user is the task creator

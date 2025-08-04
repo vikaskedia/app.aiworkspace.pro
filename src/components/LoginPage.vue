@@ -213,8 +213,8 @@ export default {
         const userId = data.user?.id;
         console.log(userId);
 
-        const { data: matters, error: mattersError } = await supabase
-        .from('matters')
+        const { data: workspaces, error: workspacesError } = await supabase
+        .from('workspaces')
         .select(`
           *,
          workspace_access!inner (
@@ -225,10 +225,10 @@ export default {
         .eq('archived', false)
         .eq('workspace_access.shared_with_user_id', userId);
 
-      if (mattersError) throw mattersError;
+      if (workspacesError) throw workspacesError;
 
       // Handle the 3 scenarios
-      if (matters.length === 0) {
+      if (workspaces.length === 0) {
         this.router.push('/initial-consultation');
         return;
       } else {

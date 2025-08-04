@@ -14,7 +14,7 @@ export default {
   },
   emits: ['matter-selected'],
   setup(props, { emit }) {
-    const matters = ref([]);
+    const workspaces = ref([]);
     const selectedMatter = ref(null);
     const dialogVisible = ref(false);
     const newMatter = ref({
@@ -36,9 +36,9 @@ export default {
         // Get the current user first
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Get all matters that the user has access to with their activity in a single query
-        const { data: mattersData, error } = await supabase
-          .from('matters')
+        // Get all workspaces that the user has access to with their activity in a single query
+        const { data: workspacesData, error } = await supabase
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -55,32 +55,32 @@ export default {
 
         if (error) throw error;
 
-        // Process matters and add latest activity
-        const mattersWithActivity = mattersData.map(matter => ({
+        // Process workspaces and add latest activity
+        const workspacesWithActivity = workspacesData.map(matter => ({
           ...matter,
           latest_activity: matter.workspace_activities?.[0]?.updated_at || matter.created_at
         }));
 
         // Sort by latest activity (most recent first)
-        mattersWithActivity.sort((a, b) => {
+        workspacesWithActivity.sort((a, b) => {
           const dateA = new Date(a.latest_activity);
           const dateB = new Date(b.latest_activity);
           return dateB - dateA;
         });
 
-        matters.value = mattersWithActivity;
+        workspaces.value = workspacesWithActivity;
 
-        // After loading matters, check URL for matter ID
+        // After loading workspaces, check URL for matter ID
         const matterId = route.params.matterId;
         if (matterId) {
-          const matter = matters.value.find(m => m.id === parseInt(matterId));
+          const matter = workspaces.value.find(m => m.id === parseInt(matterId));
           if (matter) {
             selectedMatter.value = matter;
             emit('matter-selected', matter);
           }
         }
       } catch (error) {
-        ElMessage.error('Error loading matters: ' + error.message);
+        ElMessage.error('Error loading workspaces: ' + error.message);
       }
     };
 
@@ -121,7 +121,7 @@ export default {
 
         // Create matter in database with repository info
         const { data, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .insert([{
             title: newMatter.value.title,
             description: newMatter.value.description,
@@ -135,7 +135,7 @@ export default {
         if (error) throw error;
 
         // Add the new matter to the list
-        matters.value.unshift(data);
+        workspaces.value.unshift(data);
         
         // Close dialog and reset form
         dialogVisible.value = false;
@@ -224,7 +224,7 @@ export default {
     });
 
     return {
-      matters,
+      workspaces,
       selectedMatter,
       dialogVisible,
       newMatter,
@@ -252,7 +252,7 @@ export default {
           </el-dropdown-item>
           <el-dropdown-item divided />
           <el-dropdown-item
-            v-for="matter in matters"
+            v-for="matter in workspaces"
             :key="matter.id">
             <a :href="`/single-workspace/${matter.id}/tasks`">{{ matter.title }}</a>
           </el-dropdown-item>

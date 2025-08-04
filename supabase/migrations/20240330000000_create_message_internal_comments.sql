@@ -3,7 +3,7 @@ CREATE TABLE message_internal_comments (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   message_id TEXT NOT NULL,
   conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-  matter_id BIGINT REFERENCES matters(id) ON DELETE CASCADE,
+  matter_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

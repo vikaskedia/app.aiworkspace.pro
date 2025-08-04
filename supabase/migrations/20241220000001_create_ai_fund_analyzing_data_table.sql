@@ -1,7 +1,7 @@
 -- Create ai_fund_analyzing_data table for AI Fund Analyst OpenAI responses
 CREATE TABLE IF NOT EXISTS ai_fund_analyzing_data (
     id BIGSERIAL PRIMARY KEY,
-    matter_id BIGINT NOT NULL REFERENCES matters(id) ON DELETE CASCADE,
+    matter_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     strategy VARCHAR(100) NOT NULL,
     prompt TEXT NOT NULL,
     openai_response TEXT,

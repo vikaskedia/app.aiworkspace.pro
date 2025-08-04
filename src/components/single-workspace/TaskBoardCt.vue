@@ -64,7 +64,7 @@
                             <template #dropdown>
                               <el-dropdown-menu>
                                 <el-dropdown-item 
-                                  v-for="matter in matters" 
+                                  v-for="matter in workspaces" 
                                   :key="matter.id"
                                   :command="matter">
                                   {{ matter.title }}
@@ -317,7 +317,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         type: Boolean,
         default: false
       },
-      matters: {
+      workspaces: {
         type: Array,
         default: () => []
       },
@@ -992,11 +992,11 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         },
         deep: true
       },
-      matters: {
+      workspaces: {
         immediate: true,
-        handler(matters) {
-          if (this.isAllTasksContext && matters.length > 0 && !this.selectedMatter) {
-            this.selectedMatter = matters[0];
+        handler(workspaces) {
+          if (this.isAllTasksContext && workspaces.length > 0 && !this.selectedMatter) {
+            this.selectedMatter = workspaces[0];
           }
         }
       },

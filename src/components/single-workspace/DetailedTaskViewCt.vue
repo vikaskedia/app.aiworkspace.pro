@@ -2903,7 +2903,7 @@ export default {
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         const { data: matter, error: matterError } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('git_repo')
           .eq('id', this.currentMatter.id)
           .single();

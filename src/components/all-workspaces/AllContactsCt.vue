@@ -28,7 +28,7 @@
             style="width: 250px; margin-right: 1rem;"
           >
             <el-option
-              v-for="matter in matters"
+              v-for="matter in workspaces"
               :key="matter.id"
               :label="matter.title"
               :value="matter.id"
@@ -189,7 +189,7 @@ export default {
   data() {
     return {
       contacts: [],
-      matters: [],
+      workspaces: [],
       loading: false,
       searchQuery: '',
       selectedMatter: null,
@@ -258,7 +258,7 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        // First get matters the user has access to
+        // First get workspaces the user has access to
         const { data: workspaceAccess, error: accessError } = await supabase
           .from('workspace_access')
           .select('matter_id')
@@ -269,9 +269,9 @@ export default {
         // Get matter IDs from workspace access
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
-        // Get matters created by user
+        // Get workspaces created by user
         const { data: userMatters, error: userMattersError } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('id')
           .eq('created_by', user.id)
           .eq('archived', false);
@@ -282,22 +282,22 @@ export default {
         const allMatterIds = [...new Set([...accessibleMatterIds, ...userMatters.map(m => m.id)])];
 
         if (allMatterIds.length === 0) {
-          this.matters = [];
+          this.workspaces = [];
           return;
         }
 
-        // Get all accessible matters
-        const { data: matters, error } = await supabase
-          .from('matters')
+        // Get all accessible workspaces
+        const { data: workspaces, error } = await supabase
+          .from('workspaces')
           .select('id, title')
           .eq('archived', false)
           .in('id', allMatterIds)
           .order('title');
 
         if (error) throw error;
-        this.matters = matters;
+        this.workspaces = workspaces;
       } catch (error) {
-        ElMessage.error('Error loading matters: ' + error.message);
+        ElMessage.error('Error loading workspaces: ' + error.message);
       }
     },
 
@@ -306,7 +306,7 @@ export default {
         this.loading = true;
         const { data: { user } } = await supabase.auth.getUser();
         
-        // First get matters the user has access to
+        // First get workspaces the user has access to
         const { data: workspaceAccess, error: accessError } = await supabase
           .from('workspace_access')
           .select('matter_id')
@@ -317,9 +317,9 @@ export default {
         // Get matter IDs from workspace access
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
-        // Get matters created by user
+        // Get workspaces created by user
         const { data: userMatters, error: userMattersError } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select('id')
           .eq('created_by', user.id)
           .eq('archived', false);
@@ -334,12 +334,12 @@ export default {
           return;
         }
 
-        // Get contacts from all accessible matters
+        // Get contacts from all accessible workspaces
         const { data: contacts, error } = await supabase
           .from('contacts')
           .select(`
             *,
-            matters!inner(
+            workspaces!inner(
               id,
               title
             )
@@ -353,7 +353,7 @@ export default {
         // Transform data to include matter title
         this.contacts = contacts.map(contact => ({
           ...contact,
-          matter_title: contact.matters.title
+          matter_title: contact.workspaces.title
         }));
       } catch (error) {
         ElMessage.error('Error loading contacts: ' + error.message);

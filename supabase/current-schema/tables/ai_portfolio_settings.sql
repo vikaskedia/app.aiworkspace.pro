@@ -2,7 +2,7 @@
 create table ai_portfolio_settings (
   id bigserial primary key,
   user_id uuid references auth.users(id) on delete cascade not null,
-  matter_id bigint references matters(id) on delete cascade not null,
+  matter_id bigint references workspaces(id) on delete cascade not null,
   portfolio_id text not null,
   view_mode boolean not null default true, -- false = edit mode, true = readonly mode (default)
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

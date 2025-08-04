@@ -53,7 +53,7 @@ test('Create matter after login and edit it', async ({ page }) => {
     await createButton.click();
 
     // Wait for the matter to appear in the grid
-    const matterGrid = page.locator('.matters-grid');
+    const matterGrid = page.locator('.workspaces-grid');
     await matterGrid.waitFor({ state: 'visible', timeout: 10000 });
 
     // Verify the new matter appears in the list

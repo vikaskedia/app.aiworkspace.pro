@@ -549,7 +549,7 @@ export default {
 
         // Create new matter in Supabase
         const { data: matter, error: matterError } = await supabase
-          .from('matters')
+          .from('workspaces')
           .insert([{
             title: 'Legal Consultation Workspace',
             description: `Initial consultation conducted on ${new Date().toLocaleDateString()}`,
@@ -709,9 +709,9 @@ export default {
     const getSharedMatters = async (userId) => {
       console.log('L837: getSharedMatters');
       try {
-        // Get matters shared with the user
+        // Get workspaces shared with the user
         const { data: sharedMatters, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -732,7 +732,7 @@ export default {
         if (error) throw error;
 
         // Get the latest activity for each matter and sort
-        const mattersWithActivity = await Promise.all(
+        const workspacesWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
@@ -749,15 +749,15 @@ export default {
         );
 
         // Sort by latest activity
-        mattersWithActivity.sort((a, b) => {
+        workspacesWithActivity.sort((a, b) => {
           const dateA = new Date(a.latest_activity);
           const dateB = new Date(b.latest_activity);
           return dateB - dateA; // Most recent first
         });
 
-        return mattersWithActivity;
+        return workspacesWithActivity;
       } catch (error) {
-        console.error('Error fetching shared matters:', error);
+        console.error('Error fetching shared workspaces:', error);
         return [];
       }
     };
@@ -767,7 +767,7 @@ export default {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: sharedMatters, error } = await supabase
-          .from('matters')
+          .from('workspaces')
           .select(`
             *,
            workspace_access!inner (
@@ -788,7 +788,7 @@ export default {
         if (error) throw error;
 
         // Get the latest activity for each matter and sort
-        const mattersWithActivity = await Promise.all(
+        const workspacesWithActivity = await Promise.all(
           (sharedMatters || []).map(async (matter) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
@@ -805,15 +805,15 @@ export default {
         );
 
         // Sort by latest activity
-        mattersWithActivity.sort((a, b) => {
+        workspacesWithActivity.sort((a, b) => {
           const dateA = new Date(a.latest_activity);
           const dateB = new Date(b.latest_activity);
           return dateB - dateA; // Most recent first
         });
 
-        userMatters.value = mattersWithActivity;
+        userMatters.value = workspacesWithActivity;
       } catch (error) {
-        console.error('Error fetching shared matters:', error);
+        console.error('Error fetching shared workspaces:', error);
         userMatters.value = [];
       }
     };
@@ -896,7 +896,7 @@ export default {
         throw new Error('No initial consultant system prompt found');
       }
 
-      // Format shared matters information
+      // Format shared workspaces information
       const sharedMattersInfo = userMatters.value.length > 0 
         ? `\n\nShared Legal Workspaces:\n${userMatters.value.map(matter => `
 - Workspace: ${matter.title}
@@ -905,7 +905,7 @@ export default {
     • ${task.title} (${task.priority} priority) - ${task.status}`).join('') : '\n    • No tasks yet'}`).join('\n')}`
         : '\n\nShared Legal Workspaces: None';
 
-      // Add user information section with shared matters
+      // Add user information section with shared workspaces
       const userInfoSection = `Information known about the user:
 - Name: ${user.user_metadata?.name || 
          user.user_metadata?.user_name || 

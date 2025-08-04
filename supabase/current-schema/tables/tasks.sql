@@ -6,7 +6,7 @@ CREATE TABLE tasks (
   priority text NOT NULL,
   assignee uuid REFERENCES auth.users(id) NULL,
   due_date timestamp with time zone,
-  matter_id bigint REFERENCES matters(id) NOT NULL,
+  matter_id bigint REFERENCES workspaces(id) NOT NULL,
   created_by uuid REFERENCES auth.users(id) NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,

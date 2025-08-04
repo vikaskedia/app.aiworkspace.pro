@@ -947,7 +947,7 @@ export default {
           }
 
           this.task = shareData.tasks;
-          this.matter = shareData.tasks.matters;
+          this.matter = shareData.tasks.workspaces;
           
           // Load comments for the task
           let commentsData;

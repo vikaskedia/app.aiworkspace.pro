@@ -119,7 +119,7 @@ const updatePageTitle = () => {
 onMounted(async () => {
   // if (route.params.matterId && !currentMatter.value) {
   //   const { data, error } = await supabase
-  //     .from('matters')
+  //     .from('workspaces')
   //     .select('*')
   //     .eq('id', route.params.matterId)
   //     .single();

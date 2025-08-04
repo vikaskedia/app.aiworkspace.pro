@@ -5,21 +5,26 @@ import { ElMessage } from 'element-plus';
 import { useRouter, useRoute } from 'vue-router';
 import { useMatterStore } from '../store/workspace';
 import { storeToRefs } from 'pinia';
-import { CaretBottom, More } from '@element-plus/icons-vue';
+import { CaretBottom, More, FolderOpened, Document } from '@element-plus/icons-vue';
 
 export default {
   components: {
     CaretBottom,
-    More
+    More,
+    FolderOpened,
+    Document
   },
   emits: ['workspace-selected'],
   setup(props, { emit }) {
     const workspaces = ref([]);
+    const workspaceTree = ref([]);
+    const userAccessMap = ref(new Map()); // Track which workspaces user has access to
     const selectedMatter = ref(null);
     const dialogVisible = ref(false);
     const newMatter = ref({
       title: '',
-      description: ''
+      description: '',
+      parentWorkspaceId: null
     });
     const router = useRouter();
     const route = useRoute();
@@ -31,17 +36,51 @@ export default {
       selectedMatter.value = newMatter;
     });
 
+    const buildWorkspaceTree = (workspacesList, userAccess) => {
+      const workspaceMap = new Map();
+      const rootWorkspaces = [];
+      
+      // Create a map of all workspaces
+      workspacesList.forEach(workspace => {
+        workspaceMap.set(workspace.id, {
+          ...workspace,
+          children: [],
+          hasAccess: userAccess.has(workspace.id),
+          accessType: userAccess.get(workspace.id)?.access_type || null
+        });
+      });
+      
+      // Build the tree structure
+      workspacesList.forEach(workspace => {
+        const workspaceNode = workspaceMap.get(workspace.id);
+        
+        if (workspace.parent_workspace_id) {
+          const parent = workspaceMap.get(workspace.parent_workspace_id);
+          if (parent) {
+            parent.children.push(workspaceNode);
+          } else {
+            // Parent not in our list, treat as root
+            rootWorkspaces.push(workspaceNode);
+          }
+        } else {
+          rootWorkspaces.push(workspaceNode);
+        }
+      });
+      
+      return rootWorkspaces;
+    };
+
     const loadMatters = async () => {
       try {
         // Get the current user first
         const { data: { user } } = await supabase.auth.getUser();
         
-        // Get all workspaces that the user has access to with their activity in a single query
-        const { data: workspacesData, error } = await supabase
+        // First, get all workspaces that the user has access to
+        const { data: userWorkspaces, error: userError } = await supabase
           .from('workspaces')
           .select(`
             *,
-           workspace_access!inner (
+            workspace_access!inner (
               access_type,
               shared_with_user_id
             ),
@@ -50,31 +89,61 @@ export default {
             )
           `)
           .eq('archived', false)
-          .eq('workspace_access.shared_with_user_id', user.id)
-          .eq('workspace_activities.user_id', user.id);
+          .eq('workspace_access.shared_with_user_id', user.id);
 
-        if (error) throw error;
+        if (userError) throw userError;
+
+        // Create a map of user's access
+        const userAccess = new Map();
+        userWorkspaces.forEach(workspace => {
+          const access = workspace.workspace_access.find(acc => acc.shared_with_user_id === user.id);
+          if (access) {
+            userAccess.set(workspace.id, access);
+          }
+        });
+        
+        userAccessMap.value = userAccess;
+
+        // Get parent workspace IDs that we need to show for tree structure
+        const parentIds = [...new Set(
+          userWorkspaces
+            .filter(w => w.parent_workspace_id)
+            .map(w => w.parent_workspace_id)
+            .filter(id => !userAccess.has(id)) // Only get parents we don't already have access to
+        )];
+
+        // Get parent workspaces for tree structure (even if user doesn't have access)
+        let parentWorkspaces = [];
+        if (parentIds.length > 0) {
+          const { data: parents, error: parentError } = await supabase
+            .from('workspaces')
+            .select('*')
+            .in('id', parentIds)
+            .eq('archived', false);
+          
+          if (parentError) throw parentError;
+          parentWorkspaces = parents || [];
+        }
+
+        // Combine all workspaces
+        const allWorkspaces = [...userWorkspaces, ...parentWorkspaces];
 
         // Process workspaces and add latest activity
-        const workspacesWithActivity = workspacesData.map(workspace => ({
+        const workspacesWithActivity = allWorkspaces.map(workspace => ({
           ...workspace,
           latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at
         }));
 
-        // Sort by latest activity (most recent first)
-        workspacesWithActivity.sort((a, b) => {
-          const dateA = new Date(a.latest_activity);
-          const dateB = new Date(b.latest_activity);
-          return dateB - dateA;
-        });
-
         workspaces.value = workspacesWithActivity;
+        
+        // Build tree structure
+        workspaceTree.value = buildWorkspaceTree(workspacesWithActivity, userAccess);
 
         // After loading workspaces, check URL for workspace ID
         const matterId = route.params.matterId;
         if (matterId) {
-          const workspace = workspaces.value.find(m => m.id === parseInt(matterId));
-          if (workspace) {
+          const workspace = workspacesWithActivity.find(m => m.id === parseInt(matterId));
+          if (workspace && userAccess.has(workspace.id)) {
             selectedMatter.value = workspace;
             emit('workspace-selected', workspace);
           }
@@ -127,19 +196,20 @@ export default {
             description: newMatter.value.description,
             created_by: user.id,
             git_repo: repoName,
-            email_storage: emailStorage
+            email_storage: emailStorage,
+            parent_workspace_id: newMatter.value.parentWorkspaceId
           }])
           .select()
           .single();
 
         if (error) throw error;
 
-        // Add the new workspace to the list
-        workspaces.value.unshift(data);
+        // Reload workspaces to get updated tree
+        await loadMatters();
         
         // Close dialog and reset form
         dialogVisible.value = false;
-        newMatter.value = { title: '', description: '' };
+        newMatter.value = { title: '', description: '', parentWorkspaceId: null };
         ElMessage.success('Workspace created successfully');
 
         // Select the newly created workspace
@@ -154,7 +224,13 @@ export default {
       }
     };
 
-    const handleMatterSelect = (workspace) => {
+    const handleWorkspaceClick = (workspace) => {
+      // Check if user has access to this workspace
+      if (!userAccessMap.value.has(workspace.id)) {
+        ElMessage.warning(`You don't have access to "${workspace.title}". Please contact the workspace owner for access.`);
+        return;
+      }
+
       if (workspace === null) {
         selectedMatter.value = null;
         matterStore.setCurrentMatter(null);
@@ -194,6 +270,10 @@ export default {
       }
     };
 
+    const handleMatterSelect = (workspace) => {
+      handleWorkspaceClick(workspace);
+    };
+
     const handleMatterCommand = (command) => {
       if (!selectedMatter.value) return;
       
@@ -219,18 +299,45 @@ export default {
       }
     };
 
+    const renderWorkspaceTree = (workspaceNodes, level = 0) => {
+      return workspaceNodes.map(workspace => ({
+        ...workspace,
+        level,
+        children: workspace.children ? renderWorkspaceTree(workspace.children, level + 1) : []
+      }));
+    };
+
+    const flattenTree = (tree) => {
+      const result = [];
+      const traverse = (nodes) => {
+        nodes.forEach(node => {
+          result.push(node);
+          if (node.children && node.children.length > 0) {
+            traverse(node.children);
+          }
+        });
+      };
+      traverse(tree);
+      return result;
+    };
+
     onMounted(() => {
       loadMatters();
     });
 
     return {
       workspaces,
+      workspaceTree,
+      userAccessMap,
       selectedMatter,
       dialogVisible,
       newMatter,
       createMatter,
       handleMatterSelect,
       handleMatterCommand,
+      handleWorkspaceClick,
+      renderWorkspaceTree,
+      flattenTree,
       route
     };
   }
@@ -246,23 +353,40 @@ export default {
       </span>
       
       <template #dropdown>
-        <el-dropdown-menu>
-          <el-dropdown-item>
-            <a href="/all-workspace/tasks">All Workspaces</a>
+        <el-dropdown-menu class="workspace-dropdown-menu">
+          <el-dropdown-item @click="handleWorkspaceClick(null)">
+            <div class="workspace-item">
+              <el-icon><document /></el-icon>
+              <span>All Workspaces</span>
+            </div>
           </el-dropdown-item>
           <el-dropdown-item divided />
-          <el-dropdown-item
-            v-for="workspace in workspaces"
-            :key="workspace.id">
-            <a :href="`/single-workspace/${workspace.id}/tasks`">{{ workspace.title }}</a>
-          </el-dropdown-item>
+          
+          <template v-for="workspace in flattenTree(renderWorkspaceTree(workspaceTree))" :key="workspace.id">
+            <el-dropdown-item @click="handleWorkspaceClick(workspace)">
+              <div class="workspace-item" :class="{ 'no-access': !workspace.hasAccess }" :style="{ paddingLeft: (workspace.level * 20) + 'px' }">
+                <el-icon>
+                  <folder-opened v-if="workspace.children && workspace.children.length > 0" />
+                  <document v-else />
+                </el-icon>
+                <span :class="{ 'no-access-text': !workspace.hasAccess }">
+                  {{ workspace.title }}
+                </span>
+              </div>
+            </el-dropdown-item>
+          </template>
+          
           <el-dropdown-item divided @click="dialogVisible = true">
-            New Workspace
+            <div class="workspace-item">
+              <el-icon><more /></el-icon>
+              <span>New Workspace</span>
+            </div>
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>
     </el-dropdown>
   </div>
+  
   <el-dialog
     v-model="dialogVisible"
     title="Create New Workspace"
@@ -278,6 +402,33 @@ export default {
           type="textarea"
           rows="3"
           placeholder="Enter workspace description" />
+      </el-form-item>
+      
+      <el-form-item label="Parent Workspace (Optional)">
+        <el-select 
+          v-model="newMatter.parentWorkspaceId" 
+          placeholder="Select parent workspace"
+          clearable
+          style="width: 100%">
+          <template v-for="workspace in flattenTree(renderWorkspaceTree(workspaceTree))" :key="workspace.id">
+            <el-option
+              v-if="workspace.hasAccess && workspace.accessType === 'edit'"
+              :label="workspace.title"
+              :value="workspace.id"
+              :style="{ paddingLeft: (workspace.level * 20) + 'px' }">
+              <div class="workspace-option">
+                <el-icon>
+                  <folder-opened v-if="workspace.children && workspace.children.length > 0" />
+                  <document v-else />
+                </el-icon>
+                <span>{{ workspace.title }}</span>
+              </div>
+            </el-option>
+          </template>
+        </el-select>
+        <div class="form-help-text">
+          Only workspaces where you have edit access can be selected as parent workspaces.
+        </div>
       </el-form-item>
     </el-form>
     
@@ -316,6 +467,108 @@ export default {
   background-color: rgba(0, 0, 0, 0.03);
 }
 
+.workspace-dropdown-menu {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.workspace-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+  padding: 4px 0;
+}
+
+.workspace-item .el-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.workspace-item span {
+  flex: 1;
+}
+
+.workspace-item.no-access {
+  opacity: 0.6;
+}
+
+.no-access-text {
+  color: #999 !important;
+}
+
+.access-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.access-badge.view {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+.access-badge.edit {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.no-access-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.workspace-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.workspace-option .el-icon {
+  font-size: 14px;
+}
+
+.form-help-text {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+:deep(.el-dropdown-menu__item) {
+  padding: 8px 16px;
+  line-height: 1.4;
+}
+
+:deep(.el-dropdown-menu__item:hover) {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+:deep(.el-dropdown-menu__item.is-divided) {
+  border-top: 1px solid #e4e7ed;
+  margin-top: 6px;
+  padding-top: 8px;
+}
+
+:deep(.el-select-dropdown__item) {
+  padding: 8px 20px;
+}
+
+/* Remove default link styling */
 :deep(.el-dropdown-menu__item a) {
   text-decoration: none;
   color: inherit;

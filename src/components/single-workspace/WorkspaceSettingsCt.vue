@@ -64,6 +64,7 @@ export default {
         { label: 'Document Updates', value: 'document_updates' }
       ],
       phoneNumbers: [],
+      faxNumbers: [],
       newPhoneNumber: {
         label: '',
         number: ''
@@ -118,6 +119,11 @@ export default {
           this.loadPhoneTextActions();
           this.loadAvailableWorkspaces();
           this.parentWorkspace.id = newMatter?.parent_workspace_id || null;
+          
+          // Ensure faxNumbers is initialized
+          if (!this.faxNumbers) {
+            this.faxNumbers = [];
+          }
         }
       },
       immediate: true
@@ -523,6 +529,8 @@ export default {
       try {
         // Phone numbers are stored in the current workspace's phone_numbers field
         this.phoneNumbers = this.currentMatter?.phone_numbers || [];
+        // Fax numbers are stored in the current workspace's fax_numbers field
+        this.faxNumbers = this.currentMatter?.fax_numbers || [];
       } catch (error) {
         ElMessage.error('Error loading phone numbers: ' + error.message);
       }
@@ -555,6 +563,50 @@ export default {
 
     async addPhoneNumber() {
       try {
+        if(this.newPhoneNumber.purpose === 'fax'){   
+          // Ensure faxNumbers is always an array
+          if (!this.faxNumbers) {
+            this.faxNumbers = [];
+          }
+          
+          const { data: searchData, error: searchError } = await supabase
+            .rpc('search_workspaces_by_fax', { partial: this.newPhoneNumber.number });
+          if (searchError) throw searchError;
+          if(searchData.length > 0){
+            ElMessage.error('This fax number is already added in this/another workspace.');
+            return;
+          }
+          const newFaxPhone = {
+            id: Date.now(), // Simple ID for frontend use
+            label: this.newPhoneNumber.label,
+            number: this.newPhoneNumber.number,
+            caller_id_name: 'Not Available'       
+          };
+          const updatedFaxNumbers = [...this.faxNumbers, newFaxPhone];
+          
+          const { data, error } = await supabase
+            .from('workspaces')
+            .update({ fax_numbers: updatedFaxNumbers })
+            .eq('id', this.currentMatter.id)
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          // Update local fax numbers from database response
+          if (data && data.fax_numbers) {
+            this.faxNumbers = data.fax_numbers;
+            // Update the Pinia store with the new data
+            this.currentMatter.fax_numbers = data.fax_numbers;
+          } else {
+            // If no response data, manually update the local array
+            this.faxNumbers = updatedFaxNumbers;
+            this.currentMatter.fax_numbers = updatedFaxNumbers;
+          }
+          this.resetNewPhoneNumber();
+          ElMessage.success('Fax number added successfully');
+          return;
+        }else{
         // Uniqueness check
         const uniqueResult = await this.isPhoneNumberUnique(this.newPhoneNumber.number);
         if (uniqueResult === 'current') {
@@ -586,6 +638,7 @@ export default {
         this.phoneNumbers = data.phone_numbers;
         this.resetNewPhoneNumber();
         ElMessage.success('Phone number added successfully');
+        }
       } catch (error) {
         ElMessage.error('Error adding phone number: ' + error.message);
       }
@@ -611,10 +664,44 @@ export default {
       }
     },
 
+    async removeFaxNumber(faxId) {
+      try {
+        // Ensure faxNumbers is always an array
+        if (!this.faxNumbers) {
+          this.faxNumbers = [];
+        }
+        const updatedFaxNumbers = this.faxNumbers.filter(f => f.id !== faxId);
+
+        const { data, error } = await supabase
+          .from('workspaces')
+          .update({ fax_numbers: updatedFaxNumbers })
+          .eq('id', this.currentMatter.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local fax numbers from database response
+        if (data && data.fax_numbers) {
+          this.faxNumbers = data.fax_numbers;
+          // Update the Pinia store with the new data
+          this.currentMatter.fax_numbers = data.fax_numbers;
+        } else {
+          // If no response data, manually update the local array
+          this.faxNumbers = updatedFaxNumbers;
+          this.currentMatter.fax_numbers = updatedFaxNumbers;
+        }
+        ElMessage.success('Fax number removed successfully');
+      } catch (error) {
+        ElMessage.error('Error removing fax number: ' + error.message);
+      }
+    },
+
     resetNewPhoneNumber() {
       this.newPhoneNumber = {
         label: '',
-        number: ''
+        number: '',
+        purpose: 'message'
       };
     },
 
@@ -979,56 +1066,94 @@ export default {
         
         <!-- Add New Phone Number -->
         <el-form :model="newPhoneNumber" label-position="top">
-          <div class="phone-number-form">
-            <el-form-item label="Label" required>
-              <el-input 
-                v-model="newPhoneNumber.label" 
-                placeholder="e.g., Client Mobile, Office Line" />
-            </el-form-item>
-            
-            <el-form-item label="Phone Number" required>
-              <el-input 
-                v-model="newPhoneNumber.number" 
-                placeholder="Enter phone number"
-                type="tel" />
-            </el-form-item>
-
-            <div class="button-container">
-              <el-button 
-                type="primary"
-                @click="addPhoneNumber"
-                :disabled="!newPhoneNumber.label || !newPhoneNumber.number">
-                Add Phone No.
-              </el-button>
-            </div>
-          </div>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="grid-content ep-bg-purple">
+                <el-form-item label="Label" required>
+                  <el-input 
+                    v-model="newPhoneNumber.label" 
+                    placeholder="e.g., Client Mobile, Office Line" />
+                </el-form-item>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="grid-content ep-bg-purple">
+                <el-form-item label="Phone Number" required>
+                  <el-input 
+                    v-model="newPhoneNumber.number" 
+                    placeholder="Enter phone number"
+                    type="tel" />
+                </el-form-item>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="grid-content ep-bg-purple">
+                <el-form-item label="Purpose">
+                  <el-select v-model="newPhoneNumber.purpose" placeholder="Select purpose">
+                    <el-option label="To Send Message" value="message" />
+                    <el-option label="To Send Fax" value="fax" />
+                  </el-select>
+                </el-form-item>
+              </div>
+            </el-col>
+          </el-row>
+          <el-row>
+            <el-col :span="24">
+              <el-button style="float: right;" type="primary" @click="addPhoneNumber" :disabled="!newPhoneNumber.label || !newPhoneNumber.number">Add Phone Number</el-button>
+            </el-col>
+          </el-row>
         </el-form>
-
-        <!-- Phone Numbers List -->
-        <div class="phone-numbers-list">
-          <el-table :data="phoneNumbers">
-            <el-table-column prop="label" label="Label" />
-            <el-table-column prop="number" label="Phone Number" />
-            <el-table-column prop="caller_id_name" label="Caller ID Name" />
-            <el-table-column label="Actions" width="160" align="right">
-              <template #default="{ row }">
-                <el-button 
-                  type="primary"
-                  size="small"
-                  @click="editPhoneNumber(row)"
-                  style="margin-right: 8px;">
-                  <el-icon><EditPen /></el-icon>
-                </el-button>
-                <el-button 
-                  type="danger" 
-                  size="small"
-                  @click="removePhoneNumber(row.id)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
+        
+      
+        <el-tabs type="border-card" style="margin-top: 1rem;">
+          <el-tab-pane label="Phone Numbers">
+            <!-- Phone Numbers List -->
+            <div class="phone-numbers-list">
+              <el-table :data="phoneNumbers">
+                <el-table-column prop="label" label="Label" />
+                <el-table-column prop="number" label="Phone Number" />
+                <el-table-column prop="caller_id_name" label="Caller ID Name" />
+                <el-table-column label="Actions" width="160" align="right">
+                  <template #default="{ row }">
+                    <el-button 
+                      type="primary"
+                      size="small"
+                      @click="editPhoneNumber(row)"
+                      style="margin-right: 8px;">
+                      <el-icon><EditPen /></el-icon>
+                    </el-button>
+                    <el-button 
+                      type="danger" 
+                      size="small"
+                      @click="removePhoneNumber(row.id)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="Fax Numbers">
+            <!-- Fax Numbers List -->
+            <div class="fax-numbers-list" v-if="faxNumbers.length > 0">
+              <el-table :data="faxNumbers">
+                <el-table-column prop="label" label="Label" />
+                <el-table-column prop="number" label="Fax Number" />
+                <el-table-column label="Actions" width="160" align="right">
+                  <template #default="{ row }">
+                    <el-button 
+                      type="danger" 
+                      size="small"
+                      @click="removeFaxNumber(row.id)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+        
 
         <!-- Edit Phone Number Modal -->
         <el-dialog
@@ -1533,33 +1658,16 @@ h4 {
   }
 }
 
-.phone-number-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  padding: 1.5rem;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  background-color: #f8f9fa;
-  margin-bottom: 1.5rem;
-}
-
-.phone-number-form .button-container {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-}
-
 .phone-numbers-list {
   margin-top: 1rem;
 }
 
+.fax-numbers-list {
+  margin-top: 1rem;
+}
+
 @media (max-width: 768px) {
-  .phone-number-form {
-    grid-template-columns: 1fr;
-  }
-  
-  .phone-number-form .button-container {
+  .button-container {
     justify-content: center;
   }
 }

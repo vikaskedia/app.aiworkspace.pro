@@ -845,6 +845,7 @@ export default {
         <span>Title</span>
       </div>
       <div class="header-metadata">
+        <span>Workspace</span>
         <span>Status</span>
         <span>Assignee</span>
         <span>Priority</span>
@@ -923,6 +924,15 @@ export default {
                   </div>
                 </div>
                 <div class="task-metadata">
+                  <!-- Workspace -->
+                  <el-tag
+                    v-if="task.workspace_title"
+                    type="success"
+                    size="small"
+                    class="workspace-tag">
+                    <span>{{ task.workspace_title }}</span>
+                  </el-tag>
+                  
                   <!-- Status -->
                   <el-tag
                     :type="getStatusType(task)"
@@ -1046,6 +1056,15 @@ export default {
 
                     <div class="metadata-scroll-container">
                       <div class="task-metadata">
+                        <!-- Workspace -->
+                        <el-tag
+                          v-if="childTask.workspace_title"
+                          type="success"
+                          size="small"
+                          class="workspace-tag">
+                          <span>{{ childTask.workspace_title }}</span>
+                        </el-tag>
+                        
                         <el-tag
                           :type="getStatusType(childTask)"
                           size="small"
@@ -1156,6 +1175,15 @@ export default {
 
                           <div class="metadata-scroll-container">
                             <div class="task-metadata">
+                              <!-- Workspace -->
+                              <el-tag
+                                v-if="grandChildTask.workspace_title"
+                                type="success"
+                                size="small"
+                                class="workspace-tag">
+                                <span>{{ grandChildTask.workspace_title }}</span>
+                              </el-tag>
+                              
                               <el-tag
                                 :type="getStatusType(grandChildTask)"
                                 size="small"
@@ -1419,6 +1447,10 @@ export default {
 .task-metadata > * {
   min-width: 80px;
   text-align: center;
+}
+
+.task-metadata .workspace-tag {
+  width: 120px;
 }
 
 .task-metadata .status-tag {
@@ -1868,15 +1900,19 @@ span.logged-hours i {
   text-align: center;
 }
 
-.header-metadata span:nth-child(1) { /* Status */
+.header-metadata span:nth-child(1) { /* Workspace */
+  width: 120px;
+}
+
+.header-metadata span:nth-child(2) { /* Status */
   width: 100px;
 }
 
-.header-metadata span:nth-child(2) { /* Priority */
+.header-metadata span:nth-child(3) { /* Priority */
   width: 80px;
 }
 
-.header-metadata span:nth-child(3) { /* Due Date */
+.header-metadata span:nth-child(4) { /* Due Date */
   width: 85px;
 }
 
@@ -2112,6 +2148,10 @@ span.logged-hours i {
   /* Ensure all metadata items have consistent widths */
   .task-metadata > * {
     flex-shrink: 0;
+  }
+
+  .task-metadata .workspace-tag {
+    width: 120px;
   }
 
   .task-metadata .status-tag {

@@ -215,12 +215,12 @@ export const useTaskStore = defineStore('task', {
         // get current workspace id
         const { data: currentWorkspace, error: currentWorkspaceError } = await supabase
           .from('workspaces')
-          .select('id')
+          .select('id, title')
           .eq('id', matterId)
           .single();
 
         if (currentWorkspaceError) throw currentWorkspaceError;
-        
+
           
         
         let query = supabase
@@ -252,7 +252,7 @@ export const useTaskStore = defineStore('task', {
             const totalHours = hours + minutes/60 + seconds/3600;
             return sum + totalHours;
           }, 0) || 0,
-          workspace_title: currentWorkspace.title 
+          workspace_title: currentWorkspace.title || 'Unknown Workspace'
         }));
 
         // Fetch child workspace tasks

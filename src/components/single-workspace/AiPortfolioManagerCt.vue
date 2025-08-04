@@ -114,7 +114,7 @@
                   :initial-rows="spreadsheet.rows"
                   :initial-columns="spreadsheet.columns"
                   :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
-                  :matter-id="currentMatterId"
+                  :matter-id="portfolio.childMatterId || currentMatterId"
                   :portfolio-id="portfolio.id"
                   :readonly="getPortfolioReadonlyState(portfolio.id)"
                   @remove-spreadsheet="removeSpreadsheet"

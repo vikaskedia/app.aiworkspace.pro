@@ -147,9 +147,81 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
+    async fetchChildWorkspaceTasks(matterId, showDeleted = false) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // First, get all child workspaces where current_workspace_id = matterId
+        const { data: childWorkspaces, error: childWorkspacesError } = await supabase
+          .from('workspaces')
+          .select('id, title')
+          .eq('parent_workspace_id', matterId)
+          .eq('archived', false);
+
+        if (childWorkspacesError) throw childWorkspacesError;
+
+        if (!childWorkspaces || childWorkspaces.length === 0) {
+          return [];
+        }
+
+        const childWorkspaceIds = childWorkspaces.map(workspace => workspace.id);
+
+        // Get tasks from all child workspaces
+        let query = supabase
+          .from('tasks')
+          .select(`
+            *,
+            task_stars (
+              user_id
+            ),
+            task_hours_logs (
+              time_taken
+            )
+          `)
+          .in('matter_id', childWorkspaceIds);
+
+        if (!showDeleted) {
+          query = query.eq('deleted', false);
+        }
+
+        const { data: tasks, error } = await query;
+        if (error) throw error;
+
+        const transformedTasks = tasks.map(task => ({
+          ...task,
+          starred: Boolean(task.task_stars?.length),
+          total_hours: task.task_hours_logs?.reduce((sum, log) => {
+            if (!log.time_taken) return sum;
+            const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
+            const totalHours = hours + minutes/60 + seconds/3600;
+            return sum + totalHours;
+          }, 0) || 0,
+          // Add workspace information to identify which workspace the task belongs to
+          workspace_title: childWorkspaces.find(w => w.id === task.matter_id)?.title || 'Unknown Workspace'
+        }));
+
+        return transformedTasks;
+      } catch (error) {
+        console.error('Error fetching child workspace tasks:', error);
+        throw error;
+      }
+    },
+
     async fetchAndCacheTasks(matterId, showDeleted = false) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+
+
+        // get current workspace id
+        const { data: currentWorkspace, error: currentWorkspaceError } = await supabase
+          .from('workspaces')
+          .select('id')
+          .eq('id', matterId)
+          .single();
+
+        if (currentWorkspaceError) throw currentWorkspaceError;
+        
+          
         
         let query = supabase
           .from('tasks')
@@ -179,14 +251,21 @@ export const useTaskStore = defineStore('task', {
             const [hours, minutes, seconds] = log.time_taken.split(':').map(Number);
             const totalHours = hours + minutes/60 + seconds/3600;
             return sum + totalHours;
-          }, 0) || 0
+          }, 0) || 0,
+          workspace_title: currentWorkspace.title 
         }));
 
+        // Fetch child workspace tasks
+        const childWorkspaceTasks = await this.fetchChildWorkspaceTasks(matterId, showDeleted);
+
+        // Combine parent workspace tasks with child workspace tasks
+        const allTasks = [...transformedTasks, ...childWorkspaceTasks];
+
         if (!showDeleted) {
-          this.setCachedTasks(matterId, transformedTasks);
+          this.setCachedTasks(matterId, allTasks);
         }
 
-        return transformedTasks;
+        return allTasks;
       } catch (error) {
         console.error('Error fetching tasks:', error);
         throw error;

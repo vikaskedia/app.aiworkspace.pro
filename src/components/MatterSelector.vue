@@ -100,80 +100,46 @@ export default {
 
     const loadMatters = async () => {
       try {
-        // Get the current user first
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use the store's improved loadMatters method
+        const workspacesWithActivity = await matterStore.loadMatters();
+        workspaces.value = workspacesWithActivity;
         
-        // First, get all workspaces that the user has access to
-        const { data: userWorkspaces, error: userError } = await supabase
-          .from('workspaces')
-          .select(`
-            *,
-            workspace_access!inner (
-              access_type,
-              shared_with_user_id
-            ),
-            workspace_activities!left (
-              updated_at
-            )
-          `)
-          .eq('archived', false)
-          .eq('workspace_access.shared_with_user_id', user.id);
-
-        if (userError) throw userError;
-
-        // Create a map of user's access
+        // Create userAccessMap from the workspace data
         const userAccess = new Map();
-        userWorkspaces.forEach(workspace => {
-          const access = workspace.workspace_access.find(acc => acc.shared_with_user_id === user.id);
-          if (access) {
-            userAccess.set(workspace.id, access);
+        workspacesWithActivity.forEach(workspace => {
+          if (workspace.hasAccess) {
+            userAccess.set(workspace.id, { access_type: workspace.accessType });
           }
         });
-        
         userAccessMap.value = userAccess;
-
-        // Get parent workspace IDs that we need to show for tree structure
-        const parentIds = [...new Set(
-          userWorkspaces
-            .filter(w => w.parent_workspace_id)
-            .map(w => w.parent_workspace_id)
-            .filter(id => !userAccess.has(id)) // Only get parents we don't already have access to
-        )];
-
-        // Get parent workspaces for tree structure (even if user doesn't have access)
-        let parentWorkspaces = [];
-        if (parentIds.length > 0) {
-          const { data: parents, error: parentError } = await supabase
-            .from('workspaces')
-            .select('*')
-            .in('id', parentIds)
-            .eq('archived', false);
-          
-          if (parentError) throw parentError;
-          parentWorkspaces = parents || [];
-        }
-
-        // Combine all workspaces
-        const allWorkspaces = [...userWorkspaces, ...parentWorkspaces];
-
-        // Process workspaces and add latest activity
-        const workspacesWithActivity = allWorkspaces.map(workspace => ({
-          ...workspace,
-          latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at
-        }));
-
-        workspaces.value = workspacesWithActivity;
         
         // Build tree structure
         workspaceTree.value = buildWorkspaceTree(workspacesWithActivity, userAccess);
 
-        // After loading workspaces, check URL for workspace ID
-        const worksspaceId = route.params.worksspaceId;
-        if (worksspaceId) {
-          const workspace = workspacesWithActivity.find(m => m.id === parseInt(worksspaceId));
-          if (workspace && userAccess.has(workspace.id)) {
+        // After loading workspaces, check URL for workspace ID first
+        const workspaceId = route.params.workspaceId;
+        if (workspaceId) {
+          const workspace = workspacesWithActivity.find(m => m.id === parseInt(workspaceId));
+          if (workspace && workspace.hasAccess) {
             selectedWorkspace.value = workspace;
+            matterStore.setCurrentMatter(workspace);
             emit('workspace-selected', workspace);
+            return; // Exit early since we found workspace from URL
+          }
+        }
+
+        // If no workspace from URL, validate currentMatter from store
+        if (currentMatter.value) {
+          const storedWorkspace = workspacesWithActivity.find(m => m.id === currentMatter.value.id);
+          if (storedWorkspace && storedWorkspace.hasAccess) {
+            // Current matter is valid, update with fresh data
+            selectedWorkspace.value = storedWorkspace;
+            matterStore.setCurrentMatter(storedWorkspace);
+            emit('workspace-selected', storedWorkspace);
+          } else {
+            // Current matter is no longer valid, clear it
+            selectedWorkspace.value = null;
+            matterStore.setCurrentMatter(null);
           }
         }
       } catch (error) {
@@ -350,6 +316,10 @@ export default {
     };
 
     onMounted(() => {
+      // Initialize selected workspace from store if available
+      if (currentMatter.value) {
+        selectedWorkspace.value = currentMatter.value;
+      }
       loadMatters();
     });
 

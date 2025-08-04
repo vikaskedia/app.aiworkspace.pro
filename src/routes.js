@@ -426,8 +426,13 @@ router.beforeEach(async (to, from, next) => {
     try {
       await matterStore.loadMatters();
       const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.workspaceId));
-      if (workspace) {
+      // Only set as current if workspace exists and user has access
+      if (workspace && workspace.hasAccess) {
         matterStore.setCurrentMatter(workspace);
+      } else if (to.params.workspaceId) {
+        // If workspace doesn't exist or user has no access, redirect to all workspaces
+        next('/all-workspace');
+        return;
       }
     } catch (error) {
       console.error('Error loading workspace:', error);

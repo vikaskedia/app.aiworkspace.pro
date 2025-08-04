@@ -7,6 +7,11 @@ export const useMatterStore = defineStore('workspace', {
     workspaces: []
   }),
 
+  persist: {
+    storage: localStorage,
+    paths: ['currentMatter']
+  },
+
   actions: {
     setCurrentMatter(workspace) {
       this.currentMatter = workspace;
@@ -14,36 +19,67 @@ export const useMatterStore = defineStore('workspace', {
 
     async loadMatters(includeArchived = false) {
       try {
-        // First get all workspaces
-        const query = supabase
+        // Get the current user first
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // First, get all workspaces that the user has access to
+        const { data: userWorkspaces, error: userError } = await supabase
           .from('workspaces')
-          .select('*');
+          .select(`
+            *,
+            workspace_access!inner (
+              access_type,
+              shared_with_user_id
+            ),
+            workspace_activities!left (
+              updated_at
+            )
+          `)
+          .eq('archived', includeArchived ? null : false)
+          .eq('workspace_access.shared_with_user_id', user.id);
 
-        if (!includeArchived) {
-          query.eq('archived', false);
+        if (userError) throw userError;
+
+        // Create a map of user's access
+        const userAccess = new Map();
+        userWorkspaces.forEach(workspace => {
+          const access = workspace.workspace_access.find(acc => acc.shared_with_user_id === user.id);
+          if (access) {
+            userAccess.set(workspace.id, access);
+          }
+        });
+
+        // Get parent workspace IDs that we need to show for tree structure
+        const parentIds = [...new Set(
+          userWorkspaces
+            .filter(w => w.parent_workspace_id)
+            .map(w => w.parent_workspace_id)
+            .filter(id => !userAccess.has(id)) // Only get parents we don't already have access to
+        )];
+
+        // Get parent workspaces for tree structure (even if user doesn't have access)
+        let parentWorkspaces = [];
+        if (parentIds.length > 0) {
+          const { data: parents, error: parentError } = await supabase
+            .from('workspaces')
+            .select('*')
+            .in('id', parentIds)
+            .eq('archived', includeArchived ? null : false);
+          
+          if (parentError) throw parentError;
+          parentWorkspaces = parents || [];
         }
 
-        const { data: workspaces, error } = await query;
-        if (error) throw error;
+        // Combine all workspaces
+        const allWorkspaces = [...userWorkspaces, ...parentWorkspaces];
 
-        // Get the latest activity for each workspace
-        const workspacesWithActivity = await Promise.all(
-          workspaces.map(async (workspace) => {
-            const { data: activities, error: activityError } = await supabase
-              .from('workspace_activities')
-              .select('updated_at')
-              .eq('matter_id', workspace.id)
-              .order('updated_at', { ascending: false })
-              .limit(1);
-
-            const latestActivity = activities?.[0]?.updated_at || workspace.created_at;
-            
-            return {
-              ...workspace,
-              latest_activity: latestActivity
-            };
-          })
-        );
+        // Process workspaces and add latest activity and access info
+        const workspacesWithActivity = allWorkspaces.map(workspace => ({
+          ...workspace,
+          latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at,
+          hasAccess: userAccess.has(workspace.id),
+          accessType: userAccess.get(workspace.id)?.access_type || null
+        }));
 
         // Sort by latest activity
         workspacesWithActivity.sort((a, b) => {

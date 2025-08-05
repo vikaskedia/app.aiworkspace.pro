@@ -420,7 +420,7 @@ export default {
           .from('ai_portfolio_settings')
           .select('portfolio_id, view_mode')
           .eq('user_id', user.user.id)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
         
         if (error) {
           console.error('Error loading portfolio view mode preferences:', error);
@@ -458,7 +458,7 @@ export default {
         const { data: editingUsers, error } = await supabase
           .from('ai_portfolio_settings')
           .select('portfolio_id, user_id')
-          .eq('matter_id', currentWorkspaceId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
           .eq('view_mode', false) // false = edit mode
           .neq('user_id', user.user.id); // exclude current user
 
@@ -512,7 +512,7 @@ export default {
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.user.id)
-          .eq('matter_id', currentWorkspaceId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
           .eq('portfolio_id', portfolioId)
           .select();
         
@@ -528,7 +528,7 @@ export default {
             .from('ai_portfolio_settings')
             .insert({
               user_id: user.user.id,
-              matter_id: currentWorkspaceId.value,
+              workspace_id: currentWorkspaceId.value,
               portfolio_id: portfolioId,
               view_mode: isReadonly,
               created_at: new Date().toISOString(),
@@ -590,7 +590,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'ai_portfolio_settings',
-            filter: `matter_id=eq.${currentWorkspaceId.value}`
+            filter: `workspace_id=eq.${currentWorkspaceId.value}`
           },
           async (payload) => {
             console.log('📡 Received real-time editing update:', payload);
@@ -680,7 +680,7 @@ export default {
         const { data: existingEditors, error: checkError } = await supabase
           .from('ai_portfolio_settings')
           .select('user_id')
-          .eq('matter_id', currentWorkspaceId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
           .eq('portfolio_id', portfolioId)
           .eq('view_mode', false) // false = edit mode
           .neq('user_id', user.user.id); // exclude current user
@@ -869,7 +869,7 @@ export default {
             updated_by: (await supabase.auth.getUser()).data.user?.id
           })
           .eq('portfolio_id', editingPortfolio.value.id)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (error) throw error;
         
@@ -977,7 +977,7 @@ export default {
         const { data: childPortfolioData, error: childPortfolioError } = await supabase
           .from('portfolio_data')
           .select('*')
-          .eq('matter_id', childMatter.id)
+          .eq('workspace_id', childMatter.id)
           .order('created_at', { ascending: true });
 
         if (childPortfolioError) {
@@ -988,7 +988,7 @@ export default {
         const childPortfolios = childPortfolioData?.map(portfolio => ({
           id: portfolio.portfolio_id,
           name: `${portfolio.portfolio_name}`, // `${childMatter.title} - ${portfolio.portfolio_name}`
-          matterId: portfolio.matter_id,
+          matterId: portfolio.workspace_id,
           childMatterId: childMatter.id,
           childMatterTitle: childMatter.title,
           createdAt: new Date(portfolio.created_at),
@@ -1032,7 +1032,7 @@ export default {
           const { data: childSpreadsheets, error: childSpreadsheetError } = await supabase
             .from('ai_portfolio_data')
             .select('*')
-            .in('matter_id', childMatterIds)
+            .in('workspace_id', childMatterIds)
             .not('spreadsheet_id', 'is', null)
             .order('created_at', { ascending: false });
 
@@ -1048,7 +1048,7 @@ export default {
         const { data: portfolioData, error: portfolioError } = await supabase
           .from('portfolio_data')
           .select('*')
-          .eq('matter_id', currentWorkspaceId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
           .order('created_at', { ascending: true });
 
         if (portfolioError) {
@@ -1059,7 +1059,7 @@ export default {
         const { data: spreadsheetData, error: spreadsheetError } = await supabase
           .from('ai_portfolio_data')
           .select('*')
-          .eq('matter_id', currentWorkspaceId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
           .not('spreadsheet_id', 'is', null)
           .order('created_at', { ascending: false });
 
@@ -1156,7 +1156,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .insert([{
-            matter_id: currentWorkspaceId.value,
+            workspace_id: currentWorkspaceId.value,
             portfolio_id: portfolioId,
             portfolio_name: 'Portfolio 1',
             columns: [],
@@ -1259,7 +1259,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .insert([{
-            matter_id: currentWorkspaceId.value,
+            workspace_id: currentWorkspaceId.value,
             portfolio_id: portfolioId,
             portfolio_name: newPortfolioForm.value.name,
             columns: [],
@@ -1330,7 +1330,7 @@ export default {
           .from('portfolio_data')
           .delete()
           .eq('portfolio_id', portfolioId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (portfolioError) throw portfolioError;
         
@@ -1339,7 +1339,7 @@ export default {
           .from('ai_portfolio_data')
           .delete()
           .eq('portfolio_id', portfolioId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (spreadsheetError) console.warn('Error deleting spreadsheets:', spreadsheetError);
         
@@ -1482,7 +1482,7 @@ export default {
           .from('ai_portfolio_data')
           .delete()
           .eq('spreadsheet_id', spreadsheetId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (error) throw error;
         
@@ -1718,18 +1718,18 @@ export default {
         
         const { error } = await supabase
           .from('portfolio_data')
-          .update({ matter_id: selectedDestinationMatterId.value })
+          .update({ workspace_id: selectedDestinationMatterId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (error) throw error;
 
         // Also update ai_portfolio_data table if there are spreadsheets
         const { error: aiError } = await supabase
           .from('ai_portfolio_data')
-          .update({ matter_id: selectedDestinationMatterId.value })
+          .update({ workspace_id: selectedDestinationMatterId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
 
         if (aiError) {
           console.warn('Error updating ai_portfolio_data:', aiError);

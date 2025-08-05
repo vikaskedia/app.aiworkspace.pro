@@ -2289,12 +2289,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       }
 
       try {
-        // Find data with the specific spreadsheet_id AND matter_id AND portfolio_id for filtering
+        // Find data with the specific spreadsheet_id AND workspace_id AND portfolio_id for filtering
         let query = supabase
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {
@@ -2498,7 +2498,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
             data: cleanedData,
             name: props.spreadsheetName,
             spreadsheet_id: props.spreadsheetId,
-            matter_id: currentWorkspaceId.value,
+            workspace_id: currentWorkspaceId.value,
             portfolio_id: props.portfolioId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -2567,7 +2567,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {
@@ -3332,7 +3332,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentWorkspaceId.value);
+          .eq('workspace_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {

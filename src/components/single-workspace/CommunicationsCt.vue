@@ -149,7 +149,7 @@
   const supabase = createClient(supabaseUrl, supabaseKey)
 
   const matterStore = useMatterStore();
-  const { currentMatter } = storeToRefs(matterStore);
+  const { currentWorkspace } = storeToRefs(matterStore);
   
   const emails = ref([])
   const loading = ref(false)
@@ -223,7 +223,7 @@
   const fetchEmails = async () => {
     loading.value = true
     try {
-      var namespace = currentMatter.value.git_repo+"@westviewlegal.com"
+      var namespace = currentWorkspace.value.git_repo+"@westviewlegal.com"
       const { data, error } = await supabase
         .from('emails')
         .select('*')

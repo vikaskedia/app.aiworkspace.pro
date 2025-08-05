@@ -71,9 +71,9 @@ export default {
       }
       return 'Dashboard';
     },
-    currentMatter() {
+    currentWorkspace() {
       const matterStore = useMatterStore();
-      return matterStore.currentMatter;
+      return matterStore.currentWorkspace;
     },
     hasQuickActions() {
       const path = this.$route.path;
@@ -206,46 +206,46 @@ export default {
     handleMatterCommand(command) {
       const matterStore = useMatterStore();
       
-      if (this.currentMatter?.id) {
+      if (this.currentWorkspace?.id) {
         switch(command) {
           case 'dashboard':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/dashboard`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/dashboard`);
             break;
           case 'goals':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/goals`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/goals`);
             break;
           case 'tasks':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/tasks`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/tasks`);
             break;
           case 'events':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/events`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/events`);
             break;
           case 'files':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/files`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/files`);
             break;
           case 'outlines':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/outlines`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/outlines`);
             break;
           case 'contacts':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/contacts`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/contacts`);
             break;
           case 'communications':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/communications`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/communications`);
             break;
           case 'ai_phone':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/ai_phone`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_phone`);
             break;
           case 'ai_intake':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/ai_intake`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_intake`);
             break;
           case 'ai_portfolio':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/ai_portfolio`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_portfolio`);
             break;
           case 'ai_fund_analyst':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/ai_fund_analyst`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_fund_analyst`);
             break;
           case 'settings':
-            this.$router.push(`/single-workspace/${this.currentMatter.id}/settings`);
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/settings`);
             break;
         }
       } else {
@@ -446,22 +446,22 @@ export default {
           <template #dropdown>
             <el-dropdown-menu>
               <!-- Show these options when a specific workspace is selected -->
-              <template v-if="currentMatter">
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/dashboard`">Dashboard</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/goals`">Goals</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/tasks`">Tasks</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/events`">Events</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/files`">Files</a></el-dropdown-item>
+              <template v-if="currentWorkspace">
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/dashboard`">Dashboard</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/goals`">Goals</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/tasks`">Tasks</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
-                  <a :href="`/single-workspace/${currentMatter.id}/outlines`">Outlines</a>
+                  <a :href="`/single-workspace/${currentWorkspace.id}/outlines`">Outlines</a>
                 </el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/communications`">Communications</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_phone`">AI Phone</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_intake`">AI Intake</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_portfolio`">AI Portfolios</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/ai_fund_analyst`">AI Fund Analyst</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/contacts`">Contacts</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentMatter.id}/settings`">Settings</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_portfolio`">AI Portfolios</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fund_analyst`">AI Fund Analyst</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/contacts`">Contacts</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/settings`">Settings</a></el-dropdown-item>
               </template>
               <!-- Show these options when "All Workspaces" is selected -->
               <template v-else>

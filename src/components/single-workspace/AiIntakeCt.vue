@@ -168,8 +168,8 @@ import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 const matterStore = useMatterStore();
-const { currentMatter } = storeToRefs(matterStore);
-const workspaceId = currentMatter.value.id;
+const { currentWorkspace } = storeToRefs(matterStore);
+const workspaceId = currentWorkspace.value.id;
 console.log('workspaceId', workspaceId);
 
 const loading = ref(false);
@@ -533,12 +533,12 @@ function formatDate(dateStr) {
 
 // Function to update page title
 function updatePageTitle() {
-  const workspaceName = currentMatter.value?.title || 'Workspace';
+  const workspaceName = currentWorkspace.value?.title || 'Workspace';
   setWorkspaceTitle('AI Intake', workspaceName);
 }
 
 // Watch for workspace changes and page title changes
-watch(currentMatter, () => {
+watch(currentWorkspace, () => {
   updatePageTitle();
 }, { immediate: true });
 

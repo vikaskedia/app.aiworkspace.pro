@@ -31,7 +31,7 @@
            💾 Enhanced Save System captures ALL Univer features! -->
 
       <!-- Portfolio Tabs -->
-      <div class="portfolio-tabs-container" v-if="currentMatter">
+      <div class="portfolio-tabs-container" v-if="currentWorkspace">
         <el-tabs 
           v-model="activePortfolioId" 
           type="card" 
@@ -131,7 +131,7 @@
                   :initial-rows="spreadsheet.rows"
                   :initial-columns="spreadsheet.columns"
                   :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
-                  :matter-id="portfolio.childMatterId || currentMatterId"
+                  :matter-id="portfolio.childMatterId || currentWorkspaceId"
                   :portfolio-id="portfolio.id"
                   :readonly="getPortfolioReadonlyState(portfolio.id)"
                   @remove-spreadsheet="removeSpreadsheet"
@@ -386,10 +386,10 @@ export default {
   setup() {
     // Workspace store for workspace context
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
     // Computed workspace ID for workspace filtering
-    const currentMatterId = computed(() => currentMatter.value?.id);
+    const currentWorkspaceId = computed(() => currentWorkspace.value?.id);
     
     // Portfolio management
     const portfolios = ref([]);
@@ -401,13 +401,13 @@ export default {
     
     // Load portfolio view mode preferences from Supabase
     const loadPortfolioViewModePreferences = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn('⚠️ No current workspace ID, cannot load portfolio preferences');
         return;
       }
 
       try {
-        console.log(`🔍 Loading portfolio view mode preferences for workspace ${currentMatterId.value}...`);
+        console.log(`🔍 Loading portfolio view mode preferences for workspace ${currentWorkspaceId.value}...`);
         const { data: user } = await supabase.auth.getUser();
         
         if (!user?.user?.id) {
@@ -420,7 +420,7 @@ export default {
           .from('ai_portfolio_settings')
           .select('portfolio_id, view_mode')
           .eq('user_id', user.user.id)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
         
         if (error) {
           console.error('Error loading portfolio view mode preferences:', error);
@@ -458,7 +458,7 @@ export default {
         const { data: editingUsers, error } = await supabase
           .from('ai_portfolio_settings')
           .select('portfolio_id, user_id')
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentWorkspaceId.value)
           .eq('view_mode', false) // false = edit mode
           .neq('user_id', user.user.id); // exclude current user
 
@@ -490,7 +490,7 @@ export default {
     
     // Save portfolio view mode preference to Supabase
     const savePortfolioViewModePreference = async (portfolioId, isReadonly) => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn('⚠️ No current workspace ID, cannot save portfolio preference');
         return;
       }
@@ -512,7 +512,7 @@ export default {
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.user.id)
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentWorkspaceId.value)
           .eq('portfolio_id', portfolioId)
           .select();
         
@@ -528,7 +528,7 @@ export default {
             .from('ai_portfolio_settings')
             .insert({
               user_id: user.user.id,
-              matter_id: currentMatterId.value,
+              matter_id: currentWorkspaceId.value,
               portfolio_id: portfolioId,
               view_mode: isReadonly,
               created_at: new Date().toISOString(),
@@ -573,24 +573,24 @@ export default {
 
     // Setup real-time subscription for collaborative editing
     const setupEditingSubscription = () => {
-      if (!currentMatterId.value) return;
+      if (!currentWorkspaceId.value) return;
 
       // Clean up existing subscription
       if (editingSubscription) {
         editingSubscription.unsubscribe();
       }
 
-      console.log(`📡 Setting up collaborative editing subscription for workspace ${currentMatterId.value}`);
+      console.log(`📡 Setting up collaborative editing subscription for workspace ${currentWorkspaceId.value}`);
 
       editingSubscription = supabase
-        .channel(`portfolio-editing-${currentMatterId.value}`)
+        .channel(`portfolio-editing-${currentWorkspaceId.value}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'ai_portfolio_settings',
-            filter: `matter_id=eq.${currentMatterId.value}`
+            filter: `matter_id=eq.${currentWorkspaceId.value}`
           },
           async (payload) => {
             console.log('📡 Received real-time editing update:', payload);
@@ -680,7 +680,7 @@ export default {
         const { data: existingEditors, error: checkError } = await supabase
           .from('ai_portfolio_settings')
           .select('user_id')
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentWorkspaceId.value)
           .eq('portfolio_id', portfolioId)
           .eq('view_mode', false) // false = edit mode
           .neq('user_id', user.user.id); // exclude current user
@@ -833,7 +833,7 @@ export default {
     
     // Update portfolio name
     const updatePortfolioName = async () => {
-      if (!currentMatterId.value || !editingPortfolio.value) {
+      if (!currentWorkspaceId.value || !editingPortfolio.value) {
         ElMessage.error('No workspace or portfolio selected');
         return;
       }
@@ -869,7 +869,7 @@ export default {
             updated_by: (await supabase.auth.getUser()).data.user?.id
           })
           .eq('portfolio_id', editingPortfolio.value.id)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (error) throw error;
         
@@ -924,24 +924,24 @@ export default {
         return portfolio.childMatterTitle;
       } else {
         // This belongs to the current workspace
-        return currentMatter.value?.title || 'Current Workspace';
+        return currentWorkspace.value?.title || 'Current Workspace';
       }
     };
 
     const loadChildMatters = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn('⚠️ No current workspace selected, cannot load child workspaces');
         return;
       }
 
       try {
-        console.log(`👶 Loading child workspaces for workspace ${currentMatterId.value}...`);
+        console.log(`👶 Loading child workspaces for workspace ${currentWorkspaceId.value}...`);
 
         // Get child workspaces where parent_workspace_id = current workspace id
         const { data: childMattersData, error } = await supabase
           .from('workspaces')
           .select('id, title, description')
-          .eq('parent_workspace_id', currentMatterId.value)
+          .eq('parent_workspace_id', currentWorkspaceId.value)
           .eq('archived', false)
           .order('title');
 
@@ -1010,13 +1010,13 @@ export default {
     
     // Initialize portfolios and spreadsheets for current workspace
     const initializePortfolios = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn('⚠️ No current workspace selected, cannot load portfolios');
         return;
       }
 
       try {
-        console.log(`📊 Loading portfolios for workspace ${currentMatterId.value}...`);
+        console.log(`📊 Loading portfolios for workspace ${currentWorkspaceId.value}...`);
 
         // Load child workspaces first (before loading portfolios)
         await loadChildMatters();
@@ -1048,7 +1048,7 @@ export default {
         const { data: portfolioData, error: portfolioError } = await supabase
           .from('portfolio_data')
           .select('*')
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentWorkspaceId.value)
           .order('created_at', { ascending: true });
 
         if (portfolioError) {
@@ -1059,7 +1059,7 @@ export default {
         const { data: spreadsheetData, error: spreadsheetError } = await supabase
           .from('ai_portfolio_data')
           .select('*')
-          .eq('matter_id', currentMatterId.value)
+          .eq('matter_id', currentWorkspaceId.value)
           .not('spreadsheet_id', 'is', null)
           .order('created_at', { ascending: false });
 
@@ -1147,7 +1147,7 @@ export default {
     
     // Create default portfolio
     const createDefaultPortfolio = async () => {
-      if (!currentMatterId.value) return;
+      if (!currentWorkspaceId.value) return;
       
       try {
         const portfolioId = generatePortfolioId();
@@ -1156,7 +1156,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .insert([{
-            matter_id: currentMatterId.value,
+            matter_id: currentWorkspaceId.value,
             portfolio_id: portfolioId,
             portfolio_name: 'Portfolio 1',
             columns: [],
@@ -1184,7 +1184,7 @@ export default {
     
     // Create default spreadsheet in a portfolio
     const createDefaultSpreadsheet = async (portfolioId) => {
-      if (!currentMatterId.value || !portfolioId) return;
+      if (!currentWorkspaceId.value || !portfolioId) return;
       
       try {
         const spreadsheetId = generateSpreadsheetId();
@@ -1214,7 +1214,7 @@ export default {
     
     // Show add portfolio dialog
     const showAddPortfolioDialog = () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -1225,7 +1225,7 @@ export default {
     
     // Add new portfolio
     const addNewPortfolio = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.error('No workspace selected');
         return;
       }
@@ -1259,7 +1259,7 @@ export default {
         const { error } = await supabase
           .from('portfolio_data')
           .insert([{
-            matter_id: currentMatterId.value,
+            matter_id: currentWorkspaceId.value,
             portfolio_id: portfolioId,
             portfolio_name: newPortfolioForm.value.name,
             columns: [],
@@ -1305,7 +1305,7 @@ export default {
     
     // Delete portfolio
     const deletePortfolio = async (portfolioId) => {
-      if (!currentMatterId.value || portfolios.value.length <= 1) {
+      if (!currentWorkspaceId.value || portfolios.value.length <= 1) {
         ElMessage.warning('Cannot delete the last portfolio');
         return;
       }
@@ -1330,7 +1330,7 @@ export default {
           .from('portfolio_data')
           .delete()
           .eq('portfolio_id', portfolioId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (portfolioError) throw portfolioError;
         
@@ -1339,7 +1339,7 @@ export default {
           .from('ai_portfolio_data')
           .delete()
           .eq('portfolio_id', portfolioId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (spreadsheetError) console.warn('Error deleting spreadsheets:', spreadsheetError);
         
@@ -1368,7 +1368,7 @@ export default {
     
     // Show add spreadsheet dialog
     const showAddSpreadsheetDialog = (portfolioId) => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -1384,7 +1384,7 @@ export default {
     
     // Add new spreadsheet
     const addNewSpreadsheet = async () => {
-      if (!currentMatterId.value || !targetPortfolioId.value) {
+      if (!currentWorkspaceId.value || !targetPortfolioId.value) {
         ElMessage.error('No workspace or portfolio selected');
         return;
       }
@@ -1448,7 +1448,7 @@ export default {
     
     // Remove spreadsheet
     const removeSpreadsheet = async (spreadsheetId) => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.error('No workspace selected');
         return;
       }
@@ -1482,7 +1482,7 @@ export default {
           .from('ai_portfolio_data')
           .delete()
           .eq('spreadsheet_id', spreadsheetId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (error) throw error;
         
@@ -1502,7 +1502,7 @@ export default {
 
     // Function to update page title
     const updatePageTitle = () => {
-      const workspaceName = currentMatter.value?.title || 'Workspace';
+      const workspaceName = currentWorkspace.value?.title || 'Workspace';
       
       // Get the active portfolio name for the component-specific part
       let portfolioName = undefined;
@@ -1520,8 +1520,8 @@ export default {
       let isInitialized = false;
       
       return computed(() => {
-        if (currentMatter.value?.id) {
-          const matterId = currentMatter.value.id;
+        if (currentWorkspace.value?.id) {
+          const matterId = currentWorkspace.value.id;
           
           if (isInitialized) {
             console.log(`🔄 Workspace changed to ${matterId}, reloading portfolios...`);
@@ -1549,7 +1549,7 @@ export default {
           }
         }
         
-        return currentMatter.value?.id;
+        return currentWorkspace.value?.id;
       });
     };
 
@@ -1568,7 +1568,7 @@ export default {
     const handleReadonlyChange = async (portfolioId, checked) => {
       console.log(`🔄 handleReadonlyChange called for portfolio ${portfolioId} with checked=${checked}`);
       
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.error('No workspace selected');
         return;
       }
@@ -1647,7 +1647,7 @@ export default {
           .from('workspaces')
           .select('id, title')
           .eq('archived', false)
-          .neq('id', currentMatterId.value) // Exclude current workspace
+          .neq('id', currentWorkspaceId.value) // Exclude current workspace
           .in('id', accessibleMatterIds);
 
         if (error) throw error;
@@ -1662,7 +1662,7 @@ export default {
 
     // Move portfolio to a different workspace - show dialog
     const movePortfolio = async (portfolioId) => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         ElMessage.error('No workspace selected');
         return;
       }
@@ -1720,7 +1720,7 @@ export default {
           .from('portfolio_data')
           .update({ matter_id: selectedDestinationMatterId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (error) throw error;
 
@@ -1729,7 +1729,7 @@ export default {
           .from('ai_portfolio_data')
           .update({ matter_id: selectedDestinationMatterId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
 
         if (aiError) {
           console.warn('Error updating ai_portfolio_data:', aiError);
@@ -1781,8 +1781,8 @@ export default {
     });
 
     return {
-      currentMatter,
-      currentMatterId,
+      currentWorkspace,
+      currentWorkspaceId,
       loadChildMatters,
       getChildMatterPortfolios,
       portfolios,

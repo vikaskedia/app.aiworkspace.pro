@@ -7,7 +7,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-workspace/${currentMatter?.id}/goals`)">
+          @click="$router.push(`/single-workspace/${currentWorkspace?.id}/goals`)">
           View All Goals
         </el-button>
       </div>
@@ -20,7 +20,7 @@
           label="Title"
           min-width="200" />
         <el-table-column 
-          v-if="!currentMatter"
+          v-if="!currentWorkspace"
           prop="matter_title" 
           label="Workspace"
           min-width="150" />
@@ -55,7 +55,7 @@
       <div class="section-header">
         <h3>Recent Tasks</h3>
         <a 
-          :href="`/single-workspace/${currentMatter?.id}/tasks`"
+          :href="`/single-workspace/${currentWorkspace?.id}/tasks`"
           class="el-button el-button--primary is-link">
           View All Tasks
         </a>
@@ -85,7 +85,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-workspace/${currentMatter?.id}/events`)">
+          @click="$router.push(`/single-workspace/${currentWorkspace?.id}/events`)">
           View All Events
         </el-button>
       </div>
@@ -98,7 +98,7 @@
           label="Title"
           min-width="200" />
         <el-table-column 
-          v-if="!currentMatter"
+          v-if="!currentWorkspace"
           prop="matter_title" 
           label="Workspace"
           min-width="150" />
@@ -134,8 +134,8 @@ export default {
   name: 'DashboardCt',
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    const { currentWorkspace } = storeToRefs(matterStore);
+    return { currentWorkspace };
   },
   data() {
     return {
@@ -148,7 +148,7 @@ export default {
     };
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter) {
         if (newMatter) {
           this.loadDashboardData();
@@ -164,12 +164,12 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       setWorkspaceTitle('Dashboard', workspaceName);
     },
 
     async loadDashboardData() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
       
       await Promise.all([
         this.loadRecentGoals(),
@@ -184,7 +184,7 @@ export default {
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -201,7 +201,7 @@ export default {
       try {
         const { data: recentTasks, error } = await supabase
           .rpc('get_recent_tasks_with_activity', {
-            p_matter_id: this.currentMatter.id
+            p_matter_id: this.currentWorkspace.id
           });
 
         if (error) throw error;
@@ -235,7 +235,7 @@ export default {
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           //.gte('start_time', new Date().toISOString())
           .order('start_time', { ascending: true })
           .limit(5);

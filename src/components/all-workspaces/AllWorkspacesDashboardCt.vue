@@ -15,10 +15,10 @@
     </div>
 
     <div class="workspaces-grid" v-loading="loading">
-      <el-card v-for="workspace in workspaces" :key="workspace.id" class="matter-card">
+      <el-card v-for="workspace in workspaces" :key="workspace.id" class="workspace-card">
         <template #header>
-          <div class="matter-header">
-            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', workspace)" class="matter-title-link">
+          <div class="workspace-header">
+            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', workspace)" class="workspace-title-link">
               <h3 class="clickable-title">{{ workspace.title }}</h3>
             </a>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, workspace)">
@@ -41,8 +41,8 @@
           </div>
         </template>
 
-        <div class="matter-stats">
-          <a :href="`/single-workspace/${workspace.id}/goals`" @click="navigateToGoals(matter)" class="stat-link">
+        <div class="workspace-stats">
+          <a :href="`/single-workspace/${workspace.id}/goals`" @click="navigateToGoals(workspace)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Goals</h4>
               <div class="stat-numbers">
@@ -51,7 +51,7 @@
               </div>
             </div>
           </a>
-          <a :href="`/single-workspace/${workspace.id}/tasks`" @click="navigateToTasks(matter)" class="stat-link">
+          <a :href="`/single-workspace/${workspace.id}/tasks`" @click="navigateToTasks(workspace)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Tasks</h4>
               <div class="stat-numbers">
@@ -60,7 +60,7 @@
               </div>
             </div>
           </a>
-          <a :href="`/single-workspace/${workspace.id}/events`" @click="navigateToEvents(matter)" class="stat-link">
+          <a :href="`/single-workspace/${workspace.id}/events`" @click="navigateToEvents(workspace)" class="stat-link">
             <div class="stat-item clickable-stat">
               <h4>Upcoming Events</h4>
               <span>{{ workspace.stats?.upcoming_events || 0 }}</span>
@@ -68,7 +68,7 @@
           </a>
         </div>
 
-        <div class="matter-description" v-if="workspace.description">
+        <div class="workspace-description" v-if="workspace.description">
           <p>{{ workspace.description }}</p>
         </div>
       </el-card>
@@ -243,8 +243,8 @@ export default {
         if (error) throw error;
 
         // Process workspaces and add latest activity
-        const workspacesWithActivity = (workspaces || []).map(matter => ({
-          ...matter,
+        const workspacesWithActivity = (workspaces || []).map(workspace => ({
+          ...workspace,
           latest_activity: workspace.workspace_activities?.[0]?.updated_at || workspace.created_at
         }));
 
@@ -255,10 +255,10 @@ export default {
           return dateB - dateA;
         });
 
-        // Load statistics for each matter
-        const workspacesWithStats = await Promise.all(workspacesWithActivity.map(async (matter) => {
+        // Load statistics for each workspace
+        const workspacesWithStats = await Promise.all(workspacesWithActivity.map(async (workspace) => {
           const stats = await this.loadMatterStats(workspace.id);
-          return { ...matter, stats };
+          return { ...workspace, stats };
         }));
 
         // Update cache with new data
@@ -273,21 +273,21 @@ export default {
       }
     },
 
-    async loadMatterStats(matterId) {
+    async loadMatterStats(workspaceId) {
       try {
         const [goals, tasks, events] = await Promise.all([
           supabase
             .from('goals')
             .select('status')
-            .eq('matter_id', matterId),
+            .eq('matter_id', workspaceId),
           supabase
             .from('tasks')
             .select('status')
-            .eq('matter_id', matterId),
+            .eq('matter_id', workspaceId),
           supabase
             .from('events')
             .select('start_time')
-            .eq('matter_id', matterId)
+            .eq('matter_id', workspaceId)
             .gte('start_time', new Date().toISOString())
         ]);
 
@@ -379,7 +379,7 @@ export default {
           } 
         });
         
-        // Clear cache when creating new matter
+        // Clear cache when creating new workspace
         this.clearMattersCache();
         
         this.createMatterDialog = false;
@@ -389,7 +389,7 @@ export default {
         if (error.message.includes('JWT')) {
           ElMessage.error('Your session has expired. Please log in again.');
         } else {
-          ElMessage.error('Error creating matter: ' + error.message);
+          ElMessage.error('Error creating workspace: ' + error.message);
         }
       } finally {
         this.loading = false;
@@ -416,19 +416,19 @@ export default {
           this.workspaces[index] = { ...this.workspaces[index], ...data };
         }
 
-        // Clear cache when updating matter
+        // Clear cache when updating workspace
         this.clearMattersCache();
 
         this.editMatterDialog = false;
         ElMessage.success('Workspace updated successfully');
       } catch (error) {
-        ElMessage.error('Error updating matter: ' + error.message);
+        ElMessage.error('Error updating workspace: ' + error.message);
       } finally {
         this.loading = false;
       }
     },
 
-    async archiveMatter(matter) {
+    async archiveMatter(workspace) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -445,16 +445,16 @@ export default {
 
         this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
-        // Clear cache when archiving matter
+        // Clear cache when archiving workspace
         this.clearMattersCache();
         
         ElMessage.success('Workspace archived successfully');
       } catch (error) {
-        ElMessage.error('Error archiving matter: ' + error.message);
+        ElMessage.error('Error archiving workspace: ' + error.message);
       }
     },
 
-    async restoreMatter(matter) {
+    async restoreMatter(workspace) {
       try {
         const { error } = await supabase
           .from('workspaces')
@@ -469,19 +469,19 @@ export default {
 
         this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
-        // Clear cache when restoring matter
+        // Clear cache when restoring workspace
         this.clearMattersCache();
         
         ElMessage.success('Workspace restored successfully');
       } catch (error) {
-        ElMessage.error('Error restoring matter: ' + error.message);
+        ElMessage.error('Error restoring workspace: ' + error.message);
       }
     },
 
-    handleCommand(command, matter) {
+    handleCommand(command, workspace) {
       switch(command) {
         case 'view':
-          this.matterStore.setCurrentMatter(matter);
+          this.matterStore.setCurrentMatter(workspace);
           this.router.push(`/single-workspace/${workspace.id}`);
           break;
         case 'edit':
@@ -494,7 +494,7 @@ export default {
           break;
         case 'archive':
           ElMessageBox.confirm(
-            'Are you sure you want to archive this matter? You can restore it later from the archived workspaces section.',
+            'Are you sure you want to archive this workspace? You can restore it later from the archived workspaces section.',
             'Warning',
             {
               confirmButtonText: 'Archive',
@@ -502,12 +502,12 @@ export default {
               type: 'warning'
             }
           ).then(() => {
-            this.archiveMatter(matter);
+            this.archiveMatter(workspace);
           }).catch(() => {});
           break;
         case 'restore':
           ElMessageBox.confirm(
-            'Are you sure you want to restore this matter?',
+            'Are you sure you want to restore this workspace?',
             'Confirm',
             {
               confirmButtonText: 'Restore',
@@ -515,7 +515,7 @@ export default {
               type: 'info'
             }
           ).then(() => {
-            this.restoreMatter(matter);
+            this.restoreMatter(workspace);
           }).catch(() => {});
           break;
       }
@@ -526,18 +526,18 @@ export default {
       localStorage.removeItem('workspaces_archived');
     },
 
-    navigateToGoals(matter) {
-      this.matterStore.setCurrentMatter(matter);
+    navigateToGoals(workspace) {
+      this.matterStore.setCurrentMatter(workspace);
       this.router.push(`/single-workspace/${workspace.id}/goals`);
     },
 
-    navigateToTasks(matter) {
-      this.matterStore.setCurrentMatter(matter);
+    navigateToTasks(workspace) {
+      this.matterStore.setCurrentMatter(workspace);
       this.router.push(`/single-workspace/${workspace.id}/tasks`);
     },
 
-    navigateToEvents(matter) {
-      this.matterStore.setCurrentMatter(matter);
+    navigateToEvents(workspace) {
+      this.matterStore.setCurrentMatter(workspace);
       this.router.push(`/single-workspace/${workspace.id}/events`);
     },
   }
@@ -564,23 +564,23 @@ export default {
   gap: 1.5rem;
 }
 
-.matter-card {
+.workspace-card {
   height: 100%;
 }
 
-.matter-header {
+.workspace-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.matter-header h3 {
+.workspace-header h3 {
   margin: 0;
   font-size: 1.2rem;
   color: #303133;
 }
 
-.matter-stats {
+.workspace-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
@@ -604,13 +604,13 @@ export default {
   font-size: 0.9rem;
 }
 
-.matter-description {
+.workspace-description {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #ebeef5;
 }
 
-.matter-description p {
+.workspace-description p {
   margin: 0;
   color: #606266;
   font-size: 0.9rem;
@@ -680,12 +680,12 @@ export default {
 }
 
 /* Anchor tag styling */
-.matter-title-link {
+.workspace-title-link {
   text-decoration: none;
   color: inherit;
 }
 
-.matter-title-link:hover {
+.workspace-title-link:hover {
   text-decoration: none;
 }
 

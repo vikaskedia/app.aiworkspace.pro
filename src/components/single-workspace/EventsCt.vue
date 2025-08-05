@@ -12,7 +12,7 @@ import { setWorkspaceTitle } from '../../utils/page-title';
 export default {
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     const currentUser = ref(null);
 
     // Fetch the current user
@@ -21,7 +21,7 @@ export default {
       console.log('Current User:', currentUser.value);
     });
 
-    return { currentMatter, currentUser };
+    return { currentWorkspace, currentUser };
   },
   components: {
     Edit,
@@ -45,7 +45,7 @@ export default {
     };
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter) {
         if (newMatter) {
           this.loadEvents();
@@ -59,19 +59,19 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       setWorkspaceTitle('Events', workspaceName);
     },
 
     async loadEvents() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
       
       try {
         this.loading = true;
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('start_time', { ascending: true });
 
         if (error) throw error;
@@ -84,7 +84,7 @@ export default {
     },
 
     async createEvent() {
-      if (!this.currentMatter) {
+      if (!this.currentWorkspace) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -95,7 +95,7 @@ export default {
         
         const eventData = {
           ...this.newEvent,
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -109,7 +109,7 @@ export default {
         this.events.push(data[0]);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -149,7 +149,7 @@ export default {
         this.events = this.events.filter(e => e.id !== event.id);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Event archived successfully');
       } catch (error) {
@@ -158,14 +158,14 @@ export default {
     },
 
     async syncWithGoogleCalendar() {
-      if (!this.currentMatter?.google_calendar_id) {
+      if (!this.currentWorkspace?.google_calendar_id) {
         ElMessage.warning('Please set up Google Calendar ID in workspace settings first');
         return;
       }
 
       try {
         this.syncing = true;
-        const icalUrl = this.currentMatter.google_calendar_id;
+        const icalUrl = this.currentWorkspace.google_calendar_id;
         console.log('Syncing with Google Calendar:', icalUrl);
         
         // Use CORS proxy for development (since Vercel API functions don't work in Vite dev server)
@@ -209,7 +209,7 @@ export default {
           
           // Extract event data
           const eventData = {
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             created_by: user.id,
             title: event.summary || 'Untitled Event',
             description: event.description || '',
@@ -234,7 +234,7 @@ export default {
           const { data: existing, error: existingError } = await supabase
             .from('events')
             .select('google_event_id')
-            .eq('matter_id', this.currentMatter.id)
+            .eq('matter_id', this.currentWorkspace.id)
             .in('google_event_id', googleEventIds);
           
           if (existingError) {
@@ -270,7 +270,7 @@ export default {
           await this.loadEvents();
           
           // Update workspace activity
-          await updateMatterActivity(this.currentMatter.id);
+          await updateMatterActivity(this.currentWorkspace.id);
           
           ElMessage.success(`Successfully synced ${newEventsToInsert.length} new events from Google Calendar`);
         } else {
@@ -296,13 +296,13 @@ export default {
           <!-- <el-button 
             type="primary" 
             @click="dialogVisible = true"
-            :disabled="!currentMatter">
+            :disabled="!currentWorkspace">
             New Event
           </el-button> -->
           <el-button 
             type="success" 
             @click="syncWithGoogleCalendar"
-            :disabled="!currentMatter?.google_calendar_id"
+            :disabled="!currentWorkspace?.google_calendar_id"
             :loading="syncing">
             Sync with Google Calendar
           </el-button>
@@ -321,7 +321,7 @@ export default {
           class-name="event-title">
           <template #default="scope">
             <div class="event-title-cell">
-              <router-link :to="{ name: 'DetailedEventView', params: { matterId: currentMatter.id, id: scope.row.id } }" class="title-link">
+              <router-link :to="{ name: 'DetailedEventView', params: { matterId: currentWorkspace.id, id: scope.row.id } }" class="title-link">
                 {{ scope.row.title }}
               </router-link>
               <span v-if="currentUser && scope.row.created_by === currentUser.id" class="action-icons">

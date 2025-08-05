@@ -78,7 +78,7 @@ export default {
       isEditingDescription: false,
       editingDescription: '',
       userEmails: {},
-      currentMatter: null,
+      currentWorkspace: null,
     };
   },
   computed: {

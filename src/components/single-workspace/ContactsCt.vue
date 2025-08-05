@@ -374,9 +374,9 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
-    return { currentMatter };
+    return { currentWorkspace };
   },
   data() {
     return {
@@ -420,7 +420,7 @@ export default {
     }
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter, oldMatter) {
         if (newMatter) {
           this.loadContacts();
@@ -444,14 +444,14 @@ export default {
   },
   methods: {
     async loadContacts() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
 
       try {
         this.loading = true;
         const { data: contacts, error } = await supabase
           .from('contacts')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('archived', false)
           .order('created_at', { ascending: false });
 
@@ -478,7 +478,7 @@ export default {
     },
 
     setupRealtimeSubscription() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
 
       this.subscription = supabase
         .channel('contacts_changes')
@@ -488,7 +488,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'contacts',
-            filter: `matter_id=eq.${this.currentMatter.id}`
+            filter: `matter_id=eq.${this.currentWorkspace.id}`
           },
           () => {
             this.loadContacts();
@@ -555,7 +555,7 @@ export default {
 
         // Upload to Gitea
         const response = await fetch(
-          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${uploadPath}`,
           {
             method: 'POST',
             headers: {
@@ -597,7 +597,7 @@ export default {
     },
 
     async saveContact() {
-      if (!this.currentMatter) {
+      if (!this.currentWorkspace) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -612,7 +612,7 @@ export default {
         const { data: accessCheck, error: accessError } = await supabase
           .from('workspace_access')
           .select('access_type')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', user.id)
           .eq('access_type', 'edit')
           .single();
@@ -641,7 +641,7 @@ export default {
           address: this.contactForm.address.trim() || null,
           profile_picture_url: profilePictureUrl,
           tags: this.contactForm.tags,
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -668,7 +668,7 @@ export default {
         });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -744,7 +744,7 @@ export default {
         contact.editing = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Contact updated successfully');
       } catch (error) {
@@ -788,7 +788,7 @@ export default {
         this.contacts = this.contacts.filter(c => c.id !== contact.id);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Contact deleted successfully');
       } catch (error) {

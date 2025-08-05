@@ -317,7 +317,7 @@ import TasksList from '../single-workspace/TasksList.vue';
 import TaskBoardCt from '../single-workspace/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
-import { updateMatterctivity } from '../../utils/workspaceActivity';
+import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {

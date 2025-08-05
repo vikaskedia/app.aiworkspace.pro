@@ -9,15 +9,15 @@ export default {
   name: 'WorkspaceSettingsCt',
   setup() {
     const workspaceStore = useMatterStore();
-    const { currentMatter } = storeToRefs(workspaceStore);
-    return { currentMatter };
+    const { currentWorkspace } = storeToRefs(workspaceStore);
+    return { currentWorkspace };
   },
   data() {
     return {
       loading: false,
       editingMatter: {
-        title: this.currentMatter?.title || '',
-        description: this.currentMatter?.description || ''
+        title: this.currentWorkspace?.title || '',
+        description: this.currentWorkspace?.description || ''
       },
       newShare: {
         email: '',
@@ -25,16 +25,16 @@ export default {
       },
       sharedUsers: [],
       gitSettings: {
-        repoName: this.currentMatter?.git_repo || ''
+        repoName: this.currentWorkspace?.git_repo || ''
       },
       calendarSettings: {
-        calendarId: this.currentMatter?.google_calendar_id || ''
+        calendarId: this.currentWorkspace?.google_calendar_id || ''
       },
       emailSettings: {
-        address: this.currentMatter?.email_storage || ''
+        address: this.currentWorkspace?.email_storage || ''
       },
       aiSettings: {
-        subtaskEnabled: this.currentMatter?.ai_subtask_enabled ?? true
+        subtaskEnabled: this.currentWorkspace?.ai_subtask_enabled ?? true
       },
       customFields: [],
       newField: {
@@ -91,7 +91,7 @@ export default {
         post_url: ''
       },
       parentWorkspace: {
-        id: this.currentMatter?.parent_workspace_id || null,
+        id: this.currentWorkspace?.parent_workspace_id || null,
         title: ''
       },
               availableWorkspaces: [],
@@ -102,7 +102,7 @@ export default {
     Delete
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter) {
         if (newMatter) {
           this.editingMatter = {
@@ -150,7 +150,7 @@ export default {
           .from('workspaces')
           .select('id, title')
           .eq('archived', false)
-          .neq('id', this.currentMatter?.id) // Exclude current workspace
+          .neq('id', this.currentWorkspace?.id) // Exclude current workspace
           .in('id', accessibleMatterIds);
 
         if (error) throw error;
@@ -159,8 +159,8 @@ export default {
         console.log('Available workspaces:', this.availableWorkspaces);
         
         // Set current parent workspace title if it exists
-        if (this.currentMatter?.parent_workspace_id) {
-          const parent = this.availableWorkspaces.find(w => w.id === this.currentMatter.parent_workspace_id);
+        if (this.currentWorkspace?.parent_workspace_id) {
+          const parent = this.availableWorkspaces.find(w => w.id === this.currentWorkspace.parent_workspace_id);
           if (parent) {
             this.parentWorkspace.title = parent.title;
           }
@@ -177,14 +177,14 @@ export default {
           .update({
             parent_workspace_id: this.parentWorkspace.id
           })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
         if (error) throw error;
 
         // Update the Pinia store
-        this.currentMatter = data;
+        this.currentWorkspace = data;
         ElMessage.success('Parent workspace updated successfully');
       } catch (error) {
         ElMessage.error('Error updating parent workspace: ' + error.message);
@@ -195,7 +195,7 @@ export default {
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('matter_id, shared_with_user_id, access_type, granted_at')
-          .eq('matter_id', this.currentMatter.id);
+          .eq('matter_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -232,14 +232,14 @@ export default {
             description: this.editingMatter.description,
             ai_subtask_enabled: this.aiSettings.subtaskEnabled
           })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
         if (error) throw error;
 
         // Update the Pinia store instead of using Vuex
-        this.currentMatter = data;
+        this.currentWorkspace = data;
         ElMessage.success('Workspace updated successfully');
       } catch (error) {
         ElMessage.error('Error updating workspace: ' + error.message);
@@ -283,7 +283,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_access')
           .insert({
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             shared_with_user_id: userId,
             granted_by_uuid: user.id,
             access_type: this.newShare.access_type
@@ -297,8 +297,8 @@ export default {
           userId,
           'workspace_shared',
           { 
-            matter_id: this.currentMatter.id,
-            matter_title: this.currentMatter.title,
+            matter_id: this.currentWorkspace.id,
+            matter_title: this.currentWorkspace.title,
             access_type: this.newShare.access_type
           }
         );
@@ -316,7 +316,7 @@ export default {
         const { error } = await supabase
           .from('workspace_access')
           .delete()
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', userId);
 
         if (error) throw error;
@@ -335,7 +335,7 @@ export default {
           .update({
             git_repo: this.gitSettings.repoName
           })
-          .eq('id', this.currentMatter.id);
+          .eq('id', this.currentWorkspace.id);
 
         if (error) throw error;
         ElMessage.success('Git repository settings updated successfully');
@@ -351,7 +351,7 @@ export default {
           .update({
             google_calendar_id: this.calendarSettings.calendarId
           })
-          .eq('id', this.currentMatter.id);
+          .eq('id', this.currentWorkspace.id);
 
         if (error) throw error;
         ElMessage.success('Calendar settings updated successfully');
@@ -367,7 +367,7 @@ export default {
           .update({
             email_storage: this.emailSettings.address
           })
-          .eq('id', this.currentMatter.id);
+          .eq('id', this.currentWorkspace.id);
 
         if (error) throw error;
         ElMessage.success('Email storage settings updated successfully');
@@ -381,7 +381,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_custom_fields')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('created_at');
 
         if (error) throw error;
@@ -394,7 +394,7 @@ export default {
     async addCustomField() {
       try {
         const fieldData = {
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           field_key: this.newField.key,
           field_label: this.newField.label,
           field_type: this.newField.type,
@@ -469,7 +469,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_telegram_groups')
           .select('*')
-          .eq('matter_id', this.currentMatter.id);
+          .eq('matter_id', this.currentWorkspace.id);
 
         if (error) throw error;
         this.telegramGroups = data;
@@ -483,7 +483,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_telegram_groups')
           .insert({
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             chat_id: this.newTelegramGroup.chat_id,
             name: this.newTelegramGroup.name,
             notification_types: this.newTelegramGroup.notification_types
@@ -528,9 +528,9 @@ export default {
     async loadPhoneNumbers() {
       try {
         // Phone numbers are stored in the current workspace's phone_numbers field
-        this.phoneNumbers = this.currentMatter?.phone_numbers || [];
+        this.phoneNumbers = this.currentWorkspace?.phone_numbers || [];
         // Fax numbers are stored in the current workspace's fax_numbers field
-        this.faxNumbers = this.currentMatter?.fax_numbers || [];
+        this.faxNumbers = this.currentWorkspace?.fax_numbers || [];
       } catch (error) {
         ElMessage.error('Error loading phone numbers: ' + error.message);
       }
@@ -552,7 +552,7 @@ export default {
           const numbers = Array.isArray(workspace.phone_numbers) ? workspace.phone_numbers : JSON.parse(workspace.phone_numbers);
           if (numbers.some(p => p.number === number)) {
             // If it's the current workspace, skip (already checked above)
-            if (workspace.id !== this.currentMatter.id) return 'other';
+            if (workspace.id !== this.currentWorkspace.id) return 'other';
           }
         } catch (e) {
           // Ignore parse errors
@@ -587,7 +587,7 @@ export default {
           const { data, error } = await supabase
             .from('workspaces')
             .update({ fax_numbers: updatedFaxNumbers })
-            .eq('id', this.currentMatter.id)
+            .eq('id', this.currentWorkspace.id)
             .select()
             .single();
           
@@ -597,11 +597,11 @@ export default {
           if (data && data.fax_numbers) {
             this.faxNumbers = data.fax_numbers;
             // Update the Pinia store with the new data
-            this.currentMatter.fax_numbers = data.fax_numbers;
+            this.currentWorkspace.fax_numbers = data.fax_numbers;
           } else {
             // If no response data, manually update the local array
             this.faxNumbers = updatedFaxNumbers;
-            this.currentMatter.fax_numbers = updatedFaxNumbers;
+            this.currentWorkspace.fax_numbers = updatedFaxNumbers;
           }
           this.resetNewPhoneNumber();
           ElMessage.success('Fax number added successfully');
@@ -629,7 +629,7 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
@@ -651,7 +651,7 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
@@ -675,7 +675,7 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .update({ fax_numbers: updatedFaxNumbers })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
@@ -685,11 +685,11 @@ export default {
         if (data && data.fax_numbers) {
           this.faxNumbers = data.fax_numbers;
           // Update the Pinia store with the new data
-          this.currentMatter.fax_numbers = data.fax_numbers;
+          this.currentWorkspace.fax_numbers = data.fax_numbers;
         } else {
           // If no response data, manually update the local array
           this.faxNumbers = updatedFaxNumbers;
-          this.currentMatter.fax_numbers = updatedFaxNumbers;
+          this.currentWorkspace.fax_numbers = updatedFaxNumbers;
         }
         ElMessage.success('Fax number removed successfully');
       } catch (error) {
@@ -787,7 +787,7 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .update({ phone_numbers: updatedPhoneNumbers })
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .select()
           .single();
 
@@ -807,7 +807,7 @@ export default {
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('created_at', { ascending: true });
         if (error) throw error;
         this.phoneTextActions = data;
@@ -825,7 +825,7 @@ export default {
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .insert({
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             action_name: this.newPhoneTextAction.action_name,
             post_url: this.newPhoneTextAction.post_url,
             created_by: user.id
@@ -938,7 +938,7 @@ export default {
               <el-button 
                 type="primary"
                 @click="updateParentWorkspace"
-                :disabled="parentWorkspace.id === (currentMatter?.parent_workspace_id || null)">
+                :disabled="parentWorkspace.id === (currentWorkspace?.parent_workspace_id || null)">
                 Save Changes
               </el-button>
             </div>

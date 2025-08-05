@@ -237,10 +237,10 @@ export default {
     const outlineRenderID = ref(generateRenderID());
     
     // Computed property for current matter
-    const currentMatter = computed(() => matterStore.currentMatter);
+    const currentWorkspace = computed(() => matterStore.currentWorkspace);
     
     // Computed property for workspace name
-    const workspaceName = computed(() => currentMatter.value?.title || 'Workspace');
+    const workspaceName = computed(() => currentWorkspace.value?.title || 'Workspace');
     
     // Function to update page title
     const updatePageTitle = () => {
@@ -2091,7 +2091,7 @@ This is similar to how Git requires you to pull before pushing when there are co
       outlineRenderID,
       displayVersion,
       lastSaveTime,
-      currentMatter,
+      currentWorkspace,
       workspaceName,
       updatePageTitle,
       onOutlineUpdate, 

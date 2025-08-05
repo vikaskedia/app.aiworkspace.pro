@@ -30,10 +30,10 @@ export default {
     const router = useRouter();
     const route = useRoute();
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
 
-    // Watch for changes in the store's currentMatter
-    watch(currentMatter, (newMatter) => {
+    // Watch for changes in the store's currentWorkspace
+    watch(currentWorkspace, (newMatter) => {
       selectedWorkspace.value = newMatter;
     });
 
@@ -128,9 +128,9 @@ export default {
           }
         }
 
-        // If no workspace from URL, validate currentMatter from store
-        if (currentMatter.value) {
-          const storedWorkspace = workspacesWithActivity.find(m => m.id === currentMatter.value.id);
+        // If no workspace from URL, validate currentWorkspace from store
+        if (currentWorkspace.value) {
+          const storedWorkspace = workspacesWithActivity.find(m => m.id === currentWorkspace.value.id);
           if (storedWorkspace && storedWorkspace.hasAccess) {
             // Current matter is valid, update with fresh data
             selectedWorkspace.value = storedWorkspace;
@@ -317,8 +317,8 @@ export default {
 
     onMounted(() => {
       // Initialize selected workspace from store if available
-      if (currentMatter.value) {
-        selectedWorkspace.value = currentMatter.value;
+      if (currentWorkspace.value) {
+        selectedWorkspace.value = currentWorkspace.value;
       }
       loadMatters();
     });

@@ -3,7 +3,7 @@
     <div class="task-header">
       <div class="back-button">
         <router-link 
-          :to="`/single-workspace/${currentMatter?.id}/tasks`"
+          :to="`/single-workspace/${currentWorkspace?.id}/tasks`"
           class="back-link">
           <el-icon><ArrowLeft /></el-icon>
           Back to Tasks
@@ -234,7 +234,7 @@
                 <div class="column-description">
                   <a 
                     class="child-task-title" 
-                    :href="`/single-workspace/${currentMatter.id}/tasks/${childTask.id}`"
+                    :href="`/single-workspace/${currentWorkspace.id}/tasks/${childTask.id}`"
                     :style="{ paddingLeft: getTaskIndentation(childTask) + 'px' }"
                   >
                     {{ childTask.title }}
@@ -1554,13 +1554,13 @@ export default {
     const matterStore = useMatterStore();
     const taskStore = useTaskStore();
     const userStore = useUserStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
     // External sharing composable
     const externalShareComposable = useExternalTaskShare();
     
     return { 
-      currentMatter, 
+      currentWorkspace, 
       taskStore,
       userStore,
       ...externalShareComposable
@@ -1749,7 +1749,7 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       const taskTitle = this.task?.title;
       setTaskTitle(taskTitle, workspaceName, 'Tasks');
     },
@@ -1772,7 +1772,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1806,7 +1806,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1846,7 +1846,7 @@ export default {
 
       // Add Telegram notification here
       await sendTelegramNotification({
-        matterId: this.currentMatter.id,
+        matterId: this.currentWorkspace.id,
         activityType: 'TASK_DESCRIPTION_UPDATED',
         message: `Task description updated for "${this.task.title}"\n\nFrom: "${this.task.description || 'No description'}"\nTo: "${this.editingDescription}"`
       });
@@ -1857,7 +1857,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1907,7 +1907,7 @@ export default {
 
       // Add Telegram notification here
       await sendTelegramNotification({
-        matterId: this.currentMatter.id,
+        matterId: this.currentWorkspace.id,
         activityType: 'TASK_TITLE_UPDATED',
         message: `Task title updated\nFrom: "${this.task.title}"\nTo: "${this.editingTitle}"`
       });
@@ -1918,7 +1918,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1989,7 +1989,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -2113,7 +2113,7 @@ export default {
           });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -2151,7 +2151,7 @@ export default {
         this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElNotification.success({
           title: 'Success',
@@ -2202,7 +2202,7 @@ export default {
       }
 
       // Update workspace activity
-      await updateMatterActivity(this.currentMatter.id);
+      await updateMatterActivity(this.currentWorkspace.id);
 
       ElNotification.success({
         title: 'Success',
@@ -2369,7 +2369,7 @@ export default {
         //console.log('this.newComment.trim()', this.newComment.trim());
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentMatter.id,
+          matterId: this.currentWorkspace.id,
           activityType: 'NEW_COMMENT',
           message: `New comment on task "${this.task.title}"\n\nComment: ${this.newComment.trim()}\nBy: ${user.email}`
         });
@@ -2417,7 +2417,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         this.newComment = '';
         await this.loadComments();
@@ -2598,7 +2598,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'tasks',
-            filter: `matter_id=eq.${this.currentMatter.id}`
+            filter: `matter_id=eq.${this.currentWorkspace.id}`
           },
           async (payload) => {
             try {
@@ -2608,7 +2608,7 @@ export default {
               const isChildTask = this.childTasks.some(child => child.id === payload.new?.id);
               
               if (!isCurrentTask && !isChildTask) {
-                await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+                await this.taskStore.fetchAndCacheTasks(this.currentWorkspace.id);
               }
               
               // If the current task was updated, refresh it
@@ -2628,7 +2628,7 @@ export default {
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id')
-          .eq('matter_id', this.currentMatter.id);
+          .eq('matter_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -2825,7 +2825,7 @@ export default {
     },
     generateShareLink() {
       const baseUrl = window.location.origin;
-      this.shareLink = `${baseUrl}/single-workspace/${this.currentMatter.id}/tasks/${this.task.id}`;
+      this.shareLink = `${baseUrl}/single-workspace/${this.currentWorkspace.id}/tasks/${this.task.id}`;
     },
     async copyLink() {
       try {
@@ -2964,7 +2964,7 @@ export default {
         const { data: matter, error: matterError } = await supabase
           .from('workspaces')
           .select('git_repo')
-          .eq('id', this.currentMatter.id)
+          .eq('id', this.currentWorkspace.id)
           .single();
 
         if (matterError) throw new Error('Failed to fetch workspace details');
@@ -3097,7 +3097,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         this.cancelEditing();
         ElNotification.success({
@@ -3406,7 +3406,7 @@ export default {
         if (error) throw error;
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
@@ -3508,7 +3508,7 @@ export default {
           });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -3555,7 +3555,7 @@ export default {
         comment.archived = newArchivedState;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElNotification.success({
           title: 'Success',
@@ -3663,7 +3663,7 @@ ${comment.content}
       }
     },
     navigateToTask(taskId) {
-      this.$router.push(`/single-workspace/${this.currentMatter.id}/tasks/${taskId}`);
+      this.$router.push(`/single-workspace/${this.currentWorkspace.id}/tasks/${taskId}`);
     },
     getDueDateTagType(dueDate) {
       const today = new Date();
@@ -3675,7 +3675,7 @@ ${comment.content}
       return 'info';
     },
     getTaskIndentation(task) {
-      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
+      const tasks = this.taskStore.getCachedTasks(this.currentWorkspace?.id) || [];
       let level = 0;
       let currentTask = task;
       
@@ -3735,7 +3735,7 @@ ${comment.content}
           priority: this.newChildTask.priority,
           due_date: this.newChildTask.due_date,
           assignee: this.newChildTask.assignee,
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           parent_task_id: this.task.id,
           created_by: user.id
         };
@@ -3779,13 +3779,13 @@ ${comment.content}
 
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentMatter.id,
+          matterId: this.currentWorkspace.id,
           activityType: 'CHILD_TASK_CREATED',
           message: `Child task created under "${this.task.title}"\n\nChild Task: "${this.newChildTask.title}"\nCreated by: ${user.email}`
         });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         // Reset form
         this.resetChildTaskForm();
@@ -3838,7 +3838,7 @@ ${comment.content}
         childTask.status = newStatus;
         
         // Also update the task in the task store cache if it exists
-        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentWorkspace.id) || [];
         const taskIndex = cachedTasks.findIndex(t => t.id === childTask.id);
         if (taskIndex !== -1) {
           cachedTasks[taskIndex].status = newStatus;
@@ -3852,7 +3852,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(newStatus)}"`,
             type: 'activity',
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             metadata: {
               action: 'update',
               changes: {
@@ -3867,7 +3867,7 @@ ${comment.content}
         // Send Telegram notification (optional - don't fail if no groups configured)
         try {
           await sendTelegramNotification({
-            matterId: this.currentMatter.id,
+            matterId: this.currentWorkspace.id,
             activityType: 'CHILD_TASK_STATUS_UPDATED',
             message: `Child task status updated: "${childTask.title}"\nFrom: ${this.formatStatus(oldStatus)} → To: ${this.formatStatus(newStatus)}\nParent: "${this.task.title}"`
           });
@@ -3877,7 +3877,7 @@ ${comment.content}
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -3918,7 +3918,7 @@ ${comment.content}
         childTask.priority = newPriority;
         
         // Also update the task in the task store cache if it exists
-        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentWorkspace.id) || [];
         const taskIndex = cachedTasks.findIndex(t => t.id === childTask.id);
         if (taskIndex !== -1) {
           cachedTasks[taskIndex].priority = newPriority;
@@ -3932,7 +3932,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated priority from "${this.formatPriority(oldPriority)}" to "${this.formatPriority(newPriority)}"`,
             type: 'activity',
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             metadata: {
               action: 'update',
               changes: {
@@ -3947,7 +3947,7 @@ ${comment.content}
         // Send Telegram notification (optional - don't fail if no groups configured)
         try {
           await sendTelegramNotification({
-            matterId: this.currentMatter.id,
+            matterId: this.currentWorkspace.id,
             activityType: 'CHILD_TASK_PRIORITY_UPDATED',
             message: `Child task priority updated: "${childTask.title}"\nFrom: ${this.formatPriority(oldPriority)} → To: ${this.formatPriority(newPriority)}\nParent: "${this.task.title}"`
           });
@@ -3957,7 +3957,7 @@ ${comment.content}
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -4028,8 +4028,8 @@ ${comment.content}
 
     async refreshTaskCache() {
       // Refresh the task store cache to ensure we have the latest task data
-      if (this.currentMatter?.id) {
-        await this.taskStore.fetchAndCacheTasks(this.currentMatter.id);
+      if (this.currentWorkspace?.id) {
+        await this.taskStore.fetchAndCacheTasks(this.currentWorkspace.id);
       }
     },
 
@@ -4052,7 +4052,7 @@ ${comment.content}
         const { data: existingOutline, error } = await supabase
           .from('outlines')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
@@ -4092,7 +4092,7 @@ ${comment.content}
         const { data: existingOutline } = await supabase
           .from('outlines')
           .select('id, version')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
@@ -4132,7 +4132,7 @@ ${comment.content}
           const { data: newOutline, error: insertError } = await supabase
             .from('outlines')
             .insert([{
-              matter_id: this.currentMatter.id,
+              matter_id: this.currentWorkspace.id,
               title: outlineTitle,
               content: outlineToSave,
               created_by: user.id
@@ -4171,7 +4171,7 @@ ${comment.content}
           });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         this.lastSavedOutlineContent = JSON.parse(JSON.stringify(outlineToSave));
         this.hasOutlineChanges = false;
@@ -4765,7 +4765,7 @@ ${comment.content}
     },
 
     async createNewTask() {
-      if (!this.currentMatter) {
+      if (!this.currentWorkspace) {
         ElNotification.error({
           title: 'Error',
           message: 'Please select a workspace first'
@@ -4787,7 +4787,7 @@ ${comment.content}
         const taskData = {
           ...this.newTask,
           title: this.newTask.title.trim(),
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -4836,7 +4836,7 @@ ${comment.content}
             user_id: user.id,
             content: 'Created this task',
             type: 'activity',
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             metadata: {
               action: 'create',
               task_title: data[0].title
@@ -4844,16 +4844,16 @@ ${comment.content}
           });
         
         // Update cache
-        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id) || [];
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentWorkspace.id) || [];
         const updatedTasks = [data[0], ...cachedTasks];
-        this.taskStore.setCachedTasks(this.currentMatter.id, updatedTasks);
+        this.taskStore.setCachedTasks(this.currentWorkspace.id, updatedTasks);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentMatter.id,
+          matterId: this.currentWorkspace.id,
           activityType: 'TASK_CREATED',
           message: `New task created: "${data[0].title}"\nCreated by: ${user.email}`
         });
@@ -4906,7 +4906,7 @@ ${comment.content}
           .from('workspaces')
           .select('id, title')
           .eq('archived', false)
-          .neq('id', this.currentMatter?.id) // Exclude current workspace
+          .neq('id', this.currentWorkspace?.id) // Exclude current workspace
           .in('id', accessibleMatterIds);
 
         if (error) throw error;
@@ -4996,7 +4996,7 @@ ${comment.content}
         }
 
         // Clear task cache for both source and target workspaces
-        this.taskStore.clearTaskCache(this.currentMatter.id);
+        this.taskStore.clearTaskCache(this.currentWorkspace.id);
         this.taskStore.clearTaskCache(this.moveToForm.targetWorkspaceId);
         this.taskStore.clearTaskDetailCache(this.task.id);
 
@@ -5012,9 +5012,9 @@ ${comment.content}
             matter_id: this.moveToForm.targetWorkspaceId,
             metadata: {
               action: 'move',
-              from_workspace_id: this.currentMatter.id,
+              from_workspace_id: this.currentWorkspace.id,
               to_workspace_id: this.moveToForm.targetWorkspaceId,
-              from_workspace_title: this.currentMatter.title,
+              from_workspace_title: this.currentWorkspace.title,
               to_workspace_title: this.availableWorkspaces.find(w => w.id === this.moveToForm.targetWorkspaceId)?.title || 'Unknown'
             }
           });
@@ -5022,7 +5022,7 @@ ${comment.content}
 
         // Update workspace activity for both workspaces
         await Promise.all([
-          updateMatterActivity(this.currentMatter.id),
+          updateMatterActivity(this.currentWorkspace.id),
           updateMatterActivity(this.moveToForm.targetWorkspaceId)
         ]);
 
@@ -5064,7 +5064,7 @@ ${comment.content}
         this.updatePageTitle();
       }
     },
-    currentMatter: {
+    currentWorkspace: {
       handler() {
         this.updatePageTitle();
       }
@@ -5139,7 +5139,7 @@ ${comment.content}
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   },
     canEditTask() {
-      if (!this.currentMatter || !this.currentUser) return false;
+      if (!this.currentWorkspace || !this.currentUser) return false;
       const userAccess = this.sharedUsers.find(u => u.id === this.currentUser.id);
       return userAccess?.access_type === 'edit';
     },
@@ -5174,7 +5174,7 @@ ${comment.content}
       };
       
       // Get tasks from task store
-      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
+      const tasks = this.taskStore.getCachedTasks(this.currentWorkspace?.id) || [];
       const organizedTasks = this.organizeTasksHierarchy(tasks);
       flatten(organizedTasks);
       
@@ -5228,7 +5228,7 @@ ${comment.content}
       }
     },
     childTasks() {
-      const tasks = this.taskStore.getCachedTasks(this.currentMatter?.id) || [];
+      const tasks = this.taskStore.getCachedTasks(this.currentWorkspace?.id) || [];
       
       // Helper function to recursively find all descendant tasks
       const findDescendants = (taskId) => {

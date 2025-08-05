@@ -73,7 +73,7 @@
                             </template>
                           </el-dropdown>
                         </template>
-                        <span v-else>{{ currentMatter?.title || 'Single Workspace' }}</span>
+                        <span v-else>{{ currentWorkspace?.title || 'Single Workspace' }}</span>
                       </div>
                       <div class="new-task-content">
                         <div class="input-row">
@@ -321,7 +321,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         type: Array,
         default: () => []
       },
-      currentMatter: {
+      currentWorkspace: {
         type: Object,
         required: false,
         default: null
@@ -330,10 +330,10 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   
     setup() {
       const matterStore = useMatterStore()
-      const { currentMatter } = storeToRefs(matterStore)
+      const { currentWorkspace } = storeToRefs(matterStore)
       
       return {
-        currentMatter
+        currentWorkspace
       }
     },
   
@@ -739,7 +739,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           status: this.groupBy === 'status' ? column.id : 'not_started',
           priority: this.groupBy === 'priority' ? column.id : 'medium',
           assignee: this.groupBy === 'assignee' ? column.id : null,
-          matter_id: this.currentMatter?.id,
+          matter_id: this.currentWorkspace?.id,
           isNew: true,
           isEditing: true
         };
@@ -765,7 +765,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             status: this.groupBy === 'status' ? task.status : 'not_started',
             priority: this.groupBy === 'priority' ? task.priority : 'medium',
             assignee: this.groupBy === 'assignee' ? task.assignee : null,
-            matter_id: this.isAllTasksContext ? this.selectedMatter?.id : this.currentMatter?.id,
+            matter_id: this.isAllTasksContext ? this.selectedMatter?.id : this.currentWorkspace?.id,
             created_by: user.id
           };
 
@@ -898,7 +898,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
       async handleTaskUpdate(updatedTask) {
         // Update workspace activity
-        const matterId = updatedTask.matter_id || this.currentMatter?.id;
+        const matterId = updatedTask.matter_id || this.currentWorkspace?.id;
         if (matterId) {
           await updateMatterActivity(matterId);
         }
@@ -922,7 +922,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
           
           // Update workspace activity
-          const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
+          const matterId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
           if (matterId) {
             await updateMatterActivity(matterId);
           }
@@ -936,7 +936,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
           
           // Update workspace activity
-          const matterId = this.tasks[taskIndex].matter_id || this.currentMatter?.id;
+          const matterId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
           if (matterId) {
             await updateMatterActivity(matterId);
           }
@@ -1000,7 +1000,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           }
         }
       },
-      currentMatter: {
+      currentWorkspace: {
         immediate: true,
         handler(val) {
           if (!this.isAllTasksContext) {

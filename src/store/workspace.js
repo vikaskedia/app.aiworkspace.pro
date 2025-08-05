@@ -3,18 +3,18 @@ import { supabase } from '../supabase';
 
 export const useMatterStore = defineStore('workspace', {
   state: () => ({
-    currentMatter: null,
+    currentWorkspace: null,
     workspaces: []
   }),
 
   persist: {
     storage: localStorage,
-    paths: ['currentMatter']
+    paths: ['currentWorkspace']
   },
 
   actions: {
     setCurrentMatter(workspace) {
-      this.currentMatter = workspace;
+      this.currentWorkspace = workspace;
     },
 
     async loadMatters(includeArchived = false) {
@@ -98,6 +98,6 @@ export const useMatterStore = defineStore('workspace', {
   },
 
   getters: {
-    getCurrentMatter: (state) => state.currentMatter
+    getCurrentMatter: (state) => state.currentWorkspace
   }
 }); 

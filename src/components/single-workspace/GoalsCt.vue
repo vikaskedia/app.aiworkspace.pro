@@ -19,9 +19,9 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
-    return { currentMatter };
+    return { currentWorkspace };
   },
   data() {
     return {
@@ -67,7 +67,7 @@ export default {
     };
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter, oldMatter) {
         if (newMatter) {
           this.loadGoals();
@@ -87,19 +87,19 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       setWorkspaceTitle('Goals', workspaceName);
     },
 
     async loadGoals() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
 
       try {
         this.loading = true;
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('archived', this.showArchivedGoals)
           .order('created_at', { ascending: false });
 
@@ -112,7 +112,7 @@ export default {
       }
     },
     async createGoal() {
-      if (!this.currentMatter) {
+      if (!this.currentWorkspace) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -125,7 +125,7 @@ export default {
         const { data: accessCheck, error: accessError } = await supabase
           .from('workspace_access')
           .select('access_type')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', user.id)
           .eq('access_type', 'edit')
           .single();
@@ -140,7 +140,7 @@ export default {
           status: this.newGoal.status || 'in_progress',
           priority: this.newGoal.priority || 'medium',
           due_date: this.newGoal.due_date || null,
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           created_by: user.id,
           related_files: {},
           completion_percentage: this.newGoal.completion_percentage,
@@ -164,7 +164,7 @@ export default {
         this.goals.unshift(data);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -249,7 +249,7 @@ export default {
             description: task.description,
             status: 'not_started',
             priority: task.priority,
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             created_by: user.id,
             due_date: task.due_date
           };
@@ -299,7 +299,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'goals',
-            filter: `matter_id=eq.${this.currentMatter.id}`
+            filter: `matter_id=eq.${this.currentWorkspace.id}`
           },
           (payload) => {
             switch (payload.eventType) {
@@ -355,7 +355,7 @@ export default {
         goal.statusPopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal status updated successfully');
       } catch (error) {
@@ -394,7 +394,7 @@ export default {
         goal.isEditingTitle = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal title updated successfully');
       } catch (error) {
@@ -415,7 +415,7 @@ export default {
         if (error) throw error;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Progress updated successfully');
       } catch (error) {
@@ -451,7 +451,7 @@ export default {
         goal.isEditingDescription = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal description updated successfully');
       } catch (error) {
@@ -495,7 +495,7 @@ export default {
         goal.priorityPopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal priority updated successfully');
       } catch (error) {
@@ -523,7 +523,7 @@ export default {
         goal.dueDatePopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {
@@ -550,7 +550,7 @@ export default {
     },
   },
   mounted() {
-    if (this.currentMatter) {
+    if (this.currentWorkspace) {
       this.setupRealtimeSubscription();
     }
     this.updatePageTitle();
@@ -570,7 +570,7 @@ export default {
         <el-button 
           type="primary" 
           @click="dialogVisible = true"
-          :disabled="!currentMatter">
+          :disabled="!currentWorkspace">
           New Goal
         </el-button>
         <el-button 

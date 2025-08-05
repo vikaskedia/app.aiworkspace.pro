@@ -161,7 +161,7 @@
           </div>
           
           <!-- Show message if no phone numbers are configured -->
-          <div v-if="!currentMatter?.phone_numbers?.length" class="no-phone-numbers">
+          <div v-if="!currentWorkspace?.phone_numbers?.length" class="no-phone-numbers">
             <p>No phone numbers configured</p>
             <el-button size="small" @click="goToSettings">
               Add Phone Numbers
@@ -1701,7 +1701,7 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
     // Real-time messaging setup
     const {
@@ -1710,11 +1710,11 @@ export default {
       loadMessagesForConversation,
       loadCallRecordingsForConversation,
       markConversationAsRead: realtimeMarkAsRead
-    } = useRealtimeMessages(computed(() => currentMatter.value?.id));
+    } = useRealtimeMessages(computed(() => currentWorkspace.value?.id));
     
     // Function to update page title
     const updatePageTitle = () => {
-      const workspaceName = currentMatter.value?.title || 'Workspace';
+      const workspaceName = currentWorkspace.value?.title || 'Workspace';
       setWorkspaceTitle('AI Phone', workspaceName);
     };
     
@@ -1722,7 +1722,7 @@ export default {
     updatePageTitle();
     
     return { 
-      currentMatter,
+      currentWorkspace,
       realtimeConversations,
       groupConversations,
       loadMessagesForConversation,
@@ -1971,7 +1971,7 @@ export default {
   },
   computed: {
     inboxItems() {
-      const phoneNumbers = this.currentMatter?.phone_numbers || [];
+      const phoneNumbers = this.currentWorkspace?.phone_numbers || [];
       return phoneNumbers.map(phone => {
         // Calculate unread counts for this phone number
         const unreadCount = this.realtimeConversations.filter(conv => 
@@ -2007,7 +2007,7 @@ export default {
       }
       let filtered = this.realtimeConversations || [];
       const phoneId = this.selectedInboxItem.replace('phone_', '');
-      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      const phone = this.currentWorkspace?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (phone) {        
         filtered = filtered.filter(conv => {
@@ -2134,7 +2134,7 @@ export default {
 
       // Extract phone ID from selectedInboxItem (format: phone_123)
       const phoneId = this.selectedInboxItem.replace('phone_', '');
-      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      const phone = this.currentWorkspace?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (phone) {        
         if (this.showUntaggedOnly) {
@@ -2491,7 +2491,7 @@ export default {
           );
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler(newMatter) {
         if (newMatter && newMatter.id) {
           this.loadWorkspaceContacts().then(() => {
@@ -2534,7 +2534,7 @@ export default {
     
     // Watch for route changes to update component state
     '$route'(to, from) {
-      if (to.name === 'AiPhonePage' && to.params.matterId === this.currentMatter?.id?.toString()) {
+      if (to.name === 'AiPhonePage' && to.params.matterId === this.currentWorkspace?.id?.toString()) {
         this.initializeFromUrl();
       }
     }
@@ -2588,9 +2588,9 @@ export default {
         if (this.phoneId) {
           this.selectedInboxItem = `phone_${this.phoneId}`;
           console.log('📞 Set selectedInboxItem from URL:', this.selectedInboxItem);
-        } else if (this.currentMatter?.phone_numbers?.length > 0) {
+        } else if (this.currentWorkspace?.phone_numbers?.length > 0) {
           // Auto-select first phone number if no URL param
-          const firstPhone = this.currentMatter.phone_numbers[0];
+          const firstPhone = this.currentWorkspace.phone_numbers[0];
           this.selectedInboxItem = `phone_${firstPhone.id}`;
           console.log('📞 Auto-selected first phone:', this.selectedInboxItem);
         }
@@ -2691,8 +2691,8 @@ export default {
       // Get phone ID from selectedInboxItem
       const phoneId = this.selectedInboxItem ? this.selectedInboxItem.replace('phone_', '') : null;
       
-      if (!this.currentMatter?.id) {
-        console.warn('⚠️ Cannot update URL: currentMatter.id is missing');
+      if (!this.currentWorkspace?.id) {
+        console.warn('⚠️ Cannot update URL: currentWorkspace.id is missing');
         return;
       }
       
@@ -2700,7 +2700,7 @@ export default {
       const newRoute = {
         name: 'AiPhonePage',
         params: {
-          matterId: this.currentMatter.id.toString(),
+          matterId: this.currentWorkspace.id.toString(),
           phoneId: phoneId
         },
         query: Object.keys(query).length > 0 ? query : undefined
@@ -2787,7 +2787,7 @@ export default {
     
     // Load message counts from database
     async loadMessageCounts() {
-      if (!this.currentMatter?.id) return;
+      if (!this.currentWorkspace?.id) return;
       
       try {
         const now = new Date();
@@ -2813,7 +2813,7 @@ export default {
               created_at
             )
           `)
-          .eq('matter_id', this.currentMatter.id);
+          .eq('matter_id', this.currentWorkspace.id);
         
         if (error) throw error;
         
@@ -2954,7 +2954,7 @@ export default {
       
       // Extract phone ID from selectedInboxItem (format: phone_123)
       const phoneId = parseInt(this.selectedInboxItem.replace('phone_', ''));
-      return this.currentMatter?.phone_numbers?.find(p => p.id === phoneId);
+      return this.currentWorkspace?.phone_numbers?.find(p => p.id === phoneId);
     },
     
     async selectGroupConversation(groupConv) {
@@ -3192,7 +3192,7 @@ export default {
 
           // Upload to Gitea with the correct path
           const response = await fetch(
-            `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+            `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${uploadPath}`,
             {
               method: 'POST',
               headers: {
@@ -3220,8 +3220,8 @@ export default {
             type: this.getFileType(fileToSend.name),
             size: fileToSend.size,
             storage_path: giteaData.content.path,
-            matter_id: this.currentMatter.id,
-            git_repo: this.currentMatter.git_repo,
+            matter_id: this.currentWorkspace.id,
+            git_repo: this.currentWorkspace.git_repo,
             created_at: new Date().toISOString(),
             tags: [],
             public_url: this.getAuthenticatedDownloadUrl(giteaData.content.download_url)
@@ -3251,11 +3251,11 @@ export default {
           }
         });
         
-        // Check if fromPhone exists in currentMatter phone numbers
-        const matterPhoneNumbers = this.currentMatter?.phone_numbers || [];
+        // Check if fromPhone exists in currentWorkspace phone numbers
+        const matterPhoneNumbers = this.currentWorkspace?.phone_numbers || [];
         const fromPhoneExists = matterPhoneNumbers.some(phone => phone.number === fromPhone);
         if (!fromPhoneExists) {
-          // Check if toPhone exists in currentMatter phone numbers
+          // Check if toPhone exists in currentWorkspace phone numbers
           const toPhoneExists = matterPhoneNumbers.some(phone => phone.number === toPhone);
           
           if (toPhoneExists) {
@@ -3279,7 +3279,7 @@ export default {
             from: fromPhone,
             to: toPhone,
             message: messageText,
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             media_files: uploadedFile ? [uploadedFile] : [],
             subject: null // Can be added later if needed
           })
@@ -3452,8 +3452,8 @@ export default {
             },
             body: JSON.stringify({
               files: base64Files,
-              matter_id: this.currentMatter.id,
-              git_repo: this.currentMatter.git_repo
+              matter_id: this.currentWorkspace.id,
+              git_repo: this.currentWorkspace.git_repo
             })
           });
 
@@ -3482,7 +3482,7 @@ export default {
             from: selectedPhone.number,
             to: fullToNumber,
             message: this.newMessageForm.message,
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             media_files: uploadedFiles,
             subject: null
           })
@@ -3521,7 +3521,7 @@ export default {
     
     goToSettings() {
       // Navigate to workspace settings page
-      this.$router.push(`/single-workspace/${this.currentMatter.id}/settings`);
+      this.$router.push(`/single-workspace/${this.currentWorkspace.id}/settings`);
     },
 
     // File handling methods
@@ -3767,13 +3767,13 @@ export default {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     },
     async loadWorkspaceContacts() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
       
       try {
         const { data: contacts, error } = await supabase
           .from('contacts')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .eq('archived', false)
           .order('name');
 
@@ -3793,7 +3793,7 @@ export default {
     getCorrectContactName(conversation) {
       // Get the currently selected phone number
       const phoneId = this.selectedInboxItem?.replace('phone_', '');
-      const selectedPhone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      const selectedPhone = this.currentWorkspace?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (!selectedPhone) {
         return conversation.contact || 'Unknown Contact';
@@ -3821,7 +3821,7 @@ export default {
     getCorrectContactPhone(conversation) {
       // Get the currently selected phone number
       const phoneId = this.selectedInboxItem?.replace('phone_', '');
-      const selectedPhone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      const selectedPhone = this.currentWorkspace?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (!selectedPhone) {
         return conversation.phoneNumber || conversation.contact;
@@ -3949,7 +3949,7 @@ export default {
               name: this.contactModalForm.name.trim(),
               phone_number: digits,
               tags: this.contactModalForm.tags,
-              matter_id: this.currentMatter.id,
+              matter_id: this.currentWorkspace.id,
               created_by: user.id
             }
           ]);
@@ -4067,7 +4067,7 @@ export default {
 
         // Upload to Gitea
         const response = await fetch(
-          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${uploadPath}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${uploadPath}`,
           {
             method: 'POST',
             headers: {
@@ -4098,7 +4098,7 @@ export default {
         const { data: recording, error } = await supabase
           .from('call_recordings')
           .insert({
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             conversation_id: this.currentChat.id,
             message_id: this.selectedMessageForRecording.id,
             position: this.callRecordingForm.position,
@@ -4160,14 +4160,14 @@ export default {
     async loadPhoneTextActions() {
       this.loadingPhoneTextActions = true;
       try {
-        if (!this.currentMatter || !this.currentMatter.id) {
+        if (!this.currentWorkspace || !this.currentWorkspace.id) {
           this.phoneTextActions = [];
           return;
         }
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('created_at', { ascending: true });
         if (error) throw error;
         this.phoneTextActions = data || [];
@@ -4202,7 +4202,7 @@ export default {
           const { data: userInfo, error } = await supabase
             .rpc('get_user_info_for_matter', {
               user_ids: [contact.created_by],
-              matter_id_param: this.currentMatter.id
+              matter_id_param: this.currentWorkspace.id
             });
           if (userInfo && userInfo.length > 0) {
             creatorName = userInfo[0].display_name || userInfo[0].email || 'Unknown';
@@ -4354,7 +4354,7 @@ export default {
         if (error) throw error;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         // Clear input and reload notes
         this.newNote = '';
@@ -4412,7 +4412,7 @@ export default {
         const { data: userInfo, error: userError } = await supabase
           .rpc('get_user_info_for_matter', {
             user_ids: userIds,
-            matter_id_param: this.currentMatter.id
+            matter_id_param: this.currentWorkspace.id
           });
         if (userError) {
           console.error('Error getting user info:', userError);
@@ -4445,7 +4445,7 @@ export default {
           .insert({
             message_id: messageId,
             content: this.newInternalComment[messageId].trim(),
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             conversation_id: this.currentChat.id,
             created_by: user.id
           })
@@ -4464,7 +4464,7 @@ export default {
         this.messageInternalComments[messageId] = (this.messageInternalComments[messageId] || 0) + 1;
         this.$forceUpdate();
         this.newInternalComment[messageId] = '';
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         this.$message.success('Internal comment added successfully');
         await this.loadInternalComments(messageId);
       } catch (error) {
@@ -4575,7 +4575,7 @@ export default {
             .from('contacts')
             .insert({
               ...contactToInsert,
-              matter_id: this.currentMatter.id,
+              matter_id: this.currentWorkspace.id,
               created_by: user.id
             })
             .select()
@@ -5062,7 +5062,7 @@ export default {
             const { data: userInfo, error: userError } = await supabase
               .rpc('get_user_info_for_matter', {
                 user_ids: userIds,
-                matter_id_param: this.currentMatter.id
+                matter_id_param: this.currentWorkspace.id
               });
             
             if (userError) throw userError;
@@ -5093,7 +5093,7 @@ export default {
     loadLastSeenUsersForPhone(phoneItemId) {
       // Get the phone number from the item ID
       const phoneId = phoneItemId.replace('phone_', '');
-      const phone = this.currentMatter?.phone_numbers?.find(p => p.id.toString() === phoneId);
+      const phone = this.currentWorkspace?.phone_numbers?.find(p => p.id.toString() === phoneId);
       
       if (!phone) return;
       
@@ -5175,7 +5175,7 @@ export default {
       const { data: userInfo, error: userError } = await supabase
         .rpc('get_user_info_for_matter', {
           user_ids: userIds,
-          matter_id_param: this.currentMatter.id
+          matter_id_param: this.currentWorkspace.id
         });
       const userInfoMap = {};
       (userInfo || []).forEach(user => {

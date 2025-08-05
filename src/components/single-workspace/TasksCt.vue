@@ -22,13 +22,13 @@ export default {
     const cacheStore = useCacheStore();
     const taskStore = useTaskStore();
     const userStore = useUserStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
 
     
     // Add loading state ref
     const isInitialLoad = ref(true);
 
-    return { currentMatter, cacheStore, taskStore, userStore, isInitialLoad };
+    return { currentWorkspace, cacheStore, taskStore, userStore, isInitialLoad };
   },
   components: {
     QuickTaskViewCt,
@@ -107,7 +107,7 @@ export default {
     };
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       async handler(newMatter) {
         if (newMatter && this.isInitialLoad) {
           this.isInitialLoad = false;
@@ -161,7 +161,7 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       setWorkspaceTitle('Tasks', workspaceName);
     },
 
@@ -170,7 +170,7 @@ export default {
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id, access_type')
-          .eq('matter_id', this.currentMatter.id);
+          .eq('matter_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -209,19 +209,19 @@ export default {
 
     async loadAvailableWorkspaces() {
       try {
-        if (!this.currentMatter) return;
+        if (!this.currentWorkspace) return;
 
         // Get current workspace
         const currentWorkspace = {
-          id: this.currentMatter.id,
-          title: this.currentMatter.title
+          id: this.currentWorkspace.id,
+          title: this.currentWorkspace.title
         };
 
         // Get child workspaces where parent_workspace_id = current workspace id
         const { data: childWorkspaces, error } = await supabase
           .from('workspaces')
           .select('id, title')
-          .eq('parent_workspace_id', this.currentMatter.id)
+          .eq('parent_workspace_id', this.currentWorkspace.id)
           .eq('archived', false);
 
         if (error) throw error;
@@ -244,12 +244,12 @@ export default {
       }
     },
     async loadTasks(showDeleted = false) {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
       
       try {
         this.loading = true;
         // First load from cache
-        const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter.id);
+        const cachedTasks = this.taskStore.getCachedTasks(this.currentWorkspace.id);
         if (cachedTasks) {
           console.log('tasks loaded from cache');
           this.tasks = this.organizeTasksHierarchy(cachedTasks);
@@ -258,7 +258,7 @@ export default {
         console.log('tasks loaded from db');
         // Then fetch fresh data
         const tasks = await this.taskStore.fetchAndCacheTasks(
-          this.currentMatter.id,
+          this.currentWorkspace.id,
           showDeleted
         );
 
@@ -418,7 +418,7 @@ export default {
     },
 
     async createTask() {
-      if (!this.currentMatter) {
+      if (!this.currentWorkspace) {
         ElMessage.warning('Please select a workspace first');
         return;
       }
@@ -429,7 +429,7 @@ export default {
         
         const taskData = {
           ...this.newTask,
-          matter_id: this.currentMatter.id,
+          matter_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -478,7 +478,7 @@ export default {
             user_id: user.id,
             content: 'Created this task',
             type: 'activity',
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             metadata: {
               action: 'create',
               task_title: data[0].title
@@ -486,15 +486,15 @@ export default {
           });
         
         // Update cache
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentWorkspace.id) || [];
         const updatedTasks = [data[0], ...cachedTasks];
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedTasks);
+        this.cacheStore.setCachedData('tasks', this.currentWorkspace.id, updatedTasks);
         
         // Update UI
         this.tasks = this.organizeTasksHierarchy(updatedTasks);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         this.dialogVisible = false;
         this.resetForm();
@@ -613,7 +613,7 @@ export default {
         if (error) throw error;
 
         // Clear cache
-        this.taskStore.clearTaskCache(this.currentMatter.id);
+        this.taskStore.clearTaskCache(this.currentWorkspace.id);
         
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
@@ -682,7 +682,7 @@ export default {
               user_id: user.id,
               content: `Updated ${changes.join(' and ')}`,
               type: 'activity',
-              matter_id: this.currentMatter.id,
+              matter_id: this.currentWorkspace.id,
               metadata: {
                 action: 'update',
                 changes: {
@@ -716,7 +716,7 @@ export default {
         }
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         this.editDialogVisible = false;
         this.editingTask = null;
@@ -741,12 +741,12 @@ export default {
             event: '*',
             schema: 'public',
             table: 'tasks',
-            filter: `matter_id=eq.${this.currentMatter.id}`
+            filter: `matter_id=eq.${this.currentWorkspace.id}`
           },
           async (payload) => {
             if (!this.isInitialLoad) {
               console.log('Realtime update received:', payload);
-              this.taskStore.clearTaskCache(this.currentMatter.id);
+              this.taskStore.clearTaskCache(this.currentWorkspace.id);
               await this.loadTasks(this.filters.showDeleted);
             }
 
@@ -792,13 +792,13 @@ export default {
         if (error) throw error;
 
         // Clear cache
-        this.taskStore.clearTaskCache(this.currentMatter.id);
+        this.taskStore.clearTaskCache(this.currentWorkspace.id);
 
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElMessage.success('Task deleted successfully');
       } catch (error) {
@@ -824,13 +824,13 @@ export default {
         if (error) throw error;
 
         // Clear cache
-        this.taskStore.clearTaskCache(this.currentMatter.id);
+        this.taskStore.clearTaskCache(this.currentWorkspace.id);
         
         // Reload tasks
         await this.loadTasks(this.filters.showDeleted);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
         
         ElMessage.success('Task restored successfully');
       } catch (error) {
@@ -905,7 +905,7 @@ export default {
             description: subtask.description,
             status: 'not_started',
             priority: subtask.priority,
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             created_by: user.id,
             due_date: subtask.due_date,
             parent_task_id: parentTaskId
@@ -921,9 +921,9 @@ export default {
         }
 
         // Update cache
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentWorkspace.id) || [];
         const updatedCachedTasks = [...cachedTasks, ...createdSubtasks];
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        this.cacheStore.setCachedData('tasks', this.currentWorkspace.id, updatedCachedTasks);
 
         // Update UI
         this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
@@ -954,11 +954,11 @@ export default {
       };
 
       // Update cache
-      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+      const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentWorkspace.id) || [];
       const updatedCachedTasks = cachedTasks.map(t => 
         t.id === taskId ? { ...t, starred } : t
       );
-      this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+      this.cacheStore.setCachedData('tasks', this.currentWorkspace.id, updatedCachedTasks);
       
       // Update UI
       this.tasks = updateTaskRecursively(this.tasks, taskId);
@@ -1177,7 +1177,7 @@ export default {
             cursor_position: cursorPosition,
             context: {
               task_title: this.newTask.title,
-              matter_id: this.currentMatter.id
+              matter_id: this.currentWorkspace.id
             }
           })
         });
@@ -1267,7 +1267,7 @@ export default {
     },
 
     async loadFiles() {
-      if (!this.currentMatter) return;
+      if (!this.currentWorkspace) return;
       
       try {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
@@ -1275,7 +1275,7 @@ export default {
         const path = this.currentSelectorFolder?.path || '';
         
         const response = await fetch(
-          `${giteaHost}/api/v1/repos/associateattorney/${this.currentMatter.git_repo}/contents/${path}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,
@@ -1380,12 +1380,12 @@ export default {
         if (error) throw error;
 
         // Update cache and UI
-        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentMatter.id) || [];
+        const cachedTasks = this.cacheStore.getCachedData('tasks', this.currentWorkspace.id) || [];
         const updatedCachedTasks = cachedTasks.map(t => 
           t.id === task.id ? { ...t, title: task.title } : t
         );
         
-        this.cacheStore.setCachedData('tasks', this.currentMatter.id, updatedCachedTasks);
+        this.cacheStore.setCachedData('tasks', this.currentWorkspace.id, updatedCachedTasks);
         this.tasks = this.organizeTasksHierarchy(updatedCachedTasks);
 
         // Log the title change as activity
@@ -1410,7 +1410,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentMatter.id);
+        await updateMatterActivity(this.currentWorkspace.id);
 
         ElMessage.success('Task title updated successfully');
       } catch (error) {
@@ -1426,7 +1426,7 @@ export default {
         description: '',
         status: 'not_started',
         priority: 'medium',
-        matter_id: this.currentMatter?.id,
+        matter_id: this.currentWorkspace?.id,
         parent_task_id: null,
         due_date: null,
         assignee: null
@@ -1527,7 +1527,7 @@ export default {
       let allTasks = [...this.tasks];
       
       // Get cached tasks if available
-      const cachedTasks = this.taskStore.getCachedTasks(this.currentMatter?.id);
+      const cachedTasks = this.taskStore.getCachedTasks(this.currentWorkspace?.id);
       if (cachedTasks) {
         // Merge cached tasks with current tasks, removing duplicates
         const taskIds = new Set(allTasks.map(t => t.id));
@@ -1717,7 +1717,7 @@ export default {
             type="primary" 
             size="small"
             title="Create New Task"
-            :disabled="!currentMatter">
+            :disabled="!currentWorkspace">
             <el-icon><Plus /></el-icon>
           </el-button>
           <el-button 

@@ -103,7 +103,7 @@
   const emit = defineEmits(['update:modelValue', 'file-selected'])
   
   const matterStore = useMatterStore()
-  const { currentMatter } = storeToRefs(matterStore)
+  const { currentWorkspace } = storeToRefs(matterStore)
   
   const dialogVisible = ref(false)
   const activeTab = ref('upload')
@@ -153,7 +153,7 @@
   
   // Implement the file loading logic from your existing code
   const loadFiles = async () => {
-    if (!currentMatter.value) return
+    if (!currentWorkspace.value) return
     
     loading.value = true
     try {
@@ -162,7 +162,7 @@
       const path = currentFolder.value?.path || ''
       
       const response = await fetch(
-        `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`,
+        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`,
         {
           headers: {
             'Authorization': `token ${giteaToken}`,
@@ -271,7 +271,7 @@
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN
       const giteaHost = import.meta.env.VITE_GITEA_HOST;
       
-      if (!currentMatter.value) throw new Error('No workspace selected')
+      if (!currentWorkspace.value) throw new Error('No workspace selected')
       
       // Generate unique filename for new uploads only
       const uniqueFileName = getUniqueFileName(file.name)
@@ -288,7 +288,7 @@
   
       // Upload to Gitea with unique filename
       const response = await fetch(
-        `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uniqueFileName}`,
+        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${uniqueFileName}`,
         {
           method: 'POST',
           headers: {

@@ -187,8 +187,8 @@ export default {
   },
   setup() {
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
-    return { currentMatter };
+    const { currentWorkspace } = storeToRefs(matterStore);
+    return { currentWorkspace };
   },
   data() {
     return {
@@ -231,7 +231,7 @@ export default {
     }
   },
   watch: {
-    currentMatter: {
+    currentWorkspace: {
       handler() {
         this.updatePageTitle();
       },
@@ -244,7 +244,7 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentMatter?.title || 'Workspace';
+      const workspaceName = this.currentWorkspace?.title || 'Workspace';
       setWorkspaceTitle('AI Fund Analyst', workspaceName);
     },
 
@@ -267,7 +267,7 @@ export default {
         const { data, error } = await supabase
           .from('ai_fund_analyzing_data')
           .insert({
-            matter_id: this.currentMatter.id,
+            matter_id: this.currentWorkspace.id,
             strategy: this.strategyDisplayValue.trim(),
             prompt: this.prompt.trim(),
             report_datetime: new Date().toISOString(),
@@ -469,14 +469,14 @@ export default {
     },
 
     async loadHistoricalReports() {
-      if (!this.currentMatter?.id) return;
+      if (!this.currentWorkspace?.id) return;
 
       this.loadingHistory = true;
       try {
         const { data, error } = await supabase
           .from('ai_fund_analyzing_data')
           .select('*')
-          .eq('matter_id', this.currentMatter.id)
+          .eq('matter_id', this.currentWorkspace.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

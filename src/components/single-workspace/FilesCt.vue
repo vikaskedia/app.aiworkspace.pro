@@ -16,7 +16,7 @@ import { setWorkspaceTitle } from '../../utils/page-title';
 
 const route = useRoute();
 const matterStore = useMatterStore();
-const { currentMatter } = storeToRefs(matterStore);
+const { currentWorkspace } = storeToRefs(matterStore);
 
 const files = ref([]);
 const loading = ref(false);
@@ -94,7 +94,7 @@ const filteredItems = computed(() => {
 });
 
 // Load files when workspace changes
-watch(currentMatter, async (newMatter) => {
+watch(currentWorkspace, async (newMatter) => {
   if (newMatter?.id) {
     // Clear split views when workspace changes
     splitViews.value = [];
@@ -111,13 +111,13 @@ watch(currentMatter, async (newMatter) => {
 
 // Function to update page title
 const updatePageTitle = () => {
-  const workspaceName = currentMatter.value?.title || 'Workspace';
+  const workspaceName = currentWorkspace.value?.title || 'Workspace';
   setWorkspaceTitle('Files', workspaceName);
 };
 
 // Load workspace if not already loaded
 onMounted(async () => {
-  // if (route.params.matterId && !currentMatter.value) {
+  // if (route.params.matterId && !currentWorkspace.value) {
   //   const { data, error } = await supabase
   //     .from('workspaces')
   //     .select('*')
@@ -154,7 +154,7 @@ function validateGiteaConfig() {
   }
 }
 async function loadFiles() {
-  if (!currentMatter.value) return;
+  if (!currentWorkspace.value) return;
   
   loading.value = true;
   try {
@@ -163,7 +163,7 @@ async function loadFiles() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
-    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
+    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -185,8 +185,8 @@ async function loadFiles() {
         type: getFileType(file.name),
         size: file.size,
         storage_path: file.path,
-        matter_id: currentMatter.value.id,
-        git_repo: currentMatter.value.git_repo,
+        matter_id: currentWorkspace.value.id,
+        git_repo: currentWorkspace.value.git_repo,
         created_at: new Date().toISOString(),
         tags: [],
         download_url: getAuthenticatedDownloadUrl(file.download_url)
@@ -228,7 +228,7 @@ function getFileType(filename) {
 }
 
 async function handleFileUpload(file) {
-  if (!currentMatter.value) {
+  if (!currentWorkspace.value) {
     ElMessage.warning('Please select a workspace first');
     return;
   }
@@ -261,7 +261,7 @@ async function handleFileUpload(file) {
 
     // Upload to Gitea with the correct path
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${uploadPath}`,
+      `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${uploadPath}`,
       {
         method: 'POST',
         headers: getGiteaHeaders(giteaToken),
@@ -287,8 +287,8 @@ async function handleFileUpload(file) {
       type: getFileType(file.name),
       size: file.size,
       storage_path: giteaData.content.path,
-      matter_id: currentMatter.value.id,
-      git_repo: currentMatter.value.git_repo,
+      matter_id: currentWorkspace.value.id,
+      git_repo: currentWorkspace.value.git_repo,
       created_at: new Date().toISOString(),
       tags: selectedTags.value,
       download_url: getAuthenticatedDownloadUrl(giteaData.content.download_url)
@@ -299,7 +299,7 @@ async function handleFileUpload(file) {
     selectedTags.value = [];
     
     // Update workspace activity
-    await updateMatterActivity(currentMatter.value.id);
+    await updateMatterActivity(currentWorkspace.value.id);
     
     ElMessage.success('File uploaded successfully');
 
@@ -318,7 +318,7 @@ async function deleteFile(file) {
 
     // Delete from Gitea
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${file.storage_path}`,
+      `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${file.storage_path}`,
       {
         method: 'DELETE',
         headers: getGiteaHeaders(giteaToken),
@@ -339,7 +339,7 @@ async function deleteFile(file) {
     files.value = files.value.filter(f => f.id !== file.id);
     
     // Update workspace activity
-    await updateMatterActivity(currentMatter.value.id);
+    await updateMatterActivity(currentWorkspace.value.id);
     
     ElMessage.success('File deleted successfully');
 
@@ -378,7 +378,7 @@ function handleFileUpdate(updatedFile) {
 }
 
 async function loadFolders() {
-  if (!currentMatter.value) {
+  if (!currentWorkspace.value) {
     console.warn('No current workspace selected');
     return;
   }
@@ -389,7 +389,7 @@ async function loadFolders() {
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const path = currentFolder.value?.path || '';
     
-    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}`;
+    const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -433,7 +433,7 @@ async function loadFolders() {
 }
 
 async function createFolder() {
-  if (!currentMatter.value || !newFolderName.value.trim()) return;
+  if (!currentWorkspace.value || !newFolderName.value.trim()) return;
   
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
@@ -444,7 +444,7 @@ async function createFolder() {
 
     // Create an empty file as .gitkeep to create the folder
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/associateattorney/${currentMatter.value.git_repo}/contents/${path}/.gitkeep`,
+      `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}/.gitkeep`,
       {
         method: 'POST',
         headers: {
@@ -479,7 +479,7 @@ async function createFolder() {
     newFolderName.value = '';
     
     // Update workspace activity
-    await updateMatterActivity(currentMatter.value.id);
+    await updateMatterActivity(currentWorkspace.value.id);
     
     ElMessage.success('Folder created successfully');
   } catch (error) {

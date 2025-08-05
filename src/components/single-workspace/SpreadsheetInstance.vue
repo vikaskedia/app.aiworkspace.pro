@@ -209,13 +209,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
     // Workspace store for workspace context
     const matterStore = useMatterStore();
-    const { currentMatter } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(matterStore);
     
     // Task store for fetching task information
     const taskStore = useTaskStore();
     
     // Use prop matterId if provided, otherwise get from current matter
-    const currentMatterId = computed(() => props.matterId || currentMatter.value?.id);
+    const currentWorkspaceId = computed(() => props.matterId || currentWorkspace.value?.id);
     
     // Cell edit tracking for user history
     const currentUser = ref(null);
@@ -2283,7 +2283,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
     // Load complete portfolio workbook data from Supabase
     const loadPortfolioData = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn(`⚠️ No workspace ID available for loading portfolio data (${props.spreadsheetId})`);
         return {};
       }
@@ -2294,7 +2294,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {
@@ -2311,7 +2311,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           portfolioId.value = data[0].id;
           const loadedData = data[0].data || {};
           
-          console.log(`📊 Loading portfolio data for workspace ${currentMatterId.value}, spreadsheet ${props.spreadsheetId}`);
+          console.log(`📊 Loading portfolio data for workspace ${currentWorkspaceId.value}, spreadsheet ${props.spreadsheetId}`);
           
           // Check if this is a complete Univer workbook format or legacy format
           if (loadedData.id && loadedData.sheets && loadedData.sheetOrder) {
@@ -2442,7 +2442,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         return;
       }
       
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn(`⚠️ No workspace ID available for saving portfolio data (${props.spreadsheetId})`);
         ElMessage.warning(`Cannot save ${props.spreadsheetName}: No workspace selected`);
         return;
@@ -2465,7 +2465,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           return;
         }
         
-        console.log(`💾 SAVING TO SUPABASE (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, {
+        console.log(`💾 SAVING TO SUPABASE (${props.spreadsheetId}) for workspace ${currentWorkspaceId.value}:`, {
           hasSheets: !!(dataToSave.sheets),
           sheetCount: dataToSave.sheets ? Object.keys(dataToSave.sheets).length : 0,
           hasStyles: !!(dataToSave.styles),
@@ -2491,14 +2491,14 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         }
         
         // Always create new record for history tracking
-        console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentMatterId.value}...`);
+        console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentWorkspaceId.value}...`);
         const { data: newRecord, error } = await supabase
           .from('ai_portfolio_data')
           .insert([{ 
             data: cleanedData,
             name: props.spreadsheetName,
             spreadsheet_id: props.spreadsheetId,
-            matter_id: currentMatterId.value,
+            matter_id: currentWorkspaceId.value,
             portfolio_id: props.portfolioId,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -2511,7 +2511,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           throw error;
         }
         
-        console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, newRecord.id);
+        console.log(`✅ Successfully created new record with ID (${props.spreadsheetId}) for workspace ${currentWorkspaceId.value}:`, newRecord.id);
         
         // Now fetch the latest record from Supabase by created_at date
         console.log(`🔄 Fetching latest record from Supabase after save...`);
@@ -2533,7 +2533,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         const sheetCount = cleanedData.sheets ? Object.keys(cleanedData.sheets).length : 0;
         const styleCount = cleanedData.styles ? Object.keys(cleanedData.styles).length : 0;
         
-        console.log(`✅ Save operation completed successfully (${props.spreadsheetId}) for workspace ${currentMatterId.value}:`, {
+        console.log(`✅ Save operation completed successfully (${props.spreadsheetId}) for workspace ${currentWorkspaceId.value}:`, {
           recordId: portfolioId.value,
           sheets: sheetCount,
           styles: styleCount,
@@ -2554,7 +2554,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
     // Helper function to fetch the latest record from Supabase
     const fetchLatestRecordFromSupabase = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn(`⚠️ No workspace ID available for fetching latest record (${props.spreadsheetId})`);
         return null;
       }
@@ -2567,7 +2567,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {
@@ -3317,7 +3317,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
 
     // Fetch spreadsheet history
     const fetchSpreadsheetHistory = async () => {
-      if (!currentMatterId.value) {
+      if (!currentWorkspaceId.value) {
         console.warn(`⚠️ No workspace ID available for fetching history (${props.spreadsheetId})`);
         ElMessage.warning(`Cannot fetch history: No workspace selected`);
         return;
@@ -3332,7 +3332,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           .from('ai_portfolio_data')
           .select('*')
           .eq('spreadsheet_id', props.spreadsheetId)
-          .eq('matter_id', currentMatterId.value);
+          .eq('matter_id', currentWorkspaceId.value);
         
         // Add portfolio_id filter if provided
         if (props.portfolioId) {

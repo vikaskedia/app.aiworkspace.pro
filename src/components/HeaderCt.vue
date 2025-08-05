@@ -56,6 +56,7 @@ export default {
       if (path.includes('/communications')) return 'Communications';
       if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/ai_intake')) return 'AI Intake';
+      if (path.includes('/ai_fax')) return 'AI Fax';
       if (path.includes('/ai_portfolio')) return 'AI Portfolios';
       if (path.includes('/ai_fund_analyst')) return 'AI Fund Analyst';
       if (path.includes('/settings')) return 'Settings';
@@ -237,6 +238,9 @@ export default {
             break;
           case 'ai_intake':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_intake`);
+            break;
+          case 'ai_fax':
+            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_fax`);
             break;
           case 'ai_portfolio':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_portfolio`);
@@ -458,6 +462,7 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fax`">AI Fax</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_portfolio`">AI Portfolios</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fund_analyst`">AI Fund Analyst</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/contacts`">Contacts</a></el-dropdown-item>

@@ -250,15 +250,38 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // LOCAL STORAGE CACHE FUNCTIONS FOR DATA PROTECTION
     // Generate unique cache key for this spreadsheet
     const getCacheKey = () => {
-      return `spreadsheet_cache_${props.spreadsheetId}_${currentWorkspaceId.value}_${props.portfolioId || 'default'}`;
+      // Handle cases where workspace or portfolio IDs might not be available yet
+      const workspaceId = currentWorkspaceId.value || 'no-workspace';
+      const portfolioId = props.portfolioId || 'no-portfolio';
+      const spreadsheetId = props.spreadsheetId || 'no-spreadsheet';
+      
+      const key = `spreadsheet_cache_${spreadsheetId}_${workspaceId}_${portfolioId}`;
+      console.log(`🔑 Generated cache key: ${key}`);
+      return key;
     };
 
     // Save current data to localStorage as backup
     const saveToLocalCache = (data = null) => {
       try {
+        console.log(`💾 Attempting to save to local cache for ${props.spreadsheetId}`);
+        console.log(`📊 Current state - isInitializing: ${isInitializing.value}, workspaceId: ${currentWorkspaceId.value}, portfolioId: ${props.portfolioId}`);
+        
         const dataToCache = data || getCurrentSpreadsheetData();
+        console.log(`📋 Data to cache:`, {
+          hasData: !!dataToCache,
+          dataKeys: dataToCache ? Object.keys(dataToCache) : [],
+          hasSheets: !!(dataToCache?.sheets),
+          sheetsCount: dataToCache?.sheets ? Object.keys(dataToCache.sheets).length : 0
+        });
+        
         if (!dataToCache || Object.keys(dataToCache).length === 0) {
-          console.log(`⚠️ No data to cache for ${props.spreadsheetId}`);
+          console.log(`⚠️ No data to cache for ${props.spreadsheetId} - dataToCache is empty or null`);
+          return;
+        }
+        
+        // For new spreadsheets, ensure we have at least basic structure
+        if (!dataToCache.sheets || Object.keys(dataToCache.sheets).length === 0) {
+          console.log(`⚠️ No sheets data to cache for ${props.spreadsheetId}`);
           return;
         }
 
@@ -308,11 +331,37 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Load data from localStorage if available
     const loadFromLocalCache = () => {
       try {
+        console.log(`📱 Attempting to load from local cache for ${props.spreadsheetId}`);
         const cacheKey = getCacheKey();
+        console.log(`🔑 Using cache key: ${cacheKey}`);
+        
         const cached = localStorage.getItem(cacheKey);
         
         if (!cached) {
-          console.log(`ℹ️ No cached data found for ${props.spreadsheetId}`);
+          console.log(`ℹ️ No cached data found for ${props.spreadsheetId} with key: ${cacheKey}`);
+          
+          // Also try alternative keys in case the workspace/portfolio IDs changed
+          const alternativeKeys = [
+            `spreadsheet_cache_${props.spreadsheetId}_no-workspace_no-portfolio`,
+            `spreadsheet_cache_${props.spreadsheetId}_${currentWorkspaceId.value}_no-portfolio`,
+            `spreadsheet_cache_${props.spreadsheetId}_no-workspace_${props.portfolioId}`,
+          ];
+          
+          for (const altKey of alternativeKeys) {
+            const altCached = localStorage.getItem(altKey);
+            if (altCached) {
+              console.log(`📱 Found cached data with alternative key: ${altKey}`);
+              const cacheData = JSON.parse(altCached);
+              const cacheAge = new Date() - new Date(cacheData.timestamp);
+              const ageHours = cacheAge / (1000 * 60 * 60);
+              
+              if (ageHours <= 24) {
+                console.log(`📱 Using alternative cached data from ${new Date(cacheData.timestamp).toLocaleString()}`);
+                return cacheData.data;
+              }
+            }
+          }
+          
           return null;
         }
 
@@ -466,11 +515,69 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         portfolioData.value = { ...currentData };
         console.log(`🔄 Portfolio data updated to trigger save`);
         
+        // Force cache save for this change
+        try {
+          console.log(`🔄 Force saving to cache due to edit metadata change`);
+          saveToLocalCache(currentData);
+        } catch (cacheError) {
+          console.warn(`⚠️ Force cache save failed:`, cacheError);
+        }
+        
       } catch (error) {
         console.error(`❌ Error in addEditMetadataToCell:`, error);
         console.error(`❌ Error stack:`, error.stack);
       }
     };
+    
+    // Force cache save function for debugging and manual triggers
+    const forceCacheSave = () => {
+      try {
+        console.log(`🔧 Manual force cache save triggered for ${props.spreadsheetId}`);
+        const currentData = getCurrentSpreadsheetData();
+        console.log(`📊 Force cache save data:`, {
+          hasData: !!currentData,
+          hasSheets: !!(currentData?.sheets),
+          sheetsCount: currentData?.sheets ? Object.keys(currentData.sheets).length : 0
+        });
+        saveToLocalCache(currentData);
+        console.log(`✅ Manual force cache save completed for ${props.spreadsheetId}`);
+             } catch (error) {
+         console.error(`❌ Manual force cache save failed for ${props.spreadsheetId}:`, error);
+       }
+     };
+     
+     // Test localStorage availability and space
+     const testLocalStorage = () => {
+       try {
+         const testKey = 'test_key';
+         const testData = 'test_data';
+         localStorage.setItem(testKey, testData);
+         const retrieved = localStorage.getItem(testKey);
+         localStorage.removeItem(testKey);
+         
+         if (retrieved === testData) {
+           console.log(`✅ localStorage is working properly for ${props.spreadsheetId}`);
+           
+           // Check available space estimation
+           let used = 0;
+           for (let key in localStorage) {
+             if (localStorage.hasOwnProperty(key)) {
+               used += localStorage[key].length + key.length;
+             }
+           }
+           const usedKB = (used / 1024).toFixed(2);
+           console.log(`📊 localStorage usage: ${usedKB} KB`);
+           
+           return true;
+         } else {
+           console.error(`❌ localStorage test failed for ${props.spreadsheetId}`);
+           return false;
+         }
+       } catch (error) {
+         console.error(`❌ localStorage not available for ${props.spreadsheetId}:`, error);
+         return false;
+       }
+     };
     
     let univer = null;
     let univerAPI = null;
@@ -1841,11 +1948,15 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           const autoSaveInterval = setInterval(() => {
             if (hasUnsavedChanges.value && !isInitializing.value) {
               try {
+                console.log(`🔄 Periodic auto-save trigger for ${props.spreadsheetId}`);
                 saveToLocalCache();
-                console.log(`🔄 Periodic auto-save to cache for ${props.spreadsheetId}`);
+                console.log(`✅ Periodic auto-save to cache completed for ${props.spreadsheetId}`);
               } catch (error) {
                 console.warn(`⚠️ Periodic auto-save failed for ${props.spreadsheetId}:`, error);
+                console.error(`❌ Periodic auto-save error details:`, error);
               }
+            } else {
+              console.log(`⏭️ Skipping periodic auto-save for ${props.spreadsheetId} - hasUnsavedChanges: ${hasUnsavedChanges.value}, isInitializing: ${isInitializing.value}`);
             }
           }, 2 * 60 * 1000); // 2 minutes
           
@@ -2426,10 +2537,30 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       insertHyperlinkInCurrentCell,
       getHyperlinksInCell,
       updateHyperlinkInCell,
-      removeHyperlinkInCell
+      removeHyperlinkInCell,
+      forceCacheSave,
+      saveToLocalCache,
+      loadFromLocalCache,
+      clearFromLocalCache,
+      testLocalStorage
     });
 
     onMounted(() => {
+      console.log(`🚀 SpreadsheetInstance mounted for ${props.spreadsheetId}`);
+      console.log(`📊 Mount state:`, {
+        spreadsheetId: props.spreadsheetId,
+        spreadsheetName: props.spreadsheetName,
+        workspaceId: currentWorkspaceId.value,
+        portfolioId: props.portfolioId,
+        isReadonly: props.readonly
+      });
+      
+      // Test localStorage availability
+      const storageWorks = testLocalStorage();
+      if (!storageWorks) {
+        console.warn(`⚠️ localStorage not working - cache features disabled for ${props.spreadsheetId}`);
+      }
+      
       // Clean up old cache entries on startup
       cleanupOldCache();
       
@@ -3231,13 +3362,26 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     
         // try to return WORKBOOK_DATA
         try {
-          return WORKBOOK_DATA;
+          if (WORKBOOK_DATA && Object.keys(WORKBOOK_DATA).length > 0) {
+            console.log(`📊 Returning WORKBOOK_DATA for ${props.spreadsheetId}:`, {
+              hasSheets: !!(WORKBOOK_DATA.sheets),
+              sheetsCount: WORKBOOK_DATA.sheets ? Object.keys(WORKBOOK_DATA.sheets).length : 0
+            });
+            return WORKBOOK_DATA;
+          }
         } catch (error) {
           console.warn(`Error getting workbook data (${props.spreadsheetId}):`, error);
         }
         
         console.log(`⚠️ All extraction methods failed, falling back to stored data (${props.spreadsheetId})`);
-        return portfolioData.value || {};
+        const fallbackData = portfolioData.value || {};
+        console.log(`📊 Fallback data for ${props.spreadsheetId}:`, {
+          hasData: !!fallbackData,
+          dataKeys: Object.keys(fallbackData),
+          hasSheets: !!(fallbackData.sheets),
+          sheetsCount: fallbackData.sheets ? Object.keys(fallbackData.sheets).length : 0
+        });
+        return fallbackData;
         
       } catch (error) {
         console.error(`Error getting workbook data (${props.spreadsheetId}):`, error);
@@ -3341,10 +3485,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         
         // Save to local cache to protect against data loss
         try {
+          console.log(`🔥 About to call saveToLocalCache for ${props.spreadsheetId}`);
           saveToLocalCache();
           console.log(`💾 Auto-saved to local cache for data protection (${props.spreadsheetId})`);
         } catch (error) {
           console.warn(`⚠️ Failed to auto-save to cache for ${props.spreadsheetId}:`, error);
+          console.error(`❌ Cache save error details:`, error);
         }
       } else {
         console.log(`👀 Skipping unsaved marking - no real data change detected for ${props.spreadsheetId}`);

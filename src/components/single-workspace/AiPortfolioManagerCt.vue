@@ -371,9 +371,16 @@ import { supabase } from '../../supabase';
 import { useMatterStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle, setComponentTitle } from '../../utils/page-title';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'AiPortfolioManagerCt',
+  props: {
+    portfolioId: {
+      type: String,
+      default: null
+    }
+  },
   components: {
     SpreadsheetInstance,
     Plus,
@@ -383,10 +390,13 @@ export default {
     Close,
     MoreFilled
   },
-  setup() {
+  setup(props) {
     // Workspace store for workspace context
     const matterStore = useMatterStore();
     const { currentWorkspace } = storeToRefs(matterStore);
+
+    // Router for URL navigation
+    const router = useRouter();
     
     // Computed workspace ID for workspace filtering
     const currentWorkspaceId = computed(() => currentWorkspace.value?.id);
@@ -1124,7 +1134,25 @@ export default {
 
         // Set active portfolio to first one
         if (portfolios.value.length > 0) {
-          activePortfolioId.value = portfolios.value[0].id;
+          //activePortfolioId.value = portfolios.value[0].id;
+
+
+          if (props.portfolioId) {
+            // Check if the portfolioId from URL exists in the loaded portfolios
+            const portfolioExists = portfolios.value.some(p => p.id === props.portfolioId);
+            if (portfolioExists) {
+              console.log(`🔄 Setting active portfolio from URL parameter: ${props.portfolioId}`);
+              activePortfolioId.value = props.portfolioId;
+            } else {
+              console.log(`⚠️ Portfolio ${props.portfolioId} not found, setting first portfolio as default`);
+              activePortfolioId.value = portfolios.value[0].id;
+            }
+          } else {
+            // No portfolioId in URL, set first portfolio as default
+            console.log(`🔄 No portfolioId in URL, setting first portfolio as default: ${portfolios.value[0].id}`);
+            activePortfolioId.value = portfolios.value[0].id;
+          }
+
           // Update page title now that we have an active portfolio
           updatePageTitle();
         }
@@ -1209,6 +1237,11 @@ export default {
     const handlePortfolioChange = (portfolioId) => {
       console.log(`🔄 Switched to portfolio: ${portfolioId}`);
       activePortfolioId.value = portfolioId;
+
+      // Update URL to reflect the selected portfolio
+      const portfolioUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio/${portfolioId}`;
+      router.push(portfolioUrl);
+      
       updatePageTitle();
     };
     
@@ -1781,6 +1814,7 @@ export default {
     });
 
     return {
+      props,
       currentWorkspace,
       currentWorkspaceId,
       loadChildWorkspaces,

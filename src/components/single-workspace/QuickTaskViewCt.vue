@@ -1596,6 +1596,7 @@ Please provide assistance based on this context, the comment history, the availa
               <el-dropdown-menu class="compact-dropdown">
                 <el-dropdown-item command="not_started"><el-tag size="small" type="info" class="option-tag">Not Started</el-tag></el-dropdown-item>
                 <el-dropdown-item command="in_progress"><el-tag size="small" type="warning" class="option-tag">In Progress</el-tag></el-dropdown-item>
+                <el-dropdown-item command="not_needed_anymore"><el-tag size="small" type="warning" class="option-tag">Not needed anymore</el-tag></el-dropdown-item>
                 <el-dropdown-item command="awaiting_external"><el-tag size="small" type="info" class="option-tag">Awaiting External</el-tag></el-dropdown-item>
                 <el-dropdown-item command="awaiting_internal"><el-tag size="small" type="info" class="option-tag">Awaiting Internal</el-tag></el-dropdown-item>
                 <el-dropdown-item command="completed"><el-tag size="small" type="success" class="option-tag">Completed</el-tag></el-dropdown-item>

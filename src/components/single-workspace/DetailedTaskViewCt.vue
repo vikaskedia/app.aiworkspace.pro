@@ -1638,6 +1638,7 @@ export default {
       statusOptions: [
         { value: 'not_started', label: 'Not started' },
         { value: 'in_progress', label: 'In Progress' },
+        { value: 'not_needed_anymore', label: 'Not needed anymore' },
         { value: 'awaiting_external', label: 'Awaiting external factor' },
         { value: 'awaiting_internal', label: 'Awaiting internal factor' },
         { value: 'completed', label: 'Completed' }
@@ -2817,6 +2818,7 @@ export default {
       const statusMap = {
         'in_progress': 'In progress',
         'not_started': 'Not started',
+        'not_needed_anymore': 'Not needed anymore',
         'completed': 'Completed',
         'awaiting_external': 'Awaiting external factor',
         'awaiting_internal': 'Awaiting internal factor'

@@ -96,6 +96,7 @@ import { ElMessage } from 'element-plus';
 import { useMatterStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 
 
 /*
@@ -206,6 +207,17 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Define emits
     const emit = defineEmits(['remove-spreadsheet'])
 
+    // Router for URL navigation
+    const router = useRouter();
+
+    // Check if we're loading from URL history parameters
+    const isLoadingFromUrlHistory = computed(() => {
+      return router.currentRoute.value.params.historyId && router.currentRoute.value.params.spreadsheetId;
+    });
+    
+    // Get history ID from URL if present
+    const urlHistoryId = computed(() => router.currentRoute.value.params.historyId);
+    const urlSpreadsheetId = computed(() => router.currentRoute.value.params.spreadsheetId);
 
     // Workspace store for workspace context
     const matterStore = useMatterStore();
@@ -2564,10 +2576,18 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       // Clean up old cache entries on startup
       cleanupOldCache();
       
-      // Ensure DOM is ready before initialization
-      setTimeout(() => {
-        initializeUniver();
-      }, 100);
+      // Check if we're loading from URL history parameters
+      if (isLoadingFromUrlHistory.value) {
+        console.log(`🔄 Loading from URL history: spreadsheetId=${urlSpreadsheetId.value}, historyId=${urlHistoryId.value}`);
+        setTimeout(() => {
+          loadHistoryFromUrl();
+        }, 100);
+      } else {
+        // Ensure DOM is ready before initialization
+        setTimeout(() => {
+          initializeUniver();
+        }, 100);
+      }
     });
 
     onBeforeUnmount(() => {
@@ -3772,6 +3792,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               created_by: record.created_by,
               userDisplay: userDisplay,
               data: record.data,
+              spreadsheetId: record.spreadsheet_id,
               formattedDate:  getFormattedDate(record.created_at),
               relativeDate: getRelativeTimeString(record.created_at)
             };
@@ -3827,10 +3848,67 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       await fetchSpreadsheetHistory();
     };
 
+    // Load history data from URL parameters
+    const loadHistoryFromUrl = async () => {
+      try {
+        console.log(`🔄 Loading history from URL: historyId=${urlHistoryId.value}, spreadsheetId=${urlSpreadsheetId.value}`);
+        
+        if (!urlHistoryId.value || !urlSpreadsheetId.value) {
+          console.warn('⚠️ Missing URL parameters for history loading');
+          ElMessage.error('Invalid history URL parameters');
+          return;
+        }
+
+        // Fetch the specific history record
+        const { data, error } = await supabase
+          .from('ai_portfolio_data')
+          .select('*')
+          .eq('id', urlHistoryId.value)
+          .eq('spreadsheet_id', urlSpreadsheetId.value)
+          .eq('workspace_id', currentWorkspaceId.value)
+          .single();
+
+        if (error) {
+          console.error('❌ Error fetching history record:', error);
+          ElMessage.error('Failed to load history record');
+          return;
+        }
+
+        if (!data) {
+          console.warn('⚠️ No history record found');
+          ElMessage.error('History record not found');
+          return;
+        }
+
+        // Set readonly mode for history loading
+        isReadonly.value = true;
+        isViewingHistory.value = true;
+        
+        const workbookData = data.data;
+        const cleanedHistoryData = cleanDataForSerialization(workbookData);
+        
+        // Initialize Univer with history data in readonly mode
+        await initializeUniver(cleanedHistoryData, true);
+        
+        // Mark as saved since we loaded from history
+        markAsSaved();
+        
+        console.log(`✅ History data loaded successfully from URL in readonly mode`);
+        ElMessage.success(`Loaded spreadsheet from history (Read-only mode)`);
+        
+      } catch (error) {
+        console.error(`❌ Error loading history from URL:`, error);
+        ElMessage.error(`Failed to load history data: ${error.message || 'Unknown error'}`);
+        // Reset readonly mode on error
+        isReadonly.value = false;
+        isViewingHistory.value = false;
+      }
+    };
+
         const loadHistoryData = async (historyRecord) => {
       try {
         console.log(`🔄 Loading history data for record ${historyRecord.id} in readonly mode...`);
-        
+        // console.log('🔄 Loading history data for record:', historyRecord);
         // Set readonly mode for history loading
         isReadonly.value = true;
         isViewingHistory.value = true;
@@ -3840,6 +3918,10 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         
         // Pass readonly=true to initializeUniver for history loading
         await initializeUniver(cleanedHistoryData, true);
+
+        // Update URL to reflect the history state
+        const historyUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio/${props.portfolioId}/spreadsheet/${historyRecord.spreadsheetId}/history/${historyRecord.id}`;
+        await router.push(historyUrl);
 
         // Close history modal
         showHistoryModal.value = false;
@@ -3874,6 +3956,10 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         
         // Initialize with current data in normal mode (not readonly)
         await initializeUniver(cleanedCurrentData, false);
+        
+        // Update URL to remove history parameters
+        const currentUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio`;
+        await router.push(currentUrl);
         
         console.log(`✅ Successfully closed history view and loaded current spreadsheet`);
         ElMessage.success(`Switched back to current spreadsheet`);

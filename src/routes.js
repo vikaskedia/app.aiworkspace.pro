@@ -168,6 +168,17 @@ const routes = [
         component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue')
       },
       {
+        path: 'ai_portfolio/:portfolioId/spreadsheet/:spreadsheetId/history/:historyId',
+        name: 'AiPortfolioSpreadsheetHistoryPage',
+        component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue'),
+        props: route => ({
+          portfolioId: route.params.portfolioId,
+          spreadsheetId: route.params.spreadsheetId,
+          historyId: route.params.historyId,
+          showHistory: true
+        })
+      },
+      {
         path: 'ai_fund_analyst',
         name: 'AiFundAnalystPage',
         component: () => import('./components/single-workspace/AiFundAnalystCt.vue')

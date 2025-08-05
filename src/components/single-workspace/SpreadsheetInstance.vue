@@ -1506,6 +1506,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               const statusMap = {
                 'not_started': 'Not Started',
                 'in_progress': 'In Progress',
+                'not_needed_anymore': 'Not needed anymore',
                 'awaiting_external': 'Awaiting External',
                 'awaiting_internal': 'Awaiting Internal',
                 'completed': 'Completed'

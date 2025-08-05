@@ -377,6 +377,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
               columns = [
                 { id: 'not_started', title: 'Not Started', tasks: [] },
                 { id: 'in_progress', title: 'In Progress', tasks: [] },
+                { id: 'not_needed_anymore', title: 'Not needed anymore', tasks: [] },
                 { id: 'awaiting_external', title: 'Awaiting External', tasks: [] },
                 { id: 'awaiting_internal', title: 'Awaiting Internal', tasks: [] },
                 { id: 'completed', title: 'Completed', tasks: [] }
@@ -676,6 +677,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       formatStatus(status) {
         const statusMap = {
           'in_progress': 'In Progress',
+          'not_needed_anymore': 'Not needed anymore',
           'not_started': 'Not Started',
           'completed': 'Completed',
           'awaiting_external': 'Awaiting External',
@@ -702,6 +704,8 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
               case 'completed':
                 return 'var(--el-color-success)';
               case 'in_progress':
+                return 'var(--el-color-warning)';
+              case 'not_needed_anymore':
                 return 'var(--el-color-warning)';
               case 'not_started':
                 return 'var(--el-color-info)';

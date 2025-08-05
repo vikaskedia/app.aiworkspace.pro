@@ -1809,6 +1809,7 @@ export default {
                 style="width: 200px">
                 <el-option label="Not started" value="not_started" />
                 <el-option label="In progress" value="in_progress" />
+                <el-option label="Not needed anymore" value="not_needed_anymore" />
                 <el-option label="Awaiting external factor" value="awaiting_external" />
                 <el-option label="Awaiting internal factor" value="awaiting_internal" />
                 <el-option label="Completed" value="completed" />
@@ -1881,6 +1882,7 @@ export default {
                 style="width: 200px">
                 <el-option label="Not started" value="not_started" />
                 <el-option label="In progress" value="in_progress" />
+                <el-option label="Not needed anymore" value="not_needed_anymore" />
                 <el-option label="Awaiting external factor" value="awaiting_external" />
                 <el-option label="Awaiting internal factor" value="awaiting_internal" />
                 <el-option label="Completed" value="completed" />
@@ -2138,6 +2140,7 @@ export default {
             <el-select v-model="editingTask.status" style="width: 100%">
               <el-option label="Not started" value="not_started" />
               <el-option label="In Progress" value="in_progress" />
+              <el-option label="Not needed anymore" value="not_needed_anymore" />
               <el-option label="Awaiting external factor" value="awaiting_external" />
               <el-option label="Awaiting internal factor" value="awaiting_internal" />
               <el-option label="Completed" value="completed" />

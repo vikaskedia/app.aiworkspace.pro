@@ -1240,6 +1240,7 @@ export default {
     formatStatus(status) {
       const statusMap = {
         'in_progress': 'In Progress',
+        'not_needed_anymore': 'Not needed anymore',
         'not_started': 'Not Started',
         'completed': 'Completed',
         'awaiting_external': 'Awaiting External',
@@ -1253,6 +1254,8 @@ export default {
         case 'completed':
           return 'success';
         case 'in_progress':
+          return 'warning';
+        case 'not_needed_anymore':
           return 'warning';
         case 'not_started':
           return 'info';

@@ -4,7 +4,7 @@
       <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
         <span v-if="idx > 0"> &gt; </span>
         <a
-          :href="matterId ? '/single-workspace/' + matterId + '/outlines?focus=' + node.id : '#'"
+          :href="workspaceId ? '/single-workspace/' + workspaceId + '/outlines?focus=' + node.id : '#'"
           class="breadcrumb-link"
           @click.prevent="handleBreadcrumb(node, idx)"
           :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"
@@ -212,7 +212,7 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const matterStore = useMatterStore();
-    const matterId = computed(() => route.params.matterId);
+    const workspaceId = computed(() => route.params.workspaceId);
     const saving = ref(false);
     const refreshing = ref(false);
     const outline = ref([]);
@@ -260,9 +260,9 @@ export default {
     }, 2000);
 
     // Get localStorage keys for current matter
-    const getLocalStorageKey = () => `outline_${matterId.value}`;
-    const getVersionKey = () => `outline_version_${matterId.value}`;
-    const getCollapsedKey = () => `outline_collapsed_${matterId.value}_${window.location.pathname}`;
+    const getLocalStorageKey = () => `outline_${workspaceId.value}`;
+    const getVersionKey = () => `outline_version_${workspaceId.value}`;
+    const getCollapsedKey = () => `outline_collapsed_${workspaceId.value}_${window.location.pathname}`;
 
     // Function to check if content has changed
     const checkForChanges = (newContent) => {
@@ -411,7 +411,7 @@ export default {
 
     // Load from localStorage or use default
     onMounted(async () => {
-      if (!matterId.value) return;
+      if (!workspaceId.value) return;
 
       // Load collapsed state first
       loadCollapsedState();
@@ -450,7 +450,7 @@ export default {
         const { data: outlineData, error: outlineError } = await supabase
           .from('outlines')
           .select('*')
-          .eq('matter_id', matterId.value)
+          .eq('matter_id', workspaceId.value)
           .eq('title', 'Outline')
           .order('version', { ascending: false })
           .limit(1)
@@ -462,6 +462,7 @@ export default {
         }
 
         if (outlineData) {
+          console.log(outlineData);
           outlineId.value = outlineData.id;
           
           // If versions match, check for content differences
@@ -559,7 +560,7 @@ export default {
                 id: Date.now().toString(),
                 text: fileName,
                 children: [],
-                fileUrl: await uploadFileToGitea(namedFile, matterId.value),
+                fileUrl: await uploadFileToGitea(namedFile, workspaceId.value),
                 created_at: now,
                 updated_at: now
               };
@@ -643,7 +644,7 @@ export default {
     // Watch for changes in outline - but don't auto-save on every change
     // Only update localStorage and change detection
     watch(outline, (val) => {
-      if (matterId.value) {
+      if (workspaceId.value) {
         localStorage.setItem(getLocalStorageKey(), JSON.stringify(val));
         hasChanges.value = checkForChanges(val);
         
@@ -674,7 +675,7 @@ export default {
     });
 
     async function saveOutline() {
-      if (!matterId.value) {
+      if (!workspaceId.value) {
         console.error('No workspace ID available');
         return;
       }
@@ -781,7 +782,7 @@ export default {
           const { data: newOutline, error: insertError } = await supabase
             .from('outlines')
             .insert([{
-              matter_id: matterId.value,
+              matter_id: workspaceId.value,
               title: 'Outline',
               content: outlineToSave,
               render_id: outlineRenderID.value, // Send render ID with save
@@ -824,7 +825,7 @@ export default {
         if (versionError) throw versionError;
 
         // Update workspace activity
-        await updateMatterActivity(matterId.value);
+        await updateMatterActivity(workspaceId.value);
 
         // Show success notification
         ElNotification({
@@ -1401,7 +1402,7 @@ export default {
 
     // Function to subscribe to real-time changes
     async function subscribeToChanges() {
-      if (!matterId.value || !outlineId.value) return;
+      if (!workspaceId.value || !outlineId.value) return;
 
       // Unsubscribe from any existing subscription
       if (realtimeSubscription.value) {
@@ -1686,7 +1687,7 @@ export default {
             console.log('❌ Subscription closed - attempting to reconnect...');
             // Retry subscription after a delay
             setTimeout(() => {
-              if (outlineId.value && matterId.value) {
+              if (outlineId.value && workspaceId.value) {
                 subscribeToChanges();
               }
             }, 2000);
@@ -1698,7 +1699,7 @@ export default {
 
     // Enhanced refreshOutlineData with better conflict handling
     async function refreshOutlineData() {
-      if (!matterId.value || !outlineId.value) return;
+      if (!workspaceId.value || !outlineId.value) return;
 
       console.log('🔄 Refreshing outline data...');
 
@@ -1802,16 +1803,16 @@ export default {
     }
 
     // Helper function to upload file to Gitea
-    async function uploadFileToGitea(file, matterId) {
+    async function uploadFileToGitea(file, workspaceId) {
       const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
       const giteaHost = import.meta.env.VITE_GITEA_HOST;
       
-      if (!matterId) {
+      if (!workspaceId) {
         throw new Error('No workspace ID found');
       }
       
       // Create repo name for the matter
-      const repoName = `Matter_${matterId}_Outline`;
+      const repoName = `Matter_${workspaceId}_Outline`;
       
       // Try to create the repository if it doesn't exist
       try {
@@ -1827,7 +1828,7 @@ export default {
             },
             body: JSON.stringify({
               name: repoName,
-              description: `Outline files for Workspace ${matterId}`,
+              description: `Outline files for Workspace ${workspaceId}`,
               private: true,
               auto_init: true,
               trust_model: 'collaborator'
@@ -2083,7 +2084,7 @@ This is similar to how Git requires you to pull before pushing when there are co
      }
 
     return { 
-      matterId,
+      workspaceId,
       outline, 
       saving,
       refreshing,

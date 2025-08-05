@@ -267,7 +267,7 @@ export default {
         if (accessError) throw accessError;
 
         // Get workspace IDs from workspace access
-        const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
+        const accessibleWorkspaceIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
         const { data: userWorkspaces, error: userWorkspacesError } = await supabase
@@ -279,9 +279,9 @@ export default {
         if (userWorkspacesError) throw userWorkspacesError;
 
         // Combine all accessible workspace IDs
-        const allMatterIds = [...new Set([...accessibleMatterIds, ...userWorkspaces.map(m => m.id)])];
+        const allWorkspaceIds = [...new Set([...accessibleWorkspaceIds, ...userWorkspaces.map(m => m.id)])];
 
-        if (allMatterIds.length === 0) {
+        if (allWorkspaceIds.length === 0) {
           this.workspaces = [];
           return;
         }
@@ -291,7 +291,7 @@ export default {
           .from('workspaces')
           .select('id, title')
           .eq('archived', false)
-          .in('id', allMatterIds)
+          .in('id', allWorkspaceIds)
           .order('title');
 
         if (error) throw error;
@@ -315,7 +315,7 @@ export default {
         if (accessError) throw accessError;
 
         // Get workspace IDs from workspace access
-        const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
+        const accessibleWorkspaceIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
         const { data: userWorkspaces, error: userWorkspacesError } = await supabase
@@ -327,9 +327,9 @@ export default {
         if (userWorkspacesError) throw userWorkspacesError;
 
         // Combine all accessible workspace IDs
-        const allMatterIds = [...new Set([...accessibleMatterIds, ...userWorkspaces.map(m => m.id)])];
+        const allWorkspaceIds = [...new Set([...accessibleWorkspaceIds, ...userWorkspaces.map(m => m.id)])];
 
-        if (allMatterIds.length === 0) {
+        if (allWorkspaceIds.length === 0) {
           this.contacts = [];
           return;
         }
@@ -345,7 +345,7 @@ export default {
             )
           `)
           .eq('archived', false)
-          .in('matter_id', allMatterIds)
+          .in('matter_id', allWorkspaceIds)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

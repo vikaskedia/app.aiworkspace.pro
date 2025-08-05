@@ -4901,7 +4901,7 @@ ${comment.content}
 
         if (accessError) throw accessError;
 
-        const accessibleMatterIds = accessData?.map(row => row.matter_id) || [];
+        const accessibleWorkspaceIds = accessData?.map(row => row.matter_id) || [];
 
         // Get the workspaces
         const { data: workspaces, error } = await supabase
@@ -4909,7 +4909,7 @@ ${comment.content}
           .select('id, title')
           .eq('archived', false)
           .neq('id', this.currentWorkspace?.id) // Exclude current workspace
-          .in('id', accessibleMatterIds);
+          .in('id', accessibleWorkspaceIds);
 
         if (error) throw error;
         

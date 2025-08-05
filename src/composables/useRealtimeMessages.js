@@ -536,8 +536,8 @@ export function useRealtimeMessages(workspaceId) {
   }
 
   // Watch for workspaceId changes
-  watch(() => workspaceId.value, (newMatterId) => {
-    if (newMatterId) {
+  watch(() => workspaceId.value, (newWorkspaceId) => {
+    if (newWorkspaceId) {
       initializeSubscriptions()
     } else {
       unsubscribe()

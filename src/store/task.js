@@ -14,20 +14,20 @@ export const useTaskStore = defineStore('task', {
   },
 
   actions: {
-    setCachedTasks(matterId, tasks) {
-      this.tasks[matterId] = {
+    setCachedTasks(workspaceId, tasks) {
+      this.tasks[workspaceId] = {
         data: tasks,
         timestamp: Date.now()
       };
     },
 
-    getCachedTasks(matterId) {
-      const cached = this.tasks[matterId];
+    getCachedTasks(workspaceId) {
+      const cached = this.tasks[workspaceId];
       if (!cached) return null;
 
       const isStale = Date.now() - cached.timestamp > 24 * 60 * 60 * 1000;
       if (isStale) {
-        delete this.tasks[matterId];
+        delete this.tasks[workspaceId];
         return null;
       }
 
@@ -116,46 +116,46 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    updateCachedTask(matterId, taskId, updates) {
-      const cached = this.tasks[matterId];
+    updateCachedTask(workspaceId, taskId, updates) {
+      const cached = this.tasks[workspaceId];
       if (!cached) return;
 
       const updatedTasks = cached.data.map(task => 
         task.id === taskId ? { ...task, ...updates } : task
       );
-      this.setCachedTasks(matterId, updatedTasks);
+      this.setCachedTasks(workspaceId, updatedTasks);
 
       this.updateCachedTaskDetail(taskId, updates);
     },
 
-    removeCachedTask(matterId, taskId) {
-      const cached = this.tasks[matterId];
+    removeCachedTask(workspaceId, taskId) {
+      const cached = this.tasks[workspaceId];
       if (!cached) return;
 
       const filteredTasks = cached.data.filter(task => task.id !== taskId);
-      this.setCachedTasks(matterId, filteredTasks);
+      this.setCachedTasks(workspaceId, filteredTasks);
 
       this.clearTaskDetailCache(taskId);
     },
 
-    clearTaskCache(matterId) {
+    clearTaskCache(workspaceId) {
       console.log('clearing task cache');
-      if (matterId) {
-        delete this.tasks[matterId];
+      if (workspaceId) {
+        delete this.tasks[workspaceId];
       } else {
         this.tasks = {};
       }
     },
 
-    async fetchChildWorkspaceTasks(matterId, showDeleted = false) {
+    async fetchChildWorkspaceTasks(workspaceId, showDeleted = false) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
-        // First, get all child workspaces where current_workspace_id = matterId
+        // First, get all child workspaces where current_workspace_id = workspaceId
         const { data: childWorkspaces, error: childWorkspacesError } = await supabase
           .from('workspaces')
           .select('id, title')
-          .eq('parent_workspace_id', matterId)
+          .eq('parent_workspace_id', workspaceId)
           .eq('archived', false);
 
         if (childWorkspacesError) throw childWorkspacesError;
@@ -207,7 +207,7 @@ export const useTaskStore = defineStore('task', {
       }
     },
 
-    async fetchAndCacheTasks(matterId, showDeleted = false) {
+    async fetchAndCacheTasks(workspaceId, showDeleted = false) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -216,7 +216,7 @@ export const useTaskStore = defineStore('task', {
         const { data: currentWorkspace, error: currentWorkspaceError } = await supabase
           .from('workspaces')
           .select('id, title')
-          .eq('id', matterId)
+          .eq('id', workspaceId)
           .single();
 
         if (currentWorkspaceError) throw currentWorkspaceError;
@@ -234,7 +234,7 @@ export const useTaskStore = defineStore('task', {
               time_taken
             )
           `)
-          .eq('matter_id', matterId);
+          .eq('matter_id', workspaceId);
 
         if (!showDeleted) {
           query = query.eq('deleted', false);
@@ -256,13 +256,13 @@ export const useTaskStore = defineStore('task', {
         }));
 
         // Fetch child workspace tasks
-        const childWorkspaceTasks = await this.fetchChildWorkspaceTasks(matterId, showDeleted);
+        const childWorkspaceTasks = await this.fetchChildWorkspaceTasks(workspaceId, showDeleted);
 
         // Combine parent workspace tasks with child workspace tasks
         const allTasks = [...transformedTasks, ...childWorkspaceTasks];
 
         if (!showDeleted) {
-          this.setCachedTasks(matterId, allTasks);
+          this.setCachedTasks(workspaceId, allTasks);
         }
 
         return allTasks;
@@ -274,8 +274,8 @@ export const useTaskStore = defineStore('task', {
 
     getAllCachedTasks() {
       const allTasks = [];
-      for (const matterId in this.tasks) {
-        const matterTasks = this.getCachedTasks(matterId);
+      for (const workspaceId in this.tasks) {
+        const matterTasks = this.getCachedTasks(workspaceId);
         if (matterTasks) {
           allTasks.push(...matterTasks);
         }

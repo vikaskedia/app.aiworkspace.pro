@@ -5,7 +5,7 @@
         <el-button 
           type="primary" 
           link 
-          @click="$router.push(`/single-workspace/${matterId}/events`)">
+          @click="$router.push(`/single-workspace/${workspaceId}/events`)">
           <el-icon><ArrowLeft /></el-icon>
           Back to Events
         </el-button>
@@ -150,7 +150,7 @@ export default {
     const route = useRoute();
     const event = ref(null);
     const loading = ref(true);
-    const matterId = ref(route.params.matterId);
+    const workspaceId = ref(route.params.workspaceId);
     const addedByEmail = ref('');
     const editing = ref({
       eventType: false,
@@ -273,7 +273,7 @@ export default {
 
     onMounted(async () => {
       const eventId = route.params.id;
-      console.log(matterId);
+      console.log(workspaceId);
       if (eventId) {
         await fetchEventDetails(eventId);
         if (event.value) {
@@ -282,7 +282,7 @@ export default {
       }
     });
 
-    return { event, loading, matterId, addedByEmail, addedByEmail, editing, showEdit, toggleEventTypePopover, toggleStartTimePopover, toggleEndTimePopover, saveEventField, eventTypeLabel, originalDescription, handleDescriptionBlur, cancelDescriptionEdit };
+    return { event, loading, workspaceId, addedByEmail, addedByEmail, editing, showEdit, toggleEventTypePopover, toggleStartTimePopover, toggleEndTimePopover, saveEventField, eventTypeLabel, originalDescription, handleDescriptionBlur, cancelDescriptionEdit };
   }
 };
 </script>

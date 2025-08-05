@@ -321,7 +321,7 @@ export default {
           class-name="event-title">
           <template #default="scope">
             <div class="event-title-cell">
-              <router-link :to="{ name: 'DetailedEventView', params: { matterId: currentWorkspace.id, id: scope.row.id } }" class="title-link">
+              <router-link :to="{ name: 'DetailedEventView', params: { workspaceId: currentWorkspace.id, id: scope.row.id } }" class="title-link">
                 {{ scope.row.title }}
               </router-link>
               <span v-if="currentUser && scope.row.created_by === currentUser.id" class="action-icons">

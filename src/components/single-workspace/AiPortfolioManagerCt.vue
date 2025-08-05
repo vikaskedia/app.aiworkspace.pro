@@ -988,7 +988,7 @@ export default {
         const childPortfolios = childPortfolioData?.map(portfolio => ({
           id: portfolio.portfolio_id,
           name: `${portfolio.portfolio_name}`, // `${childMatter.title} - ${portfolio.portfolio_name}`
-          matterId: portfolio.workspace_id,
+          workspaceId: portfolio.workspace_id,
           childMatterId: childMatter.id,
           childMatterTitle: childMatter.title,
           createdAt: new Date(portfolio.created_at),
@@ -1521,10 +1521,10 @@ export default {
       
       return computed(() => {
         if (currentWorkspace.value?.id) {
-          const matterId = currentWorkspace.value.id;
+          const workspaceId = currentWorkspace.value.id;
           
           if (isInitialized) {
-            console.log(`🔄 Workspace changed to ${matterId}, reloading portfolios...`);
+            console.log(`🔄 Workspace changed to ${workspaceId}, reloading portfolios...`);
             portfolios.value = [];
             spreadsheets.value = [];
             activePortfolioId.value = '';

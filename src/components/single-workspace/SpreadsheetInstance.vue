@@ -187,7 +187,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         type: Boolean,
         default: true
       },
-      matterId: {
+      workspaceId: {
         type: Number,
         required: false,
         default: null
@@ -214,8 +214,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Task store for fetching task information
     const taskStore = useTaskStore();
     
-    // Use prop matterId if provided, otherwise get from current matter
-    const currentWorkspaceId = computed(() => props.matterId || currentWorkspace.value?.id);
+    // Use prop workspaceId if provided, otherwise get from current matter
+    const currentWorkspaceId = computed(() => props.workspaceId || currentWorkspace.value?.id);
     
     // Cell edit tracking for user history
     const currentUser = ref(null);

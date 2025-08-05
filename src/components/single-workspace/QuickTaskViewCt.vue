@@ -368,7 +368,7 @@ export default {
             prompt,
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
-            matterId: this.task.matter_id
+            workspaceId: this.task.matter_id
           })
         });
 
@@ -756,7 +756,7 @@ Please provide assistance based on this context, the comment history, the availa
             prompt: this.aiPrompt,
             systemPrompt: systemPrompt,
             taskId: this.task.id,
-            matterId: this.task.matter_id,
+            workspaceId: this.task.matter_id,
             files: fileContents
           })
         });
@@ -1571,7 +1571,7 @@ Please provide assistance based on this context, the comment history, the availa
             @click="$router.push({
               name: 'SingleTaskPage',
               params: {
-                matterId: task.matter_id,
+                workspaceId: task.matter_id,
                 taskId: task.id
               }
             })"

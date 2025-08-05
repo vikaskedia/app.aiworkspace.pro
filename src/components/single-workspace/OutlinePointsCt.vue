@@ -775,14 +775,14 @@ export default {
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // Get the workspace ID from the route
-        const matterId = this.route.params.matterId;
+        const workspaceId = this.route.params.workspaceId;
         
-        if (!matterId) {
+        if (!workspaceId) {
           throw new Error('No workspace ID found');
         }
         
         // Create repo name for the matter
-        const repoName = `Matter_${matterId}_Outline`;
+        const repoName = `Matter_${workspaceId}_Outline`;
         
         // Try to create the repository if it doesn't exist
         try {
@@ -798,7 +798,7 @@ export default {
               },
               body: JSON.stringify({
                 name: repoName,
-                description: `Outline files for Workspace ${matterId}`,
+                description: `Outline files for Workspace ${workspaceId}`,
                 private: true,
                 auto_init: true,
                 trust_model: 'collaborator'
@@ -1300,7 +1300,7 @@ export default {
     },
     async copyInternalLink() {
       try {
-        const matterId = this.route.params.matterId;
+        const workspaceId = this.route.params.workspaceId;
         const currentUrl = window.location.origin + window.location.pathname;
         const internalLink = `${currentUrl}?focus=${this.item.id}`;
         
@@ -1312,7 +1312,7 @@ export default {
         // Fallback for browsers that don't support clipboard API
         try {
           const textArea = document.createElement('textarea');
-          const matterId = this.route.params.matterId;
+          const workspaceId = this.route.params.workspaceId;
           const currentUrl = window.location.origin + window.location.pathname;
           const internalLink = `${currentUrl}?focus=${this.item.id}`;
           

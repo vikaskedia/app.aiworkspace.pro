@@ -214,7 +214,7 @@ export default {
                 systemPrompt,
                 prompt: "Generate a list of tasks to achieve this goal",
                 goalId: goal.id,
-                matterId: goal.matter_id
+                workspaceId: goal.matter_id
               })
             });
 

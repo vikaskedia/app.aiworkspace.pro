@@ -44,7 +44,7 @@
           <el-form :inline="true" class="filter-form">
             <el-form-item label="Workspace">
               <el-select
-                v-model="filters.matter"
+                v-model="filters.workspace"
                 placeholder="All workspaces"
                 multiple
                 collapse-tags
@@ -53,7 +53,7 @@
                 filterable
                 style="width: 300px">
                 <el-option 
-                  v-for="matter in workspaces"
+                  v-for="workspace in workspaces"
                   :key="workspace.id"
                   :label="workspace.title"
                   :value="workspace.id"
@@ -77,7 +77,7 @@
           label="Title"
           min-width="200">
           <template #default="scope">
-            <div class="title-with-matter">
+            <div class="title-with-workspace">
               <div class="event-title">{{ scope.row.title }}
                 <el-tag size="small" type="success">{{ getMatterTitle(scope.row.matter_id) }}</el-tag>
               </div>
@@ -132,21 +132,21 @@ export default {
       savedFilters: [],
       workspaces: [],
       filters: {
-        matter: []
+        workspace: []
       }
     };
   },
   computed: {
     activeFiltersCount() {
       let count = 0;
-      if (this.filters.matter?.length) count++;
+      if (this.filters.workspace?.length) count++;
       return count;
     },
     filteredEvents() {
       let filtered = [...this.events];
       
       // Filter by workspaces if any are selected
-      if (this.filters.matter?.length) {
+      if (this.filters.workspace?.length) {
         filtered = filtered.filter(event => 
           this.filters.workspace.includes(event.matter_id)
         );
@@ -172,18 +172,18 @@ export default {
         console.log('Raw workspaces data from localStorage:', workspacesData);
         
         // Extract IDs from workspace objects
-        let matterIds;
+        let workspaceIds;
         if (Array.isArray(workspacesData)) {
-          matterIds = workspacesData.map(matter => workspace.id || matter);
+          workspaceIds = workspacesData.map(workspace => workspace.id || workspace);
         } else {
           console.log('Invalid workspaces data format');
           this.events = [];
           return;
         }
         
-        console.log('Extracted workspace IDs:', matterIds);
+        console.log('Extracted workspace IDs:', workspaceIds);
         
-        if (!matterIds || matterIds.length === 0) {
+        if (!workspaceIds || workspaceIds.length === 0) {
           console.log('No active workspace IDs found');
           this.events = [];
           return;
@@ -261,8 +261,8 @@ export default {
       };
     },
 
-    getMatterTitle(matterId) {
-      const workspace = this.workspaces.find(matter => workspace.id === matterId);
+    getMatterTitle(workspaceId) {
+      const workspace = this.workspaces.find(matter => workspace.id === workspaceId);
       return workspace ? workspace.title : 'Unknown Workspace';
     }
   },

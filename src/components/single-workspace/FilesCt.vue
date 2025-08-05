@@ -117,11 +117,11 @@ const updatePageTitle = () => {
 
 // Load workspace if not already loaded
 onMounted(async () => {
-  // if (route.params.matterId && !currentWorkspace.value) {
+  // if (route.params.workspaceId && !currentWorkspace.value) {
   //   const { data, error } = await supabase
   //     .from('workspaces')
   //     .select('*')
-  //     .eq('id', route.params.matterId)
+  //     .eq('id', route.params.workspaceId)
   //     .single();
       
   //   if (error) {

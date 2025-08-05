@@ -355,10 +355,10 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     },
   
     methods: {
-      async updateMatterActivity(matterId) {
+      async updateMatterActivity(workspaceId) {
         // Import and use the activity tracking function
         const { updateMatterActivity } = await import('../../utils/workspaceActivity.js');
-        await updateMatterActivity(matterId);
+        await updateMatterActivity(workspaceId);
       },
 
       initializeColumns() {
@@ -898,9 +898,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
 
       async handleTaskUpdate(updatedTask) {
         // Update workspace activity
-        const matterId = updatedTask.matter_id || this.currentWorkspace?.id;
-        if (matterId) {
-          await updateMatterActivity(matterId);
+        const workspaceId = updatedTask.matter_id || this.currentWorkspace?.id;
+        if (workspaceId) {
+          await updateMatterActivity(workspaceId);
         }
         
         // Update the task in selectedTask
@@ -922,9 +922,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], status };
           
           // Update workspace activity
-          const matterId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
-          if (matterId) {
-            await updateMatterActivity(matterId);
+          const workspaceId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
+          if (workspaceId) {
+            await updateMatterActivity(workspaceId);
           }
         }
       },
@@ -936,9 +936,9 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           this.tasks[taskIndex] = { ...this.tasks[taskIndex], priority };
           
           // Update workspace activity
-          const matterId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
-          if (matterId) {
-            await updateMatterActivity(matterId);
+          const workspaceId = this.tasks[taskIndex].matter_id || this.currentWorkspace?.id;
+          if (workspaceId) {
+            await updateMatterActivity(workspaceId);
           }
         }
       },

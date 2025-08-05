@@ -16,15 +16,15 @@ export const useCacheStore = defineStore('cache', {
   },
 
   actions: {
-    setCachedData(type, matterId, data) {
-      this[type][matterId] = {
+    setCachedData(type, workspaceId, data) {
+      this[type][workspaceId] = {
         data,
         timestamp: Date.now()
       };
     },
     
-    getCachedData(type, matterId) {
-      const cached = this[type][matterId];
+    getCachedData(type, workspaceId) {
+      const cached = this[type][workspaceId];
       if (!cached) return null;
       
       const isStale = Date.now() - cached.timestamp > 24 * 60 * 60 * 1000;
@@ -33,30 +33,30 @@ export const useCacheStore = defineStore('cache', {
       const hasRealtimeConnection = channel.state === 'joined';
       
       if (!hasRealtimeConnection && isStale) {
-        delete this[type][matterId];
+        delete this[type][workspaceId];
         return null;
       }
       
       return cached.data;
     },
     
-    updateCachedItem(type, matterId, itemId, newData) {
-      const cached = this[type][matterId];
+    updateCachedItem(type, workspaceId, itemId, newData) {
+      const cached = this[type][workspaceId];
       if (!cached) return;
       
       const index = cached.data.findIndex(item => item.id === itemId);
       if (index !== -1) {
         cached.data[index] = newData;
-        this.setCachedData(type, matterId, cached.data);
+        this.setCachedData(type, workspaceId, cached.data);
       }
     },
     
-    removeCachedItem(type, matterId, itemId) {
-      const cached = this[type][matterId];
+    removeCachedItem(type, workspaceId, itemId) {
+      const cached = this[type][workspaceId];
       if (!cached) return;
       
       cached.data = cached.data.filter(item => item.id !== itemId);
-      this.setCachedData(type, matterId, cached.data);
+      this.setCachedData(type, workspaceId, cached.data);
     },
     
     clearCache() {

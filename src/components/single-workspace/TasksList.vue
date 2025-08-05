@@ -228,9 +228,9 @@ export default {
         starred: false
       });
     },
-    navigateToMatter(matterId) {
-      if (!matterId) return;
-      this.$router.push(`/single-workspace/${matterId}`);
+    navigateToMatter(workspaceId) {
+      if (!workspaceId) return;
+      this.$router.push(`/single-workspace/${workspaceId}`);
     },
     async loadUserEmail(userId) {
       if (!userId) return 'Unknown User';

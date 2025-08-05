@@ -871,7 +871,7 @@ export default {
             systemPrompt,
             prompt: "Generate a list of subtasks to complete this task",
             taskId: parentTask.id,
-            matterId: parentTask.matter_id
+            workspaceId: parentTask.matter_id
           })
         });
 

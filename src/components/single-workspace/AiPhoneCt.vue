@@ -1584,7 +1584,7 @@ Max Tokens: {{ aiDraftDebugData.response.body.debug.maxTokens }}</code></pre>
  * 
  * This component supports URL-based state management for seamless reloads.
  * 
- * URL Format: /single-workspace/:matterId/ai_phone/:phoneId?conversation=:conversationId&tag=:tagName&search=:query&untagged=true&chat_search=:chatQuery
+ * URL Format: /single-workspace/:workspaceId/ai_phone/:phoneId?conversation=:conversationId&tag=:tagName&search=:query&untagged=true&chat_search=:chatQuery
  * 
  * Examples:
  * - /single-workspace/123/ai_phone                           → No phone selected
@@ -2534,7 +2534,7 @@ export default {
     
     // Watch for route changes to update component state
     '$route'(to, from) {
-      if (to.name === 'AiPhonePage' && to.params.matterId === this.currentWorkspace?.id?.toString()) {
+      if (to.name === 'AiPhonePage' && to.params.workspaceId === this.currentWorkspace?.id?.toString()) {
         this.initializeFromUrl();
       }
     }
@@ -2700,7 +2700,7 @@ export default {
       const newRoute = {
         name: 'AiPhonePage',
         params: {
-          matterId: this.currentWorkspace.id.toString(),
+          workspaceId: this.currentWorkspace.id.toString(),
           phoneId: phoneId
         },
         query: Object.keys(query).length > 0 ? query : undefined

@@ -1846,7 +1846,7 @@ export default {
 
       // Add Telegram notification here
       await sendTelegramNotification({
-        matterId: this.currentWorkspace.id,
+        workspaceId: this.currentWorkspace.id,
         activityType: 'TASK_DESCRIPTION_UPDATED',
         message: `Task description updated for "${this.task.title}"\n\nFrom: "${this.task.description || 'No description'}"\nTo: "${this.editingDescription}"`
       });
@@ -1907,7 +1907,7 @@ export default {
 
       // Add Telegram notification here
       await sendTelegramNotification({
-        matterId: this.currentWorkspace.id,
+        workspaceId: this.currentWorkspace.id,
         activityType: 'TASK_TITLE_UPDATED',
         message: `Task title updated\nFrom: "${this.task.title}"\nTo: "${this.editingTitle}"`
       });
@@ -2369,7 +2369,7 @@ export default {
         //console.log('this.newComment.trim()', this.newComment.trim());
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentWorkspace.id,
+          workspaceId: this.currentWorkspace.id,
           activityType: 'NEW_COMMENT',
           message: `New comment on task "${this.task.title}"\n\nComment: ${this.newComment.trim()}\nBy: ${user.email}`
         });
@@ -2482,7 +2482,7 @@ export default {
             } : cleanPrompt,
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
-            matterId: this.task.matter_id
+            workspaceId: this.task.matter_id
           })
         });
 
@@ -3779,7 +3779,7 @@ ${comment.content}
 
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentWorkspace.id,
+          workspaceId: this.currentWorkspace.id,
           activityType: 'CHILD_TASK_CREATED',
           message: `Child task created under "${this.task.title}"\n\nChild Task: "${this.newChildTask.title}"\nCreated by: ${user.email}`
         });
@@ -3867,7 +3867,7 @@ ${comment.content}
         // Send Telegram notification (optional - don't fail if no groups configured)
         try {
           await sendTelegramNotification({
-            matterId: this.currentWorkspace.id,
+            workspaceId: this.currentWorkspace.id,
             activityType: 'CHILD_TASK_STATUS_UPDATED',
             message: `Child task status updated: "${childTask.title}"\nFrom: ${this.formatStatus(oldStatus)} → To: ${this.formatStatus(newStatus)}\nParent: "${this.task.title}"`
           });
@@ -3947,7 +3947,7 @@ ${comment.content}
         // Send Telegram notification (optional - don't fail if no groups configured)
         try {
           await sendTelegramNotification({
-            matterId: this.currentWorkspace.id,
+            workspaceId: this.currentWorkspace.id,
             activityType: 'CHILD_TASK_PRIORITY_UPDATED',
             message: `Child task priority updated: "${childTask.title}"\nFrom: ${this.formatPriority(oldPriority)} → To: ${this.formatPriority(newPriority)}\nParent: "${this.task.title}"`
           });
@@ -4853,7 +4853,7 @@ ${comment.content}
 
         // Send Telegram notification
         await sendTelegramNotification({
-          matterId: this.currentWorkspace.id,
+          workspaceId: this.currentWorkspace.id,
           activityType: 'TASK_CREATED',
           message: `New task created: "${data[0].title}"\nCreated by: ${user.email}`
         });

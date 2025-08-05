@@ -1,7 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { supabase } from '../supabase'
 
-export function useRealtimeMessages(matterId) {
+export function useRealtimeMessages(workspaceId) {
   const conversations = ref([])
   const groupConversations = ref([]) // Store group conversations from API
   
@@ -270,7 +270,7 @@ export function useRealtimeMessages(matterId) {
     lastMessage: conv.last_message_preview || '',
     lastMessageTime: conv.last_message_at || conv.created_at || new Date().toISOString(),
     unread: conv.unread || 0, // This will now come from user-specific API
-    matterId: conv.matter_id,
+    workspaceId: conv.matter_id,
     status: conv.status || 'primary'
   })
 
@@ -288,10 +288,10 @@ export function useRealtimeMessages(matterId) {
 
   // Load conversations from database
   const loadConversations = async () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     try {
       const token = await getAuthToken()
-      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?workspaceId=${matterId.value}`, {
+      const response = await fetch(`https://app.aiworkspace.pro/api/conversations?workspaceId=${workspaceId.value}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -411,7 +411,7 @@ export function useRealtimeMessages(matterId) {
         },
         body: JSON.stringify({ 
           conversationId,
-          workspaceId: matterId.value
+          workspaceId: workspaceId.value
         })
       })
       
@@ -429,15 +429,15 @@ export function useRealtimeMessages(matterId) {
 
   // Subscribe to conversations changes
   const subscribeToConversations = () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     
     conversationsChannel = supabase
-      .channel(`conversations-${matterId.value}`)
+      .channel(`conversations-${workspaceId.value}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'conversations',
-        filter: `matter_id=eq.${matterId.value}`
+        filter: `matter_id=eq.${workspaceId.value}`
       }, handleConversationChange)
       .subscribe((status) => {
         console.log('📡 Conversations subscription status:', status)
@@ -446,10 +446,10 @@ export function useRealtimeMessages(matterId) {
 
   // Subscribe to messages changes
   const subscribeToMessages = () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     
     messagesChannel = supabase
-      .channel(`messages-${matterId.value}`)
+      .channel(`messages-${workspaceId.value}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -462,10 +462,10 @@ export function useRealtimeMessages(matterId) {
 
   // Subscribe to call recordings changes
   const subscribeToCallRecordings = () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     
     callRecordingsChannel = supabase
-      .channel(`call-recordings-${matterId.value}`)
+      .channel(`call-recordings-${workspaceId.value}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -478,15 +478,15 @@ export function useRealtimeMessages(matterId) {
 
   // Subscribe to conversation read status changes
   const subscribeToConversationReadStatus = () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     
     conversationReadStatusChannel = supabase
-      .channel(`conversation-read-status-${matterId.value}`)
+      .channel(`conversation-read-status-${workspaceId.value}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'conversation_read_status',
-        filter: `matter_id=eq.${matterId.value}`
+        filter: `matter_id=eq.${workspaceId.value}`
       }, handleConversationReadStatusChange)
       .subscribe((status) => {
         console.log('👁️ Conversation read status subscription status:', status)
@@ -516,11 +516,11 @@ export function useRealtimeMessages(matterId) {
     }
   }
 
-  // Initialize subscriptions when matterId changes
+  // Initialize subscriptions when workspaceId changes
   const initializeSubscriptions = () => {
-    if (!matterId.value) return
+    if (!workspaceId.value) return
     
-    console.log('🚀 Initializing real-time subscriptions for matter:', matterId.value)
+    console.log('🚀 Initializing real-time subscriptions for matter:', workspaceId.value)
     
     // Unsubscribe from previous subscriptions
     unsubscribe()
@@ -535,8 +535,8 @@ export function useRealtimeMessages(matterId) {
     subscribeToConversationReadStatus()
   }
 
-  // Watch for matterId changes
-  watch(() => matterId.value, (newMatterId) => {
+  // Watch for workspaceId changes
+  watch(() => workspaceId.value, (newMatterId) => {
     if (newMatterId) {
       initializeSubscriptions()
     } else {

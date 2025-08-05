@@ -2,9 +2,9 @@ import { supabase } from '../supabase';
 
 /**
  * Function to record activity for a matter
- * @param {number} matterId - The workspace ID
+ * @param {number} workspaceId - The workspace ID
  */
-export async function updateMatterActivity(matterId) {
+export async function updateMatterActivity(workspaceId) {
   try {
     // Get the current logged-in user
     const { data: { user } } = await supabase.auth.getUser();
@@ -18,7 +18,7 @@ export async function updateMatterActivity(matterId) {
     const { data: existingActivities } = await supabase
       .from('workspace_activities')
       .select('id, updated_at')
-      .eq('matter_id', matterId)
+      .eq('matter_id', workspaceId)
       .eq('user_id', user.id);
 
     const timestamp = new Date().toISOString();
@@ -29,14 +29,14 @@ export async function updateMatterActivity(matterId) {
         await supabase
           .from('workspace_activities')
           .delete()
-          .eq('matter_id', matterId)
+          .eq('matter_id', workspaceId)
           .eq('user_id', user.id);
         
         // Insert a fresh record
         await supabase
           .from('workspace_activities')
           .insert({
-            matter_id: matterId,
+            matter_id: workspaceId,
             user_id: user.id,
             updated_at: timestamp
           });
@@ -45,7 +45,7 @@ export async function updateMatterActivity(matterId) {
         await supabase
           .from('workspace_activities')
           .update({ updated_at: timestamp })
-          .eq('matter_id', matterId)
+          .eq('matter_id', workspaceId)
           .eq('user_id', user.id);
       }
     } else {
@@ -53,7 +53,7 @@ export async function updateMatterActivity(matterId) {
       await supabase
         .from('workspace_activities')
         .insert({
-          matter_id: matterId,
+          matter_id: workspaceId,
           user_id: user.id,
           updated_at: timestamp
         });
@@ -66,15 +66,15 @@ export async function updateMatterActivity(matterId) {
 
 /**
  * Function to get recent activities for a matter
- * @param {number} matterId - The workspace ID
+ * @param {number} workspaceId - The workspace ID
  * @param {number} limit - Number of activities to fetch (default: 10)
  */
-export async function getMatterActivities(matterId, limit = 10) {
+export async function getMatterActivities(workspaceId, limit = 10) {
   try {
     const { data, error } = await supabase
       .from('workspace_activities')
       .select('*')
-      .eq('matter_id', matterId)
+      .eq('matter_id', workspaceId)
       .order('updated_at', { ascending: false })
       .limit(limit);
 

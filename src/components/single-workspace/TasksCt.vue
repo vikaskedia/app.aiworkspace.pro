@@ -126,7 +126,7 @@ export default {
             this.loadSharedUsers(),
             this.loadAvailableWorkspaces()
           ]);
-          // Reset subscription for new matter
+          // Reset subscription for new workspace
           if (this.subscription) {
             this.subscription.unsubscribe();
           }
@@ -733,7 +733,8 @@ export default {
       if (this.subscription) {
         this.subscription.unsubscribe();
       }
-      
+
+      console.log('Setting up real-time subscription for workspace:', this.currentWorkspace.id);
       this.subscription = supabase
         .channel('tasks-changes')
         .on('postgres_changes', 

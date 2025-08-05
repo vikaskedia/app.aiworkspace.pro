@@ -520,7 +520,7 @@ export function useRealtimeMessages(workspaceId) {
   const initializeSubscriptions = () => {
     if (!workspaceId.value) return
     
-    console.log('🚀 Initializing real-time subscriptions for matter:', workspaceId.value)
+    console.log('🚀 Initializing real-time subscriptions for workspace:', workspaceId.value)
     
     // Unsubscribe from previous subscriptions
     unsubscribe()

@@ -593,7 +593,7 @@ export default {
       //isDevelopment: false,
       fileList: [],
       uploadingFiles: false,
-      matter: null,
+      workspace: null,
       loadingAttempts: 0,
       lastVisibilityChange: 0,
       isInitialLoad: true,
@@ -947,7 +947,7 @@ export default {
           }
 
           this.task = shareData.tasks;
-          this.matter = shareData.tasks.workspaces;
+          this.workspace = shareData.tasks.workspaces;
           
           // Load comments for the task
           let commentsData;
@@ -1084,8 +1084,8 @@ export default {
           throw new Error('File upload service is not properly configured');
         }
 
-        if (!this.matter?.git_repo) {
-          throw new Error('No git repository found for this matter');
+        if (!this.workspace?.git_repo) {
+          throw new Error('No git repository found for this workspace');
         }
 
         for (const fileInfo of this.fileList) {

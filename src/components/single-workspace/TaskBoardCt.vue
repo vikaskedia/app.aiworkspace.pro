@@ -56,8 +56,8 @@
                     <div v-if="task.isNew" class="new-task-wrapper">
                       <div class="new-task-header">
                         <template v-if="isAllTasksContext">
-                          <el-dropdown trigger="click" @command="(matter) => { selectedMatter = matter; updateTaskMatter(task); }">
-                            <span class="matter-selector">
+                          <el-dropdown trigger="click" @command="(workspace) => { selectedMatter = workspace; updateTaskMatter(task); }">
+                            <span class="workspace-selector">
                               {{ selectedMatter?.title || 'Select Workspace' }}
                               <el-icon class="el-icon--right"><CaretBottom /></el-icon>
                             </span>
@@ -200,14 +200,14 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
                         </div>
                         <div 
                           v-if="isAllTasksContext"
-                          class="matter-wrapper">
+                          class="workspace-wrapper">
                           <el-tooltip
                             :show-after="500"
                             :enterable="true"
                             :content="'This is the workspace name.'"
                             placement="top">
-                            <el-tag class="matter-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-matter', task.matter_id)">
-                              {{ task.matter?.title || 'No Workspace' }}
+                            <el-tag class="workspace-title clickable" size="small" type="primary" @click.stop="$emit('filter-by-workspace', task.matter_id)">
+                              {{ task.workspace?.title || 'No Workspace' }}
                             </el-tag>
                           </el-tooltip>
                         </div>
@@ -1043,7 +1043,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       }
     },
   
-    emits: ['update-task', 'update:filters', 'filter-by-status', 'filter-by-priority', 'filter-by-matter']
+    emits: ['update-task', 'update:filters', 'filter-by-status', 'filter-by-priority', 'filter-by-workspace']
   })
   </script>
   
@@ -1351,7 +1351,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     font-weight: 500;
   }
 
-  .matter-selector {
+  .workspace-selector {
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1361,7 +1361,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     transition: background-color 0.2s;
   }
 
-  .matter-selector:hover {
+  .workspace-selector:hover {
     background-color: var(--el-fill-color-light);
   }
 
@@ -1448,19 +1448,19 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   font-family: 'Roboto Mono', monospace;
 }
 
-.matter-wrapper {
+.workspace-wrapper {
   display: flex;
   align-items: center;
   max-width: 200px;
 }
 
-.matter-wrapper .el-tag {
+.workspace-wrapper .el-tag {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.matter-title.clickable:hover {
+.workspace-title.clickable:hover {
   color: var(--el-color-primary);
   cursor: pointer;
 }

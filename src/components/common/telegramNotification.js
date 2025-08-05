@@ -19,7 +19,7 @@ function formatHtmlForTelegram(html) {
 /**
  * Send a notification to Telegram
  * @param {Object} payload - The notification payload
- * @param {string} payload.workspaceId - The ID of the matter
+ * @param {string} payload.workspaceId - The ID of the workspace
  * @param {string} payload.activityType - Type of activity (e.g., 'NEW_COMMENT', 'TASK_CREATED')
  * @param {string} payload.message - The message to send
  * @returns {Promise<Response>}

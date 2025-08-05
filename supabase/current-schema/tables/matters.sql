@@ -31,12 +31,12 @@ Each workspace has:
 The user who created the workspace is:
 1A. Automatically given edit rights
 1B. Can later give up his edit rights
-1C. Not treated special than anyone else who has edit rights to the matter';
+1C. Not treated special than anyone else who has edit rights to the workspace';
 
 -- Add comments for the new columns
 COMMENT ON COLUMN workspaces.git_repo IS 'Repository name in Gitea where all files for this workspace are stored. Files are managed through the Gitea server as described in FilesCt.vue';
 
-COMMENT ON COLUMN workspaces.email_storage IS 'Email address where communications for this workspace are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this matter''s address as described in EmailsCt.vue';
+COMMENT ON COLUMN workspaces.email_storage IS 'Email address where communications for this workspace are stored. Emails sent to catchall@associateattorney.ai are processed and stored if they match this workspace''s address as described in EmailsCt.vue';
 
 -- Automatically add creator toworkspace_access on workspace creation
 CREATE OR REPLACE FUNCTION add_creator_access() RETURNS TRIGGER AS $$

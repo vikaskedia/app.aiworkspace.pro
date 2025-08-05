@@ -75,7 +75,7 @@ COMMENT ON TABLE ai_fund_analyzing_data IS 'AI Fund Analyst data with OpenAI res
 Each record represents an AI analysis request and response for fund analysis.
 Includes the user prompt, OpenAI response, and status tracking.';
 
-COMMENT ON COLUMN ai_fund_analyzing_data.matter_id IS 'References the matter/workspace this analysis belongs to';
+COMMENT ON COLUMN ai_fund_analyzing_data.matter_id IS 'References the workspace/workspace this analysis belongs to';
 COMMENT ON COLUMN ai_fund_analyzing_data.strategy IS 'The analysis strategy selected by the user';
 COMMENT ON COLUMN ai_fund_analyzing_data.prompt IS 'The user input prompt sent to OpenAI';
 COMMENT ON COLUMN ai_fund_analyzing_data.openai_response IS 'The response received from OpenAI API';

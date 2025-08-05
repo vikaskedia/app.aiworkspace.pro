@@ -84,6 +84,6 @@ FOR DELETE USING (
 COMMENT ON TABLE conversation_read_status IS 'Tracks individual user read status for conversations in multi-user workspaces';
 COMMENT ON COLUMN conversation_read_status.conversation_id IS 'Reference to the conversation';
 COMMENT ON COLUMN conversation_read_status.user_id IS 'Reference to the user';
-COMMENT ON COLUMN conversation_read_status.matter_id IS 'Reference to the matter/workspace';
+COMMENT ON COLUMN conversation_read_status.matter_id IS 'Reference to the workspace/workspace';
 COMMENT ON COLUMN conversation_read_status.last_read_at IS 'Timestamp when user last read this conversation';
 COMMENT ON COLUMN conversation_read_status.is_read IS 'Boolean flag indicating if conversation is read by user'; 

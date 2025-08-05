@@ -125,7 +125,7 @@ onMounted(async () => {
   //     .single();
       
   //   if (error) {
-  //     ElMessage.error('Error loading matter');
+  //     ElMessage.error('Error loading workspace');
   //     return;
   //   }
     
@@ -1252,7 +1252,7 @@ function getAuthenticatedDownloadUrl(originalUrl) {
 </style>
 
 <style>
-.matter-content.matter-content--files {
+.workspace-content.workspace-content--files {
   max-width: 100% !important;
   padding: 0 !important;
 }

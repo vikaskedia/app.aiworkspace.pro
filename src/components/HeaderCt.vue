@@ -188,9 +188,9 @@ export default {
           break
       }
     },
-    handleMatterSelect(matter) {
+    handleMatterSelect(workspace) {
       const matterStore = useMatterStore();
-      matterStore.setCurrentMatter(matter);
+      matterStore.setCurrentMatter(workspace);
       
       // Get the current route path segments
       const currentPath = this.$route.path;

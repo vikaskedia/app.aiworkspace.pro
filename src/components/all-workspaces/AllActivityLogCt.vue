@@ -10,7 +10,7 @@
               <div class="task-title-section">
                 <span class="header-label">Task Name</span>
               </div>
-              <div class="matter-section">
+              <div class="workspace-section">
                 <span class="header-label">Workspace</span>
               </div>
               <div class="time-section">
@@ -28,9 +28,9 @@
               <div class="task-title-section">
                 <span class="task-name">{{ group.title }}</span>
               </div>
-              <div class="matter-section">
-                <el-tag size="small" type="info" effect="plain" class="matter-name">
-                  {{ group.children[0]?.task?.matter?.title || 'No Workspace' }}
+              <div class="workspace-section">
+                <el-tag size="small" type="info" effect="plain" class="workspace-name">
+                  {{ group.children[0]?.task?.workspace?.title || 'No Workspace' }}
                 </el-tag>
               </div>
               <div class="time-section">
@@ -50,7 +50,7 @@
               {{ getTotalTimeLogsCount }} time entries
             </span>
           </div>
-          <div class="matter-section"></div>
+          <div class="workspace-section"></div>
           <div class="time-section">
             <el-tag size="default" type="success" class="grand-total-tag">
               {{ formatTime(grandTotalHours) }}
@@ -342,7 +342,7 @@ export default {
   font-size: 0.9em;
 }
 
-.matter-tag {
+.workspace-tag {
   font-weight: normal;
 }
 
@@ -423,7 +423,7 @@ export default {
   text-overflow: ellipsis;
 }
 
-.matter-section {
+.workspace-section {
   text-align: center;
 }
 
@@ -431,7 +431,7 @@ export default {
   text-align: right;
 }
 
-.matter-name {
+.workspace-name {
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;

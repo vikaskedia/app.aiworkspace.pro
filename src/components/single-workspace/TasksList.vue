@@ -896,7 +896,7 @@ export default {
                       v-if="task.matter_title" 
                       size="small" 
                       type="success" 
-                      class="matter-tag"
+                      class="workspace-tag"
                       @click.stop="navigateToMatter(task.matter_id)">
                       {{ task.matter_title }}
                     </el-tag>

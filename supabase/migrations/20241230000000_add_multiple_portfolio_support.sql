@@ -1,5 +1,5 @@
--- Add support for multiple portfolios per matter
--- Remove the unique constraint on matter_id to allow multiple portfolios per matter
+-- Add support for multiple portfolios per workspace
+-- Remove the unique constraint on matter_id to allow multiple portfolios per workspace
 ALTER TABLE portfolio_data DROP CONSTRAINT IF EXISTS portfolio_data_matter_id_key;
 
 -- Add portfolio_id and portfolio_name columns
@@ -28,7 +28,7 @@ UNIQUE (matter_id, portfolio_id);
 ALTER TABLE portfolio_analysis_results 
 ADD COLUMN IF NOT EXISTS portfolio_id TEXT;
 
--- Update existing analysis results to reference the first portfolio of each matter
+-- Update existing analysis results to reference the first portfolio of each workspace
 UPDATE portfolio_analysis_results 
 SET portfolio_id = (
     SELECT portfolio_id 
@@ -44,9 +44,9 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_data_matter_portfolio ON portfolio_data
 CREATE INDEX IF NOT EXISTS idx_portfolio_analysis_results_portfolio_id ON portfolio_analysis_results(portfolio_id);
 
 -- Update comments
-COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each matter/workspace.
+COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each workspace/workspace.
 Each workspace can have multiple portfolios, each with:
-1. portfolio_id: Unique identifier for this portfolio within the matter
+1. portfolio_id: Unique identifier for this portfolio within the workspace
 2. portfolio_name: User-friendly name for the portfolio
 3. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
 4. data: JSON array containing row data [{ item: "Stock A", value: "1000", status: "Active" }]
@@ -55,7 +55,7 @@ Each workspace can have multiple portfolios, each with:
 7. saved_filters: JSON array of saved filter sets for quick application
 8. Standard audit fields (created_by, updated_by, created_at, updated_at)';
 
-COMMENT ON COLUMN portfolio_data.portfolio_id IS 'Unique identifier for this portfolio within the matter';
+COMMENT ON COLUMN portfolio_data.portfolio_id IS 'Unique identifier for this portfolio within the workspace';
 COMMENT ON COLUMN portfolio_data.portfolio_name IS 'User-friendly name for the portfolio (e.g., "Tech Stocks", "Real Estate")';
 
 COMMENT ON TABLE portfolio_analysis_results IS 'Stores AI analysis results for portfolio data.

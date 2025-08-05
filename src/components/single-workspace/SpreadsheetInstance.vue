@@ -226,7 +226,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     // Task store for fetching task information
     const taskStore = useTaskStore();
     
-    // Use prop workspaceId if provided, otherwise get from current matter
+    // Use prop workspaceId if provided, otherwise get from current workspace
     const currentWorkspaceId = computed(() => props.workspaceId || currentWorkspace.value?.id);
     
     // Cell edit tracking for user history

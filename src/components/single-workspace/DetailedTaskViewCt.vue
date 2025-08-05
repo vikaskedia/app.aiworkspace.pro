@@ -2961,18 +2961,18 @@ export default {
         const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
-        const { data: matter, error: matterError } = await supabase
+        const { data: workspace, error: matterError } = await supabase
           .from('workspaces')
           .select('git_repo')
           .eq('id', this.currentWorkspace.id)
           .single();
 
         if (matterError) throw new Error('Failed to fetch workspace details');
-        if (!matter?.git_repo) throw new Error('No git repository found for this matter');
+        if (!workspace?.git_repo) throw new Error('No git repository found for this workspace');
 
         const path = this.currentSelectorFolder?.path || '';
         const response = await fetch(
-          `${giteaHost}/api/v1/repos/associateattorney/${matter.git_repo}/contents/${path}`,
+          `${giteaHost}/api/v1/repos/associateattorney/${workspace.git_repo}/contents/${path}`,
           {
             headers: {
               'Authorization': `token ${giteaToken}`,

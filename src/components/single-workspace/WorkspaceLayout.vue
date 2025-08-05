@@ -1,12 +1,12 @@
 <template>
-  <div class="matter-layout">
+  <div class="workspace-layout">
     <HeaderCt @logo-click="showQuickActions = true" />
     <QuickActionDrawer
       v-model="showQuickActions"
       :context="currentContext"
       @action="handleQuickAction"
     />
-    <div class="matter-content" :class="`matter-content--${currentContext}`">
+    <div class="workspace-content" :class="`workspace-content--${currentContext}`">
       <router-view v-slot="{ Component }">
         <component :is="Component" ref="currentComponent" />
       </router-view>
@@ -80,35 +80,35 @@ export default {
 </script>
 
 <style scoped>
-.matter-layout {
+.workspace-layout {
   min-height: 100vh;
   background-color: #f5f7fa;
 }
 
-.matter-content {
+.workspace-content {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
 }
 
 @media (max-width: 640px) {
-  .matter-content {
+  .workspace-content {
     padding: 1rem;
   }
 }
-.matter-content.matter-content--tasks {
+.workspace-content.workspace-content--tasks {
     max-width: 100%;
 }
 
-.matter-content.matter-content--ai-phone {
+.workspace-content.workspace-content--ai-phone {
     max-width: 100%;
 }
 
-.matter-content.matter-content--ai-intake {
+.workspace-content.workspace-content--ai-intake {
     max-width: 100%;
 }
 
-.matter-content.matter-content--ai-portfolio {
+.workspace-content.workspace-content--ai-portfolio {
     max-width: 100%;
 }
 </style>

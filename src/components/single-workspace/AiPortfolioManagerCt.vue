@@ -131,7 +131,7 @@
                   :initial-rows="spreadsheet.rows"
                   :initial-columns="spreadsheet.columns"
                   :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
-                  :matter-id="portfolio.childMatterId || currentWorkspaceId"
+                  :workspace-id="portfolio.childMatterId || currentWorkspaceId"
                   :portfolio-id="portfolio.id"
                   :readonly="getPortfolioReadonlyState(portfolio.id)"
                   @remove-spreadsheet="removeSpreadsheet"
@@ -982,7 +982,7 @@ export default {
       const childMatterIds = childWorkspaces.value.map(child => child.id);
       const allChildPortfolios = [];
 
-      // Load portfolios for each child matter
+      // Load portfolios for each child workspace
       for (const childMatter of childWorkspaces.value) {
         const { data: childPortfolioData, error: childPortfolioError } = await supabase
           .from('portfolio_data')
@@ -2517,7 +2517,7 @@ export default {
 </style>
 
 <style>
-.matter-content.matter-content--ai-portfolio {
+.workspace-content.workspace-content--ai-portfolio {
     padding: 0;
 }
 </style>

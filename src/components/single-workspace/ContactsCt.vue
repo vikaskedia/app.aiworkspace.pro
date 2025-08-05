@@ -111,7 +111,7 @@
               v-else 
               v-model="row.editMatterText" 
               size="small"
-              placeholder="Enter matter"
+              placeholder="Enter workspace"
               @keyup.esc="cancelEdit(row)"
             />
           </template>
@@ -618,7 +618,7 @@ export default {
           .single();
 
         if (accessError || !accessCheck) {
-          throw new Error('You do not have edit access to this matter');
+          throw new Error('You do not have edit access to this workspace');
         }
 
         // Upload profile picture if selected

@@ -132,12 +132,12 @@ export default {
         if (currentWorkspace.value) {
           const storedWorkspace = workspacesWithActivity.find(m => m.id === currentWorkspace.value.id);
           if (storedWorkspace && storedWorkspace.hasAccess) {
-            // Current matter is valid, update with fresh data
+            // Current workspace is valid, update with fresh data
             selectedWorkspace.value = storedWorkspace;
             matterStore.setCurrentMatter(storedWorkspace);
             emit('workspace-selected', storedWorkspace);
           } else {
-            // Current matter is no longer valid, clear it
+            // Current workspace is no longer valid, clear it
             selectedWorkspace.value = null;
             matterStore.setCurrentMatter(null);
           }

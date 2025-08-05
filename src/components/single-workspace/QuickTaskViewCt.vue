@@ -440,7 +440,7 @@ export default {
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // First get the workspace's git repo
-        const { data: matter, error: matterError } = await supabase
+        const { data: workspace, error: matterError } = await supabase
           .from('workspaces')
           .select('git_repo')
           .eq('id', this.task.matter_id)
@@ -450,8 +450,8 @@ export default {
           throw new Error('Failed to fetch workspace details');
         }
 
-        if (!matter?.git_repo) {
-          throw new Error('No git repository found for this matter');
+        if (!workspace?.git_repo) {
+          throw new Error('No git repository found for this workspace');
         }
 
         const path = this.currentSelectorFolder?.path || '';
@@ -1437,7 +1437,7 @@ Please provide assistance based on this context, the comment history, the availa
           .from('tasks')
           .select(`
             *,
-            matter:matter_id (title),
+            workspace:matter_id (title),
             task_stars (user_id),
             task_hours_logs (time_taken)
           `)

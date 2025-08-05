@@ -26,7 +26,7 @@ test.describe('Goals Component', () => {
     );
     await page.waitForURL(`${SITE_URL}/all-workspaces/dashboard`);
 
-    // Navigate to goals page of a matter
+    // Navigate to goals page of a workspace
     await page.goto(`${SITE_URL}/single-workspace/19/goals`);
     // Wait for goals component to load
     await page.waitForSelector('.el-table');

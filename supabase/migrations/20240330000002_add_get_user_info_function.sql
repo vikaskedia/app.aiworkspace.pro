@@ -1,7 +1,7 @@
 -- Drop existing function if it exists to avoid return type conflicts
 DROP FUNCTION IF EXISTS get_user_info_for_matter(UUID[], BIGINT);
 
--- Create a function to get user information for team members within the same matter
+-- Create a function to get user information for team members within the same workspace
 CREATE FUNCTION get_user_info_for_matter(user_ids UUID[], matter_id_param BIGINT)
 RETURNS TABLE (
   user_id UUID,
@@ -13,16 +13,16 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Only return user info if the requesting user has access to the matter
+  -- Only return user info if the requesting user has access to the workspace
   IF NOT EXISTS (
     SELECT 1 FROM workspace_access 
     WHERE matter_id = matter_id_param 
     AND shared_with_user_id = auth.uid()
   ) THEN
-    RAISE EXCEPTION 'Access denied: You do not have access to this matter';
+    RAISE EXCEPTION 'Access denied: You do not have access to this workspace';
   END IF;
   
-  -- Return user information for users who also have access to the same matter
+  -- Return user information for users who also have access to the same workspace
   RETURN QUERY
   SELECT 
     au.id as user_id,
@@ -34,7 +34,7 @@ BEGIN
   FROM auth.users au
   WHERE au.id = ANY(user_ids)
   AND EXISTS (
-    -- Only return info for users who have access to the same matter
+    -- Only return info for users who have access to the same workspace
     SELECT 1 FROM workspace_access wa
     WHERE wa.matter_id = matter_id_param
     AND wa.shared_with_user_id = au.id

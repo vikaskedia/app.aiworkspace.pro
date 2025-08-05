@@ -209,7 +209,7 @@ export default {
 
         <el-select
           v-model="selectedMatter"
-          placeholder="Filter by matter"
+          placeholder="Filter by workspace"
           clearable
           style="width: 200px"
         >
@@ -300,7 +300,7 @@ export default {
     >
       <el-form :model="form" label-width="120px">
         <el-form-item label="Workspace">
-          <el-select v-model="form.matter_id" placeholder="Select matter" style="width: 100%">
+          <el-select v-model="form.matter_id" placeholder="Select workspace" style="width: 100%">
             <el-option
               v-for="workspace in workspaces"
               :key="workspace.id"

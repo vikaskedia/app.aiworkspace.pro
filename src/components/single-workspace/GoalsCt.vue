@@ -131,7 +131,7 @@ export default {
           .single();
 
         if (accessError || !accessCheck) {
-          throw new Error('You do not have edit access to this matter');
+          throw new Error('You do not have edit access to this workspace');
         }
 
         const goalData = {

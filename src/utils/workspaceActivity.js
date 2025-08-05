@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 
 /**
- * Function to record activity for a matter
+ * Function to record activity for a workspace
  * @param {number} workspaceId - The workspace ID
  */
 export async function updateMatterActivity(workspaceId) {
@@ -14,7 +14,7 @@ export async function updateMatterActivity(workspaceId) {
       return;
     }
 
-    // First check if records already exist for this matter-user combination
+    // First check if records already exist for this workspace-user combination
     const { data: existingActivities } = await supabase
       .from('workspace_activities')
       .select('id, updated_at')
@@ -65,7 +65,7 @@ export async function updateMatterActivity(workspaceId) {
 }
 
 /**
- * Function to get recent activities for a matter
+ * Function to get recent activities for a workspace
  * @param {number} workspaceId - The workspace ID
  * @param {number} limit - Number of activities to fetch (default: 10)
  */

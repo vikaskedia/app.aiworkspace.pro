@@ -226,9 +226,9 @@ export default {
         if (workspacesActive) {
           const workspacesData = JSON.parse(workspacesActive);
           if (Array.isArray(workspacesData)) {
-            this.workspaces = workspacesData.map(matter => ({
-              id: workspace.id || matter,
-              title: workspace.title || `Workspace ${workspace.id || matter}`
+            this.workspaces = workspacesData.map(workspace => ({
+              id: workspace.id || workspace,
+              title: workspace.title || `Workspace ${workspace.id || workspace}`
             }));
           }
         }
@@ -257,12 +257,12 @@ export default {
 
     clearFilters() {
       this.filters = {
-        matter: []
+        workspace: []
       };
     },
 
     getMatterTitle(workspaceId) {
-      const workspace = this.workspaces.find(matter => workspace.id === workspaceId);
+      const workspace = this.workspaces.find(workspace => workspace.id === workspaceId);
       return workspace ? workspace.title : 'Unknown Workspace';
     }
   },
@@ -342,7 +342,7 @@ h2 {
   margin-bottom: 0;
 }
 
-.title-with-matter {
+.title-with-workspace {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -353,7 +353,7 @@ h2 {
   color: #303133;
 }
 
-.matter-name {
+.workspace-name {
   display: flex;
   align-items: center;
 }

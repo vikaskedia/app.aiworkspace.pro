@@ -285,7 +285,7 @@ const PREDEFINED_QUESTIONS = [
     //   possibleOutcome: ["Successful resolution of the contract dispute and recovery of the unpaid invoices"],
     //   interviewQnA: {
     //     answer: "I'm dealing with a contract dispute with my business partner regarding unpaid invoices.",
-    //     question: "Hello Suvankar Roy,\n\nWelcome to AI Associate Attorney!\n\nMy name is Julian, and I am here to assist you with your legal needs. At our firm, we prioritize providing expert and personalized legal services to our clients.\n\nTo better understand how we can help you, could you please provide some details about your legal matter? Rest assured, all information you share with us will be treated with the utmost confidentiality.\n\nLooking forward to hearing from you soon.\n\nBest regards,\nJulian"
+    //     question: "Hello Suvankar Roy,\n\nWelcome to AI Associate Attorney!\n\nMy name is Julian, and I am here to assist you with your legal needs. At our firm, we prioritize providing expert and personalized legal services to our clients.\n\nTo better understand how we can help you, could you please provide some details about your legal workspace? Rest assured, all information you share with us will be treated with the utmost confidentiality.\n\nLooking forward to hearing from you soon.\n\nBest regards,\nJulian"
     //   }
     // }
   },
@@ -525,7 +525,7 @@ export default {
 
         // Generate repo names
         const userRepoName = user.email.replace('@', '-').toLowerCase()
-        const matterRepoName = `matter-${Date.now()}`
+        const workspaceRepoName = `matter-${Date.now()}`
         const emailStorage = `${Date.now()}@associateattorney.ai`
 
         // Create workspace repository in Gitea first
@@ -538,8 +538,8 @@ export default {
             'Cache-Control': 'no-cache'
           },
           body: JSON.stringify({
-            name: matterRepoName,
-            description: `Repository for workspace ${matterRepoName}`,
+            name: workspaceRepoName,
+            description: `Repository for workspace ${workspaceRepoName}`,
             private: true,
             auto_init: true,
             trust_model: 'collaborator'
@@ -548,20 +548,20 @@ export default {
 
 
         // Create new workspace in Supabase
-        const { data: matter, error: matterError } = await supabase
+        const { data: workspace, error: workspaceError } = await supabase
           .from('workspaces')
           .insert([{
             title: 'Legal Consultation Workspace',
             description: `Initial consultation conducted on ${new Date().toLocaleDateString()}`,
             created_by: user.id,
             archived: false,
-            git_repo: matterRepoName,
+            git_repo: workspaceRepoName,
             email_storage: emailStorage
           }])
           .select()
           .single()
 
-        if (matterError) throw matterError
+        if (workspaceError) throw workspaceError
 
         // Helper function for base64 encoding
         const toBase64 = (str) => {
@@ -619,7 +619,7 @@ export default {
 
                 // Upload to new workspace repo
                   await fetch(
-                    `${giteaHost}/api/v1/repos/associateattorney/${matterRepoName}/contents/initial-consultation/${file.name}`,
+                    `${giteaHost}/api/v1/repos/associateattorney/${workspaceRepoName}/contents/initial-consultation/${file.name}`,
                     {
                       method: 'POST',
                       headers: {
@@ -696,11 +696,11 @@ export default {
           }])
 
         ElMessage.success('Workspace created successfully')
-        // Redirect to the new matter
+        // Redirect to the new workspace
         window.location.href = `/single-workspace/${workspace.id}/dashboard`
 
       } catch (error) {
-        ElMessage.error('Error creating matter: ' + error.message)
+        ElMessage.error('Error creating workspace: ' + error.message)
       } finally {
         loading.value = false
       }
@@ -733,7 +733,7 @@ export default {
 
         // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
-          (sharedWorkspaces || []).map(async (matter) => {
+          (sharedWorkspaces || []).map(async (workspace) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
@@ -742,7 +742,7 @@ export default {
               .limit(1);
 
             return {
-              ...matter,
+              ...workspace,
               latest_activity: activities?.[0]?.updated_at || workspace.created_at
             };
           })
@@ -789,7 +789,7 @@ export default {
 
         // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
-          (sharedWorkspaces || []).map(async (matter) => {
+          (sharedWorkspaces || []).map(async (workspace) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
@@ -798,7 +798,7 @@ export default {
               .limit(1);
 
             return {
-              ...matter,
+              ...workspace,
               latest_activity: activities?.[0]?.updated_at || workspace.created_at
             };
           })
@@ -898,7 +898,7 @@ export default {
 
       // Format shared workspaces information
       const sharedWorkspacesInfo = userWorkspaces.value.length > 0 
-        ? `\n\nShared Legal Workspaces:\n${userWorkspaces.value.map(matter => `
+        ? `\n\nShared Legal Workspaces:\n${userWorkspaces.value.map(workspace => `
 - Workspace: ${workspace.title}
   Description: ${workspace.description || 'No description'}
   Tasks:${workspace.tasks?.length ? workspace.tasks.map(task => `

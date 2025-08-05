@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS portfolio_data (
     UNIQUE(matter_id)
 );
 
-COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each matter/workspace.
+COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each workspace/workspace.
 Each workspace can have one portfolio with:
 1. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
 2. data: JSON array containing row data [{ item: "Stock A", value: "1000", status: "Active" }]

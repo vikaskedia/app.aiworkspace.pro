@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     const batchSize = 1000
     let hasMore = true
 
-    console.log('Starting to fetch conversations for matter:', workspaceId)
+    console.log('Starting to fetch conversations for workspace:', workspaceId)
 
     while (hasMore) {
       const { data: conversationBatch, error } = await supabase
@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       }
     })
 
-    // Fetch group conversations for the matter
+    // Fetch group conversations for the workspace
     const { data: groupConversations, error: groupError } = await supabase
       .from('group_conversations')
       .select('*')

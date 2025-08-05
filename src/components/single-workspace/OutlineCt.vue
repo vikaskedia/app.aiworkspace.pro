@@ -236,7 +236,7 @@ export default {
     // Generate unique render ID for this tab/component instance
     const outlineRenderID = ref(generateRenderID());
     
-    // Computed property for current matter
+    // Computed property for current workspace
     const currentWorkspace = computed(() => matterStore.currentWorkspace);
     
     // Computed property for workspace name
@@ -259,7 +259,7 @@ export default {
       }
     }, 2000);
 
-    // Get localStorage keys for current matter
+    // Get localStorage keys for current workspace
     const getLocalStorageKey = () => `outline_${workspaceId.value}`;
     const getVersionKey = () => `outline_version_${workspaceId.value}`;
     const getCollapsedKey = () => `outline_collapsed_${workspaceId.value}_${window.location.pathname}`;
@@ -1811,7 +1811,7 @@ export default {
         throw new Error('No workspace ID found');
       }
       
-      // Create repo name for the matter
+      // Create repo name for the workspace
       const repoName = `Matter_${workspaceId}_Outline`;
       
       // Try to create the repository if it doesn't exist

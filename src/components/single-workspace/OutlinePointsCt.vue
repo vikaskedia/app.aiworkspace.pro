@@ -781,7 +781,7 @@ export default {
           throw new Error('No workspace ID found');
         }
         
-        // Create repo name for the matter
+        // Create repo name for the workspace
         const repoName = `Matter_${workspaceId}_Outline`;
         
         // Try to create the repository if it doesn't exist

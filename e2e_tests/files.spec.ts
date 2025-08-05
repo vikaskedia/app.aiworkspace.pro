@@ -68,7 +68,7 @@ test.describe('Files Component', () => {
     // Wait for navigation to dashboard
     await page.waitForURL('https://app.aiworkspace.pro/all-workspaces/dashboard');
 
-    // Navigate to the files page of a matter
+    // Navigate to the files page of a workspace
     await page.goto('https://app.aiworkspace.pro/single-workspace/19/files');
     
     // Wait for the files component to load and initial API call to complete

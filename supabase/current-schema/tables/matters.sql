@@ -16,7 +16,7 @@ CREATE TABLE workspaces (
     )
 );
 
-COMMENT ON TABLE workspaces IS 'Matters can be soft deleted but not permanently deleted. 
+COMMENT ON TABLE workspaces IS 'Workspaces can be soft deleted but not permanently deleted. 
 Soft delete requires both deleted_by and deleted_at to be set.
 
 Each workspace has:

@@ -493,7 +493,7 @@ export default {
 
     const user = ref(null)
 
-    const userMatters = ref([]);
+    const userWorkspaces = ref([]);
 
     const expandedSections = ref(['events', 'files', 'goals', 'tasks', 'possibleOutcome'])
 
@@ -706,11 +706,11 @@ export default {
       }
     }
 
-    const getSharedMatters = async (userId) => {
-      console.log('L837: getSharedMatters');
+    const getSharedWorkspaces = async (userId) => {
+      console.log('L837: getSharedWorkspaces');
       try {
         // Get workspaces shared with the user
-        const { data: sharedMatters, error } = await supabase
+        const { data: sharedWorkspaces, error } = await supabase
           .from('workspaces')
           .select(`
             *,
@@ -733,7 +733,7 @@ export default {
 
         // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
-          (sharedMatters || []).map(async (matter) => {
+          (sharedWorkspaces || []).map(async (matter) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
@@ -762,11 +762,11 @@ export default {
       }
     };
 
-    const loadUserMatters = async () => {
-      console.log('L869: loadUserMatters');
+    const loadUserWorkspaces = async () => {
+      console.log('L869: loadUserWorkspaces');
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const { data: sharedMatters, error } = await supabase
+        const { data: sharedWorkspaces, error } = await supabase
           .from('workspaces')
           .select(`
             *,
@@ -789,7 +789,7 @@ export default {
 
         // Get the latest activity for each workspace and sort
         const workspacesWithActivity = await Promise.all(
-          (sharedMatters || []).map(async (matter) => {
+          (sharedWorkspaces || []).map(async (matter) => {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
@@ -811,10 +811,10 @@ export default {
           return dateB - dateA; // Most recent first
         });
 
-        userMatters.value = workspacesWithActivity;
+        userWorkspaces.value = workspacesWithActivity;
       } catch (error) {
         console.error('Error fetching shared workspaces:', error);
-        userMatters.value = [];
+        userWorkspaces.value = [];
       }
     };
 
@@ -897,8 +897,8 @@ export default {
       }
 
       // Format shared workspaces information
-      const sharedMattersInfo = userMatters.value.length > 0 
-        ? `\n\nShared Legal Workspaces:\n${userMatters.value.map(matter => `
+      const sharedWorkspacesInfo = userWorkspaces.value.length > 0 
+        ? `\n\nShared Legal Workspaces:\n${userWorkspaces.value.map(matter => `
 - Workspace: ${workspace.title}
   Description: ${workspace.description || 'No description'}
   Tasks:${workspace.tasks?.length ? workspace.tasks.map(task => `
@@ -913,7 +913,7 @@ export default {
          user.email?.split('@')[0]}
 - Email: ${user.email}
 - Phone: ${user.user_metadata?.phone || 'Not provided'}
-- Preferred Language: ${user.user_metadata?.preferred_language || 'Not specified'}${sharedMattersInfo}
+- Preferred Language: ${user.user_metadata?.preferred_language || 'Not specified'}${sharedWorkspacesInfo}
 `;
 
       const fullPrompt = systemPrompt + '\n\n' + userInfoSection + formatQuestionHistory(questionHistory.value) + 
@@ -1659,7 +1659,7 @@ export default {
     onMounted(async () => {
       await Promise.all([
         initializeConsultation(),
-        loadUserMatters()
+        loadUserWorkspaces()
       ]);
       const qaDisplay = document.querySelector('.qa-display');
       if (qaDisplay) {
@@ -1706,8 +1706,8 @@ export default {
       saveConsultationState,
       loadConsultationState,
       user,
-      userMatters,
-      loadUserMatters,
+      userWorkspaces,
+      loadUserWorkspaces,
       expandedSections,
       dialogWidth,
       formatText,

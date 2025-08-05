@@ -79,7 +79,7 @@ export default {
       }
     };
 
-    const loadMatters = async () => {
+    const loadWorkspaces = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const { data, error } = await supabase
@@ -160,7 +160,7 @@ export default {
 
     onMounted(() => {
       loadWorkHours();
-      loadMatters();
+      loadWorkspaces();
       loadUsers();
     });
 

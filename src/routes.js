@@ -27,13 +27,13 @@ const routes = [
     children: [
       {
         path: '',
-        name: 'AllMattersRoot',
+        name: 'AllWorkspacesRoot',
         meta: { requiresAuth: true },
         redirect: '/all-workspace/dashboard'
       },
       {
         path: 'dashboard',
-        name: 'AllMattersDashboard',
+        name: 'AllWorkspacesDashboard',
         component: () => import('./components/all-workspaces/AllWorkspacesDashboardCt.vue')
       },
       {
@@ -440,7 +440,7 @@ router.beforeEach(async (to, from, next) => {
   if (session && to.params.workspaceId) {
     const matterStore = useMatterStore();
     try {
-      await matterStore.loadMatters();
+      await matterStore.loadWorkspaces();
       const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.workspaceId));
       // Only set as current if workspace exists and user has access
       if (workspace && workspace.hasAccess) {

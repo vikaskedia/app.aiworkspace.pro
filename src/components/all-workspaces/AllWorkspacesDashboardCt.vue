@@ -183,11 +183,11 @@ export default {
   },
   watch: {
     showArchived() {
-      this.loadMattersWithCache();
+      this.loadWorkspacesWithCache();
     }
   },
   mounted() {
-    this.loadMattersWithCache();
+    this.loadWorkspacesWithCache();
     this.updatePageTitle();
   },
   methods: {
@@ -199,7 +199,7 @@ export default {
       return `workspaces_${this.showArchived ? 'archived' : 'active'}`;
     },
 
-    async loadMattersWithCache() {
+    async loadWorkspacesWithCache() {
       try {
         // Try to get data from cache first
         const cacheKey = this.getCacheKey();
@@ -211,13 +211,13 @@ export default {
         }
         
         // Always fetch fresh data
-        await this.loadMatters();
+        await this.loadWorkspaces();
       } catch (error) {
         ElMessage.error('Error loading workspaces: ' + error.message);
       }
     },
 
-    async loadMatters() {
+    async loadWorkspaces() {
       try {
         this.loading = false;
         const { data: { user } } = await supabase.auth.getUser();
@@ -380,7 +380,7 @@ export default {
         });
         
         // Clear cache when creating new workspace
-        this.clearMattersCache();
+        this.clearWorkspacesCache();
         
         this.createMatterDialog = false;
         this.newMatter = { title: '', description: '' };
@@ -417,7 +417,7 @@ export default {
         }
 
         // Clear cache when updating workspace
-        this.clearMattersCache();
+        this.clearWorkspacesCache();
 
         this.editMatterDialog = false;
         ElMessage.success('Workspace updated successfully');
@@ -446,7 +446,7 @@ export default {
         this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
         // Clear cache when archiving workspace
-        this.clearMattersCache();
+        this.clearWorkspacesCache();
         
         ElMessage.success('Workspace archived successfully');
       } catch (error) {
@@ -470,7 +470,7 @@ export default {
         this.workspaces = this.workspaces.filter(m => m.id !== workspace.id);
         
         // Clear cache when restoring workspace
-        this.clearMattersCache();
+        this.clearWorkspacesCache();
         
         ElMessage.success('Workspace restored successfully');
       } catch (error) {
@@ -521,7 +521,7 @@ export default {
       }
     },
 
-    clearMattersCache() {
+    clearWorkspacesCache() {
       localStorage.removeItem('workspaces_active');
       localStorage.removeItem('workspaces_archived');
     },

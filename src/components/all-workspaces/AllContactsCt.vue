@@ -244,7 +244,7 @@ export default {
     }
   },
   async mounted() {
-    await this.loadMatters();
+    await this.loadWorkspaces();
     await this.loadContacts();
     this.setupRealtimeSubscription();
   },
@@ -254,7 +254,7 @@ export default {
     }
   },
   methods: {
-    async loadMatters() {
+    async loadWorkspaces() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -270,16 +270,16 @@ export default {
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
-        const { data: userMatters, error: userMattersError } = await supabase
+        const { data: userWorkspaces, error: userWorkspacesError } = await supabase
           .from('workspaces')
           .select('id')
           .eq('created_by', user.id)
           .eq('archived', false);
 
-        if (userMattersError) throw userMattersError;
+        if (userWorkspacesError) throw userWorkspacesError;
 
         // Combine all accessible workspace IDs
-        const allMatterIds = [...new Set([...accessibleMatterIds, ...userMatters.map(m => m.id)])];
+        const allMatterIds = [...new Set([...accessibleMatterIds, ...userWorkspaces.map(m => m.id)])];
 
         if (allMatterIds.length === 0) {
           this.workspaces = [];
@@ -318,16 +318,16 @@ export default {
         const accessibleMatterIds = workspaceAccess.map(access => access.matter_id);
 
         // Get workspaces created by user
-        const { data: userMatters, error: userMattersError } = await supabase
+        const { data: userWorkspaces, error: userWorkspacesError } = await supabase
           .from('workspaces')
           .select('id')
           .eq('created_by', user.id)
           .eq('archived', false);
 
-        if (userMattersError) throw userMattersError;
+        if (userWorkspacesError) throw userWorkspacesError;
 
         // Combine all accessible workspace IDs
-        const allMatterIds = [...new Set([...accessibleMatterIds, ...userMatters.map(m => m.id)])];
+        const allMatterIds = [...new Set([...accessibleMatterIds, ...userWorkspaces.map(m => m.id)])];
 
         if (allMatterIds.length === 0) {
           this.contacts = [];

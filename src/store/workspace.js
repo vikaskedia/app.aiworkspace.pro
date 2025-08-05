@@ -17,7 +17,7 @@ export const useMatterStore = defineStore('workspace', {
       this.currentWorkspace = workspace;
     },
 
-    async loadMatters(includeArchived = false) {
+    async loadWorkspaces(includeArchived = false) {
       try {
         // Get the current user first
         const { data: { user } } = await supabase.auth.getUser();

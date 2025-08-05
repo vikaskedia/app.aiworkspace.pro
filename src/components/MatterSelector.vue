@@ -98,10 +98,10 @@ export default {
       return rootWorkspaces;
     };
 
-    const loadMatters = async () => {
+    const loadWorkspaces = async () => {
       try {
-        // Use the store's improved loadMatters method
-        const workspacesWithActivity = await matterStore.loadMatters();
+        // Use the store's improved loadWorkspaces method
+        const workspacesWithActivity = await matterStore.loadWorkspaces();
         workspaces.value = workspacesWithActivity;
         
         // Create userAccessMap from the workspace data
@@ -199,7 +199,7 @@ export default {
         if (error) throw error;
 
         // Reload workspaces to get updated tree
-        await loadMatters();
+        await loadWorkspaces();
         
         // Close dialog and reset form
         dialogVisible.value = false;
@@ -320,7 +320,7 @@ export default {
       if (currentWorkspace.value) {
         selectedWorkspace.value = currentWorkspace.value;
       }
-      loadMatters();
+      loadWorkspaces();
     });
 
     return {

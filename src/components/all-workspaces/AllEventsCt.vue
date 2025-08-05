@@ -193,7 +193,7 @@ export default {
         const { count, error: countError } = await supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
-          .in('matter_id', matterIds);
+          .in('matter_id', workspaceIds);
         
         if (countError) throw countError;
         console.log('Total events for active workspaces:', count);
@@ -202,7 +202,7 @@ export default {
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .in('matter_id', matterIds)
+          .in('matter_id', workspaceIds)
           .order('start_time', { ascending: false });
 
         if (error) throw error;
@@ -219,7 +219,7 @@ export default {
       }
     },
 
-    async loadMatters() {
+    async loadWorkspaces() {
       try {
         // Get workspaces from localStorage for now
         const workspacesActive = localStorage.getItem('workspaces_active');
@@ -267,7 +267,7 @@ export default {
     }
   },
   async mounted() {
-    await this.loadMatters();
+    await this.loadWorkspaces();
     await this.loadEvents();
   },
   watch: {

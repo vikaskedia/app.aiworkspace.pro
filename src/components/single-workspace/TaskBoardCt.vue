@@ -1038,7 +1038,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         
         return tasks;
       },
-      isAllMatters() {
+      isAllWorkspaces() {
         return this.isAllTasksContext;
       }
     },

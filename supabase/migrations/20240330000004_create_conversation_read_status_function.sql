@@ -12,11 +12,13 @@ BEGIN
   SELECT 
     c.id as conversation_id,
     COALESCE(
-      (SELECT COUNT(*) 
-       FROM messages m 
-       WHERE m.conversation_id = c.id 
-       AND m.created_at > COALESCE(crs.last_read_at, '1970-01-01'::timestamp)
-       AND m.direction = 'inbound'), 
+      CAST((
+        SELECT COUNT(*) 
+        FROM messages m 
+        WHERE m.conversation_id = c.id 
+          AND m.created_at > COALESCE(crs.last_read_at, '1970-01-01'::timestamp)
+          AND m.direction = 'inbound'
+      ) AS INTEGER), 
       0
     ) as unread_count
   FROM conversations c

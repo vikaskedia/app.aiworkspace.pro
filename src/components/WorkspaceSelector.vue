@@ -264,7 +264,7 @@ export default {
       }
     };
 
-    const handleMatterSelect = (workspace) => {
+    const handleWorkspaceSelect = (workspace) => {
       handleWorkspaceClick(workspace);
     };
 
@@ -332,7 +332,7 @@ export default {
       searchQuery,
       newMatter,
       createMatter,
-      handleMatterSelect,
+      handleWorkspaceSelect,
       handleMatterCommand,
       handleWorkspaceClick,
       renderWorkspaceTree,

@@ -2,7 +2,7 @@
 import { supabase } from '../supabase';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage, ElAlert, ElButton } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
-import MatterSelector from './MatterSelector.vue';
+import WorkspaceSelector from './WorkspaceSelector.vue';
 import { useWorkspaceStore } from '../store/workspace';
 import { useCacheStore } from '../store/cache';
 import { ref } from 'vue';
@@ -15,7 +15,7 @@ export default {
     ElDropdownItem,
     ElAvatar,
     CaretBottom,
-    MatterSelector,
+    WorkspaceSelector,
     ElDialog,
     ElAlert,
     ElButton
@@ -188,7 +188,7 @@ export default {
           break
       }
     },
-    handleMatterSelect(workspace) {
+    handleWorkspaceSelect(workspace) {
       const workspaceStore = useWorkspaceStore();
       workspaceStore.setCurrentWorkspace(workspace);
       
@@ -440,7 +440,7 @@ export default {
         <h2 class="section-title">Billing</h2>
       </template>
       <template v-else>
-        <MatterSelector @workspace-selected="handleMatterSelect" />
+        <WorkspaceSelector @workspace-selected="handleWorkspaceSelect" />
         <span class="section-divider">/</span>
         <el-dropdown trigger="click" @command="handleMatterCommand">
           <span class="current-section clickable">

@@ -101,10 +101,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="matter_text" label="Workspace" min-width="150">
+        <el-table-column prop="workspace_text" label="Workspace" min-width="150">
           <template #default="{ row }">
             <div v-if="!row.editing">
-              <span v-if="row.matter_text">{{ row.matter_text }}</span>
+              <span v-if="row.workspace_text">{{ row.workspace_text }}</span>
               <span v-else class="text-muted">-</span>
             </div>
             <el-input 
@@ -301,7 +301,7 @@
 
         <el-form-item label="Workspace">
           <el-input 
-            v-model="contactForm.matter_text" 
+            v-model="contactForm.workspace_text" 
             placeholder="Enter workspace description"
             maxlength="200"
           />
@@ -390,7 +390,7 @@ export default {
         email: '',
         company: '',
         role: '',
-        matter_text: '',
+        workspace_text: '',
         address: '',
         tags: [],
         profile_picture_url: null,
@@ -466,7 +466,7 @@ export default {
           editEmail: contact.email || '',
           editCompany: contact.company || '',
           editRole: contact.role || '',
-          editMatterText: contact.matter_text || '',
+          editMatterText: contact.workspace_text || '',
           editAddress: contact.address || '',
           editTags: contact.tags || []
         }));
@@ -637,7 +637,7 @@ export default {
           email: this.contactForm.email.trim() || null,
           company: this.contactForm.company.trim() || null,
           role: this.contactForm.role.trim() || null,
-          matter_text: this.contactForm.matter_text.trim() || null,
+          workspace_text: this.contactForm.workspace_text.trim() || null,
           address: this.contactForm.address.trim() || null,
           profile_picture_url: profilePictureUrl,
           tags: this.contactForm.tags,
@@ -662,7 +662,7 @@ export default {
           editEmail: data.email || '',
           editCompany: data.company || '',
           editRole: data.role || '',
-          editMatterText: data.matter_text || '',
+          editMatterText: data.workspace_text || '',
           editAddress: data.address || '',
           editTags: data.tags || []
         });
@@ -688,7 +688,7 @@ export default {
       contact.editEmail = contact.email || '';
       contact.editCompany = contact.company || '';
       contact.editRole = contact.role || '';
-      contact.editMatterText = contact.matter_text || '';
+      contact.editMatterText = contact.workspace_text || '';
       contact.editAddress = contact.address || '';
       contact.editTags = contact.tags || [];
       
@@ -723,7 +723,7 @@ export default {
             email: contact.editEmail.trim() || null,
             company: contact.editCompany.trim() || null,
             role: contact.editRole.trim() || null,
-            matter_text: contact.editMatterText.trim() || null,
+            workspace_text: contact.editMatterText.trim() || null,
             address: contact.editAddress.trim() || null,
             tags: contact.editTags,
             updated_at: new Date().toISOString()
@@ -738,7 +738,7 @@ export default {
         contact.email = contact.editEmail.trim() || null;
         contact.company = contact.editCompany.trim() || null;
         contact.role = contact.editRole.trim() || null;
-        contact.matter_text = contact.editMatterText.trim() || null;
+        contact.workspace_text = contact.editMatterText.trim() || null;
         contact.address = contact.editAddress.trim() || null;
         contact.tags = contact.editTags;
         contact.editing = false;
@@ -760,7 +760,7 @@ export default {
       contact.editEmail = contact.email || '';
       contact.editCompany = contact.company || '';
       contact.editRole = contact.role || '';
-      contact.editMatterText = contact.matter_text || '';
+      contact.editMatterText = contact.workspace_text || '';
       contact.editAddress = contact.address || '';
       contact.editTags = contact.tags || [];
     },
@@ -806,7 +806,7 @@ export default {
         email: '',
         company: '',
         role: '',
-        matter_text: '',
+        workspace_text: '',
         address: '',
         tags: [],
         profile_picture_url: null,

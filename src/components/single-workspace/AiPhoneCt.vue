@@ -802,11 +802,11 @@
               <div class="detail-row">
                 <el-icon size="15" color="#69696b"><Document /></el-icon><span class="contact-detail-label">Workspace</span>
                 <div class="detail-value cursor-pointer">
-                  <template v-if="editingField === 'matter_text'">
-                    <el-input ref="matter_textInput" v-model="editableContact.matter_text" size="small" @blur="saveEditContact('matter_text')" @keydown="handleContactFieldKeydown($event, 'matter_text')" />
+                  <template v-if="editingField === 'workspace_text'">
+                    <el-input ref="workspace_textInput" v-model="editableContact.workspace_text" size="small" @blur="saveEditContact('workspace_text')" @keydown="handleContactFieldKeydown($event, 'workspace_text')" />
                   </template>
                   <template v-else>
-                    <span @click="startEditContact('matter_text')">{{ selectedContactDetails.matter_text || 'Set a workspace...' }}</span>
+                    <span @click="startEditContact('workspace_text')">{{ selectedContactDetails.workspace_text || 'Set a workspace...' }}</span>
                   </template>
                 </div>
               </div>

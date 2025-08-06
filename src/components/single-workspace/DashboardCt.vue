@@ -21,7 +21,7 @@
           min-width="200" />
         <el-table-column 
           v-if="!currentWorkspace"
-          prop="matter_title" 
+          prop="workspace_title" 
           label="Workspace"
           min-width="150" />
         <el-table-column 
@@ -99,7 +99,7 @@
           min-width="200" />
         <el-table-column 
           v-if="!currentWorkspace"
-          prop="matter_title" 
+          prop="workspace_title" 
           label="Workspace"
           min-width="150" />
         <el-table-column 

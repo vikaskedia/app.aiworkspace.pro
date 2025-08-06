@@ -298,7 +298,7 @@ export default {
           'workspace_shared',
           { 
             workspace_id: this.currentWorkspace.id,
-            matter_title: this.currentWorkspace.title,
+            workspace_title: this.currentWorkspace.title,
             access_type: this.newShare.access_type
           }
         );

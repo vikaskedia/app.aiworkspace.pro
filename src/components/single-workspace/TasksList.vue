@@ -896,12 +896,12 @@ export default {
                       {{ task.title }}
                     </span>&nbsp;
                     <el-tag 
-                      v-if="task.matter_title" 
+                      v-if="task.workspace_title" 
                       size="small" 
                       type="success" 
                       class="workspace-tag"
                       @click.stop="navigateToMatter(task.workspace_id)">
-                      {{ task.matter_title }}
+                      {{ task.workspace_title }}
                     </el-tag>
                   </div>
                   <span class="logged-hours" v-if="task.total_hours">

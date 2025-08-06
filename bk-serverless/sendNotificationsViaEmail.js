@@ -192,7 +192,7 @@ export default async function handler(req, res) {
                     <p>Hi,</p>
                     <p><strong>${actorInfo[0].email}</strong> shared a workspace with you:</p>
                     <div style="margin: 15px 0; padding: 10px; background-color: #f5f5f5; border-left: 4px solid #17a2b8;">
-                      ${notification.data.matter_title}
+                      ${notification.data.workspace_title}
                       <p style="color: #666; font-size: 0.9em; margin-top: 8px;">${new Date(notification.created_at).toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',

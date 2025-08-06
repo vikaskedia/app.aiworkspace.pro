@@ -315,7 +315,7 @@ export default {
         case 'task_updated':
           return `${actorEmail} updated task: ${notification.data.task_title}`;
         case 'workspace_shared':
-          return `${actorEmail} shared a workspace with you: ${notification.data.matter_title}`;
+          return `${actorEmail} shared a workspace with you: ${notification.data.workspace_title}`;
         case 'mention':
           return `${notification.data.comment_by} mentioned you in task: ${notification.data.task_title}`;
         default:

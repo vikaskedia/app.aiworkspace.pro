@@ -439,7 +439,7 @@ export default {
 
           return {
             ...task,
-            matter_title: task.workspace?.title || 'Unknown Workspace',
+            workspace_title: task.workspace?.title || 'Unknown Workspace',
             assignee_email: assigneeEmail,
             starred: task.task_stars?.some(star => star.user_id === user.id) || false,
             total_hours: task.task_hours_logs?.reduce((sum, log) => {
@@ -880,7 +880,7 @@ export default {
         result = result.filter(task => 
           task.title.toLowerCase().includes(searchTerm) ||
           (task.description && task.description.toLowerCase().includes(searchTerm)) ||
-          (task.matter_title && task.matter_title.toLowerCase().includes(searchTerm))
+          (task.workspace_title && task.workspace_title.toLowerCase().includes(searchTerm))
         );
       }
       

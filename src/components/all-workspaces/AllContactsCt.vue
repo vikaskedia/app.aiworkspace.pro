@@ -223,7 +223,7 @@ export default {
         filtered = filtered.filter(contact => 
           contact.name.toLowerCase().includes(query) ||
           (contact.phone_number && contact.phone_number.toLowerCase().includes(query)) ||
-          (contact.matter_title && contact.matter_title.toLowerCase().includes(query)) ||
+          (contact.workspace_title && contact.workspace_title.toLowerCase().includes(query)) ||
           (contact.tags && contact.tags.some(tag => tag.toLowerCase().includes(query)))
         );
       }
@@ -353,7 +353,7 @@ export default {
         // Transform data to include workspace title
         this.contacts = contacts.map(contact => ({
           ...contact,
-          matter_title: contact.workspaces.title
+          workspace_title: contact.workspaces.title
         }));
       } catch (error) {
         ElMessage.error('Error loading contacts: ' + error.message);

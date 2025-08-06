@@ -66,16 +66,16 @@ $function$
     BEGIN
       RETURN QUERY
       WITH accessible_workspaces AS (
-        SELECT DISTINCT workspaces.id AS matter_id
+        SELECT DISTINCT workspaces.id AS workspace_id
         FROM workspaces
-        INNER JOINworkspace_access ON workspaces.id =workspace_access.matter_id
+        INNER JOINworkspace_access ON workspaces.id =workspace_access.workspace_id
         WHEREworkspace_access.shared_with_user_id = user_uuid
           AND workspaces.deleted = false
       ),
       assignees AS (
         SELECT DISTINCT tasks.assignee
         FROM tasks
-        WHERE tasks.matter_id IN (SELECT matter_id FROM accessible_workspaces)
+        WHERE tasks.workspace_id IN (SELECT workspace_id FROM accessible_workspaces)
           AND tasks.assignee IS NOT NULL
           AND tasks.deleted = false
       )
@@ -104,7 +104,7 @@ DROP FUNCTION IF EXISTS get_recent_tasks_with_activity(uuid);
 DROP FUNCTION IF EXISTS get_recent_tasks_with_activity(bigint);
 
 -- Create the correct version
-CREATE OR REPLACE FUNCTION get_recent_tasks_with_activity(p_matter_id bigint)
+CREATE OR REPLACE FUNCTION get_recent_tasks_with_activity(p_workspace_id bigint)
 RETURNS TABLE (
     id bigint,
     title text,
@@ -113,7 +113,7 @@ RETURNS TABLE (
     priority text,
     assignee uuid,
     due_date timestamp with time zone,
-    matter_id bigint,
+    workspace_id bigint,
     created_by uuid,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
@@ -135,7 +135,7 @@ BEGIN
         t.priority,
         t.assignee,
         t.due_date,
-        t.matter_id,
+        t.workspace_id,
         t.created_by,
         t.created_at,
         t.updated_at,
@@ -154,11 +154,11 @@ BEGIN
     FROM tasks t
     LEFT JOIN task_comments c ON t.id = c.task_id AND NOT c.archived
     LEFT JOIN task_hours_logs thl ON t.id = thl.task_id
-    WHERE t.matter_id = p_matter_id
+    WHERE t.workspace_id = p_workspace_id
     AND t.deleted = false
     GROUP BY 
         t.id, t.title, t.description, t.status, t.priority, t.assignee,
-        t.due_date, t.matter_id, t.created_by, t.created_at, t.updated_at,
+        t.due_date, t.workspace_id, t.created_by, t.created_at, t.updated_at,
         t.parent_task_id, t.deleted, t.deleted_by, t.deleted_at,
         t.edit_history
     ORDER BY latest_activity_time DESC

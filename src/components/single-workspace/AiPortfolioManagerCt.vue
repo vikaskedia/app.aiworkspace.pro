@@ -1668,12 +1668,12 @@ export default {
         // First get the workspace IDs the user has access to
         const { data: accessData, error: accessError } = await supabase
           .from('workspace_access')
-          .select('matter_id')
+          .select('workspace_id')
           .eq('shared_with_user_id', user.id);
 
         if (accessError) throw accessError;
 
-        const accessibleMatterIds = accessData?.map(row => row.matter_id) || [];
+        const accessibleMatterIds = accessData?.map(row => row.workspace_id) || [];
 
         // Then get the workspaces
         const { data: workspaces, error } = await supabase

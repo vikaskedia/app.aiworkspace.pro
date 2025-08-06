@@ -2813,7 +2813,7 @@ export default {
               created_at
             )
           `)
-          .eq('matter_id', this.currentWorkspace.id);
+          .eq('workspace_id', this.currentWorkspace.id);
         
         if (error) throw error;
         
@@ -3220,7 +3220,7 @@ export default {
             type: this.getFileType(fileToSend.name),
             size: fileToSend.size,
             storage_path: giteaData.content.path,
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             git_repo: this.currentWorkspace.git_repo,
             created_at: new Date().toISOString(),
             tags: [],
@@ -3279,7 +3279,7 @@ export default {
             from: fromPhone,
             to: toPhone,
             message: messageText,
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             media_files: uploadedFile ? [uploadedFile] : [],
             subject: null // Can be added later if needed
           })
@@ -3452,7 +3452,7 @@ export default {
             },
             body: JSON.stringify({
               files: base64Files,
-              matter_id: this.currentWorkspace.id,
+              workspace_id: this.currentWorkspace.id,
               git_repo: this.currentWorkspace.git_repo
             })
           });
@@ -3482,7 +3482,7 @@ export default {
             from: selectedPhone.number,
             to: fullToNumber,
             message: this.newMessageForm.message,
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             media_files: uploadedFiles,
             subject: null
           })
@@ -3773,7 +3773,7 @@ export default {
         const { data: contacts, error } = await supabase
           .from('contacts')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('archived', false)
           .order('name');
 
@@ -3949,7 +3949,7 @@ export default {
               name: this.contactModalForm.name.trim(),
               phone_number: digits,
               tags: this.contactModalForm.tags,
-              matter_id: this.currentWorkspace.id,
+              workspace_id: this.currentWorkspace.id,
               created_by: user.id
             }
           ]);
@@ -4098,7 +4098,7 @@ export default {
         const { data: recording, error } = await supabase
           .from('call_recordings')
           .insert({
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             conversation_id: this.currentChat.id,
             message_id: this.selectedMessageForRecording.id,
             position: this.callRecordingForm.position,
@@ -4167,7 +4167,7 @@ export default {
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('created_at', { ascending: true });
         if (error) throw error;
         this.phoneTextActions = data || [];
@@ -4202,7 +4202,7 @@ export default {
           const { data: userInfo, error } = await supabase
             .rpc('get_user_info_for_matter', {
               user_ids: [contact.created_by],
-              matter_id_param: this.currentWorkspace.id
+              workspace_id_param: this.currentWorkspace.id
             });
           if (userInfo && userInfo.length > 0) {
             creatorName = userInfo[0].display_name || userInfo[0].email || 'Unknown';
@@ -4412,7 +4412,7 @@ export default {
         const { data: userInfo, error: userError } = await supabase
           .rpc('get_user_info_for_matter', {
             user_ids: userIds,
-            matter_id_param: this.currentWorkspace.id
+            workspace_id_param: this.currentWorkspace.id
           });
         if (userError) {
           console.error('Error getting user info:', userError);
@@ -4445,7 +4445,7 @@ export default {
           .insert({
             message_id: messageId,
             content: this.newInternalComment[messageId].trim(),
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             conversation_id: this.currentChat.id,
             created_by: user.id
           })
@@ -4575,7 +4575,7 @@ export default {
             .from('contacts')
             .insert({
               ...contactToInsert,
-              matter_id: this.currentWorkspace.id,
+              workspace_id: this.currentWorkspace.id,
               created_by: user.id
             })
             .select()
@@ -5062,7 +5062,7 @@ export default {
             const { data: userInfo, error: userError } = await supabase
               .rpc('get_user_info_for_matter', {
                 user_ids: userIds,
-                matter_id_param: this.currentWorkspace.id
+                workspace_id_param: this.currentWorkspace.id
               });
             
             if (userError) throw userError;
@@ -5175,7 +5175,7 @@ export default {
       const { data: userInfo, error: userError } = await supabase
         .rpc('get_user_info_for_matter', {
           user_ids: userIds,
-          matter_id_param: this.currentWorkspace.id
+          workspace_id_param: this.currentWorkspace.id
         });
       const userInfoMap = {};
       (userInfo || []).forEach(user => {

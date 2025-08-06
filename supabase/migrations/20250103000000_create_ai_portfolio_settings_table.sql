@@ -2,18 +2,18 @@
 CREATE TABLE IF NOT EXISTS ai_portfolio_settings (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    matter_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE NOT NULL,
+    workspace_id BIGINT REFERENCES workspaces(id) ON DELETE CASCADE NOT NULL,
     portfolio_id TEXT NOT NULL,
     view_mode BOOLEAN NOT NULL DEFAULT true, -- false = edit mode, true = readonly mode (default)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, matter_id, portfolio_id)
+    UNIQUE(user_id, workspace_id, portfolio_id)
 );
 
 COMMENT ON TABLE ai_portfolio_settings IS 'Stores user-specific view mode preferences for AI Portfolio Manager.
 Each record represents a user''s preference for a specific portfolio within a workspace:
 1. user_id: The user who owns this preference
-2. matter_id: The workspace/workspace this preference applies to
+2. workspace_id: The workspace/workspace this preference applies to
 3. portfolio_id: The specific portfolio/tab this preference applies to
 4. view_mode: false = edit mode, true = readonly mode (default when no preference exists)
 5. Standard audit fields (created_at, updated_at)';
@@ -22,9 +22,9 @@ COMMENT ON COLUMN ai_portfolio_settings.view_mode IS 'View mode preference: fals
 
 -- Add indexes for better performance
 CREATE INDEX idx_ai_portfolio_settings_user_id ON ai_portfolio_settings(user_id);
-CREATE INDEX idx_ai_portfolio_settings_matter_id ON ai_portfolio_settings(matter_id);
+CREATE INDEX idx_ai_portfolio_settings_workspace_id ON ai_portfolio_settings(workspace_id);
 CREATE INDEX idx_ai_portfolio_settings_portfolio_id ON ai_portfolio_settings(portfolio_id);
-CREATE INDEX idx_ai_portfolio_settings_composite ON ai_portfolio_settings(user_id, matter_id, portfolio_id);
+CREATE INDEX idx_ai_portfolio_settings_composite ON ai_portfolio_settings(user_id, workspace_id, portfolio_id);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE ai_portfolio_settings ENABLE ROW LEVEL SECURITY;

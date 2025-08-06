@@ -228,7 +228,7 @@ export function useExternalTaskShare() {
             due_date,
             created_at,
             updated_at,
-            workspaces:matter_id (
+            workspaces:workspace_id (
               id,
               title,
               git_repo
@@ -273,10 +273,10 @@ export function useExternalTaskShare() {
   // Add external comment
   const addExternalComment = async (taskId, userEmail, content) => {
     try {
-      // First get the task to get the matter_id
+      // First get the task to get the workspace_id
       const { data: task, error: taskError } = await supabase
         .from('tasks')
-        .select('matter_id')
+        .select('workspace_id')
         .eq('id', taskId)
         .single()
 
@@ -288,7 +288,7 @@ export function useExternalTaskShare() {
         .from('task_comments')
         .insert({
           task_id: taskId,
-          matter_id: task.matter_id,
+          workspace_id: task.workspace_id,
           user_id: null, // External users don't have user_id
           external_user_email: userEmail,
           content: content,

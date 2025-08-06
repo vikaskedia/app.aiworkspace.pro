@@ -47,7 +47,7 @@ BEGIN
     creator_id := NEW.created_by;
     
     INSERT INTOworkspace_access (
-        matter_id, 
+        workspace_id, 
         shared_with_user_id, 
         access_type, 
         granted_by_uuid
@@ -90,7 +90,7 @@ CREATE POLICY "Users can view workspaces"
     TO authenticated 
     USING (
         (id IN (
-            SELECT matter_id 
+            SELECT workspace_id 
             FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid()
         ))
@@ -104,7 +104,7 @@ CREATE POLICY "Users can update workspaces"
     FOR UPDATE 
     TO authenticated 
     USING (id IN (
-        SELECT matter_id 
+        SELECT workspace_id 
         FROMworkspace_access 
         WHERE shared_with_user_id = auth.uid() 
         AND access_type = 'edit'
@@ -117,7 +117,7 @@ CREATE POLICY "Users can soft delete workspaces"
     TO authenticated 
     USING (
         id IN (
-            SELECT matter_id 
+            SELECT workspace_id 
             FROMworkspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'

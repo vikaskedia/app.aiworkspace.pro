@@ -328,14 +328,14 @@ export default {
             .insert({
               task_id: task.id,
               user_id: user.id,
-              matter_id: task.matter_id
+              workspace_id: task.workspace_id
             });
 
           if (error) throw error;
         }
         
         // Update workspace activity
-        await updateMatterActivity(task.matter_id);
+        await updateMatterActivity(task.workspace_id);
         
         // Emit an event to notify the parent component
         this.$emit('star-toggled', task.id, !task.starred);
@@ -705,7 +705,7 @@ export default {
     }
 
     const navigateToDetailedView = (task) => {
-      router.push(`/single-workspace/${task.matter_id}/tasks/${task.id}`);
+      router.push(`/single-workspace/${task.workspace_id}/tasks/${task.id}`);
     };
 
     return {
@@ -864,7 +864,7 @@ export default {
         <!-- Parent task -->
         <div class="task-group">
           <a 
-            :href="`/single-workspace/${task.matter_id}/tasks/${task.id}`"
+            :href="`/single-workspace/${task.workspace_id}/tasks/${task.id}`"
             class="task-card"
             :class="{ 'parent-task': hasChildren(task) }"
             @click.prevent="navigateToDetailedView(task)">
@@ -900,7 +900,7 @@ export default {
                       size="small" 
                       type="success" 
                       class="workspace-tag"
-                      @click.stop="navigateToMatter(task.matter_id)">
+                      @click.stop="navigateToMatter(task.workspace_id)">
                       {{ task.matter_title }}
                     </el-tag>
                   </div>
@@ -1010,7 +1010,7 @@ export default {
               <template v-for="childTask in task.children" :key="childTask.id">
                 <!-- Recursive task component -->
                 <a 
-                  :href="`/single-workspace/${childTask.matter_id}/tasks/${childTask.id}`"
+                  :href="`/single-workspace/${childTask.workspace_id}/tasks/${childTask.id}`"
                   class="task-card"
                   :class="{ 'child-task': true, 'has-children': hasChildren(childTask) }"
                   @click.prevent="navigateToDetailedView(childTask)">
@@ -1138,7 +1138,7 @@ export default {
                     class="child-tasks">
                     <template v-for="grandChildTask in childTask.children" :key="grandChildTask.id">
                       <a 
-                        :href="`/single-workspace/${grandChildTask.matter_id}/tasks/${grandChildTask.id}`"
+                        :href="`/single-workspace/${grandChildTask.workspace_id}/tasks/${grandChildTask.id}`"
                         class="task-card child-task"
                         @click.prevent="navigateToDetailedView(grandChildTask)">
                         <div class="task-main">

@@ -67,7 +67,7 @@ CREATE POLICY "task_documents_authenticated_read" ON task_documents
         -- Allow if user has access to the task
         EXISTS (
             SELECT 1 FROM tasks t
-            JOIN workspaces m ON t.matter_id = m.id
+            JOIN workspaces m ON t.workspace_id = m.id
             WHERE t.id = task_documents.task_id
             AND (
                 -- Allow if user is the task creator
@@ -79,7 +79,7 @@ CREATE POLICY "task_documents_authenticated_read" ON task_documents
                 -- Allow if user has explicit access to the workspace
                 EXISTS (
                     SELECT 1 FROM workspace_access ma
-                    WHERE ma.matter_id = m.id
+                    WHERE ma.workspace_id = m.id
                     AND ma.shared_with_user_id = auth.uid()
                 )
             )
@@ -93,7 +93,7 @@ CREATE POLICY "task_documents_authenticated_write" ON task_documents
     USING (
         EXISTS (
             SELECT 1 FROM tasks t
-            JOIN workspaces m ON t.matter_id = m.id
+            JOIN workspaces m ON t.workspace_id = m.id
             WHERE t.id = task_documents.task_id
             AND (
                 -- Allow if user is the task creator
@@ -105,7 +105,7 @@ CREATE POLICY "task_documents_authenticated_write" ON task_documents
                 -- Allow if user has explicit access to the workspace
                 EXISTS (
                     SELECT 1 FROM workspace_access ma
-                    WHERE ma.matter_id = m.id
+                    WHERE ma.workspace_id = m.id
                     AND ma.shared_with_user_id = auth.uid()
                 )
             )
@@ -139,8 +139,8 @@ CREATE POLICY "task_signatures_read" ON task_signatures
             auth.uid() IS NOT NULL
             AND EXISTS (
                 SELECT 1 FROM tasks t
-                JOIN workspaces m ON t.matter_id = m.id
-                JOIN workspace_access ma ON m.id = ma.matter_id
+                JOIN workspaces m ON t.workspace_id = m.id
+                JOIN workspace_access ma ON m.id = ma.workspace_id
                 WHERE t.id = task_signatures.task_id
                 AND ma.shared_with_user_id = auth.uid()
             )
@@ -154,8 +154,8 @@ CREATE POLICY "task_signatures_authenticated_all" ON task_signatures
     USING (
         EXISTS (
             SELECT 1 FROM tasks t
-            JOIN workspaces m ON t.matter_id = m.id
-            JOIN workspace_access ma ON m.id = ma.matter_id
+            JOIN workspaces m ON t.workspace_id = m.id
+            JOIN workspace_access ma ON m.id = ma.workspace_id
             WHERE t.id = task_signatures.task_id
             AND ma.shared_with_user_id = auth.uid()
         )

@@ -1,7 +1,7 @@
 -- Create conversations table
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    matter_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     from_phone_number VARCHAR(20) NOT NULL,
     to_phone_number VARCHAR(20) NOT NULL,
     contact_name VARCHAR(255),
@@ -13,13 +13,13 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_conversations_matter_id ON conversations(matter_id);
+CREATE INDEX idx_conversations_workspace_id ON conversations(workspace_id);
 CREATE INDEX idx_conversations_phone_numbers ON conversations(from_phone_number, to_phone_number);
 CREATE INDEX idx_conversations_last_message_at ON conversations(last_message_at DESC);
 
 -- Create unique constraint for phone number pair per workspace
 CREATE UNIQUE INDEX idx_conversations_unique_phones_per_matter 
-ON conversations(matter_id, from_phone_number, to_phone_number);
+ON conversations(workspace_id, from_phone_number, to_phone_number);
 
 -- Add trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

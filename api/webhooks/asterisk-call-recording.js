@@ -128,7 +128,7 @@ export default async function handler(req, res) {
     // Query conversations table
     const { data: conversations, error: convError } = await supabase
       .from('conversations')
-      .select('id, matter_id')
+      .select('id, workspace_id')
       .or(`and(from_phone_number.like.%${parsed.from_phone_number}%,to_phone_number.like.%${parsed.to_phone_number}%),and(from_phone_number.like.%${parsed.to_phone_number}%,to_phone_number.like.%${parsed.from_phone_number}%)`)
       .limit(1);
     if (convError) throw convError;
@@ -183,25 +183,25 @@ export default async function handler(req, res) {
       const { data: newConversation, error: createConvError } = await supabase
         .from('conversations')
         .insert({
-          matter_id: workspaceId,
+          workspace_id: workspaceId,
           from_phone_number: fullFromPhone,
           to_phone_number: fullToPhone
         })
-        .select('id, matter_id')
+        .select('id, workspace_id')
         .single();
       if (createConvError) throw createConvError;
       conversation = newConversation;
       console.log('✅ Created new conversation:', conversation);
     } else {
       conversation = conversations[0];
-      workspaceId = conversation.matter_id;
+      workspaceId = conversation.workspace_id;
     }
 
     // Insert into call_recordings (no Gitea, only Supabase public URL)
     const { data: insertedRecording, error: insertError } = await supabase
       .from('call_recordings')
       .insert({
-        matter_id: conversation.matter_id,
+        workspace_id: conversation.workspace_id,
         conversation_id: conversation.id,
         filename: filename,
         file_size: fileSize,
@@ -252,7 +252,7 @@ export default async function handler(req, res) {
         public_url: publicUrl,
         uploaded_at: new Date().toISOString(),
         conversation_id: conversation.id,
-        matter_id: conversation.matter_id
+        workspace_id: conversation.workspace_id
       }
     });
   } catch (error) {

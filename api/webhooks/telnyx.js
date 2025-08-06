@@ -176,7 +176,7 @@ async function handleMessageReceived(eventData) {
             participants: groupNumbers,
             last_message_at: new Date().toISOString(),
             last_message_preview: previewText.substring(0, 100),
-            matter_id: workspaceId
+            workspace_id: workspaceId
           }
         ], { onConflict: 'group_key'});
       if (groupConvError) {
@@ -192,7 +192,7 @@ async function handleMessageReceived(eventData) {
     let { data: conv, error: convError } = await supabase
       .from('conversations')
       .select('*')
-      .eq('matter_id', workspaceId)
+      .eq('workspace_id', workspaceId)
       .eq('from_phone_number', toPhone)
       .eq('to_phone_number', fromPhone)
       .single();
@@ -204,7 +204,7 @@ async function handleMessageReceived(eventData) {
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
         .insert({
-          matter_id: workspaceId,
+          workspace_id: workspaceId,
           from_phone_number: toPhone,
           to_phone_number: fromPhone,
           contact_name: null,

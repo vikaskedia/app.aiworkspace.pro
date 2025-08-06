@@ -260,7 +260,7 @@ export default {
             task_id: this.task.id,
             user_id: user.id,
             content: this.newComment.trim(),
-            matter_id: this.task.matter_id
+            workspace_id: this.task.workspace_id
           })
           .select();
 
@@ -311,7 +311,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
 
         this.newComment = '';
         await this.loadComments();
@@ -332,7 +332,7 @@ export default {
             user_id: null,
             content: response,
             type: 'ai_response',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               is_ai: true,
               ai_name: attorneyName || 'AI Attorney'
@@ -368,7 +368,7 @@ export default {
             prompt,
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
-            workspaceId: this.task.matter_id
+            workspaceId: this.task.workspace_id
           })
         });
 
@@ -443,7 +443,7 @@ export default {
         const { data: workspace, error: matterError } = await supabase
           .from('workspaces')
           .select('git_repo')
-          .eq('id', this.task.matter_id)
+          .eq('id', this.task.workspace_id)
           .single();
 
         if (matterError) {
@@ -756,7 +756,7 @@ Please provide assistance based on this context, the comment history, the availa
             prompt: this.aiPrompt,
             systemPrompt: systemPrompt,
             taskId: this.task.id,
-            workspaceId: this.task.matter_id,
+            workspaceId: this.task.workspace_id,
             files: fileContents
           })
         });
@@ -965,7 +965,7 @@ Please provide assistance based on this context, the comment history, the availa
         const { data: users, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id')
-          .eq('matter_id', this.task.matter_id);
+          .eq('workspace_id', this.task.workspace_id);
 
         if (error) throw error;
 
@@ -1144,7 +1144,7 @@ Please provide assistance based on this context, the comment history, the availa
             user_id: user.id,
             content: `Updated title from "${this.task.title}" to "${this.editingTitle}"`,
             type: 'activity',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               action: 'update',
               changes: {
@@ -1160,7 +1160,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.task.title = this.editingTitle;
         
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
         
         this.isEditingTitle = false;
         ElMessage.success('Task title updated successfully');
@@ -1196,7 +1196,7 @@ Please provide assistance based on this context, the comment history, the availa
             .insert({
               task_id: this.task.id,
               user_id: this.currentUser.id,
-              matter_id: this.task.matter_id
+              workspace_id: this.task.workspace_id
             })
             .select();
 
@@ -1205,7 +1205,7 @@ Please provide assistance based on this context, the comment history, the availa
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
 
         // Emit update event
         this.$emit('update:task', this.task);
@@ -1234,7 +1234,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('status-updated', { taskId: this.task.id, status })
         
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
         
         ElMessage.success('Status updated successfully')
       } catch (error) {
@@ -1275,7 +1275,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('priority-updated', { taskId: this.task.id, priority })
         
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
         
         ElMessage.success('Priority updated successfully')
       } catch (error) {
@@ -1323,7 +1323,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
         
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {
@@ -1354,7 +1354,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('update:task', { ...this.task, ...data });
         
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
         
         this.isEditingDescription = false;
         ElMessage.success('Description updated successfully');
@@ -1419,7 +1419,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
 
         // Update workspace activity
-        await updateMatterActivity(this.task.matter_id);
+        await updateMatterActivity(this.task.workspace_id);
 
         ElMessage.success('Assignee updated successfully');
       } catch (error) {
@@ -1437,7 +1437,7 @@ Please provide assistance based on this context, the comment history, the availa
           .from('tasks')
           .select(`
             *,
-            workspace:matter_id (title),
+            workspace:workspace_id (title),
             task_stars (user_id),
             task_hours_logs (time_taken)
           `)
@@ -1571,7 +1571,7 @@ Please provide assistance based on this context, the comment history, the availa
             @click="$router.push({
               name: 'SingleTaskPage',
               params: {
-                workspaceId: task.matter_id,
+                workspaceId: task.workspace_id,
                 taskId: task.id
               }
             })"

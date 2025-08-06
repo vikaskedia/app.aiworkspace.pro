@@ -267,7 +267,7 @@ export default {
         const { data, error } = await supabase
           .from('ai_fund_analyzing_data')
           .insert({
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             strategy: this.strategyDisplayValue.trim(),
             prompt: this.prompt.trim(),
             report_datetime: new Date().toISOString(),
@@ -476,7 +476,7 @@ export default {
         const { data, error } = await supabase
           .from('ai_fund_analyzing_data')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

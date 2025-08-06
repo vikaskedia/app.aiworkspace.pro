@@ -2,7 +2,7 @@
 DROP FUNCTION IF EXISTS get_user_info_for_matter(UUID[], BIGINT);
 
 -- Create a function to get user information for team members within the same workspace
-CREATE FUNCTION get_user_info_for_matter(user_ids UUID[], matter_id_param BIGINT)
+CREATE FUNCTION get_user_info_for_matter(user_ids UUID[], workspace_id_param BIGINT)
 RETURNS TABLE (
   user_id UUID,
   email character varying(255),
@@ -16,7 +16,7 @@ BEGIN
   -- Only return user info if the requesting user has access to the workspace
   IF NOT EXISTS (
     SELECT 1 FROM workspace_access 
-    WHERE matter_id = matter_id_param 
+    WHERE workspace_id = workspace_id_param 
     AND shared_with_user_id = auth.uid()
   ) THEN
     RAISE EXCEPTION 'Access denied: You do not have access to this workspace';
@@ -36,7 +36,7 @@ BEGIN
   AND EXISTS (
     -- Only return info for users who have access to the same workspace
     SELECT 1 FROM workspace_access wa
-    WHERE wa.matter_id = matter_id_param
+    WHERE wa.workspace_id = workspace_id_param
     AND wa.shared_with_user_id = au.id
   );
 END;

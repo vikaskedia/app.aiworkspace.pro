@@ -13,7 +13,7 @@ export default {
     const users = ref([]);
     const dialogVisible = ref(false);
     const form = ref({
-      matter_id: '',
+      workspace_id: '',
       hours: 0,
       minutes: 0,
       description: ''
@@ -26,7 +26,7 @@ export default {
 
     const filteredWorkHours = computed(() => {
       return workHours.value.filter(record => {
-        const matterMatch = !selectedMatter.value || record.matter_id === selectedMatter.value;
+        const matterMatch = !selectedMatter.value || record.workspace_id === selectedMatter.value;
         const userMatch = !selectedUser.value || record.user_id === selectedUser.value;
         
         // Date range filtering
@@ -137,7 +137,7 @@ export default {
           .insert([{
             user_id: user.id,
             user_email: user.email,
-            matter_id: form.value.matter_id,
+            workspace_id: form.value.workspace_id,
             minutes: totalMinutes,
             description: form.value.description
           }]);
@@ -147,7 +147,7 @@ export default {
         ElMessage.success('Client billing logged successfully');
         dialogVisible.value = false;
         form.value = {
-          matter_id: '',
+          workspace_id: '',
           hours: 0,
           minutes: 0,
           description: ''
@@ -300,7 +300,7 @@ export default {
     >
       <el-form :model="form" label-width="120px">
         <el-form-item label="Workspace">
-          <el-select v-model="form.matter_id" placeholder="Select workspace" style="width: 100%">
+          <el-select v-model="form.workspace_id" placeholder="Select workspace" style="width: 100%">
             <el-option
               v-for="workspace in workspaces"
               :key="workspace.id"

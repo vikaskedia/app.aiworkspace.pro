@@ -279,15 +279,15 @@ export default {
           supabase
             .from('goals')
             .select('status')
-            .eq('matter_id', workspaceId),
+            .eq('workspace_id', workspaceId),
           supabase
             .from('tasks')
             .select('status')
-            .eq('matter_id', workspaceId),
+            .eq('workspace_id', workspaceId),
           supabase
             .from('events')
             .select('start_time')
-            .eq('matter_id', workspaceId)
+            .eq('workspace_id', workspaceId)
             .gte('start_time', new Date().toISOString())
         ]);
 

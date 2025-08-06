@@ -71,7 +71,7 @@ export default {
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('start_time', { ascending: true });
 
         if (error) throw error;
@@ -95,7 +95,7 @@ export default {
         
         const eventData = {
           ...this.newEvent,
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -209,7 +209,7 @@ export default {
           
           // Extract event data
           const eventData = {
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             created_by: user.id,
             title: event.summary || 'Untitled Event',
             description: event.description || '',
@@ -234,7 +234,7 @@ export default {
           const { data: existing, error: existingError } = await supabase
             .from('events')
             .select('google_event_id')
-            .eq('matter_id', this.currentWorkspace.id)
+            .eq('workspace_id', this.currentWorkspace.id)
             .in('google_event_id', googleEventIds);
           
           if (existingError) {

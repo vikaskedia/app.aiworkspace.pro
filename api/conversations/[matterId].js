@@ -48,7 +48,7 @@ export default async function handler(req, res) {
           status
         )
       `)
-      .eq('matter_id', finalWorkspaceId)
+      .eq('workspace_id', finalWorkspaceId)
       .order('last_message_at', { ascending: false })
       .limit(10000)
 

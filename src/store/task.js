@@ -178,7 +178,7 @@ export const useTaskStore = defineStore('task', {
               time_taken
             )
           `)
-          .in('matter_id', childWorkspaceIds);
+          .in('workspace_id', childWorkspaceIds);
 
         if (!showDeleted) {
           query = query.eq('deleted', false);
@@ -197,7 +197,7 @@ export const useTaskStore = defineStore('task', {
             return sum + totalHours;
           }, 0) || 0,
           // Add workspace information to identify which workspace the task belongs to
-          workspace_title: childWorkspaces.find(w => w.id === task.matter_id)?.title || 'Unknown Workspace'
+          workspace_title: childWorkspaces.find(w => w.id === task.workspace_id)?.title || 'Unknown Workspace'
         }));
 
         return transformedTasks;
@@ -234,7 +234,7 @@ export const useTaskStore = defineStore('task', {
               time_taken
             )
           `)
-          .eq('matter_id', workspaceId);
+          .eq('workspace_id', workspaceId);
 
         if (!showDeleted) {
           query = query.eq('deleted', false);

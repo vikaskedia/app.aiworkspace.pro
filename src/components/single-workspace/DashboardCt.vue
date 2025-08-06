@@ -63,7 +63,7 @@
       <a 
         v-for="task in recentTasks" 
         :key="task.id" 
-        :href="`/single-workspace/${task.matter_id}/tasks/${task.id}`"
+        :href="`/single-workspace/${task.workspace_id}/tasks/${task.id}`"
         class="recent-task">
         <div class="task-title">{{ task.title }}</div>
         <div class="task-timestamps">
@@ -184,7 +184,7 @@ export default {
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -201,7 +201,7 @@ export default {
       try {
         const { data: recentTasks, error } = await supabase
           .rpc('get_recent_tasks_with_activity', {
-            p_matter_id: this.currentWorkspace.id
+            p_workspace_id: this.currentWorkspace.id
           });
 
         if (error) throw error;
@@ -235,7 +235,7 @@ export default {
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           //.gte('start_time', new Date().toISOString())
           .order('start_time', { ascending: true })
           .limit(5);

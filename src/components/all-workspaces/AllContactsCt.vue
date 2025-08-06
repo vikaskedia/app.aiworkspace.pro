@@ -230,7 +230,7 @@ export default {
 
       // Filter by workspace
       if (this.selectedMatter) {
-        filtered = filtered.filter(contact => contact.matter_id === this.selectedMatter);
+        filtered = filtered.filter(contact => contact.workspace_id === this.selectedMatter);
       }
 
       // Filter by tag
@@ -261,13 +261,13 @@ export default {
         // First get workspaces the user has access to
         const { data: workspaceAccess, error: accessError } = await supabase
           .from('workspace_access')
-          .select('matter_id')
+          .select('workspace_id')
           .eq('shared_with_user_id', user.id);
 
         if (accessError) throw accessError;
 
         // Get workspace IDs from workspace access
-        const accessibleWorkspaceIds = workspaceAccess.map(access => access.matter_id);
+        const accessibleWorkspaceIds = workspaceAccess.map(access => access.workspace_id);
 
         // Get workspaces created by user
         const { data: userWorkspaces, error: userWorkspacesError } = await supabase
@@ -309,13 +309,13 @@ export default {
         // First get workspaces the user has access to
         const { data: workspaceAccess, error: accessError } = await supabase
           .from('workspace_access')
-          .select('matter_id')
+          .select('workspace_id')
           .eq('shared_with_user_id', user.id);
 
         if (accessError) throw accessError;
 
         // Get workspace IDs from workspace access
-        const accessibleWorkspaceIds = workspaceAccess.map(access => access.matter_id);
+        const accessibleWorkspaceIds = workspaceAccess.map(access => access.workspace_id);
 
         // Get workspaces created by user
         const { data: userWorkspaces, error: userWorkspacesError } = await supabase
@@ -345,7 +345,7 @@ export default {
             )
           `)
           .eq('archived', false)
-          .in('matter_id', allWorkspaceIds)
+          .in('workspace_id', allWorkspaceIds)
           .order('created_at', { ascending: false });
 
         if (error) throw error;

@@ -481,7 +481,7 @@ export default {
         if (this.filters.priority && task.priority !== this.filters.priority) {
           return false;
         }
-        if (this.filters.workspace?.length && !this.filters.workspace.includes(task.matter_id)) {
+        if (this.filters.workspace?.length && !this.filters.workspace.includes(task.workspace_id)) {
           return false;
         }
         if (this.filters.assignee?.length && !this.filters.assignee.includes(task.assignee)) {
@@ -690,14 +690,14 @@ export default {
             .insert({
               task_id: task.id,
               user_id: user.id,
-              matter_id: task.matter_id
+              workspace_id: task.workspace_id
             });
 
           if (error) throw error;
         }
 
         // Update workspace activity
-        await updateMatterActivity(task.matter_id);
+        await updateMatterActivity(task.workspace_id);
 
         // Update the task in the local state
         this.tasks = this.tasks.map(t => 
@@ -896,7 +896,7 @@ export default {
       
       // Apply workspace filter
       if (this.filters.workspace?.length) {
-        result = result.filter(task => this.filters.workspace.includes(task.matter_id));
+        result = result.filter(task => this.filters.workspace.includes(task.workspace_id));
       }
       
       // Apply assignee filter
@@ -1022,8 +1022,8 @@ export default {
     },
 
     navigateToDetailedView(row) {
-      if (!row || !row.matter_id) return;
-      this.router.push(`/single-workspace/${row.matter_id}/tasks/${row.id}`);
+      if (!row || !row.workspace_id) return;
+      this.router.push(`/single-workspace/${row.workspace_id}/tasks/${row.id}`);
     },
 
     async updateTask(task) {
@@ -1049,7 +1049,7 @@ export default {
         await this.taskStore.updateTask(updatedTask);
         
         // Update workspace activity
-        await updateMatterActivity(updatedTask.matter_id);
+        await updateMatterActivity(updatedTask.workspace_id);
         
         // Clear cache and reload tasks
         await this.loadTasksWithCache();

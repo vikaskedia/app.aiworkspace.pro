@@ -2101,7 +2101,7 @@ export default {
             user_id: user.id,
             content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(status)}"`,
             type: 'activity',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               action: 'update',
               changes: {
@@ -2194,7 +2194,7 @@ export default {
           .insert({
             task_id: this.task.id,
             user_id: this.currentUser.id,
-            matter_id: this.task.matter_id
+            workspace_id: this.task.workspace_id
           })
           .select();
 
@@ -2362,7 +2362,7 @@ export default {
             task_id: this.task.id,
             user_id: user.id,
             content: this.newComment.trim(),
-            matter_id: this.task.matter_id
+            workspace_id: this.task.workspace_id
           })
           .select();
 
@@ -2483,7 +2483,7 @@ export default {
             } : cleanPrompt,
             systemPrompt: systemPrompt + `\n\n${taskContext}` + `\n\nComment History:\n${commentsHistory}`,
             taskId: this.task.id,
-            workspaceId: this.task.matter_id
+            workspaceId: this.task.workspace_id
           })
         });
 
@@ -2506,7 +2506,7 @@ export default {
             user_id: null,
             content: response.template_content,
             type: 'ai_response',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               is_ai: true,
               ai_name: attorneyName || 'AI Attorney'
@@ -2599,7 +2599,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'tasks',
-            filter: `matter_id=eq.${this.currentWorkspace.id}`
+            filter: `workspace_id=eq.${this.currentWorkspace.id}`
           },
           async (payload) => {
             try {
@@ -2629,7 +2629,7 @@ export default {
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id')
-          .eq('matter_id', this.currentWorkspace.id);
+          .eq('workspace_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -3402,7 +3402,7 @@ export default {
             user_id: user.id,
             time_taken: this.newHoursLog.time_taken,
             comment: this.newHoursLog.comment,
-            matter_id: this.task.matter_id
+            workspace_id: this.task.workspace_id
           });
 
         if (error) throw error;
@@ -3497,7 +3497,7 @@ export default {
             user_id: user.id,
             content: activityMessage,
             type: 'activity',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               action: 'update',
               changes: {
@@ -3737,7 +3737,7 @@ ${comment.content}
           priority: this.newChildTask.priority,
           due_date: this.newChildTask.due_date,
           assignee: this.newChildTask.assignee,
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           parent_task_id: this.task.id,
           created_by: user.id
         };
@@ -3758,7 +3758,7 @@ ${comment.content}
             user_id: user.id,
             content: `Created child task: "${this.newChildTask.title}"`,
             type: 'activity',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               action: 'create_child',
               child_task_id: data.id,
@@ -3854,7 +3854,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated status from "${this.formatStatus(oldStatus)}" to "${this.formatStatus(newStatus)}"`,
             type: 'activity',
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             metadata: {
               action: 'update',
               changes: {
@@ -3934,7 +3934,7 @@ ${comment.content}
             user_id: user.id,
             content: `Updated priority from "${this.formatPriority(oldPriority)}" to "${this.formatPriority(newPriority)}"`,
             type: 'activity',
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             metadata: {
               action: 'update',
               changes: {
@@ -4054,7 +4054,7 @@ ${comment.content}
         const { data: existingOutline, error } = await supabase
           .from('outlines')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
@@ -4094,7 +4094,7 @@ ${comment.content}
         const { data: existingOutline } = await supabase
           .from('outlines')
           .select('id, version')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('title', outlineTitle)
           .order('version', { ascending: false })
           .limit(1)
@@ -4134,7 +4134,7 @@ ${comment.content}
           const { data: newOutline, error: insertError } = await supabase
             .from('outlines')
             .insert([{
-              matter_id: this.currentWorkspace.id,
+              workspace_id: this.currentWorkspace.id,
               title: outlineTitle,
               content: outlineToSave,
               created_by: user.id
@@ -4165,7 +4165,7 @@ ${comment.content}
             user_id: user.id,
             content: 'Updated task outline',
             type: 'activity',
-            matter_id: this.task.matter_id,
+            workspace_id: this.task.workspace_id,
             metadata: {
               action: 'outline_update',
               outline_items_count: this.taskOutline.length
@@ -4789,7 +4789,7 @@ ${comment.content}
         const taskData = {
           ...this.newTask,
           title: this.newTask.title.trim(),
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -4838,7 +4838,7 @@ ${comment.content}
             user_id: user.id,
             content: 'Created this task',
             type: 'activity',
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             metadata: {
               action: 'create',
               task_title: data[0].title
@@ -4896,12 +4896,12 @@ ${comment.content}
         // Get workspaces the user has access to (excluding current workspace)
         const { data: accessData, error: accessError } = await supabase
           .from('workspace_access')
-          .select('matter_id')
+          .select('workspace_id')
           .eq('shared_with_user_id', user.id);
 
         if (accessError) throw accessError;
 
-        const accessibleWorkspaceIds = accessData?.map(row => row.matter_id) || [];
+        const accessibleWorkspaceIds = accessData?.map(row => row.workspace_id) || [];
 
         // Get the workspaces
         const { data: workspaces, error } = await supabase
@@ -4949,7 +4949,7 @@ ${comment.content}
         const { error: taskError } = await supabase
           .from('tasks')
           .update({ 
-            matter_id: this.moveToForm.targetWorkspaceId,
+            workspace_id: this.moveToForm.targetWorkspaceId,
             updated_at: new Date().toISOString()
           })
           .eq('id', this.task.id);
@@ -4969,7 +4969,7 @@ ${comment.content}
           const { error: commentsError } = await supabase
           .from('task_comments')
           .update({ 
-            matter_id: this.moveToForm.targetWorkspaceId,
+            workspace_id: this.moveToForm.targetWorkspaceId,
             updated_at: new Date().toISOString()
           })
           .eq('task_id', this.task.id);
@@ -4988,7 +4988,7 @@ ${comment.content}
             const { error: hoursError } = await supabase
             .from('task_hours_logs')
             .update({ 
-              matter_id: this.moveToForm.targetWorkspaceId,
+              workspace_id: this.moveToForm.targetWorkspaceId,
               updated_at: new Date().toISOString()
             })
             .eq('task_id', this.task.id);
@@ -5011,7 +5011,7 @@ ${comment.content}
             user_id: user.id,
             content: `Moved this task to workspace: ${this.availableWorkspaces.find(w => w.id === this.moveToForm.targetWorkspaceId)?.title || 'Unknown'}`,
             type: 'activity',
-            matter_id: this.moveToForm.targetWorkspaceId,
+            workspace_id: this.moveToForm.targetWorkspaceId,
             metadata: {
               action: 'move',
               from_workspace_id: this.currentWorkspace.id,

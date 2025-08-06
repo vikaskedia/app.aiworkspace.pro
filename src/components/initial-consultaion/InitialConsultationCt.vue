@@ -644,7 +644,7 @@ export default {
         if (notepadData.value.goals.length > 0) {
           const goals = notepadData.value.goals.map(goal => ({
             title: goal,
-            matter_id: workspace.id,
+            workspace_id: workspace.id,
             created_by: user.id,
             status: 'in_progress',
             priority: 'medium'
@@ -656,7 +656,7 @@ export default {
         if (notepadData.value.tasks.length > 0) {
           const tasks = notepadData.value.tasks.map(task => ({
             title: task,
-            matter_id: workspace.id,
+            workspace_id: workspace.id,
             created_by: user.id,
             status: 'not_started',
             priority: 'medium'
@@ -672,7 +672,7 @@ export default {
 
           const events = notepadData.value.events.map(event => ({
             title: event,
-            matter_id: workspace.id,
+            workspace_id: workspace.id,
             created_by: user.id,
             start_time: startTime,
             end_time: endTime,
@@ -686,7 +686,7 @@ export default {
           .from('initial_consultation')
           .insert([{
             user_id: user.id,
-            matter_id: workspace.id,
+            workspace_id: workspace.id,
             json_of_interview_qna: JSON.stringify(questionHistory.value),
             plan_accepted_by_user_json: JSON.stringify({
               goals: notepadData.value.goals,
@@ -737,7 +737,7 @@ export default {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
-              .eq('matter_id', workspace.id)
+              .eq('workspace_id', workspace.id)
               .order('updated_at', { ascending: false })
               .limit(1);
 
@@ -793,7 +793,7 @@ export default {
             const { data: activities } = await supabase
               .from('workspace_activities')
               .select('updated_at')
-              .eq('matter_id', workspace.id)
+              .eq('workspace_id', workspace.id)
               .order('updated_at', { ascending: false })
               .limit(1);
 

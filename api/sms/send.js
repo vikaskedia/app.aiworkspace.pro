@@ -30,13 +30,13 @@ export default async function handler(req, res) {
   //console.log('Telnyx API Key starts with KEY:', process.env.TELNYX_API_KEY?.startsWith('KEY'))
 
   try {
-    const { from, to, message, matter_id, media_files, subject } = req.body
-    //console.log('SMS Request:', { from, to, message: message?.substring(0, 50), matter_id })
+    const { from, to, message, workspace_id, media_files, subject } = req.body
+    //console.log('SMS Request:', { from, to, message: message?.substring(0, 50), workspace_id })
 
     // Validate required fields
-    if (!from || !to || !matter_id) {
+    if (!from || !to || !workspace_id) {
       return res.status(400).json({ 
-        error: 'Missing required fields: from, to, matter_id' 
+        error: 'Missing required fields: from, to, workspace_id' 
       })
     }
 
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     let { data: conversation, error: convError } = await supabase
       .from('conversations')
       .select('*')
-      .eq('matter_id', matter_id)
+      .eq('workspace_id', workspace_id)
       .eq('from_phone_number', from)
       .eq('to_phone_number', to)
       .single()
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       const { data: newConv, error: createError } = await supabase
         .from('conversations')
         .insert({
-          matter_id,
+          workspace_id,
           from_phone_number: from,
           to_phone_number: to,
           contact_name: null, // Can be updated later
@@ -175,7 +175,7 @@ export default async function handler(req, res) {
       debug: {
         conversation_id: conversation.id,
         message_count: 1,
-        matter_id: matter_id
+        workspace_id: workspace_id
       }
     })
 

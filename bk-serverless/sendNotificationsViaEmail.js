@@ -103,15 +103,15 @@ export default async function handler(req, res) {
             let taskUrl;
 
             if (notification.type.includes('task')) {
-              // Fetch matter_id for task-related notifications
+              // Fetch workspace_id for task-related notifications
               const { data: taskData, error: taskError } = await supabase
                 .from('tasks')
-                .select('matter_id')
+                .select('workspace_id')
                 .eq('id', notification.data.task_id)
                 .single();
 
               if (!taskError && taskData) {
-                taskUrl = `https://app.aiworkspace.pro/single-workspace/${taskData.matter_id}/tasks/${notification.data.task_id}`;
+                taskUrl = `https://app.aiworkspace.pro/single-workspace/${taskData.workspace_id}/tasks/${notification.data.task_id}`;
               }
             }
 

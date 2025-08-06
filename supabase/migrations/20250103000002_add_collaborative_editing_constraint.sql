@@ -4,7 +4,7 @@
 -- Add a unique partial index to enforce only one editor per portfolio
 -- This prevents race conditions at the database level
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_portfolio_settings_single_editor 
-ON ai_portfolio_settings (matter_id, portfolio_id) 
+ON ai_portfolio_settings (workspace_id, portfolio_id) 
 WHERE view_mode = false;
 
 -- Add comment explaining the constraint

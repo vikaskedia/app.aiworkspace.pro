@@ -270,7 +270,7 @@ export function useRealtimeMessages(workspaceId) {
     lastMessage: conv.last_message_preview || '',
     lastMessageTime: conv.last_message_at || conv.created_at || new Date().toISOString(),
     unread: conv.unread || 0, // This will now come from user-specific API
-    workspaceId: conv.matter_id,
+    workspaceId: conv.workspace_id,
     status: conv.status || 'primary'
   })
 
@@ -437,7 +437,7 @@ export function useRealtimeMessages(workspaceId) {
         event: '*',
         schema: 'public',
         table: 'conversations',
-        filter: `matter_id=eq.${workspaceId.value}`
+        filter: `workspace_id=eq.${workspaceId.value}`
       }, handleConversationChange)
       .subscribe((status) => {
         console.log('📡 Conversations subscription status:', status)
@@ -486,7 +486,7 @@ export function useRealtimeMessages(workspaceId) {
         event: '*',
         schema: 'public',
         table: 'conversation_read_status',
-        filter: `matter_id=eq.${workspaceId.value}`
+        filter: `workspace_id=eq.${workspaceId.value}`
       }, handleConversationReadStatusChange)
       .subscribe((status) => {
         console.log('👁️ Conversation read status subscription status:', status)

@@ -22,8 +22,8 @@ CREATE POLICY "Users can view ai fund analysis results" ON ai_fund_analysis_resu
 FOR SELECT USING (
     analysis_id IN (
         SELECT id FROM ai_fund_analyzing_data 
-        WHERE matter_id IN (
-            SELECT matter_id 
+        WHERE workspace_id IN (
+            SELECT workspace_id 
             FROM workspace_access 
             WHERE shared_with_user_id = auth.uid()
         )
@@ -34,8 +34,8 @@ CREATE POLICY "Users can create ai fund analysis results" ON ai_fund_analysis_re
 FOR INSERT WITH CHECK (
     analysis_id IN (
         SELECT id FROM ai_fund_analyzing_data 
-        WHERE matter_id IN (
-            SELECT matter_id 
+        WHERE workspace_id IN (
+            SELECT workspace_id 
             FROM workspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
@@ -47,8 +47,8 @@ CREATE POLICY "Users can update ai fund analysis results" ON ai_fund_analysis_re
 FOR UPDATE USING (
     analysis_id IN (
         SELECT id FROM ai_fund_analyzing_data 
-        WHERE matter_id IN (
-            SELECT matter_id 
+        WHERE workspace_id IN (
+            SELECT workspace_id 
             FROM workspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'
@@ -60,8 +60,8 @@ CREATE POLICY "Users can delete ai fund analysis results" ON ai_fund_analysis_re
 FOR DELETE USING (
     analysis_id IN (
         SELECT id FROM ai_fund_analyzing_data 
-        WHERE matter_id IN (
-            SELECT matter_id 
+        WHERE workspace_id IN (
+            SELECT workspace_id 
             FROM workspace_access 
             WHERE shared_with_user_id = auth.uid() 
             AND access_type = 'edit'

@@ -66,17 +66,17 @@ export default async function handler(req, res) {
       console.log('🔍 MMS Upload API called');
       
       const files = req.files
-      const { matter_id, git_repo } = req.body
+      const { workspace_id, git_repo } = req.body
 
-      if (!matter_id || !git_repo) {
-        return res.status(400).json({ error: 'matter_id and git_repo are required' })
+      if (!workspace_id || !git_repo) {
+        return res.status(400).json({ error: 'workspace_id and git_repo are required' })
       }
 
       if (!files || files.length === 0) {
         return res.status(400).json({ error: 'No files provided' })
       }
 
-      console.log(`📁 Processing ${files.length} files for workspace ${matter_id}`);
+      console.log(`📁 Processing ${files.length} files for workspace ${workspace_id}`);
 
       const uploadedFiles = [];
 

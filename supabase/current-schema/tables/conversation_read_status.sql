@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS public.conversation_read_status (
   id serial NOT NULL,
   conversation_id uuid NOT NULL,
   user_id uuid NOT NULL,
-  matter_id integer NOT NULL,
+  workspace_id integer NOT NULL,
   last_read_at timestamp with time zone NULL DEFAULT now(),
   is_read boolean NULL DEFAULT false,
   created_at timestamp with time zone NULL DEFAULT now(),
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.conversation_read_status (
   CONSTRAINT conversation_read_status_pkey PRIMARY KEY (id),
   CONSTRAINT conversation_read_status_conversation_id_user_id_key UNIQUE (conversation_id, user_id),
   CONSTRAINT conversation_read_status_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE,
-  CONSTRAINT conversation_read_status_matter_id_fkey FOREIGN KEY (matter_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+  CONSTRAINT conversation_read_status_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
   CONSTRAINT conversation_read_status_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
 ) TABLESPACE pg_default;
 
@@ -20,9 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_conversation_read_status_conversation_id ON publi
 
 CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_id ON public.conversation_read_status USING btree (user_id) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_conversation_read_status_matter_id ON public.conversation_read_status USING btree (matter_id) TABLESPACE pg_default;
+CREATE INDEX IF NOT EXISTS idx_conversation_read_status_workspace_id ON public.conversation_read_status USING btree (workspace_id) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_matter ON public.conversation_read_status USING btree (user_id, matter_id) TABLESPACE pg_default;
+CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_matter ON public.conversation_read_status USING btree (user_id, workspace_id) TABLESPACE pg_default;
 
 -- Create trigger to update updated_at timestamp
 CREATE TRIGGER update_conversation_read_status_updated_at BEFORE
@@ -40,7 +40,7 @@ FOR SELECT USING (
     SELECT 1 
     FROM workspace_access wa
     WHERE wa.shared_with_user_id = auth.uid()
-    AND wa.matter_id = conversation_read_status.matter_id
+    AND wa.workspace_id = conversation_read_status.workspace_id
   )
 );
 
@@ -51,7 +51,7 @@ FOR INSERT WITH CHECK (
     SELECT 1 
     FROM workspace_access wa
     WHERE wa.shared_with_user_id = auth.uid()
-    AND wa.matter_id = conversation_read_status.matter_id
+    AND wa.workspace_id = conversation_read_status.workspace_id
     AND wa.access_type = 'edit'
   )
 );
@@ -63,7 +63,7 @@ FOR UPDATE USING (
     SELECT 1 
     FROM workspace_access wa
     WHERE wa.shared_with_user_id = auth.uid()
-    AND wa.matter_id = conversation_read_status.matter_id
+    AND wa.workspace_id = conversation_read_status.workspace_id
     AND wa.access_type = 'edit'
   )
 );
@@ -75,7 +75,7 @@ FOR DELETE USING (
     SELECT 1 
     FROM workspace_access wa
     WHERE wa.shared_with_user_id = auth.uid()
-    AND wa.matter_id = conversation_read_status.matter_id
+    AND wa.workspace_id = conversation_read_status.workspace_id
     AND wa.access_type = 'edit'
   )
 );
@@ -84,6 +84,6 @@ FOR DELETE USING (
 COMMENT ON TABLE conversation_read_status IS 'Tracks individual user read status for conversations in multi-user workspaces';
 COMMENT ON COLUMN conversation_read_status.conversation_id IS 'Reference to the conversation';
 COMMENT ON COLUMN conversation_read_status.user_id IS 'Reference to the user';
-COMMENT ON COLUMN conversation_read_status.matter_id IS 'Reference to the workspace/workspace';
+COMMENT ON COLUMN conversation_read_status.workspace_id IS 'Reference to the workspace/workspace';
 COMMENT ON COLUMN conversation_read_status.last_read_at IS 'Timestamp when user last read this conversation';
 COMMENT ON COLUMN conversation_read_status.is_read IS 'Boolean flag indicating if conversation is read by user'; 

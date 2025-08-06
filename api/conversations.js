@@ -64,7 +64,7 @@ export default async function handler(req, res) {
       const { data: conversationBatch, error } = await supabase
         .from('conversations')
         .select('*')
-        .eq('matter_id', workspaceId)
+        .eq('workspace_id', workspaceId)
         .order('last_message_at', { ascending: false })
         .range(offset, offset + batchSize - 1)
 
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
       const { data: unreadCounts, error: unreadError } = await supabase
         .rpc('get_conversation_unread_counts_for_user', {
           user_id_param: userId,
-          matter_id_param: parseInt(workspaceId)
+          workspace_id_param: parseInt(workspaceId)
         })
 
       if (unreadError) {
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
     const { data: groupConversations, error: groupError } = await supabase
       .from('group_conversations')
       .select('*')
-      .eq('matter_id', workspaceId)
+      .eq('workspace_id', workspaceId)
       .order('last_message_at', { ascending: false })
 
     if (groupError) {

@@ -34,7 +34,7 @@ export default {
         status: 'in_progress',
         priority: 'medium',
         due_date: '',
-        matter_id: null,
+        workspace_id: null,
         completion_percentage: 0,
       },
       showAIChat: false,
@@ -99,7 +99,7 @@ export default {
         const { data: goals, error } = await supabase
           .from('goals')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('archived', this.showArchivedGoals)
           .order('created_at', { ascending: false });
 
@@ -125,7 +125,7 @@ export default {
         const { data: accessCheck, error: accessError } = await supabase
           .from('workspace_access')
           .select('access_type')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', user.id)
           .eq('access_type', 'edit')
           .single();
@@ -140,7 +140,7 @@ export default {
           status: this.newGoal.status || 'in_progress',
           priority: this.newGoal.priority || 'medium',
           due_date: this.newGoal.due_date || null,
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           created_by: user.id,
           related_files: {},
           completion_percentage: this.newGoal.completion_percentage,
@@ -214,7 +214,7 @@ export default {
                 systemPrompt,
                 prompt: "Generate a list of tasks to achieve this goal",
                 goalId: goal.id,
-                workspaceId: goal.matter_id
+                workspaceId: goal.workspace_id
               })
             });
 
@@ -249,7 +249,7 @@ export default {
             description: task.description,
             status: 'not_started',
             priority: task.priority,
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             created_by: user.id,
             due_date: task.due_date
           };
@@ -277,7 +277,7 @@ export default {
         status: 'in_progress',
         priority: 'medium',
         due_date: '',
-        matter_id: null,
+        workspace_id: null,
         completion_percentage: 0,
       };
     },
@@ -299,7 +299,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'goals',
-            filter: `matter_id=eq.${this.currentWorkspace.id}`
+            filter: `workspace_id=eq.${this.currentWorkspace.id}`
           },
           (payload) => {
             switch (payload.eventType) {

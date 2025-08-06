@@ -1,10 +1,10 @@
 CREATE TABLEworkspace_access (
-  matter_id bigint REFERENCES workspaces(id) NOT NULL,
+  workspace_id bigint REFERENCES workspaces(id) NOT NULL,
   shared_with_user_id uuid REFERENCES auth.users(id) NOT NULL,
   access_type character varying NOT NULL CHECK (access_type IN ('view', 'edit')),
   granted_by_uuid uuid REFERENCES auth.users(id) NOT NULL,
   granted_at timestamp with time zone DEFAULT now() NOT NULL,
-  PRIMARY KEY (matter_id, shared_with_user_id),
+  PRIMARY KEY (workspace_id, shared_with_user_id),
   CONSTRAINT no_self_sharing CHECK (
         (shared_with_user_id != granted_by_uuid) OR 
         (shared_with_user_id = granted_by_uuid AND access_type = 'edit')
@@ -52,7 +52,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1
         FROMworkspace_access AS ma
-        WHERE ma.matter_id =workspace_access.matter_id
+        WHERE ma.workspace_id =workspace_access.workspace_id
           AND ma.shared_with_user_id = auth.uid()
           AND ma.access_type = 'edit'
     )
@@ -67,7 +67,7 @@ USING (
     EXISTS (
         SELECT 1
         FROMworkspace_access AS ma
-        WHERE ma.matter_id =workspace_access.matter_id
+        WHERE ma.workspace_id =workspace_access.workspace_id
           AND ma.shared_with_user_id = auth.uid()
           AND ma.access_type = 'edit'
     )
@@ -81,8 +81,8 @@ TO authenticated
 WITH CHECK (
     (auth.uid() = granted_by_uuid AND access_type = 'edit')
     OR
-    (matter_id IN (
-        SELECT workspace_access_1.matter_id
+    (workspace_id IN (
+        SELECT workspace_access_1.workspace_id
         FROMworkspace_access workspace_access_1
         WHERE workspace_access_1.shared_with_user_id = auth.uid() AND workspace_access_1.access_type = 'edit'
     ))

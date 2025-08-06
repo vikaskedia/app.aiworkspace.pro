@@ -33,7 +33,7 @@ CREATE POLICY "Users can create external shares for accessible tasks" ON task_ex
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM tasks t
-      LEFT JOIN workspace_access wa ON t.matter_id = wa.matter_id
+      LEFT JOIN workspace_access wa ON t.workspace_id = wa.workspace_id
       WHERE t.id = task_id 
       AND (t.created_by = auth.uid() OR wa.shared_with_user_id = auth.uid())
     )

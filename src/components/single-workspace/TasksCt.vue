@@ -170,7 +170,7 @@ export default {
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id, access_type')
-          .eq('matter_id', this.currentWorkspace.id);
+          .eq('workspace_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -429,7 +429,7 @@ export default {
         
         const taskData = {
           ...this.newTask,
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           created_by: user.id
         };
 
@@ -478,7 +478,7 @@ export default {
             user_id: user.id,
             content: 'Created this task',
             type: 'activity',
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             metadata: {
               action: 'create',
               task_title: data[0].title
@@ -682,7 +682,7 @@ export default {
               user_id: user.id,
               content: `Updated ${changes.join(' and ')}`,
               type: 'activity',
-              matter_id: this.currentWorkspace.id,
+              workspace_id: this.currentWorkspace.id,
               metadata: {
                 action: 'update',
                 changes: {
@@ -742,7 +742,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'tasks',
-            filter: `matter_id=eq.${this.currentWorkspace.id}`
+            filter: `workspace_id=eq.${this.currentWorkspace.id}`
           },
           async (payload) => {
             if (!this.isInitialLoad) {
@@ -872,7 +872,7 @@ export default {
             systemPrompt,
             prompt: "Generate a list of subtasks to complete this task",
             taskId: parentTask.id,
-            workspaceId: parentTask.matter_id
+            workspaceId: parentTask.workspace_id
           })
         });
 
@@ -906,7 +906,7 @@ export default {
             description: subtask.description,
             status: 'not_started',
             priority: subtask.priority,
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             created_by: user.id,
             due_date: subtask.due_date,
             parent_task_id: parentTaskId
@@ -1178,7 +1178,7 @@ export default {
             cursor_position: cursorPosition,
             context: {
               task_title: this.newTask.title,
-              matter_id: this.currentWorkspace.id
+              workspace_id: this.currentWorkspace.id
             }
           })
         });
@@ -1427,7 +1427,7 @@ export default {
         description: '',
         status: 'not_started',
         priority: 'medium',
-        matter_id: this.currentWorkspace?.id,
+        workspace_id: this.currentWorkspace?.id,
         parent_task_id: null,
         due_date: null,
         assignee: null
@@ -1579,7 +1579,7 @@ export default {
         // Apply workspace filter
         if (this.filters.workspaces?.length) {
           result = filterTasksRecursively(result, task => 
-            this.filters.workspaces.includes(task.matter_id)
+            this.filters.workspaces.includes(task.workspace_id)
           );
         }
         

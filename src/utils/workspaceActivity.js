@@ -18,7 +18,7 @@ export async function updateMatterActivity(workspaceId) {
     const { data: existingActivities } = await supabase
       .from('workspace_activities')
       .select('id, updated_at')
-      .eq('matter_id', workspaceId)
+      .eq('workspace_id', workspaceId)
       .eq('user_id', user.id);
 
     const timestamp = new Date().toISOString();
@@ -29,14 +29,14 @@ export async function updateMatterActivity(workspaceId) {
         await supabase
           .from('workspace_activities')
           .delete()
-          .eq('matter_id', workspaceId)
+          .eq('workspace_id', workspaceId)
           .eq('user_id', user.id);
         
         // Insert a fresh record
         await supabase
           .from('workspace_activities')
           .insert({
-            matter_id: workspaceId,
+            workspace_id: workspaceId,
             user_id: user.id,
             updated_at: timestamp
           });
@@ -45,7 +45,7 @@ export async function updateMatterActivity(workspaceId) {
         await supabase
           .from('workspace_activities')
           .update({ updated_at: timestamp })
-          .eq('matter_id', workspaceId)
+          .eq('workspace_id', workspaceId)
           .eq('user_id', user.id);
       }
     } else {
@@ -53,7 +53,7 @@ export async function updateMatterActivity(workspaceId) {
       await supabase
         .from('workspace_activities')
         .insert({
-          matter_id: workspaceId,
+          workspace_id: workspaceId,
           user_id: user.id,
           updated_at: timestamp
         });
@@ -74,7 +74,7 @@ export async function getMatterActivities(workspaceId, limit = 10) {
     const { data, error } = await supabase
       .from('workspace_activities')
       .select('*')
-      .eq('matter_id', workspaceId)
+      .eq('workspace_id', workspaceId)
       .order('updated_at', { ascending: false })
       .limit(limit);
 

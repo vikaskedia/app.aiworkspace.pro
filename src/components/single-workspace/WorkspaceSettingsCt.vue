@@ -138,12 +138,12 @@ export default {
         // First get the workspace IDs the user has access to
         const { data: accessData, error: accessError } = await supabase
           .from('workspace_access')
-          .select('matter_id')
+          .select('workspace_id')
           .eq('shared_with_user_id', user.id);
 
         if (accessError) throw accessError;
 
-        const accessibleWorkspaceIds = accessData?.map(row => row.matter_id) || [];
+        const accessibleWorkspaceIds = accessData?.map(row => row.workspace_id) || [];
 
         // Then get the workspaces
         const { data: workspaces, error } = await supabase
@@ -194,8 +194,8 @@ export default {
       try {
         const { data: shares, error } = await supabase
           .from('workspace_access')
-          .select('matter_id, shared_with_user_id, access_type, granted_at')
-          .eq('matter_id', this.currentWorkspace.id);
+          .select('workspace_id, shared_with_user_id, access_type, granted_at')
+          .eq('workspace_id', this.currentWorkspace.id);
 
         if (error) throw error;
 
@@ -283,7 +283,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_access')
           .insert({
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             shared_with_user_id: userId,
             granted_by_uuid: user.id,
             access_type: this.newShare.access_type
@@ -297,7 +297,7 @@ export default {
           userId,
           'workspace_shared',
           { 
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             matter_title: this.currentWorkspace.title,
             access_type: this.newShare.access_type
           }
@@ -316,7 +316,7 @@ export default {
         const { error } = await supabase
           .from('workspace_access')
           .delete()
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', userId);
 
         if (error) throw error;
@@ -381,7 +381,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_custom_fields')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('created_at');
 
         if (error) throw error;
@@ -394,7 +394,7 @@ export default {
     async addCustomField() {
       try {
         const fieldData = {
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           field_key: this.newField.key,
           field_label: this.newField.label,
           field_type: this.newField.type,
@@ -469,7 +469,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_telegram_groups')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id);
+          .eq('workspace_id', this.currentWorkspace.id);
 
         if (error) throw error;
         this.telegramGroups = data;
@@ -483,7 +483,7 @@ export default {
         const { data, error } = await supabase
           .from('workspace_telegram_groups')
           .insert({
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             chat_id: this.newTelegramGroup.chat_id,
             name: this.newTelegramGroup.name,
             notification_types: this.newTelegramGroup.notification_types
@@ -807,7 +807,7 @@ export default {
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .order('created_at', { ascending: true });
         if (error) throw error;
         this.phoneTextActions = data;
@@ -825,7 +825,7 @@ export default {
         const { data, error } = await supabase
           .from('phone_text_message_actions')
           .insert({
-            matter_id: this.currentWorkspace.id,
+            workspace_id: this.currentWorkspace.id,
             action_name: this.newPhoneTextAction.action_name,
             post_url: this.newPhoneTextAction.post_url,
             created_by: user.id

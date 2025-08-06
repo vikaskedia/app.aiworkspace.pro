@@ -2,7 +2,7 @@
 create table initial_consultation (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references auth.users(id) not null,
-  matter_id bigint references workspaces(id),
+  workspace_id bigint references workspaces(id),
   json_of_interview_qna jsonb not null default '{}',
   plan_accepted_by_user_json jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

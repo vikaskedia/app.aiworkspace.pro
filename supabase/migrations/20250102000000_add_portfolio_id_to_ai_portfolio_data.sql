@@ -13,26 +13,26 @@ ON ai_portfolio_data(portfolio_id);
 COMMENT ON COLUMN ai_portfolio_data.portfolio_id IS 'Unique identifier linking this spreadsheet to a specific portfolio';
 
 -- Update existing records to have a default portfolio_id
--- First, try to match them with existing portfolio_data records by matter_id
+-- First, try to match them with existing portfolio_data records by workspace_id
 UPDATE ai_portfolio_data 
 SET portfolio_id = (
     SELECT portfolio_id 
     FROM portfolio_data 
-    WHERE portfolio_data.matter_id = ai_portfolio_data.matter_id 
+    WHERE portfolio_data.workspace_id = ai_portfolio_data.workspace_id 
     ORDER BY created_at ASC 
     LIMIT 1
 )
 WHERE portfolio_id IS NULL 
-AND matter_id IN (SELECT matter_id FROM portfolio_data);
+AND workspace_id IN (SELECT workspace_id FROM portfolio_data);
 
 -- For any remaining records without portfolio_id, create a default portfolio ID
 UPDATE ai_portfolio_data 
-SET portfolio_id = 'portfolio_legacy_' || matter_id || '_' || extract(epoch from created_at)::text 
+SET portfolio_id = 'portfolio_legacy_' || workspace_id || '_' || extract(epoch from created_at)::text 
 WHERE portfolio_id IS NULL;
 
 -- Add composite index for efficient queries
 CREATE INDEX IF NOT EXISTS idx_ai_portfolio_data_matter_portfolio 
-ON ai_portfolio_data(matter_id, portfolio_id);
+ON ai_portfolio_data(workspace_id, portfolio_id);
 
 -- Add index for spreadsheet_id + portfolio_id combination
 CREATE INDEX IF NOT EXISTS idx_ai_portfolio_data_spreadsheet_portfolio 

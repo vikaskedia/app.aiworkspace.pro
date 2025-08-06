@@ -23,8 +23,8 @@ TO authenticated
 USING (
   task_id IN (
     SELECT t.id FROM tasks t
-    WHERE t.matter_id IN (
-      SELECT matter_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
+    WHERE t.workspace_id IN (
+      SELECT workspace_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
     )
   )
 );
@@ -36,8 +36,8 @@ TO authenticated
 WITH CHECK (
   task_id IN (
     SELECT t.id FROM tasks t
-    WHERE t.matter_id IN (
-      SELECT matter_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
+    WHERE t.workspace_id IN (
+      SELECT workspace_id FROMworkspace_access WHERE shared_with_user_id = auth.uid()
     )
   )
 );

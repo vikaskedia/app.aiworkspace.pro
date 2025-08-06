@@ -28,7 +28,7 @@ CREATE POLICY "Users can create external shares for their tasks" ON task_externa
         tasks.created_by = auth.uid() OR
         EXISTS (
           SELECT 1 FROM workspace_access 
-          WHERE workspace_access.matter_id = tasks.matter_id 
+          WHERE workspace_access.workspace_id = tasks.workspace_id 
           AND workspace_access.shared_with_user_id = auth.uid()
         )
       )
@@ -95,7 +95,7 @@ CREATE POLICY "Anonymous users can read workspace info through external shares" 
     EXISTS (
       SELECT 1 FROM tasks 
       JOIN task_external_shares ON task_external_shares.task_id = tasks.id
-      WHERE tasks.matter_id = workspaces.id 
+      WHERE tasks.workspace_id = workspaces.id 
       AND task_external_shares.status = 'active' 
       AND task_external_shares.expires_at > NOW()
     )

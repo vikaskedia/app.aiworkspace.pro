@@ -28,16 +28,16 @@ ALTER TABLE message_internal_comments ENABLE ROW LEVEL SECURITY;
 -- Create updated RLS policies
 CREATE POLICY "message_internal_comments_select_policy" ON message_internal_comments
   FOR SELECT USING (
-    matter_id IN (
-      SELECT matter_id FROM workspace_access 
+    workspace_id IN (
+      SELECT workspace_id FROM workspace_access 
       WHERE shared_with_user_id = auth.uid()
     )
   );
 
 CREATE POLICY "message_internal_comments_insert_policy" ON message_internal_comments
   FOR INSERT WITH CHECK (
-    matter_id IN (
-      SELECT matter_id FROM workspace_access 
+    workspace_id IN (
+      SELECT workspace_id FROM workspace_access 
       WHERE shared_with_user_id = auth.uid()
     )
     AND created_by = auth.uid()
@@ -45,8 +45,8 @@ CREATE POLICY "message_internal_comments_insert_policy" ON message_internal_comm
 
 CREATE POLICY "message_internal_comments_update_policy" ON message_internal_comments
   FOR UPDATE USING (
-    matter_id IN (
-      SELECT matter_id FROM workspace_access 
+    workspace_id IN (
+      SELECT workspace_id FROM workspace_access 
       WHERE shared_with_user_id = auth.uid()
     )
     AND created_by = auth.uid()

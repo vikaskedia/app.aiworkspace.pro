@@ -450,7 +450,7 @@ export default {
         const { data: outlineData, error: outlineError } = await supabase
           .from('outlines')
           .select('*')
-          .eq('matter_id', workspaceId.value)
+          .eq('workspace_id', workspaceId.value)
           .eq('title', 'Outline')
           .order('version', { ascending: false })
           .limit(1)
@@ -782,7 +782,7 @@ export default {
           const { data: newOutline, error: insertError } = await supabase
             .from('outlines')
             .insert([{
-              matter_id: workspaceId.value,
+              workspace_id: workspaceId.value,
               title: 'Outline',
               content: outlineToSave,
               render_id: outlineRenderID.value, // Send render ID with save

@@ -6,7 +6,7 @@ CREATE TABLE tasks (
   priority text NOT NULL,
   assignee uuid REFERENCES auth.users(id) NULL,
   due_date timestamp with time zone,
-  matter_id bigint REFERENCES workspaces(id) NOT NULL,
+  workspace_id bigint REFERENCES workspaces(id) NOT NULL,
   created_by uuid REFERENCES auth.users(id) NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -79,7 +79,7 @@ CREATE TRIGGER update_task_stars_timestamp
 
 -- Indexes for tasks
 CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
-CREATE INDEX tasks_matter_id_idx ON public.tasks USING btree (matter_id)
+CREATE INDEX tasks_workspace_id_idx ON public.tasks USING btree (workspace_id)
 CREATE INDEX tasks_created_by_idx ON public.tasks USING btree (created_by)
 CREATE INDEX tasks_assignee_idx ON public.tasks USING btree (assignee)
 CREATE INDEX tasks_parent_task_id_idx ON public.tasks USING btree (parent_task_id);
@@ -92,8 +92,8 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 -- Policies for tasks
 CREATE POLICY "Users can view tasks" ON tasks
 FOR SELECT USING (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid()
   )
@@ -101,8 +101,8 @@ FOR SELECT USING (
 
 CREATE POLICY "Users can update tasks" ON tasks
 FOR UPDATE USING (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'
@@ -111,8 +111,8 @@ FOR UPDATE USING (
 
 CREATE POLICY "Users can create tasks" ON tasks
 FOR INSERT WITH CHECK (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROMworkspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'

@@ -1,6 +1,6 @@
 -- Add support for multiple portfolios per workspace
--- Remove the unique constraint on matter_id to allow multiple portfolios per workspace
-ALTER TABLE portfolio_data DROP CONSTRAINT IF EXISTS portfolio_data_matter_id_key;
+-- Remove the unique constraint on workspace_id to allow multiple portfolios per workspace
+ALTER TABLE portfolio_data DROP CONSTRAINT IF EXISTS portfolio_data_workspace_id_key;
 
 -- Add portfolio_id and portfolio_name columns
 ALTER TABLE portfolio_data 
@@ -19,10 +19,10 @@ ALTER TABLE portfolio_data
 ALTER COLUMN portfolio_id SET NOT NULL,
 ALTER COLUMN portfolio_name SET NOT NULL;
 
--- Add a unique constraint on the combination of matter_id and portfolio_id
+-- Add a unique constraint on the combination of workspace_id and portfolio_id
 ALTER TABLE portfolio_data 
 ADD CONSTRAINT portfolio_data_matter_portfolio_unique 
-UNIQUE (matter_id, portfolio_id);
+UNIQUE (workspace_id, portfolio_id);
 
 -- Add portfolio_id to portfolio_analysis_results if it doesn't exist
 ALTER TABLE portfolio_analysis_results 
@@ -33,14 +33,14 @@ UPDATE portfolio_analysis_results
 SET portfolio_id = (
     SELECT portfolio_id 
     FROM portfolio_data 
-    WHERE portfolio_data.matter_id = portfolio_analysis_results.matter_id 
+    WHERE portfolio_data.workspace_id = portfolio_analysis_results.workspace_id 
     LIMIT 1
 )
 WHERE portfolio_id IS NULL;
 
 -- Add index for better performance on portfolio queries
 CREATE INDEX IF NOT EXISTS idx_portfolio_data_portfolio_id ON portfolio_data(portfolio_id);
-CREATE INDEX IF NOT EXISTS idx_portfolio_data_matter_portfolio ON portfolio_data(matter_id, portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_data_matter_portfolio ON portfolio_data(workspace_id, portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_analysis_results_portfolio_id ON portfolio_analysis_results(portfolio_id);
 
 -- Update comments
@@ -60,7 +60,7 @@ COMMENT ON COLUMN portfolio_data.portfolio_name IS 'User-friendly name for the p
 
 COMMENT ON TABLE portfolio_analysis_results IS 'Stores AI analysis results for portfolio data.
 Each analysis contains:
-1. matter_id: The workspace this analysis belongs to
+1. workspace_id: The workspace this analysis belongs to
 2. portfolio_id: The specific portfolio this analysis was run on
 3. system_prompt: The prompt used for AI analysis
 4. spreadsheet_data: Snapshot of the spreadsheet data at time of analysis

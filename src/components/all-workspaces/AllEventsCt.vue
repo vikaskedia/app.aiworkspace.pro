@@ -79,7 +79,7 @@
           <template #default="scope">
             <div class="title-with-workspace">
               <div class="event-title">{{ scope.row.title }}
-                <el-tag size="small" type="success">{{ getMatterTitle(scope.row.matter_id) }}</el-tag>
+                <el-tag size="small" type="success">{{ getMatterTitle(scope.row.workspace_id) }}</el-tag>
               </div>
             </div>
           </template>
@@ -148,7 +148,7 @@ export default {
       // Filter by workspaces if any are selected
       if (this.filters.workspace?.length) {
         filtered = filtered.filter(event => 
-          this.filters.workspace.includes(event.matter_id)
+          this.filters.workspace.includes(event.workspace_id)
         );
       }
       
@@ -193,7 +193,7 @@ export default {
         const { count, error: countError } = await supabase
           .from('events')
           .select('*', { count: 'exact', head: true })
-          .in('matter_id', workspaceIds);
+          .in('workspace_id', workspaceIds);
         
         if (countError) throw countError;
         console.log('Total events for active workspaces:', count);
@@ -202,7 +202,7 @@ export default {
         const { data: events, error } = await supabase
           .from('events')
           .select('*')
-          .in('matter_id', workspaceIds)
+          .in('workspace_id', workspaceIds)
           .order('start_time', { ascending: false });
 
         if (error) throw error;

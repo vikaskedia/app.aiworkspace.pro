@@ -3,7 +3,7 @@ CREATE TABLE contacts (
   name character varying NOT NULL,
   phone_number character varying,
   tags text[] DEFAULT '{}',
-  matter_id bigint REFERENCES workspaces(id) NOT NULL,
+  workspace_id bigint REFERENCES workspaces(id) NOT NULL,
   created_by uuid REFERENCES auth.users(id) NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -26,7 +26,7 @@ Each contact belongs to a specific workspace and can have:
 5. Soft delete capability (archived, archived_by, archived_at)';
 
 -- Indexes for contacts
-CREATE INDEX contacts_matter_id_idx ON public.contacts USING btree (matter_id);
+CREATE INDEX contacts_workspace_id_idx ON public.contacts USING btree (workspace_id);
 CREATE INDEX contacts_created_by_idx ON public.contacts USING btree (created_by);
 CREATE INDEX contacts_archived_idx ON public.contacts USING btree (archived);
 CREATE INDEX contacts_archived_by_idx ON public.contacts USING btree (archived_by);
@@ -37,8 +37,8 @@ ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 -- Policies for contacts
 CREATE POLICY "Users can view contacts" ON contacts
 FOR SELECT USING (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROM workspace_access 
     WHERE shared_with_user_id = auth.uid()
   )
@@ -46,8 +46,8 @@ FOR SELECT USING (
 
 CREATE POLICY "Users can update contacts" ON contacts
 FOR UPDATE USING (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROM workspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'
@@ -56,8 +56,8 @@ FOR UPDATE USING (
 
 CREATE POLICY "Users can create contacts" ON contacts
 FOR INSERT WITH CHECK (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROM workspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'
@@ -66,8 +66,8 @@ FOR INSERT WITH CHECK (
 
 CREATE POLICY "Users can archive contacts" ON contacts
 FOR UPDATE USING (
-  matter_id IN (
-    SELECT matter_id 
+  workspace_id IN (
+    SELECT workspace_id 
     FROM workspace_access 
     WHERE shared_with_user_id = auth.uid() 
     AND access_type = 'edit'

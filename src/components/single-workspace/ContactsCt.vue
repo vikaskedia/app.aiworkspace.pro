@@ -451,7 +451,7 @@ export default {
         const { data: contacts, error } = await supabase
           .from('contacts')
           .select('*')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('archived', false)
           .order('created_at', { ascending: false });
 
@@ -488,7 +488,7 @@ export default {
             event: '*',
             schema: 'public',
             table: 'contacts',
-            filter: `matter_id=eq.${this.currentWorkspace.id}`
+            filter: `workspace_id=eq.${this.currentWorkspace.id}`
           },
           () => {
             this.loadContacts();
@@ -612,7 +612,7 @@ export default {
         const { data: accessCheck, error: accessError } = await supabase
           .from('workspace_access')
           .select('access_type')
-          .eq('matter_id', this.currentWorkspace.id)
+          .eq('workspace_id', this.currentWorkspace.id)
           .eq('shared_with_user_id', user.id)
           .eq('access_type', 'edit')
           .single();
@@ -641,7 +641,7 @@ export default {
           address: this.contactForm.address.trim() || null,
           profile_picture_url: profilePictureUrl,
           tags: this.contactForm.tags,
-          matter_id: this.currentWorkspace.id,
+          workspace_id: this.currentWorkspace.id,
           created_by: user.id
         };
 

@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       .rpc('mark_conversation_as_read_for_user', {
         conversation_id_param: conversationId,
         user_id_param: userId,
-        matter_id_param: parseInt(workspaceId)
+        workspace_id_param: parseInt(workspaceId)
       })
 
     if (error) throw error

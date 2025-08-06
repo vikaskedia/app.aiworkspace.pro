@@ -89,11 +89,11 @@
                         </el-dropdown-item>
                         <el-dropdown-item 
                           v-if="portfolios.length > 1"
-                          :command="{ action: 'delete', portfolio: portfolio }"
+                          :command="{ action: 'archive', portfolio: portfolio }"
                           @click.stop
                           divided>
                           <el-icon><Delete /></el-icon>
-                          Delete portfolio
+                          Archive portfolio
                         </el-dropdown-item>
                         <el-dropdown-item 
                           @click.stop
@@ -830,8 +830,8 @@ export default {
         case 'edit':
           editPortfolioName(portfolio);
           break;
-        case 'delete':
-          deletePortfolio(portfolio.id);
+        case 'archive':
+          archivePortfolio(portfolio.id);
           break;
         case 'move':
           movePortfolio(portfolio.id);
@@ -988,6 +988,7 @@ export default {
           .from('portfolio_data')
           .select('*')
           .eq('workspace_id', childMatter.id)
+          .eq('archived', false)
           .order('created_at', { ascending: true });
 
         if (childPortfolioError) {
@@ -1054,11 +1055,12 @@ export default {
           }
         }
 
-        // Load portfolios from portfolio_data table
+        // Load portfolios from portfolio_data table (excluding archived)
         const { data: portfolioData, error: portfolioError } = await supabase
           .from('portfolio_data')
           .select('*')
           .eq('workspace_id', currentWorkspaceId.value)
+          .eq('archived', false)
           .order('created_at', { ascending: true });
 
         if (portfolioError) {
@@ -1336,10 +1338,10 @@ export default {
       }
     };
     
-    // Delete portfolio
-    const deletePortfolio = async (portfolioId) => {
+    // Archive portfolio
+    const archivePortfolio = async (portfolioId) => {
       if (!currentWorkspaceId.value || portfolios.value.length <= 1) {
-        ElMessage.warning('Cannot delete the last portfolio');
+        ElMessage.warning('Cannot archive the last portfolio');
         return;
       }
       
@@ -1348,33 +1350,34 @@ export default {
         if (!portfolio) return;
         
         await ElMessageBox.confirm(
-          `Are you sure you want to delete "${portfolio.name}" and all its spreadsheets? This action cannot be undone.`,
-          'Confirm Deletion',
+          `Are you sure you want to archive "${portfolio.name}" and all its spreadsheets?`,
+          'Confirm Archive',
           {
-            confirmButtonText: 'Delete',
+            confirmButtonText: 'Archive',
             cancelButtonText: 'Cancel',
             type: 'warning',
             confirmButtonClass: 'el-button--danger'
           }
         );
         
-        // Delete from database
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) {
+          ElMessage.error('User not authenticated');
+          return;
+        }
+        
+        // Archive portfolio in database
         const { error: portfolioError } = await supabase
           .from('portfolio_data')
-          .delete()
+          .update({
+            archived: true,
+            archived_by: user.user.id,
+            archived_at: new Date().toISOString()
+          })
           .eq('portfolio_id', portfolioId)
           .eq('workspace_id', currentWorkspaceId.value);
 
         if (portfolioError) throw portfolioError;
-        
-        // Delete spreadsheets from database
-        const { error: spreadsheetError } = await supabase
-          .from('ai_portfolio_data')
-          .delete()
-          .eq('portfolio_id', portfolioId)
-          .eq('workspace_id', currentWorkspaceId.value);
-
-        if (spreadsheetError) console.warn('Error deleting spreadsheets:', spreadsheetError);
         
         // Remove from local state
         portfolios.value = portfolios.value.filter(p => p.id !== portfolioId);
@@ -1384,18 +1387,18 @@ export default {
         const { [portfolioId]: removed, ...remainingReadonlyState } = portfolioReadonlyState.value;
         portfolioReadonlyState.value = remainingReadonlyState;
         
-        // Switch to first portfolio if deleted was active
+        // Switch to first portfolio if archived was active
         if (activePortfolioId.value === portfolioId && portfolios.value.length > 0) {
           activePortfolioId.value = portfolios.value[0].id;
           updatePageTitle();
         }
         
-        ElMessage.success(`Portfolio "${portfolio.name}" deleted successfully`);
+        ElMessage.success(`Portfolio "${portfolio.name}" archived successfully`);
         
       } catch (error) {
         if (error === 'cancel') return;
-        console.error('Error deleting portfolio:', error);
-        ElMessage.error('Failed to delete portfolio: ' + error.message);
+        console.error('Error archiving portfolio:', error);
+        ElMessage.error('Failed to archive portfolio: ' + error.message);
       }
     };
     
@@ -1849,7 +1852,7 @@ export default {
       handlePortfolioChange,
       showAddPortfolioDialog,
       addNewPortfolio,
-      deletePortfolio,
+      archivePortfolio,
       showAddSpreadsheetDialog,
       addNewSpreadsheet,
       removeSpreadsheet,

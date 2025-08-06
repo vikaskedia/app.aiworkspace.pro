@@ -10,16 +10,22 @@ CREATE TABLE portfolio_data (
     updated_by UUID REFERENCES auth.users(id) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    archived BOOLEAN DEFAULT false,
+    archived_by UUID REFERENCES auth.users(id),
+    archived_at TIMESTAMP WITH TIME ZONE,
     UNIQUE(workspace_id)
 );
 
 COMMENT ON TABLE portfolio_data IS 'Stores AI Portfolio Manager spreadsheet data for each workspace/workspace.
-Each workspace can have one portfolio with:
+Each workspace can have multiple portfolios, each with:
 1. columns: JSON array defining column structure [{ key: "item", label: "Portfolio Item" }]
 2. data: JSON array containing row data [{ item: "Stock A", value: "1000", status: "Active" }]
 3. system_prompt: Text prompt for AI analysis of the portfolio data
 4. column_groups: JSON array defining collapsible column groups [{ id: "uuid", name: "Group Name", startCol: 0, endCol: 2 }]
-5. Standard audit fields (created_by, updated_by, created_at, updated_at)';
+5. archived: Soft delete flag for archiving portfolios instead of deletion
+6. archived_by: User who archived the portfolio
+7. archived_at: Timestamp when portfolio was archived
+8. Standard audit fields (created_by, updated_by, created_at, updated_at)';
 
 COMMENT ON COLUMN portfolio_data.column_groups IS 'JSON array defining collapsible column groups structure [{ id: "uuid", name: "Group Name", startCol: 0, endCol: 2 }]';
 
@@ -28,6 +34,15 @@ CREATE INDEX idx_portfolio_data_workspace_id ON portfolio_data(workspace_id);
 CREATE INDEX idx_portfolio_data_created_by ON portfolio_data(created_by);
 CREATE INDEX idx_portfolio_data_updated_by ON portfolio_data(updated_by);
 CREATE INDEX idx_portfolio_data_column_groups ON portfolio_data USING GIN (column_groups);
+CREATE INDEX idx_portfolio_data_archived ON portfolio_data(archived);
+CREATE INDEX idx_portfolio_data_archived_by ON portfolio_data(archived_by);
+
+-- Add constraint to ensure consistency
+ALTER TABLE portfolio_data
+ADD CONSTRAINT portfolio_data_archive_consistency CHECK (
+  (archived = false AND archived_by IS NULL AND archived_at IS NULL) OR
+  (archived = true AND archived_by IS NOT NULL AND archived_at IS NOT NULL)
+);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE portfolio_data ENABLE ROW LEVEL SECURITY;

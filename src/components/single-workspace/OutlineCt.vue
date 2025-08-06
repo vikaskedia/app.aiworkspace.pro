@@ -179,7 +179,7 @@ import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
 import { updateMatterActivity } from '../../utils/workspaceActivity';
 import { setOutlineTitle, getCleanText } from '../../utils/page-title';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 
 // Add debounce utility with cancellation support
 function debounce(func, wait) {
@@ -211,7 +211,7 @@ export default {
   setup() {
     const route = useRoute();
     const router = useRouter();
-    const matterStore = useMatterStore();
+    const workspaceStore = useWorkspaceStore();
     const workspaceId = computed(() => route.params.workspaceId);
     const saving = ref(false);
     const refreshing = ref(false);
@@ -237,7 +237,7 @@ export default {
     const outlineRenderID = ref(generateRenderID());
     
     // Computed property for current workspace
-    const currentWorkspace = computed(() => matterStore.currentWorkspace);
+    const currentWorkspace = computed(() => workspaceStore.currentWorkspace);
     
     // Computed property for workspace name
     const workspaceName = computed(() => currentWorkspace.value?.title || 'Workspace');

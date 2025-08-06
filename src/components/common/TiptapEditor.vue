@@ -338,7 +338,7 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue'
 import { FileUpload } from '../../extensions/FileUpload'
-import { useMatterStore } from '../../store/workspace'
+import { useWorkspaceStore } from '../../store/workspace'
 import { storeToRefs } from 'pinia'
 import { Typeahead } from '../../extensions/Typeahead'
 import debounce from 'lodash/debounce'
@@ -675,8 +675,8 @@ export default {
     this.editor?.destroy()
   },
   setup() {
-    const matterStore = useMatterStore()
-    const { currentWorkspace } = storeToRefs(matterStore)
+    const workspaceStore = useWorkspaceStore()
+    const { currentWorkspace } = storeToRefs(workspaceStore)
     return { currentWorkspace }
   },
   methods: {

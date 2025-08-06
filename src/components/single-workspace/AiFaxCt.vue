@@ -257,7 +257,7 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useMatterStore } from '../../store/workspace'
+import { useWorkspaceStore } from '../../store/workspace'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -284,7 +284,7 @@ export default {
     Calendar
   },
   setup() {
-    const workspaceStore = useMatterStore()
+    const workspaceStore = useWorkspaceStore()
     const { currentWorkspace } = storeToRefs(workspaceStore)
     
     // Reactive data

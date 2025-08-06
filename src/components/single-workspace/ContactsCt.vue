@@ -358,7 +358,7 @@
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Check, Close, User } from '@element-plus/icons-vue';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { updateMatterActivity } from '../../utils/workspaceActivity';
 
@@ -373,8 +373,8 @@ export default {
     User
   },
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     
     return { currentWorkspace };
   },

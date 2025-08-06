@@ -174,7 +174,7 @@
 <script>
 import { ElMessage } from 'element-plus';
 import { Setting } from '@element-plus/icons-vue';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
@@ -186,8 +186,8 @@ export default {
     Setting
   },
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     return { currentWorkspace };
   },
   data() {

@@ -271,7 +271,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
   import draggable from 'vuedraggable'
   import { Plus, More, ArrowLeft, ArrowRight, InfoFilled, Close, CaretBottom, Calendar, Timer } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
-  import { useMatterStore } from '../../store/workspace'
+  import { useWorkspaceStore } from '../../store/workspace'
   import { storeToRefs } from 'pinia'
   import { supabase } from '../../supabase'
   import QuickTaskViewCt from './QuickTaskViewCt.vue'
@@ -329,8 +329,8 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     },
   
     setup() {
-      const matterStore = useMatterStore()
-      const { currentWorkspace } = storeToRefs(matterStore)
+      const workspaceStore = useWorkspaceStore()
+      const { currentWorkspace } = storeToRefs(workspaceStore)
       
       return {
         currentWorkspace

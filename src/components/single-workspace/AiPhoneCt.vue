@@ -1634,7 +1634,7 @@ import {
   MessageBox,
 } from '@element-plus/icons-vue';
 import { computed, markRaw } from 'vue';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
@@ -1700,8 +1700,8 @@ export default {
     MessageBox,
   },
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     
     // Real-time messaging setup
     const {

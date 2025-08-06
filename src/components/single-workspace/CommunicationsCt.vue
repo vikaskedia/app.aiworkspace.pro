@@ -141,15 +141,15 @@
   import { ElMessage } from 'element-plus'
   import { Refresh, Document, Search } from '@element-plus/icons-vue'
   import dayjs from 'dayjs'
-  import { useMatterStore } from '../../store/workspace';
+  import { useWorkspaceStore } from '../../store/workspace';
   import { storeToRefs } from 'pinia';
   
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const supabase = createClient(supabaseUrl, supabaseKey)
 
-  const matterStore = useMatterStore();
-  const { currentWorkspace } = storeToRefs(matterStore);
+  const workspaceStore = useWorkspaceStore();
+  const { currentWorkspace } = storeToRefs(workspaceStore);
   
   const emails = ref([])
   const loading = ref(false)

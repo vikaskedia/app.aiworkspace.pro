@@ -2,7 +2,7 @@
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, onMounted, computed } from 'vue';
-import { useMatterStore } from '../store/workspace';
+import { useWorkspaceStore } from '../store/workspace';
 
 export default {
   name: 'BillingCt',

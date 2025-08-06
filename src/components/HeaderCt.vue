@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { ElDropdown, ElDropdownMenu, ElDropdownItem, ElAvatar, ElDialog, ElMessage, ElAlert, ElButton } from 'element-plus';
 import { CaretBottom } from '@element-plus/icons-vue';
 import MatterSelector from './MatterSelector.vue';
-import { useMatterStore } from '../store/workspace';
+import { useWorkspaceStore } from '../store/workspace';
 import { useCacheStore } from '../store/cache';
 import { ref } from 'vue';
 import { MP } from '../mixpanel';
@@ -73,8 +73,8 @@ export default {
       return 'Dashboard';
     },
     currentWorkspace() {
-      const matterStore = useMatterStore();
-      return matterStore.currentWorkspace;
+      const workspaceStore = useWorkspaceStore();
+      return workspaceStore.currentWorkspace;
     },
     hasQuickActions() {
       const path = this.$route.path;
@@ -189,8 +189,8 @@ export default {
       }
     },
     handleMatterSelect(workspace) {
-      const matterStore = useMatterStore();
-      matterStore.setCurrentMatter(workspace);
+      const workspaceStore = useWorkspaceStore();
+      workspaceStore.setCurrentWorkspace(workspace);
       
       // Get the current route path segments
       const currentPath = this.$route.path;
@@ -205,7 +205,7 @@ export default {
       }
     },
     handleMatterCommand(command) {
-      const matterStore = useMatterStore();
+      const workspaceStore = useWorkspaceStore();
       
       if (this.currentWorkspace?.id) {
         switch(command) {
@@ -254,7 +254,7 @@ export default {
         }
       } else {
         // Clear current workspace when navigating to "All" views
-        matterStore.setCurrentMatter(null);
+        workspaceStore.setCurrentWorkspace(null);
         
         switch(command) {
           case 'all_dashboard':

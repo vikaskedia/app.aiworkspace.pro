@@ -3,7 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
 import { useRouter, useRoute } from 'vue-router';
-import { useMatterStore } from '../store/workspace';
+import { useWorkspaceStore } from '../store/workspace';
 import { storeToRefs } from 'pinia';
 import { CaretBottom, More, FolderOpened, Document } from '@element-plus/icons-vue';
 
@@ -29,8 +29,8 @@ export default {
     });
     const router = useRouter();
     const route = useRoute();
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
 
     // Watch for changes in the store's currentWorkspace
     watch(currentWorkspace, (newMatter) => {
@@ -101,7 +101,7 @@ export default {
     const loadWorkspaces = async () => {
       try {
         // Use the store's improved loadWorkspaces method
-        const workspacesWithActivity = await matterStore.loadWorkspaces();
+        const workspacesWithActivity = await workspaceStore.loadWorkspaces();
         workspaces.value = workspacesWithActivity;
         
         // Create userAccessMap from the workspace data
@@ -122,7 +122,7 @@ export default {
           const workspace = workspacesWithActivity.find(m => m.id === parseInt(workspaceId));
           if (workspace && workspace.hasAccess) {
             selectedWorkspace.value = workspace;
-            matterStore.setCurrentMatter(workspace);
+            workspaceStore.setCurrentWorkspace(workspace);
             emit('workspace-selected', workspace);
             return; // Exit early since we found workspace from URL
           }
@@ -134,12 +134,12 @@ export default {
           if (storedWorkspace && storedWorkspace.hasAccess) {
             // Current workspace is valid, update with fresh data
             selectedWorkspace.value = storedWorkspace;
-            matterStore.setCurrentMatter(storedWorkspace);
+            workspaceStore.setCurrentWorkspace(storedWorkspace);
             emit('workspace-selected', storedWorkspace);
           } else {
             // Current workspace is no longer valid, clear it
             selectedWorkspace.value = null;
-            matterStore.setCurrentMatter(null);
+            workspaceStore.setCurrentWorkspace(null);
           }
         }
       } catch (error) {
@@ -222,7 +222,7 @@ export default {
 
       if (workspace === null) {
         selectedWorkspace.value = null;
-        matterStore.setCurrentMatter(null);
+        workspaceStore.setCurrentWorkspace(null);
         router.push('/all-workspace/tasks');
       } else {
         // Check if user has access to this workspace
@@ -231,7 +231,7 @@ export default {
           return;
         }
         selectedWorkspace.value = workspace;
-        matterStore.setCurrentMatter(workspace);
+        workspaceStore.setCurrentWorkspace(workspace);
         
         // Get the current route path segments
         const currentPath = route.path;

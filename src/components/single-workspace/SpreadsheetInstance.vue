@@ -93,7 +93,7 @@
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
@@ -220,8 +220,8 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     const urlSpreadsheetId = computed(() => router.currentRoute.value.params.spreadsheetId);
 
     // Workspace store for workspace context
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     
     // Task store for fetching task information
     const taskStore = useTaskStore();

@@ -93,7 +93,7 @@
   import { ref, watch, computed } from 'vue'
   import { ElMessage } from 'element-plus'
   import { Folder, Document, Loading, UploadFilled } from '@element-plus/icons-vue'
-  import { useMatterStore } from '../../store/workspace'
+  import { useWorkspaceStore } from '../../store/workspace'
   import { storeToRefs } from 'pinia'
   
   const props = defineProps({
@@ -102,8 +102,8 @@
   
   const emit = defineEmits(['update:modelValue', 'file-selected'])
   
-  const matterStore = useMatterStore()
-  const { currentWorkspace } = storeToRefs(matterStore)
+  const workspaceStore = useWorkspaceStore()
+  const { currentWorkspace } = storeToRefs(workspaceStore)
   
   const dialogVisible = ref(false)
   const activeTab = ref('upload')

@@ -149,7 +149,7 @@ import { Plus, More } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {
@@ -160,8 +160,8 @@ export default {
   },
   setup() {
     const router = useRouter();
-    const matterStore = useMatterStore();
-    return { router, matterStore };
+    const workspaceStore = useWorkspaceStore();
+    return { router, workspaceStore };
   },
   data() {
     return {
@@ -481,7 +481,7 @@ export default {
     handleCommand(command, workspace) {
       switch(command) {
         case 'view':
-          this.matterStore.setCurrentMatter(workspace);
+          this.workspaceStore.setCurrentWorkspace(workspace);
           this.router.push(`/single-workspace/${workspace.id}`);
           break;
         case 'edit':
@@ -527,17 +527,17 @@ export default {
     },
 
     navigateToGoals(workspace) {
-      this.matterStore.setCurrentMatter(workspace);
+      this.workspaceStore.setCurrentWorkspace(workspace);
       this.router.push(`/single-workspace/${workspace.id}/goals`);
     },
 
     navigateToTasks(workspace) {
-      this.matterStore.setCurrentMatter(workspace);
+      this.workspaceStore.setCurrentWorkspace(workspace);
       this.router.push(`/single-workspace/${workspace.id}/tasks`);
     },
 
     navigateToEvents(workspace) {
-      this.matterStore.setCurrentMatter(workspace);
+      this.workspaceStore.setCurrentWorkspace(workspace);
       this.router.push(`/single-workspace/${workspace.id}/events`);
     },
   }

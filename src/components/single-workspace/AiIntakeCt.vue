@@ -163,12 +163,12 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { supabase } from '../../supabase.js';
 
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
-const matterStore = useMatterStore();
-const { currentWorkspace } = storeToRefs(matterStore);
+const workspaceStore = useWorkspaceStore();
+const { currentWorkspace } = storeToRefs(workspaceStore);
 const workspaceId = currentWorkspace.value.id;
 console.log('workspaceId', workspaceId);
 

@@ -368,7 +368,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Delete, Folder, Edit, Close, MoreFilled } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle, setComponentTitle } from '../../utils/page-title';
 import { useRouter } from 'vue-router';
@@ -392,8 +392,8 @@ export default {
   },
   setup(props) {
     // Workspace store for workspace context
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
 
     // Router for URL navigation
     const router = useRouter();

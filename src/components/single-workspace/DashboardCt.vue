@@ -125,7 +125,7 @@
 
 <script>
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { ElMessage } from 'element-plus';
 import { setWorkspaceTitle } from '../../utils/page-title';
@@ -133,8 +133,8 @@ import { setWorkspaceTitle } from '../../utils/page-title';
 export default {
   name: 'DashboardCt',
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     return { currentWorkspace };
   },
   data() {

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { supabase } from './supabase';
-import { useMatterStore } from './store/workspace';
+import { useWorkspaceStore } from './store/workspace';
 import DashboardCt from './components/single-workspace/DashboardCt.vue';
 import ManageFilesCt from './components/single-workspace/FilesCt.vue';
 import GoalsCt from './components/single-workspace/GoalsCt.vue';
@@ -440,19 +440,19 @@ router.beforeEach(async (to, from, next) => {
 
   // Clear workspace context when navigating to all-workspaces routes
   if (to.path.startsWith('/all-workspace')) {
-    const matterStore = useMatterStore();
-    matterStore.setCurrentMatter(null);
+    const workspaceStore = useWorkspaceStore();
+    workspaceStore.setCurrentWorkspace(null);
   }
 
   // Handle workspace context
   if (session && to.params.workspaceId) {
-    const matterStore = useMatterStore();
+    const workspaceStore = useWorkspaceStore();
     try {
-      await matterStore.loadWorkspaces();
-      const workspace = matterStore.workspaces.find(m => m.id === parseInt(to.params.workspaceId));
+      await workspaceStore.loadWorkspaces();
+      const workspace = workspaceStore.workspaces.find(m => m.id === parseInt(to.params.workspaceId));
       // Only set as current if workspace exists and user has access
       if (workspace && workspace.hasAccess) {
-        matterStore.setCurrentMatter(workspace);
+        workspaceStore.setCurrentWorkspace(workspace);
       } else if (to.params.workspaceId) {
         // If workspace doesn't exist or user has no access, redirect to all workspaces
         next('/all-workspace');

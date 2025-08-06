@@ -1,14 +1,14 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { EditPen, Delete} from '@element-plus/icons-vue';
 
 export default {
   name: 'WorkspaceSettingsCt',
   setup() {
-    const workspaceStore = useMatterStore();
+    const workspaceStore = useWorkspaceStore();
     const { currentWorkspace } = storeToRefs(workspaceStore);
     return { currentWorkspace };
   },

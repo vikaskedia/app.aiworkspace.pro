@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import QuickTaskViewCt from './QuickTaskViewCt.vue';
 import { useCacheStore } from '../../store/cache';
@@ -18,11 +18,11 @@ import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   setup() {
-    const matterStore = useMatterStore();
+    const workspaceStore = useWorkspaceStore();
     const cacheStore = useCacheStore();
     const taskStore = useTaskStore();
     const userStore = useUserStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(workspaceStore);
 
     
     // Add loading state ref

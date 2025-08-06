@@ -1497,7 +1497,7 @@
 import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload, Position } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
@@ -1551,10 +1551,10 @@ export default {
     PdfSignatureModal,
   },
   setup() {
-    const matterStore = useMatterStore();
+    const workspaceStore = useWorkspaceStore();
     const taskStore = useTaskStore();
     const userStore = useUserStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     
     // External sharing composable
     const externalShareComposable = useExternalTaskShare();

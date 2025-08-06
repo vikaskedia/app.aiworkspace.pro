@@ -1,7 +1,7 @@
 <script>
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
@@ -11,8 +11,8 @@ import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     const currentUser = ref(null);
 
     // Fetch the current user

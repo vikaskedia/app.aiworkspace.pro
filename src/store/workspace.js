@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { supabase } from '../supabase';
 
-export const useMatterStore = defineStore('workspace', {
+export const useWorkspaceStore = defineStore('workspace', {
   state: () => ({
     currentWorkspace: null,
     workspaces: []
@@ -13,7 +13,7 @@ export const useMatterStore = defineStore('workspace', {
   },
 
   actions: {
-    setCurrentMatter(workspace) {
+    setCurrentWorkspace(workspace) {
       this.currentWorkspace = workspace;
     },
 
@@ -98,6 +98,6 @@ export const useMatterStore = defineStore('workspace', {
   },
 
   getters: {
-    getCurrentMatter: (state) => state.currentWorkspace
+    getCurrentWorkspace: (state) => state.currentWorkspace
   }
 }); 

@@ -2,7 +2,7 @@
 import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import AIChatPanel from './AIChatPanel.vue';
-import { useMatterStore } from '../../store/workspace';
+import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
@@ -18,8 +18,8 @@ export default {
     GoalDetailDrawer
   },
   setup() {
-    const matterStore = useMatterStore();
-    const { currentWorkspace } = storeToRefs(matterStore);
+    const workspaceStore = useWorkspaceStore();
+    const { currentWorkspace } = storeToRefs(workspaceStore);
     
     return { currentWorkspace };
   },

@@ -186,6 +186,28 @@ const routes = [
           showHistory: true
         })
       },
+      // Portfolio Routes - Unified Workbook Implementation
+      {
+        path: 'portfolio',
+        name: 'PortfolioPage',
+        component: () => import('./components/single-workspace/v2/PortfolioCt.vue'),
+        meta: { 
+          title: 'Portfolio Manager',
+          description: 'Unified workbook storage - all sheets in single JSON object'
+        }
+      },
+      {
+        path: 'portfolio/:portfolioId',
+        name: 'PortfolioSpecificPage',
+        component: () => import('./components/single-workspace/v2/PortfolioCt.vue'),
+        props: route => ({
+          portfolioId: route.params.portfolioId
+        }),
+        meta: { 
+          title: 'Portfolio Manager',
+          description: 'Unified workbook storage - all sheets in single JSON object'
+        }
+      },
       {
         path: 'ai_fund_analyst',
         name: 'AiFundAnalystPage',

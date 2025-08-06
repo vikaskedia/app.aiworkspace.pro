@@ -109,7 +109,7 @@
             </div>
             <el-input 
               v-else 
-              v-model="row.editMatterText" 
+              v-model="row.editWorkspaceText" 
               size="small"
               placeholder="Enter workspace"
               @keyup.esc="cancelEdit(row)"
@@ -360,7 +360,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Check, Close, User } from '@element-plus/icons-vue';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 
 export default {
   name: 'ContactsCt',
@@ -466,7 +466,7 @@ export default {
           editEmail: contact.email || '',
           editCompany: contact.company || '',
           editRole: contact.role || '',
-          editMatterText: contact.workspace_text || '',
+          editWorkspaceText: contact.workspace_text || '',
           editAddress: contact.address || '',
           editTags: contact.tags || []
         }));
@@ -662,13 +662,13 @@ export default {
           editEmail: data.email || '',
           editCompany: data.company || '',
           editRole: data.role || '',
-          editMatterText: data.workspace_text || '',
+          editWorkspaceText: data.workspace_text || '',
           editAddress: data.address || '',
           editTags: data.tags || []
         });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -688,7 +688,7 @@ export default {
       contact.editEmail = contact.email || '';
       contact.editCompany = contact.company || '';
       contact.editRole = contact.role || '';
-      contact.editMatterText = contact.workspace_text || '';
+      contact.editWorkspaceText = contact.workspace_text || '';
       contact.editAddress = contact.address || '';
       contact.editTags = contact.tags || [];
       
@@ -723,7 +723,7 @@ export default {
             email: contact.editEmail.trim() || null,
             company: contact.editCompany.trim() || null,
             role: contact.editRole.trim() || null,
-            workspace_text: contact.editMatterText.trim() || null,
+            workspace_text: contact.editWorkspaceText.trim() || null,
             address: contact.editAddress.trim() || null,
             tags: contact.editTags,
             updated_at: new Date().toISOString()
@@ -738,13 +738,13 @@ export default {
         contact.email = contact.editEmail.trim() || null;
         contact.company = contact.editCompany.trim() || null;
         contact.role = contact.editRole.trim() || null;
-        contact.workspace_text = contact.editMatterText.trim() || null;
+        contact.workspace_text = contact.editWorkspaceText.trim() || null;
         contact.address = contact.editAddress.trim() || null;
         contact.tags = contact.editTags;
         contact.editing = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Contact updated successfully');
       } catch (error) {
@@ -760,7 +760,7 @@ export default {
       contact.editEmail = contact.email || '';
       contact.editCompany = contact.company || '';
       contact.editRole = contact.role || '';
-      contact.editMatterText = contact.workspace_text || '';
+      contact.editWorkspaceText = contact.workspace_text || '';
       contact.editAddress = contact.address || '';
       contact.editTags = contact.tags || [];
     },
@@ -788,7 +788,7 @@ export default {
         this.contacts = this.contacts.filter(c => c.id !== contact.id);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Contact deleted successfully');
       } catch (error) {

@@ -69,7 +69,7 @@ const routes = [
       },
       {
         path: 'settings',
-        name: 'AllMatterSettingsPage',
+        name: 'AllWorkspaceSettingsPage',
         component: () => import('./components/all-workspaces/AllWorkspaceSettingsCt.vue')
       },
        {
@@ -131,7 +131,7 @@ const routes = [
       },
       {
         path: 'settings',
-        name: 'SingleMatterSettingsPage',
+        name: 'SingleWorkspaceSettingsPage',
         component: () => import('./components/single-workspace/WorkspaceSettingsCt.vue')
       },
       {

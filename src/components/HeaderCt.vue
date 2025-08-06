@@ -204,7 +204,7 @@ export default {
         this.$router.push(`/single-workspace/${workspace.id}`);
       }
     },
-    handleMatterCommand(command) {
+    handleWorkspaceCommand(command) {
       const workspaceStore = useWorkspaceStore();
       
       if (this.currentWorkspace?.id) {
@@ -442,7 +442,7 @@ export default {
       <template v-else>
         <WorkspaceSelector @workspace-selected="handleWorkspaceSelect" />
         <span class="section-divider">/</span>
-        <el-dropdown trigger="click" @command="handleMatterCommand">
+        <el-dropdown trigger="click" @command="handleWorkspaceCommand">
           <span class="current-section clickable">
             {{ currentSection }}
             <el-icon class="dropdown-icon"><caret-bottom /></el-icon>

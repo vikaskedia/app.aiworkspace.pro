@@ -11,7 +11,7 @@ import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import FilePreviewPane from './FilePreviewPane.vue';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 const route = useRoute();
@@ -299,7 +299,7 @@ async function handleFileUpload(file) {
     selectedTags.value = [];
     
     // Update workspace activity
-    await updateMatterActivity(currentWorkspace.value.id);
+    await updateWorkspaceActivity(currentWorkspace.value.id);
     
     ElMessage.success('File uploaded successfully');
 
@@ -339,7 +339,7 @@ async function deleteFile(file) {
     files.value = files.value.filter(f => f.id !== file.id);
     
     // Update workspace activity
-    await updateMatterActivity(currentWorkspace.value.id);
+    await updateWorkspaceActivity(currentWorkspace.value.id);
     
     ElMessage.success('File deleted successfully');
 
@@ -479,7 +479,7 @@ async function createFolder() {
     newFolderName.value = '';
     
     // Update workspace activity
-    await updateMatterActivity(currentWorkspace.value.id);
+    await updateWorkspaceActivity(currentWorkspace.value.id);
     
     ElMessage.success('Folder created successfully');
   } catch (error) {

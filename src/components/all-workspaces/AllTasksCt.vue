@@ -319,7 +319,7 @@ import TasksList from '../single-workspace/TasksList.vue';
 import TaskBoardCt from '../single-workspace/TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setComponentTitle } from '../../utils/page-title';
 
 export default {
@@ -697,7 +697,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(task.workspace_id);
+        await updateWorkspaceActivity(task.workspace_id);
 
         // Update the task in the local state
         this.tasks = this.tasks.map(t => 
@@ -1049,7 +1049,7 @@ export default {
         await this.taskStore.updateTask(updatedTask);
         
         // Update workspace activity
-        await updateMatterActivity(updatedTask.workspace_id);
+        await updateWorkspaceActivity(updatedTask.workspace_id);
         
         // Clear cache and reload tasks
         await this.loadTasksWithCache();

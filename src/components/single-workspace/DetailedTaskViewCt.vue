@@ -1505,7 +1505,7 @@ import { ElNotification, ElMessageBox, ElMessage } from 'element-plus';
 import TiptapEditor from '../common/TiptapEditor.vue';
 import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
 import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
 import PdfSignatureModal from '../common/PdfSignatureModal.vue';
@@ -1773,7 +1773,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1807,7 +1807,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1858,7 +1858,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1919,7 +1919,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -1990,7 +1990,7 @@ export default {
       this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
       
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
       
       ElNotification.success({
         title: 'Success',
@@ -2114,7 +2114,7 @@ export default {
           });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -2152,7 +2152,7 @@ export default {
         this.taskStore.updateCachedTaskDetail(this.task.id, { task: this.task });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElNotification.success({
           title: 'Success',
@@ -2203,7 +2203,7 @@ export default {
       }
 
       // Update workspace activity
-      await updateMatterActivity(this.currentWorkspace.id);
+      await updateWorkspaceActivity(this.currentWorkspace.id);
 
       ElNotification.success({
         title: 'Success',
@@ -2418,7 +2418,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         this.newComment = '';
         await this.loadComments();
@@ -3099,7 +3099,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         this.cancelEditing();
         ElNotification.success({
@@ -3408,7 +3408,7 @@ export default {
         if (error) throw error;
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         this.logHoursDialogVisible = false;
         this.newHoursLog = { time_taken: null, comment: '' };
@@ -3510,7 +3510,7 @@ export default {
           });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -3557,7 +3557,7 @@ export default {
         comment.archived = newArchivedState;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElNotification.success({
           title: 'Success',
@@ -3787,7 +3787,7 @@ ${comment.content}
         });
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         // Reset form
         this.resetChildTaskForm();
@@ -3879,7 +3879,7 @@ ${comment.content}
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -3959,7 +3959,7 @@ ${comment.content}
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElNotification.success({
           title: 'Success',
@@ -4173,7 +4173,7 @@ ${comment.content}
           });
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         this.lastSavedOutlineContent = JSON.parse(JSON.stringify(outlineToSave));
         this.hasOutlineChanges = false;
@@ -4851,7 +4851,7 @@ ${comment.content}
         this.taskStore.setCachedTasks(this.currentWorkspace.id, updatedTasks);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         // Send Telegram notification
         await sendTelegramNotification({
@@ -5024,8 +5024,8 @@ ${comment.content}
 
         // Update workspace activity for both workspaces
         await Promise.all([
-          updateMatterActivity(this.currentWorkspace.id),
-          updateMatterActivity(this.moveToForm.targetWorkspaceId)
+          updateWorkspaceActivity(this.currentWorkspace.id),
+          updateWorkspaceActivity(this.moveToForm.targetWorkspaceId)
         ]);
 
         ElNotification.success({

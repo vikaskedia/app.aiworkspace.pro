@@ -6,7 +6,7 @@ import { ref } from 'vue';
 import EditableTable from './EditableTable.vue'
 import RichTextEditor from '../common/RichTextEditor.vue';
 import TiptapEditor from '../common/TiptapEditor.vue';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 
 export default {
   components: {
@@ -311,7 +311,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
 
         this.newComment = '';
         await this.loadComments();
@@ -1160,7 +1160,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.task.title = this.editingTitle;
         
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
         
         this.isEditingTitle = false;
         ElMessage.success('Task title updated successfully');
@@ -1205,7 +1205,7 @@ Please provide assistance based on this context, the comment history, the availa
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
 
         // Emit update event
         this.$emit('update:task', this.task);
@@ -1234,7 +1234,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('status-updated', { taskId: this.task.id, status })
         
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
         
         ElMessage.success('Status updated successfully')
       } catch (error) {
@@ -1275,7 +1275,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('priority-updated', { taskId: this.task.id, priority })
         
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
         
         ElMessage.success('Priority updated successfully')
       } catch (error) {
@@ -1323,7 +1323,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
         
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {
@@ -1354,7 +1354,7 @@ Please provide assistance based on this context, the comment history, the availa
         this.$emit('update:task', { ...this.task, ...data });
         
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
         
         this.isEditingDescription = false;
         ElMessage.success('Description updated successfully');
@@ -1419,7 +1419,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
 
         // Update workspace activity
-        await updateMatterActivity(this.task.workspace_id);
+        await updateWorkspaceActivity(this.task.workspace_id);
 
         ElMessage.success('Assignee updated successfully');
       } catch (error) {

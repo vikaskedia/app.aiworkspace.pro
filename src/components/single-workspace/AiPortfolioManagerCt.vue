@@ -130,7 +130,7 @@
                   :initial-rows="spreadsheet.rows"
                   :initial-columns="spreadsheet.columns"
                   :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
-                  :workspace-id="portfolio.childMatterId || currentWorkspaceId"
+                  :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
                   :portfolio-id="portfolio.id"
                   :readonly="getPortfolioReadonlyState(portfolio.id)"
                   @remove-spreadsheet="removeSpreadsheet"
@@ -317,7 +317,7 @@
         <el-form label-width="120px">
           <el-form-item label="Destination:" required>
             <el-select 
-              v-model="selectedDestinationMatterId" 
+              v-model="selectedDestinationWorkspaceId" 
               placeholder="Select workspace"
               style="width: 100%"
               @change="handleWorkspaceSelection">
@@ -336,7 +336,7 @@
         </el-form>
         
         <el-alert
-          v-if="selectedDestinationMatterId"
+          v-if="selectedDestinationWorkspaceId"
           title="Note: This action cannot be undone"
           type="warning"
           show-icon
@@ -351,7 +351,7 @@
           <el-button 
             type="primary" 
             @click="confirmMovePortfolio"
-            :disabled="!selectedDestinationMatterId"
+            :disabled="!selectedDestinationWorkspaceId"
             :loading="movingPortfolio">
             Move Portfolio
           </el-button>
@@ -745,7 +745,7 @@ export default {
     const targetPortfolioId = ref(''); // For adding spreadsheets to specific portfolio
     const childWorkspaces = ref([]); // Child workspaces for the current workspace
     const movePortfolioDialogVisible = ref(false); // New dialog for moving portfolio
-    const selectedDestinationMatterId = ref(''); // ID of the destination workspace
+    const selectedDestinationWorkspaceId = ref(''); // ID of the destination workspace
     const availableWorkspaces = ref([]); // Available workspaces user has access to
     const portfolioToMove = ref(null); // Portfolio being moved
     const movingPortfolio = ref(false); // Loading state for move operation
@@ -928,9 +928,9 @@ export default {
 
     // Get workspace name for a portfolio
     const getPortfolioWorkspaceName = (portfolio) => {
-      if (portfolio.childMatterId && portfolio.childMatterTitle) {
+      if (portfolio.childWorkspaceId && portfolio.childWorkspaceTitle) {
         // This is a child workspace portfolio
-        return portfolio.childMatterTitle;
+        return portfolio.childWorkspaceTitle;
       } else {
         // This belongs to the current workspace
         return currentWorkspace.value?.title || 'Current Workspace';
@@ -969,7 +969,7 @@ export default {
     }
 
     // Get child workspace portfolios
-  const getChildMatterPortfolios = async () => {
+  const getChildWorkspacePortfolios = async () => {
     if (!childWorkspaces.value.length) {
       console.log('👶 No child workspaces to load portfolios from');
       return [];
@@ -978,29 +978,29 @@ export default {
     try {
       console.log(`📊 Loading child workspace portfolios...`);
       
-      const childMatterIds = childWorkspaces.value.map(child => child.id);
+      const childWorkspaceIds = childWorkspaces.value.map(child => child.id);
       const allChildPortfolios = [];
 
       // Load portfolios for each child workspace
-      for (const childMatter of childWorkspaces.value) {
+      for (const childWorkspace of childWorkspaces.value) {
         const { data: childPortfolioData, error: childPortfolioError } = await supabase
           .from('portfolio_data')
           .select('*')
-          .eq('workspace_id', childMatter.id)
+          .eq('workspace_id', childWorkspace.id)
           .eq('archived', false)
           .order('created_at', { ascending: true });
 
         if (childPortfolioError) {
-          console.warn(`Error loading portfolios for child workspace ${childMatter.id}:`, childPortfolioError);
+          console.warn(`Error loading portfolios for child workspace ${childWorkspace.id}:`, childPortfolioError);
           continue;
         }
 
         const childPortfolios = childPortfolioData?.map(portfolio => ({
           id: portfolio.portfolio_id,
-          name: `${portfolio.portfolio_name}`, // `${childMatter.title} - ${portfolio.portfolio_name}`
+          name: `${portfolio.portfolio_name}`, // `${childWorkspace.title} - ${portfolio.portfolio_name}`
           workspaceId: portfolio.workspace_id,
-          childMatterId: childMatter.id,
-          childMatterTitle: childMatter.title,
+          childWorkspaceId: childWorkspace.id,
+          childWorkspaceTitle: childWorkspace.title,
           createdAt: new Date(portfolio.created_at),
           lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
           isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false
@@ -1031,18 +1031,18 @@ export default {
         // Load child workspaces first (before loading portfolios)
         await loadChildWorkspaces();
         // Load child workspace portfolios
-        const childMatterPortfolios = await getChildMatterPortfolios();
-        console.log(`📊 Loaded ${childMatterPortfolios.length} child workspace portfolios`);
+        const childWorkspacePortfolios = await getChildWorkspacePortfolios();
+        console.log(`📊 Loaded ${childWorkspacePortfolios.length} child workspace portfolios`);
 
         // Load spreadsheets from child workspaces
-        const childMatterIds = childWorkspaces.value.map(child => child.id);
+        const childWorkspaceIds = childWorkspaces.value.map(child => child.id);
         let childSpreadsheetData = [];
 
-        if (childMatterIds.length > 0) {
+        if (childWorkspaceIds.length > 0) {
           const { data: childSpreadsheets, error: childSpreadsheetError } = await supabase
             .from('ai_portfolio_data')
             .select('*')
-            .in('workspace_id', childMatterIds)
+            .in('workspace_id', childWorkspaceIds)
             .not('spreadsheet_id', 'is', null)
             .order('created_at', { ascending: false });
 
@@ -1111,8 +1111,8 @@ export default {
           }
         }
 
-        // console.log(`📊 Loaded child portfolios:`, childMatterPortfolios);
-        const allPortfolios = [...portfolioData, ...childMatterPortfolios];
+        // console.log(`📊 Loaded child portfolios:`, childWorkspacePortfolios);
+        const allPortfolios = [...portfolioData, ...childWorkspacePortfolios];
         // Process portfolios
         if (portfolioData && portfolioData.length > 0) {
           portfolios.value = allPortfolios.map(portfolio => ({
@@ -1120,8 +1120,8 @@ export default {
             name: portfolio.portfolio_name || portfolio.name,
             createdAt: new Date(portfolio.created_at),
             lastUpdated: new Date(portfolio.updated_at).toLocaleDateString(),
-            childMatterId: portfolio?.childMatterId || null,
-            childMatterTitle: portfolio?.childMatterTitle || null,
+            childWorkspaceId: portfolio?.childWorkspaceId || null,
+            childWorkspaceTitle: portfolio?.childWorkspaceTitle || null,
             isReadonly: portfolio.is_readonly !== undefined ? portfolio.is_readonly : false // Default to edit mode
           }));
           // console.log(`📊 Loaded all ${portfolios.value.length} portfolios`);
@@ -1555,7 +1555,7 @@ export default {
     };
 
     // Watch for workspace changes and reload portfolios
-    const watchMatterChanges = () => {
+    const watchWorkspaceChanges = () => {
       let isInitialized = false;
       
       return computed(() => {
@@ -1679,7 +1679,7 @@ export default {
 
         if (accessError) throw accessError;
 
-        const accessibleMatterIds = accessData?.map(row => row.workspace_id) || [];
+        const accessibleWorkspaceIds = accessData?.map(row => row.workspace_id) || [];
 
         // Then get the workspaces
         const { data: workspaces, error } = await supabase
@@ -1687,7 +1687,7 @@ export default {
           .select('id, title')
           .eq('archived', false)
           .neq('id', currentWorkspaceId.value) // Exclude current workspace
-          .in('id', accessibleMatterIds);
+          .in('id', accessibleWorkspaceIds);
 
         if (error) throw error;
         
@@ -1733,19 +1733,19 @@ export default {
 
     // Handle workspace selection in move dialog
     const handleWorkspaceSelection = (workspaceId) => {
-      selectedDestinationMatterId.value = workspaceId;
+      selectedDestinationWorkspaceId.value = workspaceId;
     };
 
     // Reset move dialog state
     const resetMoveDialog = () => {
-      selectedDestinationMatterId.value = '';
+      selectedDestinationWorkspaceId.value = '';
       portfolioToMove.value = null;
       availableWorkspaces.value = [];
     };
 
     // Confirm and execute the portfolio move
     const confirmMovePortfolio = async () => {
-      if (!portfolioToMove.value || !selectedDestinationMatterId.value) {
+      if (!portfolioToMove.value || !selectedDestinationWorkspaceId.value) {
         ElMessage.error('Please select a destination workspace');
         return;
       }
@@ -1753,11 +1753,11 @@ export default {
       try {
         movingPortfolio.value = true;
 
-        const destinationWorkspace = availableWorkspaces.value.find(w => w.id === selectedDestinationMatterId.value);
+        const destinationWorkspace = availableWorkspaces.value.find(w => w.id === selectedDestinationWorkspaceId.value);
         
         const { error } = await supabase
           .from('portfolio_data')
-          .update({ workspace_id: selectedDestinationMatterId.value })
+          .update({ workspace_id: selectedDestinationWorkspaceId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
           .eq('workspace_id', currentWorkspaceId.value);
 
@@ -1766,7 +1766,7 @@ export default {
         // Also update ai_portfolio_data table if there are spreadsheets
         const { error: aiError } = await supabase
           .from('ai_portfolio_data')
-          .update({ workspace_id: selectedDestinationMatterId.value })
+          .update({ workspace_id: selectedDestinationWorkspaceId.value })
           .eq('portfolio_id', portfolioToMove.value.id)
           .eq('workspace_id', currentWorkspaceId.value);
 
@@ -1795,7 +1795,7 @@ export default {
 
     // Initialize component
     onMounted(async () => {
-      const workspaceWatcher = watchMatterChanges();
+      const workspaceWatcher = watchWorkspaceChanges();
       workspaceWatcher.value;
       
       const portfolioWatcher = watchActivePortfolio();
@@ -1824,7 +1824,7 @@ export default {
       currentWorkspace,
       currentWorkspaceId,
       loadChildWorkspaces,
-      getChildMatterPortfolios,
+      getChildWorkspacePortfolios,
       portfolios,
       activePortfolioId,
       spreadsheets,
@@ -1868,7 +1868,7 @@ export default {
       getPortfolioReadonlyState,
               getCurrentEditor,
         movePortfolioDialogVisible,
-        selectedDestinationMatterId,
+        selectedDestinationWorkspaceId,
         availableWorkspaces,
         portfolioToMove,
         movingPortfolio,

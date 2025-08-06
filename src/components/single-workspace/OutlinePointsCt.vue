@@ -782,7 +782,7 @@ export default {
         }
         
         // Create repo name for the workspace
-        const repoName = `Matter_${workspaceId}_Outline`;
+        const repoName = `Workspace_${workspaceId}_Outline`;
         
         // Try to create the repository if it doesn't exist
         try {

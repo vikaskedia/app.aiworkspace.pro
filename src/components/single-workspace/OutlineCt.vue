@@ -177,7 +177,7 @@ import { ElNotification, ElMessageBox } from 'element-plus';
 import { Clock, Refresh, Search } from '@element-plus/icons-vue';
 import { supabase } from '../../supabase';
 import OutlinePointsCt from './OutlinePointsCt.vue';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setOutlineTitle, getCleanText } from '../../utils/page-title';
 import { useWorkspaceStore } from '../../store/workspace';
 
@@ -825,7 +825,7 @@ export default {
         if (versionError) throw versionError;
 
         // Update workspace activity
-        await updateMatterActivity(workspaceId.value);
+        await updateWorkspaceActivity(workspaceId.value);
 
         // Show success notification
         ElNotification({
@@ -1812,7 +1812,7 @@ export default {
       }
       
       // Create repo name for the workspace
-      const repoName = `Matter_${workspaceId}_Outline`;
+      const repoName = `Workspace_${workspaceId}_Outline`;
       
       // Try to create the repository if it doesn't exist
       try {

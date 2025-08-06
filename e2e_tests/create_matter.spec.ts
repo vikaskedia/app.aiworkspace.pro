@@ -23,14 +23,14 @@ test('Create workspace after login and edit it', async ({ page }) => {
     //await expect(page).toHaveURL('http://localhost/all-workspaces/dashboard');
 
     // Click the "New Workspace" button
-    const button = page.locator('#idOfButtonToCreateNewMatter');
+    const button = page.locator('#idOfButtonToCreateNewWorkspace');
     await button.waitFor({ state: 'visible', timeout: 50000 }); // Wait until button appears
 
     // Click the button to create a new workspace
     await button.click();
 
     // Wait for the dialog with the specific ID to appear
-    const dialog = page.locator('#idOfDialogToCreateNewMatter');
+    const dialog = page.locator('#idOfDialogToCreateNewWorkspace');
     await dialog.waitFor({ state: 'visible', timeout: 10000 });
 
     // Generate a unique timestamped title
@@ -38,10 +38,10 @@ test('Create workspace after login and edit it', async ({ page }) => {
     const workspaceTitle = `Sample Workspace ${timestamp}`;
 
     // Fill in the Title field
-    await page.fill('#idOfInputMatterTitle', workspaceTitle);
+    await page.fill('#idOfInputWorkspaceTitle', workspaceTitle);
 
     // Fill in the Description field
-    await page.fill('#idOfInputMatterDescription', 'This is a sample description for the new workspace.');
+    await page.fill('#idOfInputWorkspaceDescription', 'This is a sample description for the new workspace.');
 
     // Locate the "Create Workspace" button inside the dialog
     const createButton = dialog.locator('.el-button--primary:has-text("Create Workspace")');

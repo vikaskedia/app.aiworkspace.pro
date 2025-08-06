@@ -56,7 +56,7 @@
                     <div v-if="task.isNew" class="new-task-wrapper">
                       <div class="new-task-header">
                         <template v-if="isAllTasksContext">
-                          <el-dropdown trigger="click" @command="(workspace) => { selectedWorkspace = workspace; updateTaskMatter(task); }">
+                          <el-dropdown trigger="click" @command="(workspace) => { selectedWorkspace = workspace; updateTaskWorkspace(task); }">
                             <span class="workspace-selector">
                               {{ selectedWorkspace?.title || 'Select Workspace' }}
                               <el-icon class="el-icon--right"><CaretBottom /></el-icon>
@@ -355,10 +355,10 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
     },
   
     methods: {
-      async updateMatterActivity(workspaceId) {
+      async updateWorkspaceActivity(workspaceId) {
         // Import and use the activity tracking function
-        const { updateMatterActivity } = await import('../../utils/workspaceActivity.js');
-        await updateMatterActivity(workspaceId);
+        const { updateWorkspaceActivity } = await import('../../utils/workspaceActivity.js');
+        await updateWorkspaceActivity(workspaceId);
       },
 
       initializeColumns() {
@@ -808,7 +808,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         }
       },
   
-      updateTaskMatter(task) {
+      updateTaskWorkspace(task) {
         if (this.selectedWorkspace) {
           task.workspace_id = this.selectedWorkspace.id;
         }
@@ -904,7 +904,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         // Update workspace activity
         const workspaceId = updatedTask.workspace_id || this.currentWorkspace?.id;
         if (workspaceId) {
-          await updateMatterActivity(workspaceId);
+          await updateWorkspaceActivity(workspaceId);
         }
         
         // Update the task in selectedTask
@@ -928,7 +928,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           // Update workspace activity
           const workspaceId = this.tasks[taskIndex].workspace_id || this.currentWorkspace?.id;
           if (workspaceId) {
-            await updateMatterActivity(workspaceId);
+            await updateWorkspaceActivity(workspaceId);
           }
         }
       },
@@ -942,7 +942,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           // Update workspace activity
           const workspaceId = this.tasks[taskIndex].workspace_id || this.currentWorkspace?.id;
           if (workspaceId) {
-            await updateMatterActivity(workspaceId);
+            await updateWorkspaceActivity(workspaceId);
           }
         }
       },

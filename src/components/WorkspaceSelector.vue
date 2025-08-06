@@ -147,7 +147,7 @@ export default {
       }
     };
 
-    const createMatter = async () => {
+    const createWorkspace = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -268,7 +268,7 @@ export default {
       handleWorkspaceClick(workspace);
     };
 
-    const handleMatterCommand = (command) => {
+    const handleWorkspaceCommand = (command) => {
       if (!selectedWorkspace.value) return;
       
       switch(command) {
@@ -331,9 +331,9 @@ export default {
       dialogVisible,
       searchQuery,
       newWorkspace,
-      createMatter,
+      createWorkspace,
       handleWorkspaceSelect,
-      handleMatterCommand,
+      handleWorkspaceCommand,
       handleWorkspaceClick,
       renderWorkspaceTree,
       flattenTree,
@@ -456,7 +456,7 @@ export default {
         <el-button
           type="primary"
           :disabled="!newWorkspace.title"
-          @click="createMatter">
+          @click="createWorkspace">
           Create Workspace
         </el-button>
       </span>

@@ -15,7 +15,7 @@ export default {
   data() {
     return {
       loading: false,
-      editingMatter: {
+      editingWorkspace: {
         title: this.currentWorkspace?.title || '',
         description: this.currentWorkspace?.description || ''
       },
@@ -105,7 +105,7 @@ export default {
     currentWorkspace: {
       handler(newWorkspace) {
         if (newWorkspace) {
-          this.editingMatter = {
+          this.editingWorkspace = {
             title: newWorkspace.title || '',
             description: newWorkspace.description || ''
           };
@@ -223,13 +223,13 @@ export default {
       }
     },
 
-    async updateMatter() {
+    async updateWorkspace() {
       try {
         const { data, error } = await supabase
           .from('workspaces')
           .update({
-            title: this.editingMatter.title,
-            description: this.editingMatter.description,
+            title: this.editingWorkspace.title,
+            description: this.editingWorkspace.description,
             ai_subtask_enabled: this.aiSettings.subtaskEnabled
           })
           .eq('id', this.currentWorkspace.id)
@@ -266,7 +266,7 @@ export default {
       }
     },
 
-    async shareMatter() {
+    async shareWorkspace() {
       try {
         // Get user ID using the database function
         const { data: userId, error: userError } = await supabase
@@ -891,14 +891,14 @@ export default {
       <!-- Workspace Details Section -->
       <div class="section">
         <h3>Workspace Details</h3>
-        <el-form :model="editingMatter" label-position="top">
+        <el-form :model="editingWorkspace" label-position="top">
           <el-form-item label="Title" required>
-            <el-input v-model="editingMatter.title" />
+            <el-input v-model="editingWorkspace.title" />
           </el-form-item>
           
           <el-form-item label="Description">
             <el-input
-              v-model="editingMatter.description"
+              v-model="editingWorkspace.description"
               type="textarea"
               :rows="3" />
           </el-form-item>
@@ -906,8 +906,8 @@ export default {
           <el-form-item>
             <el-button 
               type="primary"
-              @click="updateMatter"
-              :disabled="!editingMatter.title">
+              @click="updateWorkspace"
+              :disabled="!editingWorkspace.title">
               Save Changes
             </el-button>
           </el-form-item>
@@ -969,7 +969,7 @@ export default {
 
             <el-button 
               type="primary"
-              @click="shareMatter"
+              @click="shareWorkspace"
               :disabled="!newShare.email">
               Share
             </el-button>

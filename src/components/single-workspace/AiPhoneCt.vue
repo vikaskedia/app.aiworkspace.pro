@@ -1639,7 +1639,7 @@ import { storeToRefs } from 'pinia';
 import { useRealtimeMessages } from '../../composables/useRealtimeMessages';
 import { supabase } from '../../supabase';
 import { marked } from 'marked';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
@@ -4354,7 +4354,7 @@ export default {
         if (error) throw error;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         // Clear input and reload notes
         this.newNote = '';
@@ -4464,7 +4464,7 @@ export default {
         this.messageInternalComments[messageId] = (this.messageInternalComments[messageId] || 0) + 1;
         this.$forceUpdate();
         this.newInternalComment[messageId] = '';
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         this.$message.success('Internal comment added successfully');
         await this.loadInternalComments(messageId);
       } catch (error) {

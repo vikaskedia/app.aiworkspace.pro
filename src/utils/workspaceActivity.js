@@ -4,7 +4,7 @@ import { supabase } from '../supabase';
  * Function to record activity for a workspace
  * @param {number} workspaceId - The workspace ID
  */
-export async function updateMatterActivity(workspaceId) {
+export async function updateWorkspaceActivity(workspaceId) {
   try {
     // Get the current logged-in user
     const { data: { user } } = await supabase.auth.getUser();
@@ -69,7 +69,7 @@ export async function updateMatterActivity(workspaceId) {
  * @param {number} workspaceId - The workspace ID
  * @param {number} limit - Number of activities to fetch (default: 10)
  */
-export async function getMatterActivities(workspaceId, limit = 10) {
+export async function getWorkspaceActivities(workspaceId, limit = 10) {
   try {
     const { data, error } = await supabase
       .from('workspace_activities')

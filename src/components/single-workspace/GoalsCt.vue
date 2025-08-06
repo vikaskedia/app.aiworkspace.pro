@@ -7,7 +7,7 @@ import { storeToRefs } from 'pinia';
 import { Edit, ChatLineRound } from '@element-plus/icons-vue';
 import GoalDetailDrawer from './GoalDetailDrawer.vue';
 import goalsAiTaskResponce from '../../../public/goals-ai-task-responce.json';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
@@ -164,7 +164,7 @@ export default {
         this.goals.unshift(data);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -355,7 +355,7 @@ export default {
         goal.statusPopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal status updated successfully');
       } catch (error) {
@@ -394,7 +394,7 @@ export default {
         goal.isEditingTitle = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal title updated successfully');
       } catch (error) {
@@ -415,7 +415,7 @@ export default {
         if (error) throw error;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Progress updated successfully');
       } catch (error) {
@@ -451,7 +451,7 @@ export default {
         goal.isEditingDescription = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal description updated successfully');
       } catch (error) {
@@ -495,7 +495,7 @@ export default {
         goal.priorityPopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Goal priority updated successfully');
       } catch (error) {
@@ -523,7 +523,7 @@ export default {
         goal.dueDatePopoverVisible = false;
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Due date updated successfully');
       } catch (error) {

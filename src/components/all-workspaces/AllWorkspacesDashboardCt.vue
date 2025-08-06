@@ -7,7 +7,7 @@
           active-text="Show Archived"
           inactive-text="Show Active"
         />
-        <el-button id="idOfButtonToCreateNewMatter" type="primary" @click="createMatterDialog = true">
+        <el-button id="idOfButtonToCreateNewWorkspace" type="primary" @click="createWorkspaceDialog = true">
           <el-icon><Plus /></el-icon>
           New Workspace
         </el-button>
@@ -76,13 +76,13 @@
 
     <!-- Create Workspace Dialog -->
     <el-dialog
-      v-model="createMatterDialog"
+      v-model="createWorkspaceDialog"
       title="Create New Workspace"
-      id="idOfDialogToCreateNewMatter"
+      id="idOfDialogToCreateNewWorkspace"
       width="500px">
       <el-form :model="newWorkspace" label-position="top">
         <el-form-item label="Title" required>
-          <el-input id="idOfInputMatterTitle" v-model="newWorkspace.title" placeholder="Enter workspace title" />
+          <el-input id="idOfInputWorkspaceTitle" v-model="newWorkspace.title" placeholder="Enter workspace title" />
         </el-form-item>
         
         <el-form-item label="Description">
@@ -90,19 +90,19 @@
             v-model="newWorkspace.description"
             type="textarea"
             rows="3"
-            id="idOfInputMatterDescription"
+            id="idOfInputWorkspaceDescription"
             placeholder="Enter workspace description" />
         </el-form-item>
       </el-form>
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="createMatterDialog = false">Cancel</el-button>
+          <el-button @click="createWorkspaceDialog = false">Cancel</el-button>
           <el-button
             type="primary"
             :disabled="!newWorkspace.title"
             :loading="loading"
-            @click="createMatter">
+            @click="createWorkspace">
             Create Workspace
           </el-button>
         </span>
@@ -111,17 +111,17 @@
 
     <!-- Edit Workspace Dialog -->
     <el-dialog
-      v-model="editMatterDialog"
+      v-model="editWorkspaceDialog"
       title="Edit Workspace"
       width="500px">
-      <el-form :model="editingMatter" label-position="top">
+      <el-form :model="editingWorkspace" label-position="top">
         <el-form-item label="Title" required>
-          <el-input v-model="editingMatter.title" placeholder="Enter workspace title" />
+          <el-input v-model="editingWorkspace.title" placeholder="Enter workspace title" />
         </el-form-item>
         
         <el-form-item label="Description">
           <el-input
-            v-model="editingMatter.description"
+            v-model="editingWorkspace.description"
             type="textarea"
             rows="3"
             placeholder="Enter workspace description" />
@@ -130,12 +130,12 @@
       
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="editMatterDialog = false">Cancel</el-button>
+          <el-button @click="editWorkspaceDialog = false">Cancel</el-button>
           <el-button
             type="primary"
-            :disabled="!editingMatter.title"
+            :disabled="!editingWorkspace.title"
             :loading="loading"
-            @click="updateMatter">
+            @click="updateWorkspace">
             Save Changes
           </el-button>
         </span>
@@ -167,13 +167,13 @@ export default {
     return {
       workspaces: [],
       loading: false,
-      createMatterDialog: false,
-      editMatterDialog: false,
+      createWorkspaceDialog: false,
+      editWorkspaceDialog: false,
       newWorkspace: {
         title: '',
         description: ''
       },
-      editingMatter: {
+      editingWorkspace: {
         id: null,
         title: '',
         description: ''
@@ -257,7 +257,7 @@ export default {
 
         // Load statistics for each workspace
         const workspacesWithStats = await Promise.all(workspacesWithActivity.map(async (workspace) => {
-          const stats = await this.loadMatterStats(workspace.id);
+          const stats = await this.loadWorkspaceStats(workspace.id);
           return { ...workspace, stats };
         }));
 
@@ -273,7 +273,7 @@ export default {
       }
     },
 
-    async loadMatterStats(workspaceId) {
+    async loadWorkspaceStats(workspaceId) {
       try {
         const [goals, tasks, events] = await Promise.all([
           supabase
@@ -314,7 +314,7 @@ export default {
       return session;
     },
 
-    async createMatter() {
+    async createWorkspace() {
       try {
         await this.ensureValidSession();
         this.loading = true;
@@ -382,7 +382,7 @@ export default {
         // Clear cache when creating new workspace
         this.clearWorkspacesCache();
         
-        this.createMatterDialog = false;
+        this.createWorkspaceDialog = false;
         this.newWorkspace = { title: '', description: '' };
         ElMessage.success('Workspace created successfully');
       } catch (error) {
@@ -396,22 +396,22 @@ export default {
       }
     },
 
-    async updateMatter() {
+    async updateWorkspace() {
       try {
         this.loading = true;
         const { data, error } = await supabase
           .from('workspaces')
           .update({
-            title: this.editingMatter.title,
-            description: this.editingMatter.description
+            title: this.editingWorkspace.title,
+            description: this.editingWorkspace.description
           })
-          .eq('id', this.editingMatter.id)
+          .eq('id', this.editingWorkspace.id)
           .select()
           .single();
 
         if (error) throw error;
 
-        const index = this.workspaces.findIndex(m => m.id === this.editingMatter.id);
+        const index = this.workspaces.findIndex(m => m.id === this.editingWorkspace.id);
         if (index !== -1) {
           this.workspaces[index] = { ...this.workspaces[index], ...data };
         }
@@ -419,7 +419,7 @@ export default {
         // Clear cache when updating workspace
         this.clearWorkspacesCache();
 
-        this.editMatterDialog = false;
+        this.editWorkspaceDialog = false;
         ElMessage.success('Workspace updated successfully');
       } catch (error) {
         ElMessage.error('Error updating workspace: ' + error.message);
@@ -428,7 +428,7 @@ export default {
       }
     },
 
-    async archiveMatter(workspace) {
+    async archiveWorkspace(workspace) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -454,7 +454,7 @@ export default {
       }
     },
 
-    async restoreMatter(workspace) {
+    async restoreWorkspace(workspace) {
       try {
         const { error } = await supabase
           .from('workspaces')
@@ -485,12 +485,12 @@ export default {
           this.router.push(`/single-workspace/${workspace.id}`);
           break;
         case 'edit':
-          this.editingMatter = {
+          this.editingWorkspace = {
             id: workspace.id,
             title: workspace.title,
             description: workspace.description || ''
           };
-          this.editMatterDialog = true;
+          this.editWorkspaceDialog = true;
           break;
         case 'archive':
           ElMessageBox.confirm(
@@ -502,7 +502,7 @@ export default {
               type: 'warning'
             }
           ).then(() => {
-            this.archiveMatter(workspace);
+            this.archiveWorkspace(workspace);
           }).catch(() => {});
           break;
         case 'restore':
@@ -515,7 +515,7 @@ export default {
               type: 'info'
             }
           ).then(() => {
-            this.restoreMatter(workspace);
+            this.restoreWorkspace(workspace);
           }).catch(() => {});
           break;
       }

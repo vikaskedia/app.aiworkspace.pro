@@ -79,7 +79,7 @@
           <template #default="scope">
             <div class="title-with-workspace">
               <div class="event-title">{{ scope.row.title }}
-                <el-tag size="small" type="success">{{ getMatterTitle(scope.row.workspace_id) }}</el-tag>
+                <el-tag size="small" type="success">{{ getWorkspaceTitle(scope.row.workspace_id) }}</el-tag>
               </div>
             </div>
           </template>
@@ -261,7 +261,7 @@ export default {
       };
     },
 
-    getMatterTitle(workspaceId) {
+    getWorkspaceTitle(workspaceId) {
       const workspace = this.workspaces.find(workspace => workspace.id === workspaceId);
       return workspace ? workspace.title : 'Unknown Workspace';
     }

@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import { Edit, Delete } from '@element-plus/icons-vue';
 import ICAL from 'ical.js';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
@@ -109,7 +109,7 @@ export default {
         this.events.push(data[0]);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         this.dialogVisible = false;
         this.resetForm();
@@ -149,7 +149,7 @@ export default {
         this.events = this.events.filter(e => e.id !== event.id);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Event archived successfully');
       } catch (error) {
@@ -270,7 +270,7 @@ export default {
           await this.loadEvents();
           
           // Update workspace activity
-          await updateMatterActivity(this.currentWorkspace.id);
+          await updateWorkspaceActivity(this.currentWorkspace.id);
           
           ElMessage.success(`Successfully synced ${newEventsToInsert.length} new events from Google Calendar`);
         } else {

@@ -5,7 +5,7 @@ import { supabase } from '../../supabase';
 import { ElMessage } from 'element-plus';
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 
 export default {
   name: 'TasksList',
@@ -228,7 +228,7 @@ export default {
         starred: false
       });
     },
-    navigateToMatter(workspaceId) {
+    navigateToWorkspace(workspaceId) {
       if (!workspaceId) return;
       this.$router.push(`/single-workspace/${workspaceId}`);
     },
@@ -335,7 +335,7 @@ export default {
         }
         
         // Update workspace activity
-        await updateMatterActivity(task.workspace_id);
+        await updateWorkspaceActivity(task.workspace_id);
         
         // Emit an event to notify the parent component
         this.$emit('star-toggled', task.id, !task.starred);
@@ -900,7 +900,7 @@ export default {
                       size="small" 
                       type="success" 
                       class="workspace-tag"
-                      @click.stop="navigateToMatter(task.workspace_id)">
+                      @click.stop="navigateToWorkspace(task.workspace_id)">
                       {{ task.workspace_title }}
                     </el-tag>
                   </div>

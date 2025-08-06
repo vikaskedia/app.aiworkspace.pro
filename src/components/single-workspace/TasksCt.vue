@@ -13,7 +13,7 @@ import TaskBoardCt from './TaskBoardCt.vue';
 import { useTaskStore } from '../../store/task';
 import { useUserStore } from '../../store/user';
 import { ref } from 'vue';
-import { updateMatterActivity } from '../../utils/workspaceActivity';
+import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 export default {
@@ -494,7 +494,7 @@ export default {
         this.tasks = this.organizeTasksHierarchy(updatedTasks);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         this.dialogVisible = false;
         this.resetForm();
@@ -716,7 +716,7 @@ export default {
         }
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         this.editDialogVisible = false;
         this.editingTask = null;
@@ -799,7 +799,7 @@ export default {
         await this.loadTasks(this.filters.showDeleted);
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElMessage.success('Task deleted successfully');
       } catch (error) {
@@ -831,7 +831,7 @@ export default {
         await this.loadTasks(this.filters.showDeleted);
         
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
         
         ElMessage.success('Task restored successfully');
       } catch (error) {
@@ -1411,7 +1411,7 @@ export default {
         }
 
         // Update workspace activity
-        await updateMatterActivity(this.currentWorkspace.id);
+        await updateWorkspaceActivity(this.currentWorkspace.id);
 
         ElMessage.success('Task title updated successfully');
       } catch (error) {

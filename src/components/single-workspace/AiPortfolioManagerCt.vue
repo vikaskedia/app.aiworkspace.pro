@@ -87,8 +87,7 @@
                           <el-icon><Edit /></el-icon>
                           Edit portfolio name
                         </el-dropdown-item>
-                        <el-dropdown-item 
-                          v-if="portfolios.length > 1"
+                        <el-dropdown-item
                           :command="{ action: 'archive', portfolio: portfolio }"
                           @click.stop
                           divided>
@@ -1340,10 +1339,10 @@ export default {
     
     // Archive portfolio
     const archivePortfolio = async (portfolioId) => {
-      if (!currentWorkspaceId.value || portfolios.value.length <= 1) {
-        ElMessage.warning('Cannot archive the last portfolio');
-        return;
-      }
+      // if (!currentWorkspaceId.value || portfolios.value.length <= 1) {
+      //   ElMessage.warning('Cannot archive the last portfolio');
+      //   return;
+      // }
       
       try {
         const portfolio = portfolios.value.find(p => p.id === portfolioId);
@@ -1394,6 +1393,10 @@ export default {
         }
         
         ElMessage.success(`Portfolio "${portfolio.name}" archived successfully`);
+
+        // Update URL to reflect the selected portfolio
+        const portfolioUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio`;
+        router.push(portfolioUrl);
         
       } catch (error) {
         if (error === 'cancel') return;

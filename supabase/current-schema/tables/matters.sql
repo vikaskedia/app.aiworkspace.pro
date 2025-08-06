@@ -62,7 +62,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER on_matter_created
+CREATE TRIGGER on_workspace_created
     AFTER INSERT ON workspaces
     FOR EACH ROW
     EXECUTE FUNCTION add_creator_access();

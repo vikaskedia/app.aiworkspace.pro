@@ -525,7 +525,7 @@ export default {
 
         // Generate repo names
         const userRepoName = user.email.replace('@', '-').toLowerCase()
-        const workspaceRepoName = `matter-${Date.now()}`
+        const workspaceRepoName = `workspace-${Date.now()}`
         const emailStorage = `${Date.now()}@associateattorney.ai`
 
         // Create workspace repository in Gitea first

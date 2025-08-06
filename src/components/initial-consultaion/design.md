@@ -30,7 +30,7 @@ The initial consultation system uses AI to conduct an interactive interview with
 #### initial-consultation Table
 userID
 initialConsultationID -> Since one user can have multiple initial consultations, we need to store the consultation ID
-matterID -> While the initial consultation is happening the user may get some files. We need to store the files under the matterID
+workspaceID -> While the initial consultation is happening the user may get some files. We need to store the files under the workspaceID
 jsonOfInterviewQnA -> Since the questions are dynamic we need to store the questions and answers in a json format
 planAcceptedByUserJson -> The plan that the user accepts is stored in a json format. Since it is dynamic we cannot have fields for the plan.
 createdAt

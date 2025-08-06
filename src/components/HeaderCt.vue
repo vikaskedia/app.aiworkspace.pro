@@ -440,7 +440,7 @@ export default {
         <h2 class="section-title">Billing</h2>
       </template>
       <template v-else>
-        <MatterSelector @matter-selected="handleMatterSelect" />
+        <MatterSelector @workspace-selected="handleMatterSelect" />
         <span class="section-divider">/</span>
         <el-dropdown trigger="click" @command="handleMatterCommand">
           <span class="current-section clickable">

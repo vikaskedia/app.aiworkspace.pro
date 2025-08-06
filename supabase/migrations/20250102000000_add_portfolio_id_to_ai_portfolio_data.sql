@@ -31,7 +31,7 @@ SET portfolio_id = 'portfolio_legacy_' || workspace_id || '_' || extract(epoch f
 WHERE portfolio_id IS NULL;
 
 -- Add composite index for efficient queries
-CREATE INDEX IF NOT EXISTS idx_ai_portfolio_data_matter_portfolio 
+CREATE INDEX IF NOT EXISTS idx_ai_portfolio_data_workspace_portfolio 
 ON ai_portfolio_data(workspace_id, portfolio_id);
 
 -- Add index for spreadsheet_id + portfolio_id combination

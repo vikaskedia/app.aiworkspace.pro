@@ -3252,11 +3252,11 @@ export default {
         });
         
         // Check if fromPhone exists in currentWorkspace phone numbers
-        const matterPhoneNumbers = this.currentWorkspace?.phone_numbers || [];
-        const fromPhoneExists = matterPhoneNumbers.some(phone => phone.number === fromPhone);
+        const workspacePhoneNumbers = this.currentWorkspace?.phone_numbers || [];
+        const fromPhoneExists = workspacePhoneNumbers.some(phone => phone.number === fromPhone);
         if (!fromPhoneExists) {
           // Check if toPhone exists in currentWorkspace phone numbers
-          const toPhoneExists = matterPhoneNumbers.some(phone => phone.number === toPhone);
+          const toPhoneExists = workspacePhoneNumbers.some(phone => phone.number === toPhone);
           
           if (toPhoneExists) {
             // Swap fromPhone and toPhone
@@ -4200,7 +4200,7 @@ export default {
       if (contact && contact.created_by) {
         try {
           const { data: userInfo, error } = await supabase
-            .rpc('get_user_info_for_matter', {
+            .rpc('get_user_info_for_workspace', {
               user_ids: [contact.created_by],
               workspace_id_param: this.currentWorkspace.id
             });
@@ -4410,7 +4410,7 @@ export default {
         // Get unique user IDs from comments
         const userIds = [...new Set(comments.map(c => c.created_by))];
         const { data: userInfo, error: userError } = await supabase
-          .rpc('get_user_info_for_matter', {
+          .rpc('get_user_info_for_workspace', {
             user_ids: userIds,
             workspace_id_param: this.currentWorkspace.id
           });
@@ -5060,7 +5060,7 @@ export default {
             
             // Get user information using the function
             const { data: userInfo, error: userError } = await supabase
-              .rpc('get_user_info_for_matter', {
+              .rpc('get_user_info_for_workspace', {
                 user_ids: userIds,
                 workspace_id_param: this.currentWorkspace.id
               });
@@ -5173,7 +5173,7 @@ export default {
       // Get user info for display names
       const userIds = readStatus.map(r => r.user_id);
       const { data: userInfo, error: userError } = await supabase
-        .rpc('get_user_info_for_matter', {
+        .rpc('get_user_info_for_workspace', {
           user_ids: userIds,
           workspace_id_param: this.currentWorkspace.id
         });

@@ -22,7 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_id ON public.conver
 
 CREATE INDEX IF NOT EXISTS idx_conversation_read_status_workspace_id ON public.conversation_read_status USING btree (workspace_id) TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_matter ON public.conversation_read_status USING btree (user_id, workspace_id) TABLESPACE pg_default;
+CREATE INDEX IF NOT EXISTS idx_conversation_read_status_user_workspace ON public.conversation_read_status USING btree (user_id, workspace_id) TABLESPACE pg_default;
 
 -- Create trigger to update updated_at timestamp
 CREATE TRIGGER update_conversation_read_status_updated_at BEFORE

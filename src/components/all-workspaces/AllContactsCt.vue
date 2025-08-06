@@ -22,7 +22,7 @@
             style="width: 300px; margin-right: 1rem;"
           />
           <el-select
-            v-model="selectedMatter"
+            v-model="selectedWorkspace"
             placeholder="Filter by workspace"
             clearable
             style="width: 250px; margin-right: 1rem;"
@@ -192,7 +192,7 @@ export default {
       workspaces: [],
       loading: false,
       searchQuery: '',
-      selectedMatter: null,
+      selectedWorkspace: null,
       selectedTag: null,
       contactDetailsVisible: false,
       selectedContact: null,
@@ -212,7 +212,7 @@ export default {
       return Array.from(allTags).sort();
     },
     hasActiveFilters() {
-      return this.searchQuery || this.selectedMatter || this.selectedTag;
+      return this.searchQuery || this.selectedWorkspace || this.selectedTag;
     },
     filteredContacts() {
       let filtered = this.contacts;
@@ -229,8 +229,8 @@ export default {
       }
 
       // Filter by workspace
-      if (this.selectedMatter) {
-        filtered = filtered.filter(contact => contact.workspace_id === this.selectedMatter);
+      if (this.selectedWorkspace) {
+        filtered = filtered.filter(contact => contact.workspace_id === this.selectedWorkspace);
       }
 
       // Filter by tag
@@ -390,7 +390,7 @@ export default {
 
     clearFilters() {
       this.searchQuery = '';
-      this.selectedMatter = null;
+      this.selectedWorkspace = null;
       this.selectedTag = null;
       this.hasActiveFilters = false;
     }

@@ -440,13 +440,13 @@ export default {
         const giteaHost = import.meta.env.VITE_GITEA_HOST;
         
         // First get the workspace's git repo
-        const { data: workspace, error: matterError } = await supabase
+        const { data: workspace, error: workspaceError } = await supabase
           .from('workspaces')
           .select('git_repo')
           .eq('id', this.task.workspace_id)
           .single();
 
-        if (matterError) {
+        if (workspaceError) {
           throw new Error('Failed to fetch workspace details');
         }
 

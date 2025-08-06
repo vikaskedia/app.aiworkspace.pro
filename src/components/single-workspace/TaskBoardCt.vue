@@ -56,9 +56,9 @@
                     <div v-if="task.isNew" class="new-task-wrapper">
                       <div class="new-task-header">
                         <template v-if="isAllTasksContext">
-                          <el-dropdown trigger="click" @command="(workspace) => { selectedMatter = workspace; updateTaskMatter(task); }">
+                          <el-dropdown trigger="click" @command="(workspace) => { selectedWorkspace = workspace; updateTaskMatter(task); }">
                             <span class="workspace-selector">
-                              {{ selectedMatter?.title || 'Select Workspace' }}
+                              {{ selectedWorkspace?.title || 'Select Workspace' }}
                               <el-icon class="el-icon--right"><CaretBottom /></el-icon>
                             </span>
                             <template #dropdown>
@@ -347,7 +347,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
           type: 'custom',
           assignee: null
         },
-        selectedMatter: null,
+        selectedWorkspace: null,
         timePeriods: {},
         selectedTask: null,
         quickViewVisible: false
@@ -769,7 +769,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
             status: this.groupBy === 'status' ? task.status : 'not_started',
             priority: this.groupBy === 'priority' ? task.priority : 'medium',
             assignee: this.groupBy === 'assignee' ? task.assignee : null,
-            workspace_id: this.isAllTasksContext ? this.selectedMatter?.id : this.currentWorkspace?.id,
+            workspace_id: this.isAllTasksContext ? this.selectedWorkspace?.id : this.currentWorkspace?.id,
             created_by: user.id
           };
 
@@ -809,8 +809,8 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       },
   
       updateTaskMatter(task) {
-        if (this.selectedMatter) {
-          task.workspace_id = this.selectedMatter.id;
+        if (this.selectedWorkspace) {
+          task.workspace_id = this.selectedWorkspace.id;
         }
       },
   
@@ -999,8 +999,8 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
       workspaces: {
         immediate: true,
         handler(workspaces) {
-          if (this.isAllTasksContext && workspaces.length > 0 && !this.selectedMatter) {
-            this.selectedMatter = workspaces[0];
+          if (this.isAllTasksContext && workspaces.length > 0 && !this.selectedWorkspace) {
+            this.selectedWorkspace = workspaces[0];
           }
         }
       },
@@ -1008,7 +1008,7 @@ Monthly: ${formatTimeInMinutes(timePeriods[task.id]?.monthly || 0)}`"
         immediate: true,
         handler(val) {
           if (!this.isAllTasksContext) {
-            this.selectedMatter = val;
+            this.selectedWorkspace = val;
           }
         }
       },

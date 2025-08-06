@@ -21,7 +21,7 @@ ALTER COLUMN portfolio_name SET NOT NULL;
 
 -- Add a unique constraint on the combination of workspace_id and portfolio_id
 ALTER TABLE portfolio_data 
-ADD CONSTRAINT portfolio_data_matter_portfolio_unique 
+ADD CONSTRAINT portfolio_data_workspace_portfolio_unique 
 UNIQUE (workspace_id, portfolio_id);
 
 -- Add portfolio_id to portfolio_analysis_results if it doesn't exist
@@ -40,7 +40,7 @@ WHERE portfolio_id IS NULL;
 
 -- Add index for better performance on portfolio queries
 CREATE INDEX IF NOT EXISTS idx_portfolio_data_portfolio_id ON portfolio_data(portfolio_id);
-CREATE INDEX IF NOT EXISTS idx_portfolio_data_matter_portfolio ON portfolio_data(workspace_id, portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_data_workspace_portfolio ON portfolio_data(workspace_id, portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_analysis_results_portfolio_id ON portfolio_analysis_results(portfolio_id);
 
 -- Update comments

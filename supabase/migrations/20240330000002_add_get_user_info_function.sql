@@ -1,8 +1,8 @@
 -- Drop existing function if it exists to avoid return type conflicts
-DROP FUNCTION IF EXISTS get_user_info_for_matter(UUID[], BIGINT);
+DROP FUNCTION IF EXISTS get_user_info_for_workspace(UUID[], BIGINT);
 
 -- Create a function to get user information for team members within the same workspace
-CREATE FUNCTION get_user_info_for_matter(user_ids UUID[], workspace_id_param BIGINT)
+CREATE FUNCTION get_user_info_for_workspace(user_ids UUID[], workspace_id_param BIGINT)
 RETURNS TABLE (
   user_id UUID,
   email character varying(255),
@@ -43,4 +43,4 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION get_user_info_for_matter(UUID[], BIGINT) TO authenticated; 
+GRANT EXECUTE ON FUNCTION get_user_info_for_workspace(UUID[], BIGINT) TO authenticated; 

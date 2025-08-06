@@ -205,7 +205,7 @@ export default {
             *,
             task:tasks(
               title,
-              matter:workspaces(title)
+              workspace:workspaces(title)
             )
           `)
           .eq('user_id',  user.id)

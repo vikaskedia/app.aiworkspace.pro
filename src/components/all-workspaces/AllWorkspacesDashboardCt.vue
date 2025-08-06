@@ -352,7 +352,7 @@ export default {
         }
 
         // Create workspace in database with repository info
-        const matterData = {
+        const workspaceData = {
           title: this.newMatter.title,
           description: this.newMatter.description,
           created_by: user.id,
@@ -362,7 +362,7 @@ export default {
 
         const { data, error } = await supabase
           .from('workspaces')
-          .insert([matterData])
+          .insert([workspaceData])
           .select()
           .single();
 

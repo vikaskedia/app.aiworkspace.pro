@@ -20,13 +20,13 @@ export default {
     });
 
     // Filter states
-    const selectedMatter = ref('');
+    const selectedWorkspace = ref('');
     const dateRange = ref([]);
     const selectedUser = ref('');
 
     const filteredWorkHours = computed(() => {
       return workHours.value.filter(record => {
-        const matterMatch = !selectedMatter.value || record.workspace_id === selectedMatter.value;
+        const workspaceMatch = !selectedWorkspace.value || record.workspace_id === selectedWorkspace.value;
         const userMatch = !selectedUser.value || record.user_id === selectedUser.value;
         
         // Date range filtering
@@ -39,10 +39,10 @@ export default {
           endDate.setHours(23, 59, 59, 999);
           
           const dateMatch = recordDate >= startDate && recordDate <= endDate;
-          return matterMatch && userMatch && dateMatch;
+          return workspaceMatch && userMatch && dateMatch;
         }
         
-        return matterMatch && userMatch;
+        return workspaceMatch && userMatch;
       });
     });
 
@@ -173,7 +173,7 @@ export default {
       form,
       handleSubmit,
       totalTime,
-      selectedMatter,
+      selectedWorkspace,
       dateRange,
       selectedUser,
       filteredWorkHours
@@ -208,7 +208,7 @@ export default {
         </el-select>
 
         <el-select
-          v-model="selectedMatter"
+          v-model="selectedWorkspace"
           placeholder="Filter by workspace"
           clearable
           style="width: 200px"

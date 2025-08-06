@@ -134,7 +134,7 @@ export async function getUserActivities(userId = null, limit = 20) {
         *,
         workspaces!inner (
           title,
-          matter_number
+          workspace_number
         )
       `)
       .eq('user_id', targetUserId)

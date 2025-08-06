@@ -147,7 +147,7 @@ export default async function handler(req, res) {
         .not('phone_numbers', 'is', null);
       if (workspaceError) throw workspaceError;
       workspaceId = null;
-      let matchedMatter = null;
+      let matchedWorkspace = null;
       for (const workspace of workspaces) {
         if (workspace.phone_numbers && Array.isArray(workspace.phone_numbers)) {
           const phoneMatch = workspace.phone_numbers.find(phone => {
@@ -161,7 +161,7 @@ export default async function handler(req, res) {
           });
           if (phoneMatch) {
             workspaceId = workspace.id;
-            matchedMatter = workspace;
+            matchedWorkspace = workspace;
             break;
           }
         }
@@ -173,11 +173,11 @@ export default async function handler(req, res) {
       }
       // Replace 4-digit phone numbers with full numbers from workspace
       if (parsed.from_phone_number && parsed.from_phone_number.length === 4) {
-        const match = matchedMatter.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.from_phone_number);
+        const match = matchedWorkspace.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.from_phone_number);
         if (match) fullFromPhone = match.number;
       }
       if (parsed.to_phone_number && parsed.to_phone_number.length === 4) {
-        const match = matchedMatter.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.to_phone_number);
+        const match = matchedWorkspace.phone_numbers.find(phone => phone.number && phone.number.slice(-4) === parsed.to_phone_number);
         if (match) fullToPhone = match.number;
       }
       const { data: newConversation, error: createConvError } = await supabase

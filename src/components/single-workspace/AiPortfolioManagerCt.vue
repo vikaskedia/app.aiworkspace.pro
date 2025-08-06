@@ -1795,8 +1795,8 @@ export default {
 
     // Initialize component
     onMounted(async () => {
-      const matterWatcher = watchMatterChanges();
-      matterWatcher.value;
+      const workspaceWatcher = watchMatterChanges();
+      workspaceWatcher.value;
       
       const portfolioWatcher = watchActivePortfolio();
       portfolioWatcher.value;

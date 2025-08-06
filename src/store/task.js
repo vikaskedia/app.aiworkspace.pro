@@ -275,9 +275,9 @@ export const useTaskStore = defineStore('task', {
     getAllCachedTasks() {
       const allTasks = [];
       for (const workspaceId in this.tasks) {
-        const matterTasks = this.getCachedTasks(workspaceId);
-        if (matterTasks) {
-          allTasks.push(...matterTasks);
+        const workspaceTasks = this.getCachedTasks(workspaceId);
+        if (workspaceTasks) {
+          allTasks.push(...workspaceTasks);
         }
       }
       return allTasks.length > 0 ? allTasks : null;

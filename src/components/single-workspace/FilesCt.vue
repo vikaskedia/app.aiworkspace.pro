@@ -94,8 +94,8 @@ const filteredItems = computed(() => {
 });
 
 // Load files when workspace changes
-watch(currentWorkspace, async (newMatter) => {
-  if (newMatter?.id) {
+watch(currentWorkspace, async (newWorkspace) => {
+  if (newWorkspace?.id) {
     // Clear split views when workspace changes
     splitViews.value = [];
     selectedFile.value = null;

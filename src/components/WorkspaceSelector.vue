@@ -22,7 +22,7 @@ export default {
     const selectedWorkspace = ref(null);
     const dialogVisible = ref(false);
     const searchQuery = ref('');
-    const newMatter = ref({
+    const newWorkspace = ref({
       title: '',
       description: '',
       parentWorkspaceId: null
@@ -33,8 +33,8 @@ export default {
     const { currentWorkspace } = storeToRefs(workspaceStore);
 
     // Watch for changes in the store's currentWorkspace
-    watch(currentWorkspace, (newMatter) => {
-      selectedWorkspace.value = newMatter;
+    watch(currentWorkspace, (newWorkspace) => {
+      selectedWorkspace.value = newWorkspace;
     });
 
     // Computed property for filtered workspaces based on search query
@@ -152,7 +152,7 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         
         // Generate repository name - lowercase, no spaces, with timestamp
-        const repoName = `${newMatter.value.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+        const repoName = `${newWorkspace.value.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
         const emailStorage = `${repoName}@associateattorney.ai`;
 
         // Create repository in Gitea
@@ -171,7 +171,7 @@ export default {
             },
             body: JSON.stringify({
               name: repoName,
-              description: newMatter.value.description,
+              description: newWorkspace.value.description,
               private: true,
               auto_init: true
             })
@@ -186,12 +186,12 @@ export default {
         const { data, error } = await supabase
           .from('workspaces')
           .insert([{
-            title: newMatter.value.title,
-            description: newMatter.value.description,
+            title: newWorkspace.value.title,
+            description: newWorkspace.value.description,
             created_by: user.id,
             git_repo: repoName,
             email_storage: emailStorage,
-            parent_workspace_id: newMatter.value.parentWorkspaceId
+            parent_workspace_id: newWorkspace.value.parentWorkspaceId
           }])
           .select()
           .single();
@@ -203,7 +203,7 @@ export default {
         
         // Close dialog and reset form
         dialogVisible.value = false;
-        newMatter.value = { title: '', description: '', parentWorkspaceId: null };
+        newWorkspace.value = { title: '', description: '', parentWorkspaceId: null };
         ElMessage.success('Workspace created successfully');
 
         // Select the newly created workspace
@@ -330,7 +330,7 @@ export default {
       selectedWorkspace,
       dialogVisible,
       searchQuery,
-      newMatter,
+      newWorkspace,
       createMatter,
       handleWorkspaceSelect,
       handleMatterCommand,
@@ -409,14 +409,14 @@ export default {
     v-model="dialogVisible"
     title="Create New Workspace"
     width="500px">
-    <el-form :model="newMatter" label-position="top">
+    <el-form :model="newWorkspace" label-position="top">
       <el-form-item label="Title" required>
-        <el-input v-model="newMatter.title" placeholder="Enter workspace title" />
+        <el-input v-model="newWorkspace.title" placeholder="Enter workspace title" />
       </el-form-item>
       
       <el-form-item label="Description">
         <el-input
-          v-model="newMatter.description"
+          v-model="newWorkspace.description"
           type="textarea"
           rows="3"
           placeholder="Enter workspace description" />
@@ -424,7 +424,7 @@ export default {
       
       <el-form-item label="Parent Workspace (Optional)">
         <el-select 
-          v-model="newMatter.parentWorkspaceId" 
+          v-model="newWorkspace.parentWorkspaceId" 
           placeholder="Select parent workspace"
           clearable
           style="width: 100%">
@@ -455,7 +455,7 @@ export default {
         <el-button @click="dialogVisible = false">Cancel</el-button>
         <el-button
           type="primary"
-          :disabled="!newMatter.title"
+          :disabled="!newWorkspace.title"
           @click="createMatter">
           Create Workspace
         </el-button>

@@ -103,22 +103,22 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      handler(newMatter) {
-        if (newMatter) {
+      handler(newWorkspace) {
+        if (newWorkspace) {
           this.editingMatter = {
-            title: newMatter.title || '',
-            description: newMatter.description || ''
+            title: newWorkspace.title || '',
+            description: newWorkspace.description || ''
           };
-          this.gitSettings.repoName = newMatter.git_repo || '';
-          this.calendarSettings.calendarId = newMatter.google_calendar_id || '';
-          this.emailSettings.address = newMatter.email_storage || '';
+          this.gitSettings.repoName = newWorkspace.git_repo || '';
+          this.calendarSettings.calendarId = newWorkspace.google_calendar_id || '';
+          this.emailSettings.address = newWorkspace.email_storage || '';
           this.loadSharedUsers();
           this.loadCustomFields();
           this.loadTelegramGroups();
           this.loadPhoneNumbers();
           this.loadPhoneTextActions();
           this.loadAvailableWorkspaces();
-          this.parentWorkspace.id = newMatter?.parent_workspace_id || null;
+          this.parentWorkspace.id = newWorkspace?.parent_workspace_id || null;
           
           // Ensure faxNumbers is initialized
           if (!this.faxNumbers) {

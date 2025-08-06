@@ -149,8 +149,8 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      handler(newMatter) {
-        if (newMatter) {
+      handler(newWorkspace) {
+        if (newWorkspace) {
           this.loadDashboardData();
         } else {
           this.recentGoals = [];

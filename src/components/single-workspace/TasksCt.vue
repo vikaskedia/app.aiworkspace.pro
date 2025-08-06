@@ -108,8 +108,8 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      async handler(newMatter) {
-        if (newMatter && this.isInitialLoad) {
+      async handler(newWorkspace) {
+        if (newWorkspace && this.isInitialLoad) {
           this.isInitialLoad = false;
 
           await Promise.all([
@@ -119,7 +119,7 @@ export default {
           ]);
           this.setupRealtimeSubscription();
           this.updatePageTitle();
-        } else if (newMatter) {
+        } else if (newWorkspace) {
           // When workspace changes, reload tasks and shared users
           await Promise.all([
             this.loadTasks(),

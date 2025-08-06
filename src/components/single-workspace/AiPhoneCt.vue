@@ -2492,8 +2492,8 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      handler(newMatter) {
-        if (newMatter && newMatter.id) {
+      handler(newWorkspace) {
+        if (newWorkspace && newWorkspace.id) {
           this.loadWorkspaceContacts().then(() => {
             this.loadPhoneTextActions();
             this.loadMessageCounts();

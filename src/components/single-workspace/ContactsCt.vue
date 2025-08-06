@@ -421,10 +421,10 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      handler(newMatter, oldMatter) {
-        if (newMatter) {
+      handler(newWorkspace, oldWorkspace) {
+        if (newWorkspace) {
           this.loadContacts();
-          if (!oldMatter) {
+          if (!oldWorkspace) {
             this.setupRealtimeSubscription();
           }
         } else {

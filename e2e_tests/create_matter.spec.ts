@@ -57,13 +57,13 @@ test('Create workspace after login and edit it', async ({ page }) => {
     await workspaceGrid.waitFor({ state: 'visible', timeout: 10000 });
 
     // Verify the new workspace appears in the list
-    const newMatter = workspaceGrid.locator(`.workspace-card h3:has-text("${workspaceTitle}")`);
-    await expect(newMatter).toBeVisible();
+    const newWorkspace = workspaceGrid.locator(`.workspace-card h3:has-text("${workspaceTitle}")`);
+    await expect(newWorkspace).toBeVisible();
 
     console.log(`✅ Workspace "${workspaceTitle}" successfully created and found in the list.`);
 
     // Locate and click the button next to the correct workspace title
-    const buttonToClick = newMatter.locator('..').locator('.el-dropdown button'); // Move to parent and find button
+    const buttonToClick = newWorkspace.locator('..').locator('.el-dropdown button'); // Move to parent and find button
     await buttonToClick.waitFor({ state: 'visible', timeout: 5000 });
     await buttonToClick.click();
 

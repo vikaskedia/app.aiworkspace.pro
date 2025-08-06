@@ -46,8 +46,8 @@ export default {
   },
   watch: {
     currentWorkspace: {
-      handler(newMatter) {
-        if (newMatter) {
+      handler(newWorkspace) {
+        if (newWorkspace) {
           this.loadEvents();
         } else {
           this.events = [];

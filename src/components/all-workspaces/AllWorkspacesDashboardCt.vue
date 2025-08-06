@@ -80,14 +80,14 @@
       title="Create New Workspace"
       id="idOfDialogToCreateNewMatter"
       width="500px">
-      <el-form :model="newMatter" label-position="top">
+      <el-form :model="newWorkspace" label-position="top">
         <el-form-item label="Title" required>
-          <el-input id="idOfInputMatterTitle" v-model="newMatter.title" placeholder="Enter workspace title" />
+          <el-input id="idOfInputMatterTitle" v-model="newWorkspace.title" placeholder="Enter workspace title" />
         </el-form-item>
         
         <el-form-item label="Description">
           <el-input
-            v-model="newMatter.description"
+            v-model="newWorkspace.description"
             type="textarea"
             rows="3"
             id="idOfInputMatterDescription"
@@ -100,7 +100,7 @@
           <el-button @click="createMatterDialog = false">Cancel</el-button>
           <el-button
             type="primary"
-            :disabled="!newMatter.title"
+            :disabled="!newWorkspace.title"
             :loading="loading"
             @click="createMatter">
             Create Workspace
@@ -169,7 +169,7 @@ export default {
       loading: false,
       createMatterDialog: false,
       editMatterDialog: false,
-      newMatter: {
+      newWorkspace: {
         title: '',
         description: ''
       },
@@ -321,7 +321,7 @@ export default {
         const { data: { user } } = await supabase.auth.getUser();
         
         // Generate repository name - lowercase, no spaces, with timestamp
-        const repoName = `${this.newMatter.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+        const repoName = `${this.newWorkspace.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
         const emailStorage = `${repoName}@associateattorney.ai`;
 
         // Create repository in Gitea
@@ -340,7 +340,7 @@ export default {
             },
             body: JSON.stringify({
               name: repoName,
-              description: this.newMatter.description,
+              description: this.newWorkspace.description,
               private: true,
               auto_init: true
             })
@@ -353,8 +353,8 @@ export default {
 
         // Create workspace in database with repository info
         const workspaceData = {
-          title: this.newMatter.title,
-          description: this.newMatter.description,
+          title: this.newWorkspace.title,
+          description: this.newWorkspace.description,
           created_by: user.id,
           git_repo: repoName,
           email_storage: emailStorage
@@ -383,7 +383,7 @@ export default {
         this.clearWorkspacesCache();
         
         this.createMatterDialog = false;
-        this.newMatter = { title: '', description: '' };
+        this.newWorkspace = { title: '', description: '' };
         ElMessage.success('Workspace created successfully');
       } catch (error) {
         if (error.message.includes('JWT')) {

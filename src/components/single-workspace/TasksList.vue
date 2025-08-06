@@ -848,7 +848,6 @@ export default {
         <span>Title</span>
       </div>
       <div class="header-metadata">
-        <span>Workspace</span>
         <span>Status</span>
         <span>Assignee</span>
         <span>Priority</span>
@@ -872,7 +871,7 @@ export default {
               <div 
                 v-if="hasChildren(task)"
                 class="expand-button"
-                @click.stop="toggleExpand(task.id)">
+                @click.stop.prevent="toggleExpand(task.id)">
                 <el-icon :class="['expand-icon', { 'is-expanded': isExpanded(task.id) }]">
                   <ArrowRight />
                 </el-icon>
@@ -915,8 +914,8 @@ export default {
                   <el-tooltip content="Quick view" placement="top">
                     <el-icon class="action-icon view" @click="handleViewClick($event, task)"><View /></el-icon>
                   </el-tooltip>
-                  <el-icon class="action-icon" @click.stop="startEditing(task, 'title')"><Edit /></el-icon>
-                  <el-icon class="action-icon delete" @click.stop="handleAction('delete', task)"><Delete /></el-icon>
+                  <el-icon class="action-icon" @click.stop.prevent="startEditing(task, 'title')"><Edit /></el-icon>
+                  <el-icon class="action-icon delete" @click.stop.prevent="handleAction('delete', task)"><Delete /></el-icon>
                 </div>
               </div>
 
@@ -927,21 +926,13 @@ export default {
                   </div>
                 </div>
                 <div class="task-metadata">
-                  <!-- Workspace -->
-                  <el-tag
-                    v-if="task.workspace_title"
-                    type="success"
-                    size="small"
-                    class="workspace-tag">
-                    <span>{{ task.workspace_title }}</span>
-                  </el-tag>
-                  
+
                   <!-- Status -->
                   <el-tag
                     :type="getStatusType(task)"
                     size="small"
                     class="status-tag clickable"
-                    @click.stop="startEditing(task, 'status', $event)">
+                    @click.stop.prevent="startEditing(task, 'status', $event)">
                     <span>{{ formatStatus(task.status) }}</span>
                   </el-tag>
 
@@ -954,7 +945,7 @@ export default {
                         <div 
                           class="assignee-badge clickable"
                           :style="{ backgroundColor: getAssigneeColor(task.assignee) }"
-                          @click.stop="startEditing(task, 'assignee', $event)">
+                          @click.stop.prevent="startEditing(task, 'assignee', $event)">
                           {{ sharedUsers.find(u => u.id === task.assignee)?.email.charAt(0).toUpperCase() }}
                         </div>
                       </el-tooltip>
@@ -963,7 +954,7 @@ export default {
                       <el-tooltip content="Assign task" placement="top">
                         <div 
                           class="assignee-badge unassigned clickable"
-                          @click.stop="startEditing(task, 'assignee', $event)">
+                          @click.stop.prevent="startEditing(task, 'assignee', $event)">
                           <el-icon><Plus /></el-icon>
                         </div>
                       </el-tooltip>
@@ -975,7 +966,7 @@ export default {
                     :type="getPriorityType(task.priority)"
                     size="small"
                     class="priority-tag clickable"
-                    @click.stop="startEditing(task, 'priority', $event)">
+                    @click.stop.prevent="startEditing(task, 'priority', $event)">
                     <span>{{ task.priority || 'No priority' }}</span>
                   </el-tag>
 
@@ -984,7 +975,7 @@ export default {
                       :type="getDueDateType(task)"
                       size="small"
                       class="due-date-tag clickable"
-                      @click.stop="startEditing(task, 'due_date', $event)">
+                      @click.stop.prevent="startEditing(task, 'due_date', $event)">
                       <el-icon><Calendar /></el-icon>
                       {{ formatDueDate(task.due_date) }}
                     </el-tag>
@@ -992,7 +983,7 @@ export default {
                   <template v-else>
                     <div 
                       class="due-date-empty clickable"
-                      @click.stop="startEditing(task, 'due_date', $event)">
+                      @click.stop.prevent="startEditing(task, 'due_date', $event)">
                       <el-icon><Calendar /></el-icon>
                       <span>No due date</span>
                     </div>
@@ -1018,7 +1009,7 @@ export default {
                     <div 
                       v-if="hasChildren(childTask)"
                       class="expand-button"
-                      @click.stop="toggleExpand(childTask.id)">
+                      @click.stop.prevent="toggleExpand(childTask.id)">
                       <el-icon :class="['expand-icon', { 'is-expanded': isExpanded(childTask.id) }]">
                         <ArrowRight />
                       </el-icon>
@@ -1052,27 +1043,18 @@ export default {
                         <el-tooltip content="Quick view" placement="top">
                           <el-icon class="action-icon view" @click="handleViewClick($event, childTask)"><View /></el-icon>
                         </el-tooltip>
-                        <el-icon class="action-icon" @click.stop="startEditing(childTask, 'title')"><Edit /></el-icon>
-                        <el-icon class="action-icon delete" @click.stop="handleAction('delete', childTask)"><Delete /></el-icon>
+                        <el-icon class="action-icon" @click.stop.prevent="startEditing(childTask, 'title')"><Edit /></el-icon>
+                        <el-icon class="action-icon delete" @click.stop.prevent="handleAction('delete', childTask)"><Delete /></el-icon>
                       </div>
                     </div>
 
                     <div class="metadata-scroll-container">
                       <div class="task-metadata">
-                        <!-- Workspace -->
-                        <el-tag
-                          v-if="childTask.workspace_title"
-                          type="success"
-                          size="small"
-                          class="workspace-tag">
-                          <span>{{ childTask.workspace_title }}</span>
-                        </el-tag>
-                        
                         <el-tag
                           :type="getStatusType(childTask)"
                           size="small"
                           class="status-tag clickable"
-                          @click.stop="startEditing(childTask, 'status', $event)">
+                          @click.stop.prevent="startEditing(childTask, 'status', $event)">
                           <span>{{ formatStatus(childTask.status) }}</span>
                         </el-tag>
 
@@ -1081,21 +1063,21 @@ export default {
                             <el-tooltip
                               :content="sharedUsers.find(u => u.id === childTask.assignee)?.email"
                               placement="top">
-                              <div 
-                                class="assignee-badge clickable"
-                                :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
-                                @click.stop="startEditing(childTask, 'assignee', $event)">
-                                {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
-                              </div>
+                                                          <div 
+                              class="assignee-badge clickable"
+                              :style="{ backgroundColor: getAssigneeColor(childTask.assignee) }"
+                              @click.stop.prevent="startEditing(childTask, 'assignee', $event)">
+                              {{ sharedUsers.find(u => u.id === childTask.assignee)?.email.charAt(0).toUpperCase() }}
+                            </div>
                             </el-tooltip>
                           </template>
                           <template v-else>
                             <el-tooltip content="Assign task" placement="top">
-                              <div 
-                                class="assignee-badge unassigned clickable"
-                                @click.stop="startEditing(childTask, 'assignee', $event)">
-                                <el-icon><Plus /></el-icon>
-                              </div>
+                                                          <div 
+                              class="assignee-badge unassigned clickable"
+                              @click.stop.prevent="startEditing(childTask, 'assignee', $event)">
+                              <el-icon><Plus /></el-icon>
+                            </div>
                             </el-tooltip>
                           </template>
                         </div>
@@ -1104,7 +1086,7 @@ export default {
                           :type="getPriorityType(childTask.priority)"
                           size="small"
                           class="priority-tag clickable"
-                          @click.stop="startEditing(childTask, 'priority', $event)">
+                          @click.stop.prevent="startEditing(childTask, 'priority', $event)">
                           <span>{{ childTask.priority || 'No priority' }}</span>
                         </el-tag>
 
@@ -1113,7 +1095,7 @@ export default {
                             :type="getDueDateType(childTask)"
                             size="small"
                             class="due-date-tag clickable"
-                            @click.stop="startEditing(childTask, 'due_date', $event)">
+                            @click.stop.prevent="startEditing(childTask, 'due_date', $event)">
                             <el-icon><Calendar /></el-icon>
                             {{ formatDueDate(childTask.due_date) }}
                           </el-tag>
@@ -1121,7 +1103,7 @@ export default {
                         <template v-else>
                           <div 
                             class="due-date-empty clickable"
-                            @click.stop="startEditing(childTask, 'due_date', $event)">
+                            @click.stop.prevent="startEditing(childTask, 'due_date', $event)">
                             <el-icon><Calendar /></el-icon>
                             <span>No due date</span>
                           </div>
@@ -1171,27 +1153,18 @@ export default {
                               <el-tooltip content="Quick view" placement="top">
                                 <el-icon class="action-icon view" @click="handleViewClick($event, grandChildTask)"><View /></el-icon>
                               </el-tooltip>
-                              <el-icon class="action-icon" @click.stop="startEditing(grandChildTask, 'title')"><Edit /></el-icon>
-                              <el-icon class="action-icon delete" @click.stop="handleAction('delete', grandChildTask)"><Delete /></el-icon>
+                              <el-icon class="action-icon" @click.stop.prevent="startEditing(grandChildTask, 'title')"><Edit /></el-icon>
+                              <el-icon class="action-icon delete" @click.stop.prevent="handleAction('delete', grandChildTask)"><Delete /></el-icon>
                             </div>
                           </div>
 
                           <div class="metadata-scroll-container">
                             <div class="task-metadata">
-                              <!-- Workspace -->
-                              <el-tag
-                                v-if="grandChildTask.workspace_title"
-                                type="success"
-                                size="small"
-                                class="workspace-tag">
-                                <span>{{ grandChildTask.workspace_title }}</span>
-                              </el-tag>
-                              
                               <el-tag
                                 :type="getStatusType(grandChildTask)"
                                 size="small"
                                 class="status-tag clickable"
-                                @click.stop="startEditing(grandChildTask, 'status', $event)">
+                                @click.stop.prevent="startEditing(grandChildTask, 'status', $event)">
                                 <span>{{ formatStatus(grandChildTask.status) }}</span>
                               </el-tag>
 
@@ -1200,21 +1173,21 @@ export default {
                                   <el-tooltip
                                     :content="sharedUsers.find(u => u.id === grandChildTask.assignee)?.email"
                                     placement="top">
-                                    <div 
-                                      class="assignee-badge clickable"
-                                      :style="{ backgroundColor: getAssigneeColor(grandChildTask.assignee) }"
-                                      @click.stop="startEditing(grandChildTask, 'assignee', $event)">
-                                      {{ sharedUsers.find(u => u.id === grandChildTask.assignee)?.email.charAt(0).toUpperCase() }}
-                                    </div>
+                                                                    <div 
+                                  class="assignee-badge clickable"
+                                  :style="{ backgroundColor: getAssigneeColor(grandChildTask.assignee) }"
+                                  @click.stop.prevent="startEditing(grandChildTask, 'assignee', $event)">
+                                  {{ sharedUsers.find(u => u.id === grandChildTask.assignee)?.email.charAt(0).toUpperCase() }}
+                                </div>
                                   </el-tooltip>
                                 </template>
                                 <template v-else>
                                   <el-tooltip content="Assign task" placement="top">
-                                    <div 
-                                      class="assignee-badge unassigned clickable"
-                                      @click.stop="startEditing(grandChildTask, 'assignee', $event)">
-                                      <el-icon><Plus /></el-icon>
-                                    </div>
+                                                                    <div 
+                                  class="assignee-badge unassigned clickable"
+                                  @click.stop.prevent="startEditing(grandChildTask, 'assignee', $event)">
+                                  <el-icon><Plus /></el-icon>
+                                </div>
                                   </el-tooltip>
                                 </template>
                               </div>
@@ -1223,7 +1196,7 @@ export default {
                                 :type="getPriorityType(grandChildTask.priority)"
                                 size="small"
                                 class="priority-tag clickable"
-                                @click.stop="startEditing(grandChildTask, 'priority', $event)">
+                                @click.stop.prevent="startEditing(grandChildTask, 'priority', $event)">
                                 <span>{{ grandChildTask.priority || 'No priority' }}</span>
                               </el-tag>
 
@@ -1232,7 +1205,7 @@ export default {
                                   :type="getDueDateType(grandChildTask)"
                                   size="small"
                                   class="due-date-tag clickable"
-                                  @click.stop="startEditing(grandChildTask, 'due_date', $event)">
+                                  @click.stop.prevent="startEditing(grandChildTask, 'due_date', $event)">
                                   <el-icon><Calendar /></el-icon>
                                   {{ formatDueDate(grandChildTask.due_date) }}
                                 </el-tag>
@@ -1240,7 +1213,7 @@ export default {
                               <template v-else>
                                 <div 
                                   class="due-date-empty clickable"
-                                  @click.stop="startEditing(grandChildTask, 'due_date', $event)">
+                                  @click.stop.prevent="startEditing(grandChildTask, 'due_date', $event)">
                                   <el-icon><Calendar /></el-icon>
                                   <span>No due date</span>
                                 </div>

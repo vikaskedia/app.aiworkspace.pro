@@ -2314,6 +2314,15 @@ export default {
           }
         });
 
+        // Add user IDs from edit history
+        if (this.task.edit_history) {
+        this.task.edit_history.forEach(history => {
+          if (history.edited_by && !this.userEmails[history.edited_by]) {
+              userIds.add(history.edited_by);
+            }
+          });
+        }
+
         // Load all user emails in parallel
         const emailPromises = Array.from(userIds).map(async (userId) => {
           try {
@@ -2332,7 +2341,6 @@ export default {
         console.error('Error loading user emails:', error);
       }
     },
-
     async loadComments() {
       try {
         this.commentsLoading = true;

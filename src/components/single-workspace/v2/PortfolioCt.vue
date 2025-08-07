@@ -133,6 +133,12 @@
                 :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
                 :portfolio-id="portfolio.id"
                 :readonly="getPortfolioReadonlyState(portfolio.id)"
+                :sheet-registry="{
+                  register: registerSheet,
+                  unregister: unregisterSheet,
+                  getByName: getSheetByName,
+                  getAll: getAllSheets
+                }"
                 @remove-spreadsheet="removeSpreadsheet"
               />
             </div>
@@ -579,6 +585,47 @@ setup(props) {
   // Real-time subscription for collaborative editing
   let editingSubscription = null;
   const currentEditor = ref({}); // Track who is currently editing each portfolio
+  
+  // Global sheet registry for cross-sheet references
+  const sheetRegistry = ref(new Map()); // Map<spreadsheetId, { name, getData, getCell, univerAPI }>
+  
+  // Sheet registry management functions
+  const registerSheet = (spreadsheetId, name, getData, getCell, univerAPI) => {
+    console.log(`📊 Registering sheet: ${name} (${spreadsheetId})`);
+    sheetRegistry.value.set(spreadsheetId, {
+      name: name.trim(),
+      getData,
+      getCell,
+      univerAPI,
+      lastUpdated: Date.now()
+    });
+    console.log(`✅ Sheet registry now contains: ${Array.from(sheetRegistry.value.keys()).map(id => sheetRegistry.value.get(id).name).join(', ')}`);
+  };
+  
+  const unregisterSheet = (spreadsheetId) => {
+    const sheet = sheetRegistry.value.get(spreadsheetId);
+    if (sheet) {
+      console.log(`📊 Unregistering sheet: ${sheet.name} (${spreadsheetId})`);
+      sheetRegistry.value.delete(spreadsheetId);
+    }
+  };
+  
+  const getSheetByName = (name) => {
+    const trimmedName = name.trim();
+    for (const [id, sheet] of sheetRegistry.value.entries()) {
+      if (sheet.name === trimmedName) {
+        return { id, ...sheet };
+      }
+    }
+    return null;
+  };
+  
+  const getAllSheets = () => {
+    return Array.from(sheetRegistry.value.entries()).map(([id, sheet]) => ({
+      id,
+      ...sheet
+    }));
+  };
 
   // Setup real-time subscription for collaborative editing
   const setupEditingSubscription = () => {
@@ -1876,7 +1923,13 @@ const getChildWorkspacePortfolios = async () => {
       loadAvailableWorkspaces,
       handleWorkspaceSelection,
       resetMoveDialog,
-      confirmMovePortfolio
+      confirmMovePortfolio,
+      // Sheet registry for cross-sheet references
+      sheetRegistry,
+      registerSheet,
+      unregisterSheet,
+      getSheetByName,
+      getAllSheets
   };
 },
 };

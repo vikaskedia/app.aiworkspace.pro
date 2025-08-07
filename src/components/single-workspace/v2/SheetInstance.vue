@@ -201,6 +201,11 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
       readonly: {
         type: Boolean,
         default: false
+      },
+      sheetRegistry: {
+        type: Object,
+        required: false,
+        default: null
       }
     })
 
@@ -1411,6 +1416,280 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // Cache to prevent re-processing the same formula repeatedly
         const apiCallCache = new Map();
         
+        // Cross-sheet reference cache to prevent re-processing
+        const sheetRefCache = new Map();
+        
+        // SHEETREF formula processor - references cells from other sheet instances
+        const processSheetRefFormulas = async () => {
+          try {
+            if (!props.sheetRegistry) {
+              // No registry available, skip processing
+              return;
+            }
+            
+            const currentData = getCurrentSpreadsheetData();
+            if (!currentData || !currentData.sheets) return;
+            
+            let processedCount = 0;
+            let needsReload = false;
+            
+            // Helper function to parse cell reference (e.g., "A4", "B5", "A2")
+            const parseCellReference = (cellRef) => {
+              const match = cellRef.match(/^([A-Z]+)(\d+)$/);
+              if (!match) return null;
+              
+              const columnStr = match[1];
+              const row = parseInt(match[2]) - 1; // Convert to 0-based
+              
+              // Convert column string to number (A=0, B=1, ..., Z=25, AA=26, etc.)
+              let col = 0;
+              for (let i = 0; i < columnStr.length; i++) {
+                col = col * 26 + (columnStr.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+              }
+              col = col - 1; // Convert to 0-based
+              
+              return { row, col };
+            };
+            
+            // Process each sheet
+            for (const sheetId of Object.keys(currentData.sheets)) {
+              const sheet = currentData.sheets[sheetId];
+              if (!sheet.cellData) continue;
+              
+              // Process each row
+              for (const row of Object.keys(sheet.cellData)) {
+                // Process each column
+                for (const col of Object.keys(sheet.cellData[row])) {
+                  const cell = sheet.cellData[row][col];
+                  if (cell && cell.f && typeof cell.f === 'string') {
+                    const formula = cell.f.trim();
+                    
+                    // Match SHEETREF("SheetName", "CellRef") pattern - single reference
+                    const singleSheetRefMatch = formula.match(/^=SHEETREF\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
+                    
+                    // Match formulas containing multiple SHEETREF functions with arithmetic operations
+                    const multiSheetRefMatch = formula.match(/^=(.+)$/i);
+                    const hasMultipleSheetRef = multiSheetRefMatch && formula.includes('SHEETREF') && (formula.includes('+') || formula.includes('-') || formula.includes('*') || formula.includes('/') || formula.includes('SUM'));
+                    
+                    if (singleSheetRefMatch) {
+                      const sheetName = singleSheetRefMatch[1];
+                      const cellRef = singleSheetRefMatch[2];
+                      
+                      // Create cache key to prevent re-processing the same formula
+                      const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
+                      const now = Date.now();
+                      const cacheEntry = sheetRefCache.get(cacheKey);
+                      
+                      // Skip if processed within the last 5 seconds
+                      if (cacheEntry && (now - cacheEntry.timestamp) < 5000) {
+                        continue;
+                      }
+                      
+                      try {
+                        console.log(`🔗 Processing SHEETREF("${sheetName}", "${cellRef}") at [${row}, ${col}] (${props.spreadsheetId})`);
+                        
+                        // Parse cell reference
+                        const parsedCell = parseCellReference(cellRef);
+                        if (!parsedCell) {
+                          throw new Error(`Invalid cell reference: ${cellRef}`);
+                        }
+                        
+                        // Find the target sheet in registry
+                        const targetSheet = props.sheetRegistry.getByName(sheetName);
+                        if (!targetSheet) {
+                          throw new Error(`Sheet "${sheetName}" not found. Available sheets: ${props.sheetRegistry.getAll().map(s => s.name).join(', ')}`);
+                        }
+                        
+                        // Get cell value from target sheet
+                        const cellValue = targetSheet.getCell(parsedCell.row, parsedCell.col);
+                        console.log(`📊 SHEETREF: Got value "${cellValue}" from ${sheetName}!${cellRef} [${parsedCell.row}, ${parsedCell.col}]`);
+                        
+                        // Update current cell with the referenced value
+                        const oldValue = cell.v;
+                        cell.v = cellValue !== undefined && cellValue !== null ? String(cellValue) : '';
+                        // Keep cell.f - don't delete the formula so it behaves like other formulas
+                        
+                        console.log(`✅ Processed SHEETREF(${sheetName}, ${cellRef}) → "${cell.v}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                        console.log(`📝 Cell update: "${oldValue}" → "${cell.v}" | Formula kept: ${!!cell.f}`);
+                        
+                        // Cache this result for 5 seconds
+                        sheetRefCache.set(cacheKey, { timestamp: now, status: 'processed' });
+                        
+                        processedCount++;
+                        needsReload = true;
+                        
+                      } catch (sheetRefError) {
+                        console.error(`❌ SHEETREF Error for ${sheetName}!${cellRef}:`, sheetRefError);
+                        
+                        // Update cell with error message but keep formula
+                        cell.v = `Error: ${sheetRefError.message || 'Sheet reference failed'}`;
+                        // Keep cell.f - don't delete the formula
+                        
+                        // Cache this error for 5 seconds to prevent repeated failed calls
+                        sheetRefCache.set(cacheKey, { timestamp: now, status: 'error' });
+                        
+                        processedCount++;
+                        needsReload = true;
+                      }
+                    } else if (hasMultipleSheetRef) {
+                      // Handle formulas with multiple SHEETREF functions
+                      const formulaExpression = multiSheetRefMatch[1];
+                      
+                      // Create cache key to prevent re-processing the same formula
+                      const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
+                      const now = Date.now();
+                      const cacheEntry = sheetRefCache.get(cacheKey);
+                      
+                      // Skip if processed within the last 5 seconds
+                      if (cacheEntry && (now - cacheEntry.timestamp) < 5000) {
+                        continue;
+                      }
+                      
+                      try {
+                        console.log(`🔗 Processing multi-SHEETREF formula: ${formula} at [${row}, ${col}] (${props.spreadsheetId})`);
+                        
+                        // Find all SHEETREF calls in the formula
+                        const sheetRefCalls = formulaExpression.match(/SHEETREF\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/gi);
+                        
+                        if (!sheetRefCalls || sheetRefCalls.length === 0) {
+                          throw new Error('No valid SHEETREF functions found in formula');
+                        }
+                        
+                        // Replace each SHEETREF with its actual value
+                        let processedFormula = formulaExpression;
+                        
+                        for (const sheetRefCall of sheetRefCalls) {
+                          const match = sheetRefCall.match(/SHEETREF\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)/i);
+                          if (match) {
+                            const sheetName = match[1];
+                            const cellRef = match[2];
+                            
+                            // Parse cell reference
+                            const parsedCell = parseCellReference(cellRef);
+                            if (!parsedCell) {
+                              throw new Error(`Invalid cell reference: ${cellRef}`);
+                            }
+                            
+                            // Find the target sheet in registry
+                            const targetSheet = props.sheetRegistry.getByName(sheetName);
+                            if (!targetSheet) {
+                              throw new Error(`Sheet "${sheetName}" not found. Available sheets: ${props.sheetRegistry.getAll().map(s => s.name).join(', ')}`);
+                            }
+                            
+                            // Get cell value from target sheet
+                            const cellValue = targetSheet.getCell(parsedCell.row, parsedCell.col);
+                            const numericValue = cellValue !== undefined && cellValue !== null ? parseFloat(cellValue) || 0 : 0;
+                            
+                            console.log(`📊 SHEETREF: Got value "${cellValue}" (${numericValue}) from ${sheetName}!${cellRef} [${parsedCell.row}, ${parsedCell.col}]`);
+                            
+                            // Replace the SHEETREF call with the numeric value
+                            processedFormula = processedFormula.replace(sheetRefCall, numericValue);
+                          }
+                        }
+                        
+                        console.log(`🧮 Evaluating expression: ${processedFormula}`);
+                        
+                        // Evaluate the mathematical expression
+                        let result;
+                        try {
+                          // Simple and safe evaluation for basic arithmetic
+                          // Remove any potential harmful code and only allow numbers, operators, and SUM/parentheses
+                          const sanitizedFormula = processedFormula.replace(/[^0-9+\-*/().\s]/g, '');
+                          
+                          // Handle SUM function if present
+                          if (formulaExpression.includes('SUM(')) {
+                            // For SUM, extract the content inside parentheses and evaluate
+                            const sumMatch = processedFormula.match(/SUM\(([^)]+)\)/i);
+                            if (sumMatch) {
+                              const sumContent = sumMatch[1];
+                              result = eval(sumContent);
+                            } else {
+                              result = eval(sanitizedFormula);
+                            }
+                          } else {
+                            result = eval(sanitizedFormula);
+                          }
+                        } catch (evalError) {
+                          throw new Error(`Cannot evaluate expression: ${processedFormula}. Error: ${evalError.message}`);
+                        }
+                        
+                        // Update current cell with the calculated result
+                        const oldValue = cell.v;
+                        cell.v = result !== undefined && result !== null ? String(result) : '';
+                        // Keep cell.f - don't delete the formula so it behaves like other formulas
+                        
+                        console.log(`✅ Processed multi-SHEETREF formula → "${cell.v}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                        console.log(`📝 Cell update: "${oldValue}" → "${cell.v}" | Formula kept: ${!!cell.f}`);
+                        
+                        // Cache this result for 5 seconds
+                        sheetRefCache.set(cacheKey, { timestamp: now, status: 'processed' });
+                        
+                        processedCount++;
+                        needsReload = true;
+                        
+                      } catch (multiSheetRefError) {
+                        console.error(`❌ Multi-SHEETREF Error for formula "${formula}":`, multiSheetRefError);
+                        
+                        // Update cell with error message but keep formula
+                        cell.v = `Error: ${multiSheetRefError.message || 'Multi-sheet reference failed'}`;
+                        // Keep cell.f - don't delete the formula
+                        
+                        // Cache this error for 5 seconds to prevent repeated failed calls
+                        sheetRefCache.set(cacheKey, { timestamp: now, status: 'error' });
+                        
+                        processedCount++;
+                        needsReload = true;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (needsReload) {
+              console.log(`🔗 Processed ${processedCount} SHEETREF formulas (${props.spreadsheetId})`);
+              
+              // Update portfolio data
+              portfolioData.value = { ...currentData };
+              
+              // Force immediate UI refresh to display cell values
+              setTimeout(() => {
+                try {
+                  // Update Vue reactivity
+                  const oldData = portfolioData.value;
+                  portfolioData.value = { ...currentData };
+                  console.log(`📊 Vue data updated for SHEETREF - Old: ${!!oldData}, New: ${!!portfolioData.value}`);
+                  
+                  // Force browser re-render
+                  const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
+                  if (container) {
+                    console.log(`🎯 Found container, forcing visual refresh for SHEETREF`);
+                    container.style.opacity = '0.999';
+                    setTimeout(() => {
+                      container.style.opacity = '1';
+                      console.log(`🔄 Visual refresh completed for SHEETREF`);
+                    }, 1);
+                  }
+                  
+                  console.log(`🔄 Forced UI refresh for SHEETREF results (${props.spreadsheetId})`);
+                } catch (refreshError) {
+                  console.warn(`⚠️ UI refresh failed for SHEETREF, but data was saved (${props.spreadsheetId}):`, refreshError);
+                }
+              }, 10);
+              
+              // Save to database
+              try {
+                await savePortfolioData(currentData);
+                console.log(`💾 Saved processed SHEETREF results to database (${props.spreadsheetId})`);
+              } catch (saveError) {
+                console.warn(`⚠️ Could not save SHEETREF data (${props.spreadsheetId}):`, saveError.message);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ Error processing SHEETREF formulas (${props.spreadsheetId}):`, error);
+          }
+        };
+
         const processApiCallFormulas = async () => {
           try {
             const currentData = getCurrentSpreadsheetData();
@@ -1613,26 +1892,72 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           })
         }
 
+        // Register this sheet with the global registry
+        const registerCurrentSheet = () => {
+          if (props.sheetRegistry) {
+            const getCell = (row, col) => {
+              try {
+                const currentData = getCurrentSpreadsheetData();
+                if (!currentData || !currentData.sheets) return undefined;
+                
+                // Get the first (and usually only) sheet in this workbook
+                const firstSheetId = Object.keys(currentData.sheets)[0];
+                if (!firstSheetId) return undefined;
+                
+                const sheet = currentData.sheets[firstSheetId];
+                if (!sheet.cellData || !sheet.cellData[row] || !sheet.cellData[row][col]) {
+                  return undefined;
+                }
+                
+                const cell = sheet.cellData[row][col];
+                return cell.v || cell.f || undefined;
+              } catch (error) {
+                console.warn(`Error getting cell [${row}, ${col}] from ${props.spreadsheetName}:`, error);
+                return undefined;
+              }
+            };
+            
+            props.sheetRegistry.register(
+              props.spreadsheetId,
+              props.spreadsheetName,
+              getCurrentSpreadsheetData,
+              getCell,
+              univerAPI
+            );
+            
+            console.log(`✅ Registered sheet "${props.spreadsheetName}" with cross-sheet registry`);
+          }
+        };
+
         // Start formula processing after workbook is created
         setTimeout(() => {
+          // Register sheet with registry
+          registerCurrentSheet();
+          
           // Process immediately
           processTaskStatusFormulas();
           processApiCallFormulas();
+          processSheetRefFormulas();
           
           // Then process every 2 seconds for faster response
                   const taskStatusInterval = setInterval(processTaskStatusFormulas, 2000);
         const apiCallInterval = setInterval(processApiCallFormulas, 500); // Check every 500ms for faster response
+          const sheetRefInterval = setInterval(processSheetRefFormulas, 1000); // Check every 1 second for cross-sheet references
           
           // Store intervals for cleanup
           if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
           if (!window.apiCallIntervals) window.apiCallIntervals = new Map();
+          if (!window.sheetRefIntervals) window.sheetRefIntervals = new Map();
           window.taskStatusIntervals.set(props.spreadsheetId, taskStatusInterval);
           window.apiCallIntervals.set(props.spreadsheetId, apiCallInterval);
+          window.sheetRefIntervals.set(props.spreadsheetId, sheetRefInterval);
           
           console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
-          console.log(`✅ APICALL formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
+          console.log(`✅ APICALL formula processor started - checks every 500ms (${props.spreadsheetId})`);
+          console.log(`✅ SHEETREF formula processor started - checks every 1 second (${props.spreadsheetId})`);
           console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
           console.log(`🌐 APICALL Usage: Type "=APICALL('https://api.ipify.org/?format=json', 'ip')" in any cell to fetch your IP address from the API. Works with any JSON API.`);
+          console.log(`🔗 SHEETREF Usage: Type "=SHEETREF('Spreadsheet 1', 'A4')" in any cell to reference cell A4 from another sheet named "Spreadsheet 1". For calculations use: =SHEETREF('Sheet1', 'A4') + SHEETREF('Sheet2', 'B5') + SHEETREF('Sheet3', 'A2') or =SUM(SHEETREF('Sheet1', 'A1') + SHEETREF('Sheet2', 'B2'))`);
         }, 1000);
 
         // Enable change tracking with error handling
@@ -2292,6 +2617,12 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
     });
 
     onBeforeUnmount(() => {
+      // Unregister from sheet registry
+      if (props.sheetRegistry) {
+        props.sheetRegistry.unregister(props.spreadsheetId);
+        console.log(`✅ Unregistered sheet "${props.spreadsheetName}" from cross-sheet registry`);
+      }
+      
       // Clean up TASKSTATUS formula processor
       if (window.taskStatusIntervals && window.taskStatusIntervals.has(props.spreadsheetId)) {
         clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));
@@ -2304,6 +2635,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         clearInterval(window.apiCallIntervals.get(props.spreadsheetId));
         window.apiCallIntervals.delete(props.spreadsheetId);
         console.log(`🧹 Cleaned up APICALL processor for ${props.spreadsheetId}`);
+      }
+      
+      // Clean up SHEETREF formula processor
+      if (window.sheetRefIntervals && window.sheetRefIntervals.has(props.spreadsheetId)) {
+        clearInterval(window.sheetRefIntervals.get(props.spreadsheetId));
+        window.sheetRefIntervals.delete(props.spreadsheetId);
+        console.log(`🧹 Cleaned up SHEETREF processor for ${props.spreadsheetId}`);
       }
       
       // Clean up hyperlink event listeners
@@ -3074,10 +3412,10 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         // try to return WORKBOOK_DATA
         try {
           if (WORKBOOK_DATA && Object.keys(WORKBOOK_DATA).length > 0) {
-            console.log(`📊 Returning WORKBOOK_DATA for ${props.spreadsheetId}:`, {
+            /*console.log(`📊 Returning WORKBOOK_DATA for ${props.spreadsheetId}:`, {
               hasSheets: !!(WORKBOOK_DATA.sheets),
               sheetsCount: WORKBOOK_DATA.sheets ? Object.keys(WORKBOOK_DATA.sheets).length : 0
-            });
+            });*/
             return WORKBOOK_DATA;
           }
         } catch (error) {

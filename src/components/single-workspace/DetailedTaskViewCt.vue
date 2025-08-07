@@ -667,7 +667,6 @@
                           <template #dropdown>
                             <el-dropdown-menu>
                               <el-dropdown-item 
-                                v-if="comment.user_id === currentUser?.id" 
                                 @click="startEditing(comment)"
                               >
                                 Edit

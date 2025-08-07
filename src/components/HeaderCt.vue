@@ -54,6 +54,7 @@ export default {
       if (path.includes('/outlines')) return 'Outlines';
       if (path.includes('/contacts')) return 'Contacts';
       if (path.includes('/communications')) return 'Communications';
+      if (path.includes('/canvas')) return 'Canvas';
       if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/ai_intake')) return 'AI Intake';
       if (path.includes('/ai_fax')) return 'AI Fax';
@@ -460,6 +461,7 @@ export default {
                   <a :href="`/single-workspace/${currentWorkspace.id}/outlines`">Outlines</a>
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
+                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/canvas') }"><a :href="`/single-workspace/${currentWorkspace.id}/canvas`">Canvas</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fax`">AI Fax</a></el-dropdown-item>
@@ -917,6 +919,16 @@ export default {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* Active dropdown item styling */
+:deep(.el-dropdown-menu__item.is-active) {
+  background-color: #409eff !important;
+  color: white !important;
+}
+
+:deep(.el-dropdown-menu__item.is-active a) {
+  color: white !important;
 }
 
 @media (max-width: 768px) {

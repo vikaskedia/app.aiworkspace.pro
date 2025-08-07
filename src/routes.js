@@ -218,6 +218,11 @@ const routes = [
         name: 'ContactsPage',
         component: ContactsCt
       },
+      {
+        path: 'canvas',
+        name: 'CanvasPage',
+        component: () => import('./components/single-workspace/CanvasCt.vue')
+      },
     ]
   },
   {

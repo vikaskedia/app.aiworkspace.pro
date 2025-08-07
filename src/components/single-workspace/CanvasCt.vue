@@ -6,36 +6,48 @@
           <el-button-group>
             <el-button 
               :type="currentTool === 'select' ? 'primary' : 'default'" 
-              icon="Select"
               @click="setTool('select')">
+              <template #icon>
+                <Select />
+              </template>
               Select
             </el-button>
             <el-button 
               :type="currentTool === 'draw' ? 'primary' : 'default'" 
-              icon="Edit"
               @click="setTool('draw')">
+              <template #icon>
+                <Edit />
+              </template>
               Draw
             </el-button>
             <el-button 
               :type="currentTool === 'text' ? 'primary' : 'default'" 
-              icon="Document"
               @click="setTool('text')">
+              <template #icon>
+                <Document />
+              </template>
               Text
             </el-button>
             <el-dropdown @command="addShape" trigger="click">
               <el-button 
-                :type="currentTool === 'shape' ? 'primary' : 'default'" 
-                icon="CirclePlus">
+                :type="currentTool === 'shape' ? 'primary' : 'default'">
+                <template #icon>
+                  <CirclePlus />
+                </template>
                 Shape
-                <el-icon class="el-icon--right"><caret-bottom /></el-icon>
+                <template #suffix>
+                  <CaretBottom />
+                </template>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="rectangle">Rectangle</el-dropdown-item>
                   <el-dropdown-item command="circle">Circle</el-dropdown-item>
                   <el-dropdown-item command="triangle">Triangle</el-dropdown-item>
-                  <el-dropdown-item command="line">Line</el-dropdown-item>
-                  <el-dropdown-item command="arrow">Arrow</el-dropdown-item>
+                  <el-dropdown-item command="line">Straight Line</el-dropdown-item>
+                  <el-dropdown-item command="curved-line">Curved Line</el-dropdown-item>
+                  <el-dropdown-item command="arrow">Straight Arrow</el-dropdown-item>
+                  <el-dropdown-item command="curved-arrow">Curved Arrow</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -43,29 +55,66 @@
           
           <el-divider direction="vertical" />
           
-          <el-button-group>
-            <el-button icon="Delete" @click="clearCanvas">Clear</el-button>
-            <el-button icon="Download" @click="exportCanvas">Export</el-button>
-            <el-button icon="Upload" @click="importCanvas">Import</el-button>
-            <el-button icon="Clock" @click="showVersionHistory">History</el-button>
-          </el-button-group>
+          <div class="color-controls">
+            <div class="control-group">
+              <span class="control-label">Border:</span>
+              <el-color-picker 
+                v-model="strokeColor" 
+                size="small"
+                @change="updateStrokeColor" />
+            </div>
+            
+            <div class="control-group">
+              <span class="control-label">Width:</span>
+              <el-input-number 
+                v-model="strokeWidth" 
+                :min="1" 
+                :max="20" 
+                size="small"
+                @change="updateStrokeWidth" />
+            </div>
+            
+            <div class="control-group">
+              <span class="control-label">Fill:</span>
+              <el-color-picker 
+                v-model="fillColor" 
+                size="small"
+                @change="updateFillColor" />
+            </div>
+          </div>
           
-          <el-divider direction="vertical" />
-          
-          <el-color-picker 
-            v-model="strokeColor" 
-            size="small"
-            @change="updateStrokeColor" />
-          <el-input-number 
-            v-model="strokeWidth" 
-            :min="1" 
-            :max="20" 
-            size="small"
-            @change="updateStrokeWidth" />
-          <el-color-picker 
-            v-model="fillColor" 
-            size="small"
-            @change="updateFillColor" />
+                     <div class="canvas-toolbar-right">
+             <el-button @click="clearCanvas">
+               <template #icon>
+                 <Delete />
+               </template>
+               Clear
+             </el-button>
+           
+             <el-dropdown @command="handleToolCommand" trigger="click">
+               <el-button>
+                 <template #icon>
+                   <Setting />
+                 </template>
+               </el-button>
+               <template #dropdown>
+                 <el-dropdown-menu>
+                   <el-dropdown-item command="export">
+                     <el-icon><Download /></el-icon>
+                     Export
+                   </el-dropdown-item>
+                   <el-dropdown-item command="import">
+                     <el-icon><Upload /></el-icon>
+                     Import
+                   </el-dropdown-item>
+                   <el-dropdown-item command="history">
+                     <el-icon><Clock /></el-icon>
+                     History
+                   </el-dropdown-item>
+                 </el-dropdown-menu>
+               </template>
+             </el-dropdown>
+           </div>
         </div>
         
         <div class="canvas-area" ref="canvasContainer">
@@ -128,14 +177,26 @@
 </template>
 
 <script>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWorkspaceStore } from '../../store/workspace'
 import { supabase } from '../../supabase'
-import { CaretBottom } from '@element-plus/icons-vue'
+import { CaretBottom, Setting, Download, Upload, Clock, Delete, Select, Edit, Document, CirclePlus} from '@element-plus/icons-vue'
 
 export default {
   name: 'CanvasCt',
+  components: {
+    CaretBottom,
+    Setting,
+    Download,
+    Upload,
+    Clock,
+    Delete,
+    Select,
+    Edit,
+    Document,
+    CirclePlus
+  },
   setup() {
     const route = useRoute()
     const workspaceStore = useWorkspaceStore()
@@ -173,6 +234,11 @@ export default {
     const canvasVersions = ref([])
     const currentCanvasId = ref(null)
     
+    // Undo/Redo state
+    const undoStack = ref([])
+    const redoStack = ref([])
+    const maxUndoSteps = 50
+    
     // Canvas data (JSON Canvas format)
     const canvasData = ref({
       nodes: [],
@@ -200,6 +266,7 @@ export default {
         if (currentWorkspace.value) {
           await loadCanvasData(workspaceId)
           initializeCanvas()
+          setupKeyboardEvents()
         }
       }
     })
@@ -244,6 +311,8 @@ export default {
     }
     
     const addShapeAtPosition = (shapeType, x, y) => {
+      saveState()
+      
       const node = {
         id: `shape-${Date.now()}`,
         type: 'shape',
@@ -283,6 +352,7 @@ export default {
             isResizing.value = true
             resizeHandle.value = handle
             dragStart.value = { x, y }
+            saveState() // Save state before resizing
             return
           }
         }
@@ -293,6 +363,7 @@ export default {
           selectedNode.value = clickedNode
           isDragging.value = true
           dragStart.value = { x, y }
+          saveState() // Save state before dragging
         } else {
           selectedNode.value = null
         }
@@ -393,6 +464,8 @@ export default {
     }
     
     const addDrawingNode = () => {
+      saveState()
+      
       const node = {
         id: `drawing-${Date.now()}`,
         type: 'drawing',
@@ -416,6 +489,8 @@ export default {
         cancelTextInput()
         return
       }
+      
+      saveState()
       
       const node = {
         id: `text-${Date.now()}`,
@@ -458,6 +533,90 @@ export default {
     
     const updateFillColor = (color) => {
       fillColor.value = color
+    }
+    
+    const handleToolCommand = (command) => {
+      switch (command) {
+        case 'export':
+          exportCanvas()
+          break
+        case 'import':
+          importCanvas()
+          break
+        case 'history':
+          showVersionHistory()
+          break
+      }
+    }
+    
+    const setupKeyboardEvents = () => {
+      document.addEventListener('keydown', handleKeyDown)
+    }
+    
+    const handleKeyDown = (e) => {
+      // Check if we're in a text input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return
+      }
+      
+      // Support both CMD (Mac) and CTRL (other OS) keys
+      const isModifierKey = e.metaKey || e.ctrlKey
+      
+      if (isModifierKey && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (isModifierKey && e.shiftKey && e.key === 'Z') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    
+    const saveState = () => {
+      // Save current state to undo stack
+      const currentState = JSON.parse(JSON.stringify(canvasData.value))
+      undoStack.value.push(currentState)
+      
+      // Clear redo stack when new action is performed
+      redoStack.value = []
+      
+      // Limit undo stack size
+      if (undoStack.value.length > maxUndoSteps) {
+        undoStack.value.shift()
+      }
+    }
+    
+    const undo = () => {
+      if (undoStack.value.length === 0) return
+      
+      // Save current state to redo stack
+      const currentState = JSON.parse(JSON.stringify(canvasData.value))
+      redoStack.value.push(currentState)
+      
+      // Restore previous state
+      const previousState = undoStack.value.pop()
+      canvasData.value = previousState
+      
+      // Limit redo stack size
+      if (redoStack.value.length > maxUndoSteps) {
+        redoStack.value.shift()
+      }
+    }
+    
+    const redo = () => {
+      if (redoStack.value.length === 0) return
+      
+      // Save current state to undo stack
+      const currentState = JSON.parse(JSON.stringify(canvasData.value))
+      undoStack.value.push(currentState)
+      
+      // Restore next state
+      const nextState = redoStack.value.pop()
+      canvasData.value = nextState
+      
+      // Limit undo stack size
+      if (undoStack.value.length > maxUndoSteps) {
+        undoStack.value.shift()
+      }
     }
     
     const getNodeAtPosition = (x, y) => {
@@ -596,32 +755,87 @@ export default {
           break
           
         case 'line':
+          // Straight horizontal line
           ctx.value.beginPath()
-          ctx.value.moveTo(x, y)
-          ctx.value.lineTo(x + width, y + height)
+          ctx.value.moveTo(x, y + height/2)
+          ctx.value.lineTo(x + width, y + height/2)
+          ctx.value.stroke()
+          break
+          
+        case 'curved-line':
+          // Curved line with control points
+          ctx.value.beginPath()
+          ctx.value.moveTo(x, y + height/2)
+          const cp1x = x + width * 0.25
+          const cp1y = y
+          const cp2x = x + width * 0.75
+          const cp2y = y + height
+          ctx.value.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + width, y + height/2)
           ctx.value.stroke()
           break
           
         case 'arrow':
+          // Straight horizontal arrow
+          const arrowWidth = width * 0.8
+          const arrowY = y + height/2
+          
           // Draw arrow line
           ctx.value.beginPath()
-          ctx.value.moveTo(x, y)
-          ctx.value.lineTo(x + width * 0.8, y + height * 0.8)
+          ctx.value.moveTo(x, arrowY)
+          ctx.value.lineTo(x + arrowWidth, arrowY)
           ctx.value.stroke()
           
           // Draw arrow head
-          const arrowLength = 15
-          const angle = Math.atan2(height * 0.8, width * 0.8)
+          const arrowHeadSize = 12
           ctx.value.beginPath()
-          ctx.value.moveTo(x + width * 0.8, y + height * 0.8)
+          ctx.value.moveTo(x + arrowWidth, arrowY)
+          ctx.value.lineTo(x + arrowWidth - arrowHeadSize, arrowY - arrowHeadSize/2)
+          ctx.value.moveTo(x + arrowWidth, arrowY)
+          ctx.value.lineTo(x + arrowWidth - arrowHeadSize, arrowY + arrowHeadSize/2)
+          ctx.value.stroke()
+          break
+          
+        case 'curved-arrow':
+          // Curved arrow
+          const curvedArrowY = y + height/2
+          const curvedArrowWidth = width * 0.8
+          
+          // Draw curved arrow line
+          ctx.value.beginPath()
+          ctx.value.moveTo(x, curvedArrowY)
+          const arrowCp1x = x + width * 0.25
+          const arrowCp1y = y
+          const arrowCp2x = x + width * 0.75
+          const arrowCp2y = y + height
+          ctx.value.bezierCurveTo(arrowCp1x, arrowCp1y, arrowCp2x, arrowCp2y, x + curvedArrowWidth, curvedArrowY)
+          ctx.value.stroke()
+          
+          // Draw curved arrow head
+          const curvedArrowHeadSize = 12
+          const endX = x + curvedArrowWidth
+          const endY = curvedArrowY
+          
+          // Calculate tangent at the end point
+          const tangentX = arrowCp2x - arrowCp1x
+          const tangentY = arrowCp2y - arrowCp1y
+          const tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY)
+          const unitTangentX = tangentX / tangentLength
+          const unitTangentY = tangentY / tangentLength
+          
+          // Perpendicular vector for arrow head
+          const perpX = -unitTangentY
+          const perpY = unitTangentX
+          
+          ctx.value.beginPath()
+          ctx.value.moveTo(endX, endY)
           ctx.value.lineTo(
-            x + width * 0.8 - arrowLength * Math.cos(angle - Math.PI/6),
-            y + height * 0.8 - arrowLength * Math.sin(angle - Math.PI/6)
+            endX - curvedArrowHeadSize * unitTangentX - curvedArrowHeadSize/2 * perpX,
+            endY - curvedArrowHeadSize * unitTangentY - curvedArrowHeadSize/2 * perpY
           )
-          ctx.value.moveTo(x + width * 0.8, y + height * 0.8)
+          ctx.value.moveTo(endX, endY)
           ctx.value.lineTo(
-            x + width * 0.8 - arrowLength * Math.cos(angle + Math.PI/6),
-            y + height * 0.8 - arrowLength * Math.sin(angle + Math.PI/6)
+            endX - curvedArrowHeadSize * unitTangentX + curvedArrowHeadSize/2 * perpX,
+            endY - curvedArrowHeadSize * unitTangentY + curvedArrowHeadSize/2 * perpY
           )
           ctx.value.stroke()
           break
@@ -679,6 +893,7 @@ export default {
     }
     
     const clearCanvas = () => {
+      saveState()
       canvasData.value = { nodes: [], edges: [] }
       if (ctx.value) {
         ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
@@ -868,6 +1083,11 @@ export default {
       renderCanvas()
     }, { deep: true })
     
+    // Cleanup keyboard events on unmount
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleKeyDown)
+    })
+    
           return {
         canvas,
         canvasContainer,
@@ -883,12 +1103,17 @@ export default {
         isDragging,
         isResizing,
         fillColor,
+        undoStack,
+        redoStack,
         showVersionDialog,
         canvasVersions,
         currentWorkspace,
         setTool,
         addShape,
         updateFillColor,
+        handleToolCommand,
+        undo,
+        redo,
         showVersionHistory,
         restoreVersion,
         handleMouseDown,
@@ -956,6 +1181,44 @@ export default {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.canvas-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  float: right;
+}
+
+.color-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 0.85rem;
+  color: #606266;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Icon styling */
+.el-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.el-button .el-icon {
+  margin-right: 4px;
 }
 
 .canvas-area {

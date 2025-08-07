@@ -454,223 +454,23 @@ export default {
       }
     }
   },
-  mounted() {
-    window.selectMention = (index) => {
-      const mentionState = this.editor.state.selection.$from.marks().find(mark => mark.type.name === 'mention')
-      if (mentionState) {
-        const items = mentionState.attrs.items || []
-        const item = items[index]
-        if (item) {
-          this.editor.commands.insertMention({ id: item.id, label: item.label })
+      mounted() {
+      window.selectMention = (index) => {
+        const mentionState = this.editor.state.selection.$from.marks().find(mark => mark.type.name === 'mention')
+        if (mentionState) {
+          const items = mentionState.attrs.items || []
+          const item = items[index]
+          if (item) {
+            this.editor.commands.insertMention({ id: item.id, label: item.label })
+          }
         }
       }
-    }
-    
-    this.editor = new Editor({
-      extensions: [
-        StarterKit.configure({
-          heading: true,
-          link: false,
-        }),
-        TaskList,
-        TaskItem,
-        TextAlign.configure({
-          types: ['heading', 'paragraph']
-        }),
-        CollapsibleList,
-        CollapsibleListItem,
-        CollapsibleHeadingNode,
-        CollapsibleHeading,
-        FileUpload,
-        Link.configure({
-          openOnClick: true,
-          HTMLAttributes: {
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            class: 'editor-link'
-          },
-          validate: href => /^https?:\/\//.test(href),
-        }),
-        Typeahead.configure({
-          onKeyDown: ({ text, cursorPosition, event }) => {
-            // Return early if typeahead is disabled
-            if (!this.enableTypeahead) {
-              return false;
-            }
+      
+      this.initEditor(this.modelValue)
 
-            // Get the last word
-            const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
-            
-            // If last word starts with @, hide typeahead and return
-            if (lastWord?.startsWith('@')) {
-              if (this.showTypeahead) {
-                this.showTypeahead = false
-                this.typeaheadSuggestions = []
-              }
-              return false
-            }
-
-            // Handle navigation keys
-            if (this.showTypeahead && this.typeaheadSuggestions.length) {
-              switch (event.key) {
-                case 'ArrowDown':
-                  event.preventDefault()
-                  this.typeaheadSelectedIndex = Math.min(
-                    (this.typeaheadSelectedIndex + 1),
-                    this.typeaheadSuggestions.length - 1
-                  )
-                  return true
-                case 'ArrowUp':
-                  event.preventDefault()
-                  this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
-                  return true
-                case 'Tab':
-                  if (this.showTypeahead) {
-                    event.preventDefault()
-                    this.applySuggestion(
-                      this.typeaheadSuggestions[
-                        this.typeaheadSelectedIndex >= 0 ? this.typeaheadSelectedIndex : 0
-                      ]
-                    )
-                    return true
-                  }
-                  break
-                case 'Enter':
-                  // Don't prevent default - let Enter create new line
-                  this.showTypeahead = false
-                  return false
-                case 'Escape':
-                  if (this.showTypeahead) {
-                    event.preventDefault()
-                    this.showTypeahead = false
-                    return true
-                  }
-                  break
-              }
-            }
-
-            // Check for typeahead trigger
-            if (lastWord && lastWord.length > 1 && !lastWord.startsWith('@')) {
-              if (this.typeaheadTimer) {
-                clearTimeout(this.typeaheadTimer)
-              }
-              
-              this.typeaheadTimer = setTimeout(() => {
-                this.getTypeaheadSuggestions(text, cursorPosition)
-              }, 300)
-            }
-            return false
-          }
-        }),
-        Mention.configure({
-          vueComponent: this
-        }),
-        Table.configure({
-          resizable: true,
-          HTMLAttributes: {
-            class: 'editor-table',
-          },
-        }),
-        TableRow,
-        TableCell,
-        TableHeader,
-        Extension.create({
-          addProseMirrorPlugins() {
-            return [
-              new Plugin({
-                props: {
-                  handleTextInput: (view, from, to, text) => {
-                    if (text === ' ') {
-                      const { state } = view
-                      const $pos = state.doc.resolve(from)
-                      
-                      // Check for heading pattern first
-                      const textBefore = state.doc.textBetween(0, from)
-                      const headingMatch = /(?:^|\n)(#{1,3})$/.exec(textBefore)
-                      if (headingMatch) {
-                        const level = headingMatch[1].length
-                        const start = from - headingMatch[1].length
-                        
-                        const tr = state.tr
-                          .delete(start, from + 1)
-                          .setBlockType(start, start, state.schema.nodes.heading, { level })
-                        
-                        view.dispatch(tr)
-                        return true
-                      }
-                      
-                      // Enhanced URL handling with nested list awareness
-                      let depth = $pos.depth
-                      let listItemStart = from
-                      let inList = false
-                      
-                      // Find the innermost list item containing our position
-                      while (depth > 0) {
-                        const node = $pos.node(depth)
-                        if (node.type.name === 'listItem' || 
-                            node.type.name === 'orderedList' || 
-                            node.type.name === 'bulletList') {
-                          inList = true
-                          listItemStart = $pos.before(depth)
-                          break
-                        }
-                        depth--
-                      }
-                      
-                      // Get text from the current list item or full text if not in a list
-                      const relevantText = inList 
-                        ? state.doc.textBetween(listItemStart, from)
-                        : textBefore
-                      
-                      const urlRegex = /(https?):\/\/[^\s\n]+$/
-                      const urlMatch = relevantText.match(urlRegex)
-                      
-                      if (urlMatch) {
-                        const matchedUrl = urlMatch[0]
-                        const start = from - matchedUrl.length
-
-                        // Check if there's already a link mark at this position
-                        const $start = state.doc.resolve(start)
-                        const existingLink = $start.marks().find(mark => mark.type.name === 'link')
-
-                        if (!existingLink) {
-                          const tr = state.tr
-
-                          tr.delete(start, from + 1)
-                          tr.insertText(matchedUrl, start)
-
-                          const mark = state.schema.marks.link.create({ href: matchedUrl })
-                          tr.addMark(start, start + matchedUrl.length, mark)
-
-                          // Add space after link without including it in the URL
-                          tr.insertText(' ', start + matchedUrl.length)
-
-                          view.dispatch(tr)
-                          return true
-                        }
-                      }
-                    }
-                    return false
-                  }
-                }
-              })
-            ]
-          }
-        })
-      ],
-      content: this.modelValue,
-      onUpdate: ({ editor }) => {
-        this.$emit('update:modelValue', editor.getHTML())
-        this.handleMentions(editor)
-      },
-      onSelectionUpdate: ({ editor }) => {
-        this.handleSelectionChange(editor)
-      }
-    })
-
-    // Debounce the suggestion fetch
-    this.debouncedGetSuggestions = debounce(this.getTypeaheadSuggestions, 300)
-  },
+      // Debounce the suggestion fetch
+      this.debouncedGetSuggestions = debounce(this.getTypeaheadSuggestions, 300)
+    },
   beforeUnmount() {
     this.editor?.destroy()
   },
@@ -1012,7 +812,14 @@ export default {
         case 'Tab': {
           event.preventDefault()
           if (selectedIndex >= 0 && items[selectedIndex]) {
+            // Execute the mention command
             command(items[selectedIndex])
+            
+            // Get current HTML content and regenerate editor
+            setTimeout(() => {
+              const currentContent = this.editor.getHTML()
+              this.initEditor(currentContent)
+            }, 100)
           }
           return true
         }
@@ -1113,7 +920,17 @@ export default {
           </div>
         `
         
-        itemEl.addEventListener('click', () => command(item))
+        itemEl.addEventListener('click', () => {
+          // Execute the mention command
+          command(item)
+          
+          // Get current HTML content and regenerate editor
+          setTimeout(() => {
+            const currentContent = this.editor.getHTML()
+            this.initEditor(currentContent, false)
+            
+          }, 100)          
+        })
         wrapper.appendChild(itemEl)
       })
       
@@ -1192,6 +1009,230 @@ export default {
       
       this.showLinkDialog = true
     },
+    initEditor(content, isBold = false) {
+      // Destroy existing editor if it exists
+      if (this.editor) {
+        this.editor.destroy()
+      }
+      
+      this.editor = new Editor({
+        extensions: [
+          StarterKit.configure({
+            heading: true,
+            link: false,
+          }),
+          TaskList,
+          TaskItem,
+          TextAlign.configure({
+            types: ['heading', 'paragraph']
+          }),
+          CollapsibleList,
+          CollapsibleListItem,
+          CollapsibleHeadingNode,
+          CollapsibleHeading,
+          FileUpload,
+          Link.configure({
+            openOnClick: true,
+            HTMLAttributes: {
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              class: 'editor-link'
+            },
+            validate: href => /^https?:\/\//.test(href),
+          }),
+          Typeahead.configure({
+            onKeyDown: ({ text, cursorPosition, event }) => {
+              // Return early if typeahead is disabled
+              if (!this.enableTypeahead) {
+                return false;
+              }
+
+              // Get the last word
+              const lastWord = text.slice(0, cursorPosition).split(/\s+/).pop()
+              
+              // If last word starts with @, hide typeahead and return
+              if (lastWord?.startsWith('@')) {
+                if (this.showTypeahead) {
+                  this.showTypeahead = false
+                  this.typeaheadSuggestions = []
+                }
+                return false
+              }
+
+              // Handle navigation keys
+              if (this.showTypeahead && this.typeaheadSuggestions.length) {
+                switch (event.key) {
+                  case 'ArrowDown':
+                    event.preventDefault()
+                    this.typeaheadSelectedIndex = Math.min(
+                      (this.typeaheadSelectedIndex + 1),
+                      this.typeaheadSuggestions.length - 1
+                    )
+                    return true
+                  case 'ArrowUp':
+                    event.preventDefault()
+                    this.typeaheadSelectedIndex = Math.max(this.typeaheadSelectedIndex - 1, 0)
+                    return true
+                  case 'Tab':
+                    if (this.showTypeahead) {
+                      event.preventDefault()
+                      this.applySuggestion(
+                        this.typeaheadSuggestions[
+                          this.typeaheadSelectedIndex >= 0 ? this.typeaheadSelectedIndex : 0
+                        ]
+                      )
+                      return true
+                    }
+                    break
+                  case 'Enter':
+                    // Don't prevent default - let Enter create new line
+                    this.showTypeahead = false
+                    return false
+                  case 'Escape':
+                    if (this.showTypeahead) {
+                      event.preventDefault()
+                      this.showTypeahead = false
+                      return true
+                    }
+                    break
+                }
+              }
+
+              // Check for typeahead trigger
+              if (lastWord && lastWord.length > 1 && !lastWord.startsWith('@')) {
+                if (this.typeaheadTimer) {
+                  clearTimeout(this.typeaheadTimer)
+                }
+                
+                this.typeaheadTimer = setTimeout(() => {
+                  this.getTypeaheadSuggestions(text, cursorPosition)
+                }, 300)
+              }
+              return false
+            }
+          }),
+          Mention.configure({
+            vueComponent: this
+          }),
+          Table.configure({
+            resizable: true,
+            HTMLAttributes: {
+              class: 'editor-table',
+            },
+          }),
+          TableRow,
+          TableCell,
+          TableHeader,
+          Extension.create({
+            addProseMirrorPlugins() {
+              return [
+                new Plugin({
+                  props: {
+                    handleTextInput: (view, from, to, text) => {
+                      if (text === ' ') {
+                        const { state } = view
+                        const $pos = state.doc.resolve(from)
+                        
+                        // Check for heading pattern first
+                        const textBefore = state.doc.textBetween(0, from)
+                        const headingMatch = /(?:^|\n)(#{1,3})$/.exec(textBefore)
+                        if (headingMatch) {
+                          const level = headingMatch[1].length
+                          const start = from - headingMatch[1].length
+                          
+                          const tr = state.tr
+                            .delete(start, from + 1)
+                            .setBlockType(start, start, state.schema.nodes.heading, { level })
+                          
+                          view.dispatch(tr)
+                          return true
+                        }
+                        
+                        // Enhanced URL handling with nested list awareness
+                        let depth = $pos.depth
+                        let listItemStart = from
+                        let inList = false
+                        
+                        // Find the innermost list item containing our position
+                        while (depth > 0) {
+                          const node = $pos.node(depth)
+                          if (node.type.name === 'listItem' || 
+                              node.type.name === 'orderedList' || 
+                              node.type.name === 'bulletList') {
+                            inList = true
+                            listItemStart = $pos.before(depth)
+                            break
+                          }
+                          depth--
+                        }
+                        
+                        // Get text from the current list item or full text if not in a list
+                        const relevantText = inList 
+                          ? state.doc.textBetween(listItemStart, from)
+                          : textBefore
+                        
+                        const urlRegex = /(https?):\/\/[^\s\n]+$/
+                        const urlMatch = relevantText.match(urlRegex)
+                        
+                        if (urlMatch) {
+                          const matchedUrl = urlMatch[0]
+                          const start = from - matchedUrl.length
+
+                          // Check if there's already a link mark at this position
+                          const $start = state.doc.resolve(start)
+                          const existingLink = $start.marks().find(mark => mark.type.name === 'link')
+
+                          if (!existingLink) {
+                            const tr = state.tr
+
+                            tr.delete(start, from + 1)
+                            tr.insertText(matchedUrl, start)
+
+                            const mark = state.schema.marks.link.create({ href: matchedUrl })
+                            tr.addMark(start, start + matchedUrl.length, mark)
+
+                            // Add space after link without including it in the URL
+                            tr.insertText(' ', start + matchedUrl.length)
+
+                            view.dispatch(tr)
+                            return true
+                          }
+                        }
+                      }                    
+                      return false
+                    }
+                  }
+                })
+              ]
+            }
+          })
+        ],
+        content: content,
+        onUpdate: ({ editor }) => {
+          this.$emit('update:modelValue', editor.getHTML())
+          this.handleMentions(editor)
+        },
+        onSelectionUpdate: ({ editor }) => {
+          this.handleSelectionChange(editor)
+        }
+      })
+
+      setTimeout(() => {
+        if (isBold) {
+          this.editor.chain().focus().setBold().run();
+      }
+      else {
+          this.editor.chain().focus().unsetBold().run();
+        }
+      }, 300)
+      
+      // Focus the editor and place cursor at the end
+      this.$nextTick(() => {
+        this.editor.commands.focus()
+        this.editor.commands.setTextSelection(this.editor.state.doc.content.size)
+      })
+    },
+
     saveLink() {
       if (!this.linkForm.url.trim()) {
         ElMessage.warning('Please enter a URL')

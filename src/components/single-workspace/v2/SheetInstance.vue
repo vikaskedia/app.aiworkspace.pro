@@ -1388,13 +1388,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                 }
               }, 10);
               
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
-              }
+              // Save to database - DISABLED FOR NOW
+              // try {
+              //   await savePortfolioData(currentData);
+              //   console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
+              // } catch (saveError) {
+              //   console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
+              // }
               
               // Trigger data refresh
               console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
@@ -1677,13 +1677,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                 }
               }, 10);
               
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed SHEETREF results to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save SHEETREF data (${props.spreadsheetId}):`, saveError.message);
-              }
+              // Save to database - DISABLED FOR NOW
+              // try {
+              //   await savePortfolioData(currentData);
+              //   console.log(`💾 Saved processed SHEETREF results to database (${props.spreadsheetId})`);
+              // } catch (saveError) {
+              //   console.warn(`⚠️ Could not save SHEETREF data (${props.spreadsheetId}):`, saveError.message);
+              // }
             }
           } catch (error) {
             console.error(`❌ Error processing SHEETREF formulas (${props.spreadsheetId}):`, error);
@@ -1860,13 +1860,13 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
                 }
               }, 10);
               
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
-              }
+              // Save to database - DISABLED FOR NOW
+              // try {
+              //   await savePortfolioData(currentData);
+              //   console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
+              // } catch (saveError) {
+              //   console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
+              // }
               
               // Trigger data refresh
               console.log(`🔄 APICALL data updated, will reflect on next reload (${props.spreadsheetId})`);
@@ -1955,6 +1955,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
           console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
           console.log(`✅ APICALL formula processor started - checks every 500ms (${props.spreadsheetId})`);
           console.log(`✅ SHEETREF formula processor started - checks every 1 second (${props.spreadsheetId})`);
+          console.log(`🚫 AUTO-SAVE DISABLED - formulas will work but won't save automatically (${props.spreadsheetId})`);
           console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
           console.log(`🌐 APICALL Usage: Type "=APICALL('https://api.ipify.org/?format=json', 'ip')" in any cell to fetch your IP address from the API. Works with any JSON API.`);
           console.log(`🔗 SHEETREF Usage: Type "=SHEETREF('Spreadsheet 1', 'A4')" in any cell to reference cell A4 from another sheet named "Spreadsheet 1". For calculations use: =SHEETREF('Sheet1', 'A4') + SHEETREF('Sheet2', 'B5') + SHEETREF('Sheet3', 'A2') or =SUM(SHEETREF('Sheet1', 'A1') + SHEETREF('Sheet2', 'B2'))`);

@@ -1914,7 +1914,9 @@ export default {
 
       // If there are history entries, add them to the update
       if (historyEntries.length > 0) { 
-        updateData.edit_history = historyEntries;
+        updateData.edit_history = this.task.edit_history 
+            ? [...this.task.edit_history, ...historyEntries]
+            : historyEntries;
       }
 
       const { error } = await supabase

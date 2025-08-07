@@ -1895,13 +1895,33 @@ export default {
 
     try {
       this.savingTitle = true;
+
+      // Prepare edit history entries for title 
+      const historyEntries = [];
+      if (this.task.title !== this.editingTitle) {
+          historyEntries.push({
+            field_name: 'title',
+            previous_value: this.task.title,
+            edited_at: new Date().toISOString(),
+            edited_by: this.currentUser.id
+        });
+      }
+    
+      const updateData = {
+        title: this.editingTitle,
+        updated_at: new Date().toISOString()
+      };
+
+      // If there are history entries, add them to the update
+      if (historyEntries.length > 0) { 
+        updateData.edit_history = historyEntries;
+      }
+
       const { error } = await supabase
-        .from('tasks')
-        .update({ 
-          title: this.editingTitle,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', this.task.id);
+          .from('tasks')
+          .update(updateData)
+          .eq('id', this.task.id)
+          .select();
 
       if (error) throw error;
 

@@ -109,20 +109,20 @@ import UIEnUS from '@univerjs/ui/locale/en-US';
 import DocsUIEnUS from '@univerjs/docs-ui/locale/en-US';
 import SheetsEnUS from '@univerjs/sheets/locale/en-US';
 import SheetsUIEnUS from '@univerjs/sheets-ui/locale/en-US';
-// import SheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
+import SheetsFormulaUIEnUS from '@univerjs/sheets-formula-ui/locale/en-US';
 import SheetsNumfmtUIEnUS from '@univerjs/sheets-numfmt-ui/locale/en-US';
 import SheetsNoteUIEnUS from '@univerjs/sheets-note-ui/locale/en-US';
 
 // Plugin imports
 import { UniverRenderEnginePlugin } from '@univerjs/engine-render';
-// import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
+import { UniverFormulaEnginePlugin } from '@univerjs/engine-formula';
 import { UniverUIPlugin } from '@univerjs/ui';
 import { UniverDocsPlugin } from '@univerjs/docs';
 import { UniverDocsUIPlugin } from '@univerjs/docs-ui';
 import { UniverSheetsPlugin } from '@univerjs/sheets';
 import { UniverSheetsUIPlugin } from '@univerjs/sheets-ui';
-// import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
-// import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
+import { UniverSheetsFormulaPlugin } from '@univerjs/sheets-formula';
+import { UniverSheetsFormulaUIPlugin } from '@univerjs/sheets-formula-ui';
 import { UniverSheetsNumfmtUIPlugin } from '@univerjs/sheets-numfmt-ui';
 
 
@@ -137,7 +137,7 @@ import '@univerjs/design/lib/index.css';
 import '@univerjs/ui/lib/index.css';
 import '@univerjs/docs-ui/lib/index.css';
 import '@univerjs/sheets-ui/lib/index.css';
-// import '@univerjs/sheets-formula-ui/lib/index.css';
+import '@univerjs/sheets-formula-ui/lib/index.css';
 import '@univerjs/sheets-numfmt-ui/lib/index.css';
 import '@univerjs/sheets-note-ui/lib/index.css';
 
@@ -164,6 +164,9 @@ import UniverPresetSheetsHyperLinkEnUS from '@univerjs/preset-sheets-hyper-link/
 import '@univerjs/preset-sheets-core/lib/index.css'
 import '@univerjs/preset-sheets-note/lib/index.css'
 import '@univerjs/preset-sheets-hyper-link/lib/index.css'
+
+// Import formula facade API to enable formula functionality
+import '@univerjs/sheets-formula/facade'
 
 
     // Define props
@@ -502,7 +505,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               DocsUIEnUS,
               SheetsEnUS,
               SheetsUIEnUS,
-              // SheetsFormulaUIEnUS,
+              SheetsFormulaUIEnUS,
               SheetsNumfmtUIEnUS,
               SheetsNoteUIEnUS,
             ),
@@ -526,6 +529,10 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
               container: `univer-container-${props.spreadsheetId}`,
               header: !readonlyState, // Show header when not readonly
               toolbar: !readonlyState, // Show toolbar when not readonly
+              formula: {
+                // Enable automatic formula calculation when cells change
+                initialFormulaComputing: 'FORCED'
+              }
             }),
             UniverSheetsNotePreset(),
             UniverSheetsHyperLinkPreset({
@@ -560,88 +567,7 @@ import '@univerjs/preset-sheets-hyper-link/lib/index.css'
         });
         
         
-        // Simple approach: Override all problematic formula methods at runtime
-        try {
-          // Override any problematic methods on the global object that might cause issues
-          if (window.univerAPI && univerAPI.executeCommand) {
-            const originalExecuteCommand = univerAPI.executeCommand;
-            univerAPI.executeCommand = function(commandId, ...args) {
-              if (commandId && typeof commandId === 'string' && 
-                  (commandId.includes('formula') || commandId.includes('Formula'))) {
-                // Silently ignore all formula commands
-                return Promise.resolve({ result: true });
-              }
-              return originalExecuteCommand.apply(this, [commandId, ...args]);
-            };
-          }
-        } catch (suppressError) {
-          console.warn('⚠️ Could not override formula commands:', suppressError);
-        }
-        
-        // ULTIMATE console suppression - block ALL formula-related messages
-        const originalMethods = {
-          error: console.error,
-          warn: console.warn,
-          log: console.log,
-          info: console.info,
-          debug: console.debug
-        };
-        
-        const isFormulaRelated = (message) => {
-          try {
-            // Safely convert message to string
-            let str;
-            if (typeof message === 'string') {
-              str = message;
-            } else if (message && typeof message.toString === 'function') {
-              str = message.toString();
-            } else if (message && typeof message === 'object') {
-              str = JSON.stringify(message);
-            } else {
-              str = String(message);
-            }
-            
-            const lowerStr = str.toLowerCase();
-            return lowerStr.includes('formula') || 
-                   lowerStr.includes('getparent') || 
-                   lowerStr.includes('isfunctionexecutorargu') ||
-                   lowerStr.includes('mutation.set-formula') ||
-                   lowerStr.includes('calculation-notification') ||
-                   lowerStr.includes('calculation-start');
-          } catch (error) {
-            // If conversion fails, assume it's not formula related
-            return false;
-          }
-        };
-        
-        console.error = function(...args) {
-          if (args.some(arg => isFormulaRelated(arg))) return;
-          originalMethods.error.apply(console, args);
-        };
-        
-        console.warn = function(...args) {
-          if (args.some(arg => isFormulaRelated(arg))) return;
-          originalMethods.warn.apply(console, args);
-        };
-        
-        console.log = function(...args) {
-          if (args.some(arg => isFormulaRelated(arg))) return;
-          originalMethods.log.apply(console, args);
-        };
-        
-        // Block ALL error events that might be formula-related
-        window.addEventListener('error', function(event) {
-          if (event.message && isFormulaRelated(event.message)) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
-        }, true);
-        
-        window.addEventListener('unhandledrejection', function(event) {
-          if (event.reason && isFormulaRelated(event.reason)) {
-            event.preventDefault();
-          }
-        });
+        // Formula functionality is now enabled - no blocking needed
 
         // We'll register custom functions after the workbook is created
         console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);

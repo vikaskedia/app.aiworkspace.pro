@@ -568,6 +568,59 @@ import '@univerjs/sheets-formula/facade'
         
         
         // Formula functionality is now enabled - no blocking needed
+        
+        // Currency value parsing utility function
+        const parseCurrencyValue = (value) => {
+          if (value === null || value === undefined) return 0;
+          
+          // If already a number, return it
+          if (typeof value === 'number') return value;
+          
+          // Convert to string and remove currency symbols and formatting
+          const str = String(value);
+          
+          // Remove common currency symbols, commas, and whitespace
+          const cleaned = str
+            .replace(/[$€£¥₹₽]/g, '') // Remove currency symbols
+            .replace(/[,\s]/g, '') // Remove commas and spaces
+            .replace(/[()]/g, '') // Remove parentheses (negative values)
+            .trim();
+          
+          // Check if the original had parentheses (negative)
+          const isNegative = str.includes('(') && str.includes(')');
+          
+          // Parse as float
+          const parsed = parseFloat(cleaned);
+          
+          // Return 0 if not a valid number, otherwise return the value (negative if needed)
+          return isNaN(parsed) ? 0 : (isNegative ? -parsed : parsed);
+        };
+        
+        // Enhanced formula calculation with currency support
+        const enhanceFormulaCalculation = () => {
+          try {
+            if (univerAPI && univerAPI.getFormula) {
+              const formula = univerAPI.getFormula();
+              
+              // Add event listener for formula calculations
+              formula.calculationStart((forceCalculate) => {
+                console.log('🧮 Formula calculation started, ensuring currency values are parsed correctly');
+              });
+              
+              formula.calculationEnd((functionsExecutedState) => {
+                console.log('✅ Formula calculation completed');
+              });
+              
+              // Set calculation mode to ensure formulas update automatically
+              formula.setInitialFormulaComputing('FORCED');
+            }
+          } catch (error) {
+            console.warn('⚠️ Could not enhance formula calculation:', error);
+          }
+        };
+        
+        // Apply enhancement after a short delay to ensure univerAPI is ready
+        setTimeout(enhanceFormulaCalculation, 1000);
 
         // We'll register custom functions after the workbook is created
         console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
@@ -993,6 +1046,33 @@ import '@univerjs/sheets-formula/facade'
               
               if (isCellEdit) {
                 console.log(`✅ Cell edit detected for command: ${command.id}`);
+                
+                // Currency conversion for cell values
+                if (command.params && command.params.value) {
+                  const originalValue = command.params.value;
+                  const numericValue = parseCurrencyValue(originalValue);
+                  
+                  // If the value was a currency string and got converted to a number
+                  if (typeof originalValue === 'string' && originalValue !== String(numericValue) && numericValue !== 0) {
+                    console.log(`💰 Converting currency: "${originalValue}" → ${numericValue}`);
+                    command.params.value = numericValue;
+                  }
+                }
+                
+                // Also check ranges if present
+                if (command.params && command.params.ranges) {
+                  command.params.ranges.forEach(range => {
+                    if (range.value) {
+                      const originalValue = range.value;
+                      const numericValue = parseCurrencyValue(originalValue);
+                      
+                      if (typeof originalValue === 'string' && originalValue !== String(numericValue) && numericValue !== 0) {
+                        console.log(`💰 Converting currency in range: "${originalValue}" → ${numericValue}`);
+                        range.value = numericValue;
+                      }
+                    }
+                  });
+                }
                 
                 // Extract actual cell coordinates from command parameters
                 const extractCellCoordinates = (commandParams) => {

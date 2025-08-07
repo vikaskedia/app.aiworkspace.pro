@@ -1240,7 +1240,7 @@ const getChildWorkspacePortfolios = async () => {
     activePortfolioId.value = portfolioId;
 
     // Update URL to reflect the selected portfolio
-    const portfolioUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio/${portfolioId}`;
+    const portfolioUrl = `/single-workspace/${currentWorkspaceId.value}/portfolio/${portfolioId}`;
     router.push(portfolioUrl);
     
     updatePageTitle();
@@ -2523,7 +2523,8 @@ max-width: 200px;
 </style>
 
 <style>
-.workspace-content.workspace-content--ai-portfolio {
+.workspace-content.workspace-content--dashboard {
   padding: 0;
+  max-width: 100%;
 }
 </style>

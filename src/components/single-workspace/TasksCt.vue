@@ -600,9 +600,9 @@ export default {
           priority: task.priority,
           due_date: task.due_date,
           parent_task_id: task.parent_task_id === undefined ? null : task.parent_task_id,
+          edit_history: task.edit_history,
           updated_at: new Date().toISOString()
         };
-
 
         const { data, error } = await supabase
           .from('tasks')
@@ -720,7 +720,7 @@ export default {
         
         this.editDialogVisible = false;
         this.editingTask = null;
-        ElMessage.success('Task updated successfully');
+        ElMessage.success('Task updated successfully.');
       } catch (error) {
         ElMessage.error('Error updating task: ' + error.message);
       } finally {
@@ -1355,6 +1355,8 @@ export default {
     async updateTaskTitle(task) {
       try {
         this.loading = true;
+
+        console.log('task updated', task);
         
         // Flatten the tasks array to find subtasks
         const flattenTasks = (tasks) => {

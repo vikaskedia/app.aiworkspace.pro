@@ -1112,15 +1112,34 @@ Please provide assistance based on this context, the comment history, the availa
       }
 
       try {
+        // Prepare edit history entries for title 
+        const historyEntries = [];
+        if (this.task.title !== this.editingTitle) {
+            historyEntries.push({
+              field_name: 'title',
+              previous_value: this.task.title,
+              edited_at: new Date().toISOString(),
+              edited_by: this.currentUser.id
+          });
+        }
+      
+        const updateData = {
+          title: this.editingTitle,
+          updated_at: new Date().toISOString()
+        };
+
+        // If there are history entries, add them to the update
+        if (historyEntries.length > 0) { 
+          updateData.edit_history = this.task.edit_history 
+              ? [...this.task.edit_history, ...historyEntries]
+              : historyEntries;
+        }
+
         const { data, error } = await supabase
-          .from('tasks')
-          .update({ 
-            title: this.editingTitle,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', this.task.id)
-          .select()
-          .single();
+            .from('tasks')
+            .update(updateData)
+            .eq('id', this.task.id)
+            .select();
 
         if (error) throw error;
 
@@ -1136,6 +1155,7 @@ Please provide assistance based on this context, the comment history, the availa
         });
         
         // Create activity log for title change
+        /*
         const { data: { user } } = await supabase.auth.getUser();
         await supabase
           .from('task_comments')
@@ -1155,6 +1175,7 @@ Please provide assistance based on this context, the comment history, the availa
               }
             }
           });
+          */
 
         // Update local task title
         this.task.title = this.editingTitle;
@@ -1551,7 +1572,7 @@ Please provide assistance based on this context, the comment history, the availa
                 @keyup.esc="cancelTitleEdit"
               />
               <div class="title-edit-actions">
-                <el-button @click="cancelEdit">Cancel</el-button>
+                <el-button @click="cancelTitleEdit">Cancel</el-button>
                 <el-button 
                   type="primary" 
                   @click="saveTitleEdit" 

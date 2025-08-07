@@ -576,11 +576,32 @@ export default {
     ]
 
     // Add handleSubmit function
-    const handleSubmit = (task) => {
+    const handleSubmit = async (task) => {
       if (!task) return
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+
+      const historyEntries = [];
+      if(editingField.value === 'title') {        
+        if (task.title !== editingValue.value) {
+          historyEntries.push({
+            field_name: 'title',
+            previous_value: task.title,
+            edited_at: new Date().toISOString(),
+            edited_by: user.id
+          });
+        }
+      }
+
+      if(historyEntries.length > 0) {
+        task.edit_history = task.edit_history 
+            ? [...task.edit_history, ...historyEntries]
+            : historyEntries;
+      }
       emit('update-task', { 
         ...task, 
-        [editingField.value]: editingValue.value 
+        [editingField.value]: editingValue.value
       })
       cancelEditing()
     }

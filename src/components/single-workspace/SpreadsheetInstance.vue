@@ -1031,6 +1031,135 @@ import '@univerjs/sheets-formula/facade'
                 handleAnnotationChange(command);
               }
               
+              // Handle cell clicks for TASKSTATUS navigation
+              const isCellClick = 
+                command.id.includes('sheet.operation.set-active-cell') ||
+                command.id.includes('set-active-cell') ||
+                command.id.includes('SetActiveCell') ||
+                command.id.includes('SelectCell') ||
+                command.id.includes('sheet.command.set-selection') ||
+                command.id.includes('sheet.operation.set-selections') ||
+                command.id.includes('sheet.mutation.set-selections') ||
+                command.id.includes('set-selections') ||
+                command.id.includes('SetSelections');
+
+              if (isCellClick) {
+                console.log(`🖱️ Cell click detected for command: ${command.id}`);
+                console.log(`🖱️ Command params:`, command.params);
+                
+                // Extract cell coordinates for click detection
+                const extractCellCoordinates = (commandParams) => {
+                  try {
+                    console.log(`🧮 Extracting coordinates from click:`, commandParams);
+                    
+                    // Method 1: Check for range property
+                    if (commandParams?.range) {
+                      const range = commandParams.range;
+                      console.log(`📍 Found range:`, range);
+                      
+                      if (range.startRow !== undefined && range.startColumn !== undefined) {
+                        return { row: range.startRow, col: range.startColumn };
+                      }
+                      if (range.row !== undefined && range.col !== undefined) {
+                        return { row: range.row, col: range.col };
+                      }
+                    }
+                    
+                    // Method 2: Check for direct row/col properties
+                    if (commandParams?.row !== undefined && commandParams?.col !== undefined) {
+                      return { row: commandParams.row, col: commandParams.col };
+                    }
+                    
+                    // Method 3: Check for ranges array
+                    if (commandParams?.ranges && Array.isArray(commandParams.ranges) && commandParams.ranges.length > 0) {
+                      const firstRange = commandParams.ranges[0];
+                      console.log(`📍 Found ranges[0]:`, firstRange);
+                      
+                      if (firstRange.startRow !== undefined && firstRange.startColumn !== undefined) {
+                        return { row: firstRange.startRow, col: firstRange.startColumn };
+                      }
+                    }
+                    
+                    // Method 4: Check for selection
+                    if (commandParams?.selection) {
+                      const sel = commandParams.selection;
+                      if (sel.startRow !== undefined && sel.startColumn !== undefined) {
+                        return { row: sel.startRow, col: sel.startColumn };
+                      }
+                    }
+                    
+                    console.log(`⚠️ Could not extract coordinates for click`);
+                    return null;
+                  } catch (error) {
+                    console.warn(`⚠️ Error extracting coordinates for click:`, error);
+                    return null;
+                  }
+                };
+
+                const clickCoords = extractCellCoordinates(command.params);
+                if (clickCoords) {
+                  const { row, col } = clickCoords;
+                  console.log(`🖱️ Cell clicked at: [${row}, ${col}]`);
+                  
+                  // Check if this cell contains a TASKSTATUS formula
+                  const currentData = getCurrentSpreadsheetData();
+                  if (currentData?.sheets) {
+                    for (const sheetId of Object.keys(currentData.sheets)) {
+                      const sheet = currentData.sheets[sheetId];
+                      if (sheet.cellData?.[row]?.[col]) {
+                        const cell = sheet.cellData[row][col];
+                        console.log(`🔍 Cell data at [${row}, ${col}]:`, {
+                          formula: cell.f,
+                          value: cell.v,
+                          taskStatusData: cell.taskStatusData,
+                          fullCell: cell
+                        });
+                        
+                        // Check if cell has TASKSTATUS formula OR stored task data
+                        let taskId = null;
+                        let formula = null;
+                        
+                        // Method 1: Check if formula still exists
+                        if (cell.f && typeof cell.f === 'string') {
+                          formula = cell.f.trim();
+                          const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                          if (taskStatusMatch) {
+                            taskId = parseInt(taskStatusMatch[1], 10);
+                          }
+                        }
+                        
+                        // Method 2: Check if we stored task data when processing the formula
+                        if (!taskId && cell.taskStatusData) {
+                          taskId = cell.taskStatusData.taskId;
+                          formula = cell.taskStatusData.originalFormula;
+                        }
+                        
+                        if (taskId && !isNaN(taskId)) {
+                          console.log(`🔗 TASKSTATUS cell clicked: ${formula || 'stored data'}, navigating to task ${taskId}`);
+                          
+                          // Navigate to task detail page
+                          try {
+                            const workspaceId = workspaceStore.currentWorkspace?.id;
+                            if (workspaceId) {
+                              const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                              console.log(`🔗 Navigating to: ${taskUrl}`);
+                              router.push(taskUrl);
+                              ElMessage.success(`Opening task ${taskId}`);
+                            } else {
+                              console.warn('⚠️ No current workspace available for navigation');
+                              ElMessage.warning('Cannot navigate: No workspace selected');
+                            }
+                          } catch (navError) {
+                            console.error('❌ Error navigating to task:', navError);
+                            ElMessage.error(`Failed to open task ${taskId}`);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              
               // Handle cell edits - extract actual cell coordinates from command
               const isCellEdit = 
                 command.id.includes('set-range-value') ||
@@ -1316,7 +1445,30 @@ import '@univerjs/sheets-formula/facade'
                             cell.v = formattedStatus;
                             // Keep cell.f - don't delete the formula so it behaves like predefined formulas
                             
+                            // Store task data for click navigation
+                            cell.taskStatusData = {
+                              taskId: taskId,
+                              originalFormula: formula,
+                              workspaceId: workspaceStore.currentWorkspace?.id
+                            };
+                            
                             console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                            
+                            // Add hyperlink to cell for right-click functionality
+                            setTimeout(() => {
+                              try {
+                                const workspaceId = workspaceStore.currentWorkspace?.id;
+                                if (workspaceId) {
+                                  const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                                  // Use absolute URL for hyperlink
+                                  const absoluteUrl = `${window.location.origin}${taskUrl}`;
+                                  insertHyperlinkInCell(parseInt(row), parseInt(col), formattedStatus, absoluteUrl);
+                                  console.log(`🔗 Added hyperlink to TASKSTATUS cell [${row}, ${col}] → ${absoluteUrl}`);
+                                }
+                              } catch (linkError) {
+                                console.warn(`⚠️ Could not add hyperlink to cell [${row}, ${col}]:`, linkError);
+                              }
+                            }, 100); // Small delay to ensure cell is updated
                             
                             // Show user notification
                             ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
@@ -1330,6 +1482,13 @@ import '@univerjs/sheets-formula/facade'
                             // Task not found or has no status - keep formula
                             cell.v = 'Task Not Found';
                             // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                            
+                            // Store task data even for failed cases to enable click navigation
+                            cell.taskStatusData = {
+                              taskId: taskId,
+                              originalFormula: formula,
+                              workspaceId: workspaceStore.currentWorkspace?.id
+                            };
                             
                             console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
                             ElMessage.warning(`Task ${taskId} not found or not accessible`);
@@ -1346,6 +1505,13 @@ import '@univerjs/sheets-formula/facade'
                           // Update cell with error message but keep formula
                           cell.v = 'Access Denied';
                           // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                          
+                          // Store task data even for error cases to enable click navigation
+                          cell.taskStatusData = {
+                            taskId: taskId,
+                            originalFormula: formula,
+                            workspaceId: workspaceStore.currentWorkspace?.id
+                          };
                           
                           ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
                           
@@ -3080,10 +3246,10 @@ import '@univerjs/sheets-formula/facade'
         // try to return WORKBOOK_DATA
         try {
           if (WORKBOOK_DATA && Object.keys(WORKBOOK_DATA).length > 0) {
-            console.log(`📊 Returning WORKBOOK_DATA for ${props.spreadsheetId}:`, {
+            /*console.log(`📊 Returning WORKBOOK_DATA for ${props.spreadsheetId}:`, {
               hasSheets: !!(WORKBOOK_DATA.sheets),
               sheetsCount: WORKBOOK_DATA.sheets ? Object.keys(WORKBOOK_DATA.sheets).length : 0
-            });
+            });*/
             return WORKBOOK_DATA;
           }
         } catch (error) {

@@ -2,182 +2,159 @@
 
 ## Overview
 
-The TASKSTATUS custom formula has been implemented for Univer spreadsheets. This formula reverses the digits of a given number.
+The TASKSTATUS custom formula displays the status of a task in Univer spreadsheets. Users can click on cells with TASKSTATUS formulas to navigate directly to the task detail page, and can right-click to open in new tabs.
 
 ## Usage
 
 ```
-=TASKSTATUS(123)
+=TASKSTATUS(1893)
 ```
 
-Returns: `321`
+Returns: The formatted status of task ID 1893 (e.g., "In Progress", "Not Started", etc.)
 
 ## How it Works
 
-The TASKSTATUS function takes a number as input and returns the number with its digits reversed:
+The TASKSTATUS function takes a task ID as input and displays the current status of that task:
 
-- `TASKSTATUS(123)` → `321`
-- `TASKSTATUS(456)` → `654`
-- `TASKSTATUS(1000)` → `1` (leading zeros are removed)
+- `TASKSTATUS(1893)` → "In Progress"
+- `TASKSTATUS(2001)` → "Completed" 
+- `TASKSTATUS(404)` → "Task Not Found"
+
+## Click Navigation Features
+
+### Left Click Navigation
+- **Direct Navigation**: Click on any TASKSTATUS cell to navigate directly to the task detail page
+- **Success Feedback**: Shows "Opening task {taskId}" message when navigating
+- **Error Handling**: Shows warnings if workspace is missing or navigation fails
+
+### Right Click Features (Hyperlinks)
+- **Open in New Tab**: Right-click → "Open link in new tab"
+- **Copy Link**: Right-click → "Copy link address" 
+- **Split View**: Open in new window or split view
+- **All Standard Browser Link Features**: Full browser context menu support
 
 ## Implementation Details
 
 ### Files Created/Modified
 
-1. **`src/utils/taskstatus-function.ts`** - Contains the digit reversal logic
+1. **`src/utils/taskstatus-function.ts`** - Contains the task status lookup logic
    - `TaskStatus` class extending `BaseFunction`
    - Function metadata and internationalization
-   - Input validation and digit reversal logic
+   - Input validation and task status fetching
 
 2. **Modified `src/components/single-workspace/SpreadsheetInstance.vue`**
    - **Manual formula processor** instead of Univer function registration
    - Scans spreadsheet data every 2 seconds for TASKSTATUS formulas
-   - Processes formulas by reversing digits and updating cell values
+   - Processes formulas by fetching task status from database
+   - **Click detection** for cell navigation
+   - **Hyperlink creation** for right-click functionality
    - Saves results to database for persistence
 
 ### How It Works
 
 - **Background Processing**: Runs every 2 seconds to detect TASKSTATUS formulas
-- **Formula Detection**: Uses regex to match `=TASKSTATUS(number)` patterns
-- **Digit Reversal**: Processes the number and reverses its digits
-- **Data Update**: Replaces formula with calculated result in spreadsheet data
+- **Formula Detection**: Uses regex to match `=TASKSTATUS(taskId)` patterns  
+- **Task Status Lookup**: Fetches actual task status from database
+- **Data Update**: Replaces formula with formatted task status in spreadsheet
+- **Click Detection**: Stores task data in cells for navigation
+- **Hyperlink Creation**: Adds clickable hyperlinks to processed cells
 - **Persistence**: Saves updated data to Supabase database
 - **User Feedback**: Shows success notifications when formulas are processed
 
 ### Function Features
 
 - **Automatic Detection**: No manual triggering required
-- **Fast Processing**: 2-second scan interval for quick response
-- **User Notifications**: Green popup messages when formulas are processed
-- **Data Persistence**: Results saved to database
-- **Error Handling**: Graceful handling of invalid inputs
+- **Fast Processing**: 2-second scan interval for quick response  
+- **Click Navigation**: Left-click cells to navigate to task detail page
+- **Right-Click Support**: Full browser context menu for hyperlinks
+- **User Notifications**: Success/error messages for all operations
+- **Data Persistence**: Results and hyperlinks saved to database
+- **Error Handling**: Graceful handling of invalid task IDs and permissions
+- **Cross-Sheet Support**: Works across all sheets in the spreadsheet
 - **Type Safety**: Uses TypeScript for type checking
 
 ## Testing Instructions
 
+### Basic Testing
 1. **Start the Development Server**:
    ```bash
    npm run dev
    ```
 
-2. **Open a Spreadsheet**:
-   - Navigate to any workspace that contains spreadsheets
-   - Open or create a spreadsheet instance
+2. **Test TASKSTATUS Formula**:
+   - Open any spreadsheet in a workspace
+   - Enter `=TASKSTATUS(1893)` in a cell (replace with valid task ID)
+   - Wait ~2 seconds for the formula to process
+   - Cell should show the task status (e.g., "In Progress")
 
-3. **Test the Formula**:
-   - Click on any cell
-   - Type `=TASKSTATUS(123)` and press Enter
-   - Wait 2 seconds - you'll see a success notification
-   - **Refresh the page** to see the result (`321`)
+### Navigation Testing
+3. **Test Left-Click Navigation**:
+   - Click on the TASKSTATUS cell
+   - Should navigate to task detail page: `/single-workspace/{workspaceId}/tasks/{taskId}`
+   - Should show "Opening task {taskId}" success message
 
-4. **Additional Test Cases**:
-   ```
-   =TASKSTATUS(456)    # Should return 654 (after refresh)
-   =TASKSTATUS(1000)   # Should return 1 (after refresh)
-   =TASKSTATUS(789)    # Should return 987 (after refresh)
-   =TASKSTATUS(12)     # Should return 21 (after refresh)
-   ```
+4. **Test Right-Click Features**:
+   - Right-click on the TASKSTATUS cell
+   - Should see standard browser context menu with link options:
+     - "Open link in new tab" 
+     - "Open link in new window"
+     - "Copy link address"
+   - Try opening in new tab to verify URL works
 
-5. **What You'll See**:
-   - **Green notification**: "TASKSTATUS(123) processed → 321. Refresh to see result."
-   - **Console message**: "✅ Processed TASKSTATUS(123) → 321 at [row, col]"
-   - **After refresh**: Cell shows `321` instead of the formula
+### Debug Testing
+5. **Check Console Logs**:
+   - Open browser developer tools
+   - Look for logs starting with 🖱️, 🔗, and 🔍
+   - Should see cell click detection and navigation attempts
 
-## Troubleshooting
+## Expected Behavior
 
-### If the Formula Doesn't Work
+- **Formula Processing**: TASKSTATUS formulas are detected and processed automatically within 2 seconds
+- **Status Display**: Cell shows formatted task status (e.g., "In Progress", "Completed", "Task Not Found")
+- **Click Navigation**: Left-clicking navigates to task detail page with success message
+- **Hyperlink Features**: Right-clicking shows browser context menu with link options
+- **Error Handling**: Invalid task IDs show "Task Not Found" but still allow navigation attempts
+- **Data Persistence**: All results and hyperlinks are saved to database
 
-1. **Check Browser Console**: Look for processor status messages:
-   ```
-   ✅ TASKSTATUS formula processor started - checks every 2 seconds
-   ```
+## URL Pattern
 
-2. **Wait and Watch**: After typing the formula:
-   - Wait 2 seconds for processing
-   - Look for "✅ Processed TASKSTATUS..." message
-   - Look for green notification popup
-
-3. **Common Issues**:
-   - **No processor started**: Refresh the page and check console
-   - **Formula not detected**: Make sure syntax is exactly `=TASKSTATUS(123)`
-   - **No notification**: Check if processor is running every 2 seconds
-   - **Result not visible**: Refresh the page or navigate away and back
-
-### Console Messages to Look For
-
-**Success Messages**:
+Navigation follows the standard task detail URL pattern:
 ```
-✅ TASKSTATUS formula processor started - checks every 2 seconds
-📋 TASKSTATUS Usage: Type "=TASKSTATUS(123)" in any cell, wait 2 seconds, then refresh
-✅ Processed TASKSTATUS(123) → 321 at [0, 0]
-📊 Processed 1 TASKSTATUS formulas
-💾 Saved processed formulas to database
+/single-workspace/{workspaceId}/tasks/{taskId}
 ```
 
-**What Each Message Means**:
-- **Processor started**: Background monitoring is active
-- **Usage instruction**: How to use the formula
-- **Processed**: Formula was detected and calculated
-- **Saved**: Result was saved to database for persistence
+Example: `/single-workspace/123/tasks/1893`
 
-## Code Structure
+## Technical Implementation Notes
 
-### TaskStatus Class
+### Cell Click Detection
+The implementation uses Univer's command service to detect various cell selection commands:
+- `sheet.operation.set-active-cell`
+- `set-active-cell`
+- `SetActiveCell`
+- `SelectCell`
+- `sheet.command.set-selection`
+- And more selection-related commands
 
-```typescript
-export class TaskStatus extends BaseFunction {
-  override calculate(numberParam: BaseValueObject) {
-    // Input validation
-    if (numberParam.isError()) {
-      return numberParam;
-    }
-
-    // Convert and validate number
-    const value = numberParam.getValue();
-    let numberValue = typeof value === 'string' ? 
-      parseInt(value, 10) : value;
-
-    // Reverse digits
-    const reversedString = numberValue.toString()
-      .split('').reverse().join('');
-    return NumberValueObject.create(parseInt(reversedString, 10));
-  }
-}
+### Data Storage
+Each processed TASKSTATUS cell stores metadata for click detection:
+```javascript
+cell.taskStatusData = {
+  taskId: taskId,
+  originalFormula: formula,
+  workspaceId: workspaceStore.currentWorkspace?.id
+};
 ```
 
-### Registration Process
+### Hyperlink Implementation
+Uses Univer's `insertHyperlinkInCell` function to add proper HTML hyperlinks:
+```javascript
+const absoluteUrl = `${window.location.origin}/single-workspace/${workspaceId}/tasks/${taskId}`;
+insertHyperlinkInCell(row, col, formattedStatus, absoluteUrl);
+```
 
-The custom function is registered with Univer's formula engine during spreadsheet initialization:
-
-1. Multiple service names are tried for compatibility
-2. The function class is registered with the service
-3. Function metadata is registered for autocomplete and help
-4. Success/failure is logged to the console
-
-## Future Enhancements
-
-Potential improvements for the TASKSTATUS formula:
-
-1. **Support for Negative Numbers**: Handle negative inputs
-2. **Decimal Support**: Handle decimal numbers (reverse before decimal point)
-3. **Formatting Options**: Add parameters for output formatting
-4. **Performance Optimization**: Optimize for very large numbers
-
-## Related Files
-
-- `src/utils/taskstatus-function.ts` - Function implementation
-- `src/components/single-workspace/SpreadsheetInstance.vue` - Integration
-- `package.json` - Univer dependencies
-- This README - Documentation
-
-## Example Implementation
-
-The TASKSTATUS formula demonstrates a **manual formula processing approach** for Univer when function registration isn't available:
-
-1. **Background monitoring** - Scans spreadsheet data every 2 seconds
-2. **Pattern matching** - Uses regex to detect custom formulas
-3. **Direct processing** - Calculates results and updates cell data
-4. **Data persistence** - Saves results to database for permanence
-5. **User feedback** - Provides notifications and clear console messages
-
-This approach works around Univer service registration issues and provides a reliable alternative for custom formula functionality. The pattern can be adapted for other custom formulas that need to work outside of Univer's built-in function system. 
+This provides full browser functionality including:
+- Right-click context menu
+- Ctrl+click to open in new tab
+- Copy link address
+- Standard accessibility features

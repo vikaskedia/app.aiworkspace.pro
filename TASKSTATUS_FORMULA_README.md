@@ -65,6 +65,7 @@ The TASKSTATUS function takes a task ID as input and displays the current status
 
 - **Automatic Detection**: No manual triggering required
 - **Fast Processing**: 2-second scan interval for quick response  
+- **Real-Time Updates**: Automatically refreshes when task status changes elsewhere
 - **Click Navigation**: Left-click cells to navigate to task detail page
 - **Right-Click Support**: Full browser context menu for hyperlinks
 - **User Notifications**: Success/error messages for all operations
@@ -101,16 +102,27 @@ The TASKSTATUS function takes a task ID as input and displays the current status
      - "Copy link address"
    - Try opening in new tab to verify URL works
 
+### Real-Time Testing
+5. **Test Real-Time Updates**:
+   - Open a spreadsheet with TASKSTATUS formulas
+   - In another tab/window, navigate to task detail page and change the task status
+   - Return to spreadsheet - should see automatic update within seconds
+   - Should see success message "Updated X TASKSTATUS cell(s) for task Y"
+
 ### Debug Testing
-5. **Check Console Logs**:
+6. **Check Console Logs**:
    - Open browser developer tools
-   - Look for logs starting with 🖱️, 🔗, and 🔍
-   - Should see cell click detection and navigation attempts
+   - Look for logs starting with:
+     - 🖱️ (cell clicks), 🔗 (hyperlinks), 🔍 (detection)
+     - 📡 (real-time subscription), 🔄 (refresh updates)
+     - 📍 (cell tracking)
+   - Should see task update subscriptions and cell refresh attempts
 
 ## Expected Behavior
 
 - **Formula Processing**: TASKSTATUS formulas are detected and processed automatically within 2 seconds
 - **Status Display**: Cell shows formatted task status (e.g., "In Progress", "Completed", "Task Not Found")
+- **Real-Time Sync**: Cells automatically update when task status changes elsewhere (within 1-2 seconds)
 - **Click Navigation**: Left-clicking navigates to task detail page with success message
 - **Hyperlink Features**: Right-clicking shows browser context menu with link options
 - **Error Handling**: Invalid task IDs show "Task Not Found" but still allow navigation attempts
@@ -158,3 +170,33 @@ This provides full browser functionality including:
 - Ctrl+click to open in new tab
 - Copy link address
 - Standard accessibility features
+
+### Real-Time Update System
+Uses Supabase real-time subscriptions to detect task status changes:
+```javascript
+// Subscription setup
+supabase
+  .channel(`tasks-updates-${workspaceId}-${spreadsheetId}`)
+  .on('postgres_changes', {
+    event: 'UPDATE',
+    schema: 'public', 
+    table: 'tasks',
+    filter: `workspace_id=eq.${workspaceId}`
+  }, async (payload) => {
+    if (payload.new.status !== payload.old.status) {
+      await refreshTaskStatusCells(payload.new.id);
+    }
+  })
+```
+
+### Cell Tracking System
+Each TASKSTATUS cell is tracked for efficient updates:
+```javascript
+// Cell tracking map: taskId -> [{row, col, sheetId}]
+const taskStatusCells = new Map();
+
+// When formula is processed, cell is tracked
+taskStatusCells.set(taskId, [{row: 5, col: 2, sheetId: 'sheet-01'}]);
+```
+
+When a task status changes, only the specific cells containing that task's TASKSTATUS formula are refreshed, making the system highly efficient even with many formulas.

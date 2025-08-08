@@ -229,6 +229,320 @@ import '@univerjs/sheets-formula/facade'
     // Task store for fetching task information
     const taskStore = useTaskStore();
     
+    // Real-time subscription for task updates
+    let taskUpdateSubscription = null;
+    
+    // Global references for real-time updates
+    const taskStatusCells = new Map(); // taskId -> [{row, col, sheetId}] - Use const to ensure it doesn't get reassigned
+    let getCurrentSpreadsheetDataRef = null;
+    let saveCurrentDataRef = null;
+    let insertHyperlinkInCellRef = null;
+    
+    // Helper function to format status for display
+    const formatTaskStatus = (status) => {
+      const statusMap = {
+        'not_started': 'Not Started',
+        'in_progress': 'In Progress',
+        'not_needed_anymore': 'Not needed anymore',
+        'awaiting_external': 'Awaiting External',
+        'awaiting_internal': 'Awaiting Internal',
+        'completed': 'Completed'
+      };
+      return statusMap[status] || status || 'Unknown';
+    };
+    
+    // Function to refresh specific TASKSTATUS cells when task status changes
+    const refreshTaskStatusCells = async (taskId) => {
+      console.log(`🔄 Refreshing TASKSTATUS cells for task ${taskId}`);
+      console.log(`📊 Current global taskStatusCells map:`, Array.from(taskStatusCells.entries()));
+      console.log(`📊 Looking for cells for task ${taskId}:`, taskStatusCells.get(taskId));
+      
+      const cellsToRefresh = taskStatusCells.get(taskId);
+      if (!cellsToRefresh || cellsToRefresh.length === 0) {
+        console.log(`📍 No TASKSTATUS cells found for task ${taskId}`);
+        console.log(`📊 Available task IDs in map:`, Array.from(taskStatusCells.keys()));
+        return;
+      }
+      
+      try {
+        // Fetch updated task data
+        const task = await taskStore.getTaskById(taskId);
+        
+        const currentData = getCurrentSpreadsheetDataRef?.();
+        if (!currentData?.sheets) {
+          console.warn('⚠️ No spreadsheet data available for refresh');
+          return;
+        }
+        
+        let refreshCount = 0;
+        
+        for (const cellInfo of cellsToRefresh) {
+          const { row, col, sheetId } = cellInfo;
+          const sheet = currentData.sheets[sheetId];
+          
+          if (sheet?.cellData?.[row]?.[col]) {
+            const cell = sheet.cellData[row][col];
+            
+            if (task && task.status) {
+              const formattedStatus = formatTaskStatus(task.status);
+              
+              // Update cell value
+              cell.v = formattedStatus;
+              
+              // Update stored task data
+              cell.taskStatusData = {
+                taskId: taskId,
+                originalFormula: cell.taskStatusData?.originalFormula || `=TASKSTATUS(${taskId})`,
+                workspaceId: workspaceStore.currentWorkspace?.id
+              };
+              
+              // Update hyperlink
+              setTimeout(() => {
+                try {
+                  const workspaceId = workspaceStore.currentWorkspace?.id;
+                  if (workspaceId && insertHyperlinkInCellRef) {
+                    const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                    const absoluteUrl = `${window.location.origin}${taskUrl}`;
+                    insertHyperlinkInCellRef(parseInt(row), parseInt(col), formattedStatus, absoluteUrl);
+                  }
+                } catch (linkError) {
+                  console.warn(`⚠️ Could not update hyperlink for cell [${row}, ${col}]:`, linkError);
+                }
+              }, 50);
+              
+              refreshCount++;
+              console.log(`✅ Refreshed TASKSTATUS cell [${row}, ${col}] → "${formattedStatus}"`);
+            } else {
+              // Task not found or has no status
+              cell.v = 'Task Not Found';
+              console.log(`⚠️ Task ${taskId} not found during refresh`);
+            }
+          }
+        }
+        
+        if (refreshCount > 0) {
+          // Save updated data to database
+          if (saveCurrentDataRef) {
+            await saveCurrentDataRef(currentData);
+          }
+          //ElMessage.success(`Updated ${refreshCount} TASKSTATUS cell(s) for task ${taskId}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error refreshing TASKSTATUS cells for task ${taskId}:`, error);
+        ElMessage.error(`Failed to refresh task ${taskId} status in spreadsheet`);
+      }
+    };
+    
+    // Function to clean up duplicate TASKSTATUS formulas in unwanted cells
+    const cleanupDuplicateTaskStatusCells = () => {
+      console.log(`🧹 Cleaning up duplicate TASKSTATUS formulas...`);
+      
+      if (!getCurrentSpreadsheetDataRef) return;
+      
+      try {
+        const currentData = getCurrentSpreadsheetDataRef();
+        if (!currentData?.sheets) return;
+        
+        const formulaCells = [];
+        
+        // First pass: find all cells with TASKSTATUS formulas
+        for (const sheetId of Object.keys(currentData.sheets)) {
+          const sheet = currentData.sheets[sheetId];
+          if (!sheet.cellData) continue;
+          
+          for (const row of Object.keys(sheet.cellData)) {
+            for (const col of Object.keys(sheet.cellData[row])) {
+              const cell = sheet.cellData[row][col];
+              
+              if (cell?.f && typeof cell.f === 'string') {
+                const formula = cell.f.trim();
+                const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                
+                if (taskStatusMatch) {
+                  formulaCells.push({ row, col, sheetId, formula, taskId: parseInt(taskStatusMatch[1], 10) });
+                  console.log(`🔍 Found TASKSTATUS formula at [${row}, ${col}]: ${formula}`);
+                }
+              }
+            }
+          }
+        }
+        
+        console.log(`📊 Total TASKSTATUS formulas found: ${formulaCells.length}`);
+        
+        // Group by task ID to find duplicates
+        const taskGroups = {};
+        formulaCells.forEach(cell => {
+          if (!taskGroups[cell.taskId]) {
+            taskGroups[cell.taskId] = [];
+          }
+          taskGroups[cell.taskId].push(cell);
+        });
+        
+        // Report duplicates
+        Object.keys(taskGroups).forEach(taskId => {
+          const cells = taskGroups[taskId];
+          if (cells.length > 1) {
+            console.log(`⚠️ Duplicate TASKSTATUS(${taskId}) found in ${cells.length} cells:`, 
+              cells.map(c => `[${c.row}, ${c.col}]`).join(', '));
+          }
+        });
+        
+      } catch (error) {
+        console.error(`❌ Error cleaning duplicate TASKSTATUS cells:`, error);
+      }
+    };
+    
+    // Function to scan existing spreadsheet data and track TASKSTATUS cells
+    const scanAndTrackExistingTaskStatusCells = () => {
+      console.log(`🔍 Scanning for existing TASKSTATUS cells to track...`);
+      
+      if (!getCurrentSpreadsheetDataRef) {
+        console.log(`⚠️ getCurrentSpreadsheetDataRef not available yet`);
+        return;
+      }
+      
+      try {
+        const currentData = getCurrentSpreadsheetDataRef();
+        if (!currentData?.sheets) {
+          console.log(`⚠️ No spreadsheet data available for scanning`);
+          return;
+        }
+        
+        let foundCells = 0;
+        
+        // Scan all sheets
+        for (const sheetId of Object.keys(currentData.sheets)) {
+          const sheet = currentData.sheets[sheetId];
+          if (!sheet.cellData) continue;
+          
+          // Scan all rows
+          for (const row of Object.keys(sheet.cellData)) {
+            // Scan all columns
+            for (const col of Object.keys(sheet.cellData[row])) {
+              const cell = sheet.cellData[row][col];
+              
+              // Debug: log every cell that has any data
+              if (cell && (cell.f || cell.v || cell.taskStatusData)) {
+                console.log(`🔍 Cell [${row}, ${col}]:`, {
+                  formula: cell.f,
+                  value: cell.v, 
+                  taskStatusData: cell.taskStatusData,
+                  hasFormula: !!cell.f,
+                  hasValue: !!cell.v,
+                  hasTaskData: !!cell.taskStatusData
+                });
+              }
+              
+              // Check if cell has taskStatusData (already processed TASKSTATUS formula)
+              if (cell?.taskStatusData?.taskId) {
+                const taskId = cell.taskStatusData.taskId;
+                console.log(`🔍 Found cell with taskStatusData at [${row}, ${col}]:`, cell.taskStatusData);
+                
+                // Track this cell
+                if (!taskStatusCells.has(taskId)) {
+                  taskStatusCells.set(taskId, []);
+                }
+                const cellsForTask = taskStatusCells.get(taskId);
+                
+                // Check if not already tracked
+                const cellExists = cellsForTask.some(c => c.row === row && c.col === col && c.sheetId === sheetId);
+                if (!cellExists) {
+                  cellsForTask.push({ row, col, sheetId });
+                  foundCells++;
+                  console.log(`📍 Found and tracked existing TASKSTATUS cell [${row}, ${col}] for task ${taskId}`);
+                }
+              }
+              
+              // Also check for cells with TASKSTATUS formula but no taskStatusData yet
+              else if (cell?.f && typeof cell.f === 'string') {
+                const formula = cell.f.trim();
+                console.log(`🔍 Found cell with formula at [${row}, ${col}]: "${formula}"`);
+                const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                
+                if (taskStatusMatch) {
+                  const taskId = parseInt(taskStatusMatch[1], 10);
+                  console.log(`🔍 Found TASKSTATUS formula at [${row}, ${col}] for task ${taskId}`);
+                  if (!isNaN(taskId)) {
+                    // Track this cell
+                    if (!taskStatusCells.has(taskId)) {
+                      taskStatusCells.set(taskId, []);
+                    }
+                    const cellsForTask = taskStatusCells.get(taskId);
+                    
+                    // Check if not already tracked
+                    const cellExists = cellsForTask.some(c => c.row === row && c.col === col && c.sheetId === sheetId);
+                    if (!cellExists) {
+                      cellsForTask.push({ row, col, sheetId });
+                      foundCells++;
+                      console.log(`📍 Found and tracked unprocessed TASKSTATUS cell [${row}, ${col}] for task ${taskId}`);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        console.log(`✅ Scan complete: Found and tracked ${foundCells} TASKSTATUS cells`);
+        console.log(`📊 Global taskStatusCells map after scan:`, Array.from(taskStatusCells.entries()));
+        
+      } catch (error) {
+        console.error(`❌ Error scanning for existing TASKSTATUS cells:`, error);
+      }
+    };
+    
+    // Set up real-time subscription for task status updates
+    const setupTaskUpdateSubscription = () => {
+      // Clean up existing subscription
+      if (taskUpdateSubscription) {
+        taskUpdateSubscription.unsubscribe();
+      }
+      
+      const workspaceId = currentWorkspaceId.value;
+      if (!workspaceId) {
+        console.warn('⚠️ No workspace ID available for task update subscription');
+        return;
+      }
+      
+      console.log(`📡 Setting up task update subscription for workspace ${workspaceId} in spreadsheet ${props.spreadsheetId}`);
+      
+      taskUpdateSubscription = supabase
+        .channel(`tasks-updates-${workspaceId}-${props.spreadsheetId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'tasks',
+            filter: `workspace_id=eq.${workspaceId}`
+          },
+          async (payload) => {
+            console.log('📡 Received task update in spreadsheet:', payload);
+            
+            if (payload.new && payload.old) {
+              const taskId = payload.new.id;
+              const oldStatus = payload.old.status;
+              const newStatus = payload.new.status;
+              
+              // Only refresh if status actually changed
+              if (oldStatus !== newStatus) {
+                console.log(`🔄 Task ${taskId} status changed: "${oldStatus}" → "${newStatus}"`);
+                
+                // Clear task cache to force fresh data
+                taskStore.clearTaskCache(workspaceId);
+                
+                // Refresh TASKSTATUS cells for this task
+                await refreshTaskStatusCells(taskId);
+              }
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log(`📡 Task update subscription status for ${props.spreadsheetId}:`, status);
+        });
+    };
+    
     // Use prop workspaceId if provided, otherwise get from current workspace
     const currentWorkspaceId = computed(() => props.workspaceId || currentWorkspace.value?.id);
     
@@ -1144,7 +1458,7 @@ import '@univerjs/sheets-formula/facade'
                               const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
                               console.log(`🔗 Navigating to: ${taskUrl}`);
                               router.push(taskUrl);
-                              ElMessage.success(`Opening task ${taskId}`);
+                              //ElMessage.success(`Opening task ${taskId}`);
                             } else {
                               console.warn('⚠️ No current workspace available for navigation');
                               ElMessage.warning('Cannot navigate: No workspace selected');
@@ -1374,29 +1688,19 @@ import '@univerjs/sheets-formula/facade'
         }
 
         // TASKSTATUS formula processor - fetches real task status from database
-        // Cache to prevent re-processing the same formula repeatedly
-        const taskStatusCache = new Map();
+        
+
         
         const processTaskStatusFormulas = async () => {
           try {
+            console.log(`🔍 processTaskStatusFormulas started, global taskStatusCells has ${taskStatusCells.size} entries`);
             const currentData = getCurrentSpreadsheetData();
             if (!currentData || !currentData.sheets) return;
             
             let processedCount = 0;
             let needsReload = false;
             
-            // Helper function to format status for display
-            const formatTaskStatus = (status) => {
-              const statusMap = {
-                'not_started': 'Not Started',
-                'in_progress': 'In Progress',
-                'not_needed_anymore': 'Not needed anymore',
-                'awaiting_external': 'Awaiting External',
-                'awaiting_internal': 'Awaiting Internal',
-                'completed': 'Completed'
-              };
-              return statusMap[status] || status || 'Unknown';
-            };
+
             
             // Process each sheet
             for (const sheetId of Object.keys(currentData.sheets)) {
@@ -1415,22 +1719,12 @@ import '@univerjs/sheets-formula/facade'
                     if (taskStatusMatch) {
                       const taskId = parseInt(taskStatusMatch[1], 10);
                       if (!isNaN(taskId)) {
-                        // Create cache key to prevent re-processing the same formula
-                        const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
-                        const now = Date.now();
-                        const cacheEntry = taskStatusCache.get(cacheKey);
+                        console.log(`🔍 Found TASKSTATUS formula at [${row}, ${col}] in sheet ${sheetId}: ${formula}`);
+                        // Always process TASKSTATUS formulas to get fresh status on page load
+                        console.log(`🔄 Processing TASKSTATUS formula at [${row}, ${col}] to get current status`);
                         
-                        // Skip if processed within the last 30 seconds
-                        if (cacheEntry && (now - cacheEntry.timestamp) < 30000) {
-                          continue;
-                        }
-                        
-                        // Skip if cell already has a value (unless it's an error)
-                        if (cell.v && !String(cell.v).startsWith('Access Denied') && !String(cell.v).includes('Not Found')) {
-                          // Cache successful results for 30 seconds
-                          taskStatusCache.set(cacheKey, { timestamp: now, status: 'cached' });
-                          continue;
-                        }
+                        // Clear task cache to ensure fresh data
+                        taskStore.clearTaskCache();
                         
                         try {
                           console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
@@ -1441,9 +1735,9 @@ import '@univerjs/sheets-formula/facade'
                           if (task && task.status) {
                             const formattedStatus = formatTaskStatus(task.status);
                             
-                            // Update the cell value but keep formula (like predefined formulas)
+                            // Update the cell value but keep the formula
                             cell.v = formattedStatus;
-                            // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                            // Keep the formula so it can be processed again on page refresh
                             
                             // Store task data for click navigation
                             cell.taskStatusData = {
@@ -1453,6 +1747,8 @@ import '@univerjs/sheets-formula/facade'
                             };
                             
                             console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                            
+                            // Note: Real-time tracking removed for simplicity
                             
                             // Add hyperlink to cell for right-click functionality
                             setTimeout(() => {
@@ -1471,17 +1767,16 @@ import '@univerjs/sheets-formula/facade'
                             }, 100); // Small delay to ensure cell is updated
                             
                             // Show user notification
-                            ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
+                            //ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
                             
-                            // Cache this result for 30 seconds
-                            taskStatusCache.set(cacheKey, { timestamp: now, status: 'processed' });
+                            // Formula processed successfully
                             
                             processedCount++;
                             needsReload = true;
                           } else {
-                            // Task not found or has no status - keep formula
+                            // Task not found or has no status
                             cell.v = 'Task Not Found';
-                            // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                            // Keep the formula for future processing
                             
                             // Store task data even for failed cases to enable click navigation
                             cell.taskStatusData = {
@@ -1493,8 +1788,9 @@ import '@univerjs/sheets-formula/facade'
                             console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
                             ElMessage.warning(`Task ${taskId} not found or not accessible`);
                             
-                            // Cache this result for 30 seconds
-                            taskStatusCache.set(cacheKey, { timestamp: now, status: 'not_found' });
+                            // Note: Real-time tracking removed for simplicity
+                            
+                            // Task not found - formula processed
                             
                             processedCount++;
                             needsReload = true;
@@ -1504,7 +1800,7 @@ import '@univerjs/sheets-formula/facade'
                           
                           // Update cell with error message but keep formula
                           cell.v = 'Access Denied';
-                          // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                          // Keep the formula for future processing
                           
                           // Store task data even for error cases to enable click navigation
                           cell.taskStatusData = {
@@ -1515,8 +1811,9 @@ import '@univerjs/sheets-formula/facade'
                           
                           ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
                           
-                          // Cache this error for 30 seconds to prevent repeated failed calls
-                          taskStatusCache.set(cacheKey, { timestamp: now, status: 'error' });
+                          // Note: Real-time tracking removed for simplicity
+                          
+                          // Error handled - formula processed
                           
                           processedCount++;
                           needsReload = true;
@@ -1787,24 +2084,16 @@ import '@univerjs/sheets-formula/facade'
 
         // Start formula processing after workbook is created
         setTimeout(() => {
-          // Process immediately
+          console.log(`🚀 Running initial formula processing for ${props.spreadsheetId}...`);
+          // Process TASKSTATUS formulas once on load
           processTaskStatusFormulas();
           processApiCallFormulas();
           
-          // Then process every 2 seconds for faster response
-                  const taskStatusInterval = setInterval(processTaskStatusFormulas, 2000);
-        const apiCallInterval = setInterval(processApiCallFormulas, 500); // Check every 500ms for faster response
+          // Note: Removed intervals - formulas are processed once on load only
+          // This prevents repeated processing and duplicate status display
           
-          // Store intervals for cleanup
-          if (!window.taskStatusIntervals) window.taskStatusIntervals = new Map();
-          if (!window.apiCallIntervals) window.apiCallIntervals = new Map();
-          window.taskStatusIntervals.set(props.spreadsheetId, taskStatusInterval);
-          window.apiCallIntervals.set(props.spreadsheetId, apiCallInterval);
-          
-          console.log(`✅ TASKSTATUS formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
-          console.log(`✅ APICALL formula processor started - checks every 2 seconds (${props.spreadsheetId})`);
-          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464. Wait 2 seconds, then refresh or navigate away and back to see the actual task status.`);
-          console.log(`🌐 APICALL Usage: Type "=APICALL('https://api.ipify.org/?format=json', 'ip')" in any cell to fetch your IP address from the API. Works with any JSON API.`);
+          console.log(`✅ TASKSTATUS formula processor run once on load (${props.spreadsheetId})`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464.`);
         }, 1000);
 
         // Enable change tracking with error handling
@@ -2447,6 +2736,26 @@ import '@univerjs/sheets-formula/facade'
         isReadonly: props.readonly
       });
       
+      // Set up references for global refresh function (after all functions are defined)
+      getCurrentSpreadsheetDataRef = getCurrentSpreadsheetData;
+      saveCurrentDataRef = savePortfolioData;
+      insertHyperlinkInCellRef = insertHyperlinkInCell;
+      
+      console.log(`🔧 References set up, about to scan for existing cells...`);
+      console.log(`🔧 getCurrentSpreadsheetDataRef available:`, !!getCurrentSpreadsheetDataRef);
+      
+      // Scan for existing TASKSTATUS cells and track them (with delay to ensure spreadsheet is ready)
+      setTimeout(() => {
+        console.log(`🕐 Running delayed scan for TASKSTATUS cells...`);
+        cleanupDuplicateTaskStatusCells(); // First check for duplicates
+        scanAndTrackExistingTaskStatusCells(); // Then track them
+      }, 2000); // Wait 2 seconds for spreadsheet to initialize
+      
+      // Set up real-time subscription for task updates
+      if (currentWorkspaceId.value) {
+        setupTaskUpdateSubscription();
+      }
+      
 
       
       // Check if we're loading from URL history parameters
@@ -2464,6 +2773,12 @@ import '@univerjs/sheets-formula/facade'
     });
 
     onBeforeUnmount(() => {
+      // Clean up real-time task update subscription
+      if (taskUpdateSubscription) {
+        taskUpdateSubscription.unsubscribe();
+        console.log(`🧹 Cleaned up task update subscription for ${props.spreadsheetId}`);
+      }
+      
       // Clean up TASKSTATUS formula processor
       if (window.taskStatusIntervals && window.taskStatusIntervals.has(props.spreadsheetId)) {
         clearInterval(window.taskStatusIntervals.get(props.spreadsheetId));

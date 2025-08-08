@@ -3176,6 +3176,21 @@ import '@univerjs/sheets-formula/facade'
           throw new Error('Data contains non-serializable content: ' + serializeError.message);
         }
         
+        // Get current display_order from the latest record to preserve ordering
+        let currentDisplayOrder = 0;
+        const { data: latestRecord } = await supabase
+          .from('ai_portfolio_data')
+          .select('display_order')
+          .eq('spreadsheet_id', props.spreadsheetId)
+          .eq('portfolio_id', props.portfolioId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (latestRecord && latestRecord.display_order) {
+          currentDisplayOrder = latestRecord.display_order;
+        }
+
         // Always create new record for history tracking
         console.log(`📝 Creating new record (${props.spreadsheetId}) for workspace ${currentWorkspaceId.value}...`);
         const { data: newRecord, error } = await supabase
@@ -3186,6 +3201,7 @@ import '@univerjs/sheets-formula/facade'
             spreadsheet_id: props.spreadsheetId,
             workspace_id: currentWorkspaceId.value,
             portfolio_id: props.portfolioId,
+            display_order: currentDisplayOrder,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }])
@@ -4253,7 +4269,7 @@ import '@univerjs/sheets-formula/facade'
 
 <style scoped>
 .spreadsheet-instance-wrapper {
-  /*width: 100%;*/
+  width: 100%;
   margin-bottom: 8px;
   background: #f5f7fa;
   border-radius: 8px;

@@ -122,19 +122,50 @@
             <div class="portfolio-content">
               <!-- Spreadsheet Instances for this Portfolio -->
               <div class="spreadsheets-container">
-                <SpreadsheetInstance
-                  v-for="spreadsheet in getPortfolioSpreadsheets(portfolio.id)"
-                  :key="`${spreadsheet.id}-${getPortfolioReadonlyState(portfolio.id)}`"
-                  :spreadsheet-id="spreadsheet.id"
-                  :spreadsheet-name="spreadsheet.name"
-                  :initial-rows="spreadsheet.rows"
-                  :initial-columns="spreadsheet.columns"
-                  :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
-                  :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
-                  :portfolio-id="portfolio.id"
-                  :readonly="getPortfolioReadonlyState(portfolio.id)"
-                  @remove-spreadsheet="removeSpreadsheet"
-                />
+                <div class="spreadsheets-list">
+                  <div 
+                    v-for="(spreadsheet, index) in getPortfolioSpreadsheets(portfolio.id)"
+                    :key="`${spreadsheet.id}-${getPortfolioReadonlyState(portfolio.id)}`"
+                    class="spreadsheet-item"
+                    :class="{ 'has-drag-handle': !getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 }">
+                    
+                    <!-- Drag Handle with manual reorder buttons -->
+                    <div 
+                      v-if="!getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1" 
+                      class="manual-reorder-controls">
+                      <el-button 
+                        v-if="index > 0"
+                        @click="moveSpreadsheetUp(spreadsheet.id, portfolio.id)"
+                        size="small"
+                        type="text"
+                        class="reorder-btn"
+                        title="Move up">
+                        <el-icon><ArrowUp /></el-icon>
+                      </el-button>
+                      <el-button 
+                        v-if="index < getPortfolioSpreadsheets(portfolio.id).length - 1"
+                        @click="moveSpreadsheetDown(spreadsheet.id, portfolio.id)"
+                        size="small"
+                        type="text"
+                        class="reorder-btn"
+                        title="Move down">
+                        <el-icon><ArrowDown /></el-icon>
+                      </el-button>
+                    </div>
+                    
+                    <SpreadsheetInstance
+                      :spreadsheet-id="spreadsheet.id"
+                      :spreadsheet-name="spreadsheet.name"
+                      :initial-rows="spreadsheet.rows"
+                      :initial-columns="spreadsheet.columns"
+                      :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
+                      :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
+                      :portfolio-id="portfolio.id"
+                      :readonly="getPortfolioReadonlyState(portfolio.id)"
+                      @remove-spreadsheet="removeSpreadsheet"
+                    />
+                  </div>
+                </div>
               </div>
               
               <!-- Add Spreadsheet Button (compact design) -->
@@ -364,13 +395,14 @@
 <script>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Folder, Edit, Close, MoreFilled } from '@element-plus/icons-vue';
+import { Plus, Delete, Folder, Edit, Close, MoreFilled, Rank, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
 import { setWorkspaceTitle, setComponentTitle } from '../../utils/page-title';
 import { useRouter } from 'vue-router';
+import draggable from 'vuedraggable';
 
 export default {
   name: 'AiPortfolioManagerCt',
@@ -387,7 +419,11 @@ export default {
     Folder,
     Edit,
     Close,
-    MoreFilled
+    MoreFilled,
+    Rank,
+    ArrowUp,
+    ArrowDown,
+    draggable
   },
   setup(props) {
     // Workspace store for workspace context
@@ -918,7 +954,9 @@ export default {
     
     // Get spreadsheets for a specific portfolio
     const getPortfolioSpreadsheets = (portfolioId) => {
-      return spreadsheets.value.filter(sheet => sheet.portfolioId === portfolioId);
+      return spreadsheets.value
+        .filter(sheet => sheet.portfolioId === portfolioId)
+        .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     };
     
     // Get spreadsheet count for a portfolio
@@ -935,6 +973,100 @@ export default {
         // This belongs to the current workspace
         return currentWorkspace.value?.title || 'Current Workspace';
       }
+    };
+
+    // Move spreadsheet up in order
+    const moveSpreadsheetUp = async (spreadsheetId, portfolioId) => {
+      const portfolioSpreadsheets = getPortfolioSpreadsheets(portfolioId);
+      const currentIndex = portfolioSpreadsheets.findIndex(s => s.id === spreadsheetId);
+      
+      if (currentIndex > 0) {
+        await reorderSpreadsheets(portfolioId, currentIndex, currentIndex - 1);
+      }
+    };
+
+    // Move spreadsheet down in order  
+    const moveSpreadsheetDown = async (spreadsheetId, portfolioId) => {
+      const portfolioSpreadsheets = getPortfolioSpreadsheets(portfolioId);
+      const currentIndex = portfolioSpreadsheets.findIndex(s => s.id === spreadsheetId);
+      
+      if (currentIndex < portfolioSpreadsheets.length - 1) {
+        await reorderSpreadsheets(portfolioId, currentIndex, currentIndex + 1);
+      }
+    };
+
+    // Common reordering logic
+    const reorderSpreadsheets = async (portfolioId, oldIndex, newIndex) => {
+      // Get current portfolio spreadsheets and update their order
+      const portfolioSpreadsheets = getPortfolioSpreadsheets(portfolioId);
+      
+      // Move the spreadsheet from old position to new position
+      const [movedSheet] = portfolioSpreadsheets.splice(oldIndex, 1);
+      portfolioSpreadsheets.splice(newIndex, 0, movedSheet);
+      
+      // Update display order for all spreadsheets in this portfolio
+      const updatedSpreadsheets = [];
+      portfolioSpreadsheets.forEach((sheet, index) => {
+        const newDisplayOrder = index + 1;
+        if (sheet.displayOrder !== newDisplayOrder) {
+          updatedSpreadsheets.push({
+            spreadsheet_id: sheet.id,
+            display_order: newDisplayOrder
+          });
+        }
+        sheet.displayOrder = newDisplayOrder;
+      });
+
+      // Update the main spreadsheets array
+      const otherSpreadsheets = spreadsheets.value.filter(sheet => sheet.portfolioId !== portfolioId);
+      spreadsheets.value = [...otherSpreadsheets, ...portfolioSpreadsheets];
+
+      // Save new order to database - update only the most recent record for each spreadsheet
+      if (updatedSpreadsheets.length > 0) {
+        try {
+          for (const update of updatedSpreadsheets) {
+            // First, get the most recent record for this spreadsheet
+            const { data: latestRecord, error: fetchError } = await supabase
+              .from('ai_portfolio_data')
+              .select('id')
+              .eq('spreadsheet_id', update.spreadsheet_id)
+              .eq('portfolio_id', portfolioId)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (fetchError) {
+              console.error('Error fetching latest record:', fetchError);
+              ElMessage.error('Failed to update spreadsheet order');
+              return;
+            }
+
+            // Update only the most recent record
+            const { error } = await supabase
+              .from('ai_portfolio_data')
+              .update({ display_order: update.display_order })
+              .eq('id', latestRecord.id);
+            
+            if (error) {
+              console.error('Error updating spreadsheet order:', error);
+              ElMessage.error('Failed to save spreadsheet order');
+              return;
+            }
+          }
+          
+          console.log(`📊 Updated order for ${updatedSpreadsheets.length} spreadsheets in portfolio ${portfolioId}`);
+        } catch (error) {
+          console.error('Error saving spreadsheet order:', error);
+          ElMessage.error('Failed to save spreadsheet order');
+        }
+      }
+    };
+
+    // Handle spreadsheet reordering (for future drag-and-drop if needed)
+    const onSpreadsheetReorder = async (event, portfolioId) => {
+      const { oldIndex, newIndex } = event;
+      if (oldIndex === newIndex) return; // No change
+      await reorderSpreadsheets(portfolioId, oldIndex, newIndex);
     };
 
     const loadChildWorkspaces = async () => {
@@ -1044,6 +1176,7 @@ export default {
             .select('*')
             .in('workspace_id', childWorkspaceIds)
             .not('spreadsheet_id', 'is', null)
+            .order('display_order', { ascending: true })
             .order('created_at', { ascending: false });
 
           if (childSpreadsheetError) {
@@ -1072,6 +1205,7 @@ export default {
           .select('*')
           .eq('workspace_id', currentWorkspaceId.value)
           .not('spreadsheet_id', 'is', null)
+          .order('display_order', { ascending: true })
           .order('created_at', { ascending: false });
 
         if (spreadsheetError) {
@@ -1100,7 +1234,8 @@ export default {
             rows: 10,
             columns: 10,
             portfolioId: sheet.portfolio_id || portfolios.value[0]?.id, // Assign to first portfolio if no portfolio_id
-            createdAt: new Date(sheet.created_at)
+            createdAt: new Date(sheet.created_at),
+            displayOrder: sheet.display_order || 0
           }));
           
           console.log(`📊 Loaded ${spreadsheets.value.length} unique spreadsheets (from ${spreadsheetData.length} total records)`);
@@ -1451,6 +1586,9 @@ export default {
           return;
         }
         
+        // Calculate next display order
+        const nextDisplayOrder = portfolioSpreadsheets.length + 1;
+        
         // Create new spreadsheet
         const newSpreadsheet = {
           id: generateSpreadsheetId(),
@@ -1458,7 +1596,8 @@ export default {
           rows: newSpreadsheetForm.value.rows,
           columns: newSpreadsheetForm.value.columns,
           portfolioId: targetPortfolioId.value,
-          createdAt: new Date()
+          createdAt: new Date(),
+          displayOrder: nextDisplayOrder
         };
         
         spreadsheets.value.push(newSpreadsheet);
@@ -1852,6 +1991,9 @@ export default {
       getPortfolioSpreadsheets,
       getPortfolioSpreadsheetCount,
       getPortfolioWorkspaceName,
+      moveSpreadsheetUp,
+      moveSpreadsheetDown,
+      onSpreadsheetReorder,
       handlePortfolioChange,
       showAddPortfolioDialog,
       addNewPortfolio,
@@ -2078,6 +2220,65 @@ export default {
 /* Spreadsheets Container - Compact */
 .spreadsheets-container {
   margin-bottom: 20px;
+  margin-left: 60px; /* Make room for reorder controls */
+}
+
+/* Spreadsheets List */
+.spreadsheets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.spreadsheet-item {
+  position: relative;
+  width: 100%;
+}
+
+.spreadsheet-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Manual Reorder Controls */
+.manual-reorder-controls {
+  position: absolute;
+  top: 8px;
+  left: -55px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+}
+
+.reorder-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.reorder-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  transform: scale(1.05);
+}
+
+.reorder-btn:active {
+  transform: scale(0.98);
+}
+
+.reorder-btn .el-icon {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.reorder-btn:hover .el-icon {
+  color: #475569;
 }
 
 /* Add Spreadsheet Section - Compact */

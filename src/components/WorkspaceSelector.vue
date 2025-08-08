@@ -31,6 +31,7 @@ export default {
     const route = useRoute();
     const workspaceStore = useWorkspaceStore();
     const { currentWorkspace } = storeToRefs(workspaceStore);
+    const dropdownRef = ref(null);
 
     // Watch for changes in the store's currentWorkspace
     watch(currentWorkspace, (newWorkspace) => {
@@ -218,8 +219,37 @@ export default {
       }
     };
 
-    const handleWorkspaceClick = (workspace) => {
+    // Function to generate the proper href URL for a workspace
+    const generateWorkspaceHref = (workspace) => {
+      if (workspace === null) {
+        return '/all-workspace/tasks';
+      }
+      
+      // Get the current route path segments
+      const currentPath = route.path;
+      
+      // If we're in all-workspaces/tasks or any tasks view, always go to tasks
+      if (currentPath.includes('/tasks')) {
+        return `/single-workspace/${workspace.id}/tasks`;
+      }
+      
+      // For other routes, preserve the current section
+      const segments = currentPath.split('/');
+      const lastSegment = segments[segments.length - 1];
+      
+      switch(lastSegment) {
+        case 'goals':
+          return `/single-workspace/${workspace.id}/goals`;
+        case 'events':
+          return `/single-workspace/${workspace.id}/events`;
+        case 'files':
+          return `/single-workspace/${workspace.id}/files`;
+        default:
+          return `/single-workspace/${workspace.id}/tasks`; // Default to tasks instead of dashboard
+      }
+    };
 
+    const handleWorkspaceClick = (workspace) => {
       if (workspace === null) {
         selectedWorkspace.value = null;
         workspaceStore.setCurrentWorkspace(null);
@@ -233,34 +263,16 @@ export default {
         selectedWorkspace.value = workspace;
         workspaceStore.setCurrentWorkspace(workspace);
         
-        // Get the current route path segments
-        const currentPath = route.path;
-        
-        // If we're in all-workspaces/tasks or any tasks view, always go to tasks
-        if (currentPath.includes('/tasks')) {
-          router.push(`/single-workspace/${workspace.id}/tasks`);
-          return;
-        }
-        
-        // For other routes, preserve the current section
-        const segments = currentPath.split('/');
-        const lastSegment = segments[segments.length - 1];
-        
-        switch(lastSegment) {
-          case 'goals':
-            router.push(`/single-workspace/${workspace.id}/goals`);
-            break;
-          case 'events':
-            router.push(`/single-workspace/${workspace.id}/events`);
-            break;
-          case 'files':
-            router.push(`/single-workspace/${workspace.id}/files`);
-            break;
-          default:
-            router.push(`/single-workspace/${workspace.id}/tasks`); // Default to tasks instead of dashboard
-        }
+        // Use the same logic as generateWorkspaceHref
+        const targetUrl = generateWorkspaceHref(workspace);
+        router.push(targetUrl);
         
         emit('workspace-selected', workspace);
+      }
+      
+      // Close the dropdown after navigation
+      if (dropdownRef.value) {
+        dropdownRef.value.handleClose();
       }
     };
 
@@ -335,12 +347,14 @@ export default {
       handleWorkspaceSelect,
       handleWorkspaceCommand,
       handleWorkspaceClick,
+      generateWorkspaceHref,
       renderWorkspaceTree,
       flattenTree,
       route,
       filteredWorkspaces,
       showAllWorkspacesOption,
-      handleDropdownVisibleChange
+      handleDropdownVisibleChange,
+      dropdownRef
     };
   }
 };
@@ -348,7 +362,7 @@ export default {
 
 <template>
   <div class="workspace-selector">
-    <el-dropdown trigger="click" @visible-change="handleDropdownVisibleChange">
+    <el-dropdown ref="dropdownRef" trigger="click" @visible-change="handleDropdownVisibleChange">
       <span class="workspace-dropdown-link">
         {{ selectedWorkspace?.title || 'All Workspaces' }}
         <el-icon><caret-bottom /></el-icon>
@@ -369,24 +383,28 @@ export default {
           </div>
           
           <el-dropdown-item @click="handleWorkspaceClick(null)" v-if="showAllWorkspacesOption">
-            <div class="workspace-item">
-              <el-icon><document /></el-icon>
-              <span>All Workspaces</span>
-            </div>
+            <a :href="generateWorkspaceHref(null)" @click.prevent="handleWorkspaceClick(null)" class="workspace-link">
+              <div class="workspace-item">
+                <el-icon><document /></el-icon>
+                <span>All Workspaces</span>
+              </div>
+            </a>
           </el-dropdown-item>
           <el-dropdown-item divided v-if="showAllWorkspacesOption && filteredWorkspaces.length > 0" />
           
           <template v-for="workspace in filteredWorkspaces" :key="workspace.id">
             <el-dropdown-item @click="handleWorkspaceClick(workspace)">
-              <div class="workspace-item" :class="{ 'no-access': !workspace.hasAccess }" :style="{ paddingLeft: (workspace.level * 20) + 'px' }">
-                <el-icon>
-                  <folder-opened v-if="workspace.children && workspace.children.length > 0" />
-                  <document v-else />
-                </el-icon>
-                <span :class="{ 'no-access-text': !workspace.hasAccess }">
-                  {{ workspace.title }}
-                </span>
-              </div>
+              <a :href="generateWorkspaceHref(workspace)" @click.prevent="handleWorkspaceClick(workspace)" class="workspace-link">
+                <div class="workspace-item" :class="{ 'no-access': !workspace.hasAccess }" :style="{ paddingLeft: (workspace.level * 20) + 'px' }">
+                  <el-icon>
+                    <folder-opened v-if="workspace.children && workspace.children.length > 0" />
+                    <document v-else />
+                  </el-icon>
+                  <span :class="{ 'no-access-text': !workspace.hasAccess }">
+                    {{ workspace.title }}
+                  </span>
+                </div>
+              </a>
             </el-dropdown-item>
           </template>
           
@@ -601,6 +619,18 @@ export default {
   border-top: 1px solid #e4e7ed;
   margin-top: 6px;
   padding-top: 8px;
+}
+
+.workspace-link {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workspace-link:hover {
+  color: inherit;
+  text-decoration: none;
 }
 
 

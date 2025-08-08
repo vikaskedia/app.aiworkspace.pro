@@ -86,6 +86,43 @@ export const useUserStore = defineStore('user', {
       } else {
         this.users = {};
       }
+    },
+
+    async updateUserProfile(userId, profileData) {
+      try {
+        // Update the cached user data
+        const cachedUser = this.getCachedUser(userId);
+        if (cachedUser) {
+          const updatedUser = {
+            ...cachedUser,
+            fullName: profileData.full_name,
+            username: profileData.user_name,
+            avatarUrl: profileData.avatar_url
+          };
+          this.setCachedUser(userId, updatedUser);
+        }
+      } catch (error) {
+        console.error('Error updating user profile cache:', error);
+      }
+    },
+
+    async getCurrentUserProfile() {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          username: user.user_metadata?.user_name || user.user_metadata?.username || '',
+          avatarUrl: user.user_metadata?.avatar_url || '',
+          displayNamePreference: user.user_metadata?.display_name_preference || 'full_name'
+        };
+      } catch (error) {
+        console.error('Error getting current user profile:', error);
+        return null;
+      }
     }
   }
 }); 

@@ -360,6 +360,20 @@ const routes = [
     ]
   },
   {
+    path: '/profile',
+    component: () => import('./components/all-workspaces/AllWorkspaceLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'ProfileEdit',
+        component: () => import('./components/ProfileEditCt.vue'),
+        meta: {
+          requiresAuth: true
+        }
+      }
+    ]
+  },
+  {
     path: '/',
     redirect: '/login'
   }

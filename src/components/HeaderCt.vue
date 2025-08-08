@@ -168,6 +168,9 @@ export default {
         case 'billing':
           this.$router.push('/billing');
           break;
+        case 'profile':
+          this.$router.push('/profile');
+          break;
         case 'talktodev':
           // TODO: Implement talk to dev route
           this.$router.push('/talk-to-dev');
@@ -507,6 +510,9 @@ export default {
                 :value="unreadCount" 
                 :hidden="unreadCount === 0" 
                 class="notification-badge" />
+            </el-dropdown-item>
+            <el-dropdown-item command="profile">
+              Edit Profile
             </el-dropdown-item>
             <el-dropdown-item command="email_notifications">
               Email Notifications

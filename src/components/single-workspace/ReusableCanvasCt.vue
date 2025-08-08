@@ -825,6 +825,11 @@ export default {
         selectedNode.value.width = Math.max(20, selectedNode.value.width)
         selectedNode.value.height = Math.max(20, selectedNode.value.height)
         
+        // Special handling for drawing nodes - transform the path data
+        if (selectedNode.value.type === 'drawing' && selectedNode.value.data.path) {
+          transformDrawingPath(selectedNode.value)
+        }
+        
         dragStart.value = { x, y }
         renderCanvas()
       }
@@ -1012,7 +1017,7 @@ export default {
       // Check nodes in reverse order (top to bottom)
       for (let i = canvasData.value.nodes.length - 1; i >= 0; i--) {
         const node = canvasData.value.nodes[i]
-        if (node.type === 'shape' || node.type === 'text') {
+        if (node.type === 'shape' || node.type === 'text' || node.type === 'drawing') {
           if (x >= node.x && x <= node.x + node.width &&
               y >= node.y && y <= node.y + node.height) {
             return node
@@ -1020,6 +1025,35 @@ export default {
         }
       }
       return null
+    }
+    
+    const transformDrawingPath = (node) => {
+      if (!node.data.path || node.data.path.length < 2) return
+      
+      // Calculate the original bounding box of the path
+      const originalPoints = node.data.path
+      const minX = Math.min(...originalPoints.map(p => p.x))
+      const maxX = Math.max(...originalPoints.map(p => p.x))
+      const minY = Math.min(...originalPoints.map(p => p.y))
+      const maxY = Math.max(...originalPoints.map(p => p.y))
+      const originalWidth = maxX - minX
+      const originalHeight = maxY - minY
+      
+      // Avoid division by zero
+      if (originalWidth === 0 || originalHeight === 0) return
+      
+      // Calculate scale factors
+      const scaleX = node.width / originalWidth
+      const scaleY = node.height / originalHeight
+      
+      // Transform each point in the path
+      const transformedPath = originalPoints.map(point => ({
+        x: node.x + (point.x - minX) * scaleX,
+        y: node.y + (point.y - minY) * scaleY
+      }))
+      
+      // Update the node's path data
+      node.data.path = transformedPath
     }
     
     const getResizeHandle = (x, y, node) => {
@@ -1085,7 +1119,7 @@ export default {
       })
       
       // Render selection handles
-      if (selectedNode.value && (selectedNode.value.type === 'shape' || selectedNode.value.type === 'text')) {
+      if (selectedNode.value && (selectedNode.value.type === 'shape' || selectedNode.value.type === 'text' || selectedNode.value.type === 'drawing')) {
         renderSelectionHandles(selectedNode.value)
       }
     }

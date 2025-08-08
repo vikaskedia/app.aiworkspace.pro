@@ -450,34 +450,56 @@ export default {
     }
     
     const handleClick = (e) => {
+      const rect = canvas.value.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      
       if (currentTool.value === 'text') {
-        const rect = canvas.value.getBoundingClientRect()
         textInputPosition.value = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top
+          x: x,
+          y: y
         }
         showTextInput.value = true
         nextTick(() => {
           textInput.value?.focus()
         })
       } else if (currentTool.value === 'shape' && selectedShape.value) {
-        const rect = canvas.value.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
         addShapeAtPosition(selectedShape.value, x, y)
+      } else if (currentTool.value === 'select') {
+        // Check if we clicked on a text node to edit it
+        const clickedNode = getNodeAtPosition(x, y)
+        if (clickedNode && clickedNode.type === 'text') {
+          // Activate text editing for the selected text node
+          selectedNode.value = clickedNode
+          textInputPosition.value = {
+            x: clickedNode.x,
+            y: clickedNode.y
+          }
+          textInputValue.value = clickedNode.data.text || ''
+          showTextInput.value = true
+          nextTick(() => {
+            textInput.value?.focus()
+          })
+        }
       }
     }
     
     const addDrawingNode = () => {
       saveState()
       
+      // Calculate proper bounding box for the drawing
+      const minX = Math.min(...drawingPath.value.map(p => p.x))
+      const maxX = Math.max(...drawingPath.value.map(p => p.x))
+      const minY = Math.min(...drawingPath.value.map(p => p.y))
+      const maxY = Math.max(...drawingPath.value.map(p => p.y))
+      
       const node = {
         id: `drawing-${Date.now()}`,
         type: 'drawing',
-        x: drawingPath.value[0].x,
-        y: drawingPath.value[0].y,
-        width: Math.max(...drawingPath.value.map(p => p.x)) - Math.min(...drawingPath.value.map(p => p.x)),
-        height: Math.max(...drawingPath.value.map(p => p.y)) - Math.min(...drawingPath.value.map(p => p.y)),
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
         data: {
           path: drawingPath.value,
           strokeColor: strokeColor.value,
@@ -497,22 +519,32 @@ export default {
       
       saveState()
       
-      const node = {
-        id: `text-${Date.now()}`,
-        type: 'text',
-        x: textInputPosition.value.x,
-        y: textInputPosition.value.y,
-        width: 200,
-        height: 50,
-        data: {
-          text: textInputValue.value,
-          fontSize: 16,
-          fontFamily: 'Arial',
-          color: strokeColor.value
+      // Check if we're editing an existing text node
+      if (selectedNode.value && selectedNode.value.type === 'text') {
+        // Update existing text node
+        selectedNode.value.data.text = textInputValue.value
+        selectedNode.value.data.color = strokeColor.value
+        selectedNode.value = null // Clear selection
+      } else {
+        // Create new text node
+        const node = {
+          id: `text-${Date.now()}`,
+          type: 'text',
+          x: textInputPosition.value.x,
+          y: textInputPosition.value.y,
+          width: 200,
+          height: 50,
+          data: {
+            text: textInputValue.value,
+            fontSize: 16,
+            fontFamily: 'Arial',
+            color: strokeColor.value
+          }
         }
+        
+        canvasData.value.nodes.push(node)
       }
       
-      canvasData.value.nodes.push(node)
       saveCanvasData()
       cancelTextInput()
     }
@@ -520,6 +552,10 @@ export default {
     const cancelTextInput = () => {
       showTextInput.value = false
       textInputValue.value = ''
+      // Clear selected node if we were editing text
+      if (selectedNode.value && selectedNode.value.type === 'text') {
+        selectedNode.value = null
+      }
     }
     
     const updateStrokeColor = (color) => {

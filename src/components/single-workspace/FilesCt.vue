@@ -140,6 +140,9 @@ async function initializeFromUrl() {
   const fileParam = route.query.file;
   
   try {
+    // Set flag to prevent URL updates during initialization
+    isUpdatingUrl.value = true;
+    
     // Navigate to folder if specified
     if (folderParam) {
       const folderPath = folderParam.split('/');
@@ -147,11 +150,22 @@ async function initializeFromUrl() {
       // Load folders first to get the folder objects
       await loadFolders();
       
-      // Navigate through the folder path
+      // Navigate through the folder path WITHOUT updating URL
       for (const folderName of folderPath) {
         const folder = folders.value.find(f => f.name === folderName);
         if (folder) {
-          await navigateToFolder(folder, null);
+          // Navigate directly without URL updates
+          const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
+          
+          if (existingIndex >= 0) {
+            folderBreadcrumbs.value = folderBreadcrumbs.value.slice(0, existingIndex + 1);
+          } else {
+            folderBreadcrumbs.value.push(folder);
+          }
+          currentFolder.value = folder;
+          
+          // Load folders and files for this path
+          await Promise.all([loadFolders(), loadFiles()]);
         }
       }
     }
@@ -172,6 +186,11 @@ async function initializeFromUrl() {
     }
   } catch (error) {
     console.error('Error initializing from URL:', error);
+  } finally {
+    // Reset flag after initialization is complete
+    setTimeout(() => {
+      isUpdatingUrl.value = false;
+    }, 100);
   }
 }
 

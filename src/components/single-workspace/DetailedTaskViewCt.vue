@@ -1749,8 +1749,20 @@ export default {
   },
   methods: {
     updatePageTitle() {
-      const workspaceName = this.currentWorkspace?.title || 'Workspace';
-      const taskTitle = this.task?.title;
+      console.log('updatePageTitle', { 
+        taskTitle: this.task?.title, 
+        workspaceName: this.currentWorkspace?.title,
+        loading: this.loading 
+      });
+      
+      // Don't update title if we're still loading or if task data isn't available yet
+      if (this.loading || !this.task?.title || !this.currentWorkspace?.title) {
+        console.log('Skipping page title update - still loading or missing data');
+        return;
+      }
+      
+      const workspaceName = this.currentWorkspace.title;
+      const taskTitle = this.task.title;
       setTaskTitle(taskTitle, workspaceName, 'Tasks');
     },
 
@@ -2293,6 +2305,8 @@ export default {
       } finally {
         // Always set loading to false when done
         this.loading = false;
+        // Update page title now that loading is complete and data is available
+        this.updatePageTitle();
       }
     },
     async loadUserEmailsFromCache() {
@@ -4551,7 +4565,7 @@ ${comment.content}
       if (comment.type === 'ai_response') {
         return comment.metadata?.ai_name || 'AI Attorney';
       } else if (comment.type === 'activity') {
-        return comment.user_id ? this.userEmails[comment.user_id] || 'System' : 'System';
+        return 'System';
       } else if (comment.external_user_email) {
         return comment.external_user_email;
       } else if (comment.user_id) {
@@ -5090,7 +5104,6 @@ ${comment.content}
       }
     },
     'task.title': {
-      immediate: true,
       handler(newTitle) {
         this.updatePageTitle();
       }

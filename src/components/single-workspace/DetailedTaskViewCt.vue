@@ -4551,7 +4551,7 @@ ${comment.content}
       if (comment.type === 'ai_response') {
         return comment.metadata?.ai_name || 'AI Attorney';
       } else if (comment.type === 'activity') {
-        return 'System';
+        return comment.user_id ? this.userEmails[comment.user_id] || 'System' : 'System';
       } else if (comment.external_user_email) {
         return comment.external_user_email;
       } else if (comment.user_id) {

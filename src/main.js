@@ -70,6 +70,19 @@ rootVueApp.mount('#app')
 
 // Add window error handler
 window.onerror = function(message, source, lineno, colno, error) {
+  // Suppress common ResizeObserver warnings that don't affect functionality
+  if (message && message.includes('ResizeObserver loop completed with undelivered notifications')) {
+    return true; // Suppress this error
+  }
   console.error('Window error:', {message, source, lineno, colno, error});
   return false;
 };
+
+// Suppress ResizeObserver errors specifically
+const resizeObserverErrorHandler = (e) => {
+  if (e.message && e.message.includes('ResizeObserver loop completed with undelivered notifications')) {
+    e.stopImmediatePropagation();
+  }
+};
+
+window.addEventListener('error', resizeObserverErrorHandler);

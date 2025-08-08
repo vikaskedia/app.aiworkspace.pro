@@ -41,6 +41,7 @@ const splitViews = ref([]);
 const maxSplits = 10;
 const splitFiles = ref([]);
 const splitFolders = ref([]);
+const isUpdatingUrl = ref(false);
 
 // Expose these refs to make them accessible from parent
 defineExpose({
@@ -99,7 +100,10 @@ watch(currentWorkspace, async (newWorkspace) => {
   if (newWorkspace?.id) {
     // Clear split views when workspace changes
     splitViews.value = [];
-    selectedFile.value = null;
+    // Don't clear selected file if we're just updating URL
+    if (!isUpdatingUrl.value) {
+      selectedFile.value = null;
+    }
     await Promise.all([loadFolders(), loadFiles()]);
     updatePageTitle();
   } else {
@@ -110,6 +114,18 @@ watch(currentWorkspace, async (newWorkspace) => {
   }
 }, { immediate: true });
 
+// Watch for route changes (when user manually changes URL or uses browser back/forward)
+watch(() => route.query, async (newQuery, oldQuery) => {
+  // Only respond to route changes if we're not currently updating the URL ourselves
+  if (!isUpdatingUrl.value && currentWorkspace.value) {
+    // Check if the query actually changed
+    const queryChanged = JSON.stringify(newQuery) !== JSON.stringify(oldQuery);
+    if (queryChanged) {
+      await initializeFromUrl();
+    }
+  }
+}, { deep: true });
+
 // Function to update page title
 const updatePageTitle = () => {
   const workspaceName = currentWorkspace.value?.title || 'Workspace';
@@ -118,7 +134,7 @@ const updatePageTitle = () => {
 
 // Function to initialize from URL parameters
 async function initializeFromUrl() {
-  if (!currentWorkspace.value) return;
+  if (!currentWorkspace.value || isUpdatingUrl.value) return;
   
   const folderParam = route.query.folder;
   const fileParam = route.query.file;
@@ -140,8 +156,14 @@ async function initializeFromUrl() {
       }
     }
     
-    // Select file if specified
-    if (fileParam) {
+    // Select file if specified (only if files are already loaded)
+    if (fileParam && files.value.length > 0) {
+      const file = files.value.find(f => f.name === fileParam);
+      if (file) {
+        selectedFile.value = file;
+      }
+    } else if (fileParam && files.value.length === 0) {
+      // Load files only if they haven't been loaded yet
       await loadFiles();
       const file = files.value.find(f => f.name === fileParam);
       if (file) {
@@ -579,6 +601,7 @@ async function navigateToFolder(folder, splitIndex = null) {
 
     // Update URL to reflect current navigation state (only for main view, not split views)
     if (splitIndex === null && currentWorkspace.value) {
+      isUpdatingUrl.value = true;
       const query = { ...route.query };
       
       if (currentFolder.value) {
@@ -595,6 +618,14 @@ async function navigateToFolder(folder, splitIndex = null) {
         name: 'ManageFilesPage',
         params: { workspaceId: currentWorkspace.value.id },
         query: Object.keys(query).length > 0 ? query : undefined
+      }).then(() => {
+        // Reset flag after URL update is complete
+        setTimeout(() => {
+          isUpdatingUrl.value = false;
+        }, 100);
+      }).catch(error => {
+        console.warn('Folder URL update failed:', error);
+        isUpdatingUrl.value = false;
       });
     }
 
@@ -609,6 +640,8 @@ async function navigateToFolder(folder, splitIndex = null) {
       currentFolder.value = null;
       folderBreadcrumbs.value = [];
     }
+    // Reset URL updating flag on error
+    isUpdatingUrl.value = false;
   } finally {
     loading.value = false;
   }
@@ -616,19 +649,37 @@ async function navigateToFolder(folder, splitIndex = null) {
 
 // Function to handle file selection with URL updates
 function handleFileSelect(file) {
-  selectedFile.value = file;
-  
-  // Update URL to include file selection
-  if (currentWorkspace.value) {
-    const query = { ...route.query };
-    query.file = file.name;
+  try {
+    if (!file) return;
     
-    // Update URL without triggering navigation
-    router.replace({
-      name: 'ManageFilesPage',
-      params: { workspaceId: currentWorkspace.value.id },
-      query
-    });
+    selectedFile.value = file;
+    
+    // Update URL to include file selection
+    if (currentWorkspace.value) {
+      isUpdatingUrl.value = true;
+      const query = { ...route.query };
+      query.file = file.name;
+      
+      // Update URL without triggering navigation
+      router.replace({
+        name: 'ManageFilesPage',
+        params: { workspaceId: currentWorkspace.value.id },
+        query
+      }).then(() => {
+        // Reset flag after URL update is complete
+        setTimeout(() => {
+          isUpdatingUrl.value = false;
+        }, 100);
+      }).catch(error => {
+        console.warn('URL update failed:', error);
+        isUpdatingUrl.value = false;
+      });
+    }
+  } catch (error) {
+    console.error('Error handling file selection:', error);
+    // Still set the selected file even if URL update fails
+    selectedFile.value = file;
+    isUpdatingUrl.value = false;
   }
 }
 
@@ -774,53 +825,67 @@ function getAuthenticatedDownloadUrl(originalUrl) {
 
 // Function to generate href URL for folder navigation
 function generateFolderHref(folder) {
-  if (!currentWorkspace.value) return '#';
-  
-  const query = {};
-  
-  if (folder) {
-    // If folder is in current breadcrumbs, truncate to that point
-    const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
-    if (existingIndex >= 0) {
-      // Navigating to existing breadcrumb - path up to and including this folder
-      const folderPath = folderBreadcrumbs.value.slice(0, existingIndex + 1).map(f => f.name).join('/');
-      query.folder = folderPath;
-    } else {
-      // Navigating to new folder - current breadcrumbs + new folder
-      const currentPath = [...folderBreadcrumbs.value, folder];
-      const folderPath = currentPath.map(f => f.name).join('/');
-      query.folder = folderPath;
+  try {
+    if (!currentWorkspace.value) return '#';
+    
+    const query = {};
+    
+    if (folder) {
+      // If folder is in current breadcrumbs, truncate to that point
+      const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
+      if (existingIndex >= 0) {
+        // Navigating to existing breadcrumb - path up to and including this folder
+        const folderPath = folderBreadcrumbs.value.slice(0, existingIndex + 1).map(f => f.name).join('/');
+        query.folder = folderPath;
+      } else {
+        // Navigating to new folder - current breadcrumbs + new folder
+        const currentPath = [...folderBreadcrumbs.value, folder];
+        const folderPath = currentPath.map(f => f.name).join('/');
+        query.folder = folderPath;
+      }
     }
+    // If folder is null, we're going to root (no query param needed)
+    
+    const resolved = router.resolve({
+      name: 'ManageFilesPage',
+      params: { workspaceId: currentWorkspace.value.id },
+      query: Object.keys(query).length > 0 ? query : undefined
+    });
+    
+    return resolved.href;
+  } catch (error) {
+    console.error('Error generating folder href:', error);
+    return '#';
   }
-  // If folder is null, we're going to root (no query param needed)
-  
-  return router.resolve({
-    name: 'ManageFilesPage',
-    params: { workspaceId: currentWorkspace.value.id },
-    query: Object.keys(query).length > 0 ? query : undefined
-  }).href;
 }
 
 // Function to generate href URL for file selection
 function generateFileHref(file) {
-  if (!currentWorkspace.value) return '#';
-  
-  const query = {};
-  
-  // Include current folder path if we're in a subfolder
-  if (currentFolder.value) {
-    const folderPath = [...folderBreadcrumbs.value].map(f => f.name).join('/');
-    query.folder = folderPath;
+  try {
+    if (!currentWorkspace.value) return '#';
+    
+    const query = {};
+    
+    // Include current folder path if we're in a subfolder
+    if (currentFolder.value) {
+      const folderPath = [...folderBreadcrumbs.value].map(f => f.name).join('/');
+      query.folder = folderPath;
+    }
+    
+    // Add file selection
+    query.file = file.name;
+    
+    const resolved = router.resolve({
+      name: 'ManageFilesPage',
+      params: { workspaceId: currentWorkspace.value.id },
+      query
+    });
+    
+    return resolved.href;
+  } catch (error) {
+    console.error('Error generating file href:', error);
+    return '#';
   }
-  
-  // Add file selection
-  query.file = file.name;
-  
-  return router.resolve({
-    name: 'ManageFilesPage',
-    params: { workspaceId: currentWorkspace.value.id },
-    query
-  }).href;
 }
 </script>
 

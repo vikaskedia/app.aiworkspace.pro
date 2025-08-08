@@ -9,12 +9,13 @@ import { Plus, UploadFilled, Folder, FolderAdd } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import FilePreviewPane from './FilePreviewPane.vue';
 import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import { setWorkspaceTitle } from '../../utils/page-title';
 
 const route = useRoute();
+const router = useRouter();
 const workspaceStore = useWorkspaceStore();
 const { currentWorkspace } = storeToRefs(workspaceStore);
 
@@ -115,6 +116,43 @@ const updatePageTitle = () => {
   setWorkspaceTitle('Files', workspaceName);
 };
 
+// Function to initialize from URL parameters
+async function initializeFromUrl() {
+  if (!currentWorkspace.value) return;
+  
+  const folderParam = route.query.folder;
+  const fileParam = route.query.file;
+  
+  try {
+    // Navigate to folder if specified
+    if (folderParam) {
+      const folderPath = folderParam.split('/');
+      
+      // Load folders first to get the folder objects
+      await loadFolders();
+      
+      // Navigate through the folder path
+      for (const folderName of folderPath) {
+        const folder = folders.value.find(f => f.name === folderName);
+        if (folder) {
+          await navigateToFolder(folder, null);
+        }
+      }
+    }
+    
+    // Select file if specified
+    if (fileParam) {
+      await loadFiles();
+      const file = files.value.find(f => f.name === fileParam);
+      if (file) {
+        selectedFile.value = file;
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing from URL:', error);
+  }
+}
+
 // Load workspace if not already loaded
 onMounted(async () => {
   // if (route.params.workspaceId && !currentWorkspace.value) {
@@ -136,6 +174,9 @@ onMounted(async () => {
   
   // Set initial page title
   updatePageTitle();
+  
+  // Initialize from URL parameters
+  await initializeFromUrl();
 });
 // Add this before your loadFiles function
 function validateGiteaConfig() {
@@ -536,6 +577,27 @@ async function navigateToFolder(folder, splitIndex = null) {
     // Load both folders and files
     await Promise.all([loadFolders(), loadFiles()]);
 
+    // Update URL to reflect current navigation state (only for main view, not split views)
+    if (splitIndex === null && currentWorkspace.value) {
+      const query = { ...route.query };
+      
+      if (currentFolder.value) {
+        // Build folder path from breadcrumbs
+        const folderPath = folderBreadcrumbs.value.map(f => f.name).join('/');
+        query.folder = folderPath;
+      } else {
+        // Remove folder parameter when at root
+        delete query.folder;
+      }
+      
+      // Update URL without triggering navigation
+      router.replace({
+        name: 'ManageFilesPage',
+        params: { workspaceId: currentWorkspace.value.id },
+        query: Object.keys(query).length > 0 ? query : undefined
+      });
+    }
+
   } catch (error) {
     ElMessage.error('Error navigating to folder: ' + error.message);
     // Reset navigation state based on context
@@ -549,6 +611,24 @@ async function navigateToFolder(folder, splitIndex = null) {
     }
   } finally {
     loading.value = false;
+  }
+}
+
+// Function to handle file selection with URL updates
+function handleFileSelect(file) {
+  selectedFile.value = file;
+  
+  // Update URL to include file selection
+  if (currentWorkspace.value) {
+    const query = { ...route.query };
+    query.file = file.name;
+    
+    // Update URL without triggering navigation
+    router.replace({
+      name: 'ManageFilesPage',
+      params: { workspaceId: currentWorkspace.value.id },
+      query
+    });
   }
 }
 
@@ -691,6 +771,57 @@ function getAuthenticatedDownloadUrl(originalUrl) {
     return originalUrl;
   }
 }
+
+// Function to generate href URL for folder navigation
+function generateFolderHref(folder) {
+  if (!currentWorkspace.value) return '#';
+  
+  const query = {};
+  
+  if (folder) {
+    // If folder is in current breadcrumbs, truncate to that point
+    const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
+    if (existingIndex >= 0) {
+      // Navigating to existing breadcrumb - path up to and including this folder
+      const folderPath = folderBreadcrumbs.value.slice(0, existingIndex + 1).map(f => f.name).join('/');
+      query.folder = folderPath;
+    } else {
+      // Navigating to new folder - current breadcrumbs + new folder
+      const currentPath = [...folderBreadcrumbs.value, folder];
+      const folderPath = currentPath.map(f => f.name).join('/');
+      query.folder = folderPath;
+    }
+  }
+  // If folder is null, we're going to root (no query param needed)
+  
+  return router.resolve({
+    name: 'ManageFilesPage',
+    params: { workspaceId: currentWorkspace.value.id },
+    query: Object.keys(query).length > 0 ? query : undefined
+  }).href;
+}
+
+// Function to generate href URL for file selection
+function generateFileHref(file) {
+  if (!currentWorkspace.value) return '#';
+  
+  const query = {};
+  
+  // Include current folder path if we're in a subfolder
+  if (currentFolder.value) {
+    const folderPath = [...folderBreadcrumbs.value].map(f => f.name).join('/');
+    query.folder = folderPath;
+  }
+  
+  // Add file selection
+  query.file = file.name;
+  
+  return router.resolve({
+    name: 'ManageFilesPage',
+    params: { workspaceId: currentWorkspace.value.id },
+    query
+  }).href;
+}
 </script>
 
 <template>
@@ -702,17 +833,24 @@ function getAuthenticatedDownloadUrl(originalUrl) {
         <div class="header">
           <div class="breadcrumbs">
             <el-breadcrumb separator="/">
-              <el-breadcrumb-item 
-                @click="navigateToFolder(null, null)"
-                :class="{ clickable: currentFolder }">
-                Root
+              <el-breadcrumb-item :class="{ clickable: currentFolder }">
+                <a 
+                  :href="generateFolderHref(null)"
+                  @click.prevent="navigateToFolder(null, null)"
+                  class="breadcrumb-link">
+                  Root
+                </a>
               </el-breadcrumb-item>
               <el-breadcrumb-item 
                 v-for="folder in folderBreadcrumbs" 
                 :key="folder.id"
-                @click="navigateToFolder(folder, null)"
                 :class="{ clickable: folder.id !== currentFolder?.id }">
-                {{ folder.name }}
+                <a 
+                  :href="generateFolderHref(folder)"
+                  @click.prevent="navigateToFolder(folder, null)"
+                  class="breadcrumb-link">
+                  {{ folder.name }}
+                </a>
               </el-breadcrumb-item>
             </el-breadcrumb>
           </div>
@@ -788,11 +926,12 @@ function getAuthenticatedDownloadUrl(originalUrl) {
             <template #default="scope">
               <div class="name-cell">
                 <el-icon v-if="scope.row.type === 'dir'"><Folder /></el-icon>
-                <span 
-                  class="clickable-filename"
-                  @click="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : selectedFile = scope.row">
+                <a 
+                  :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : generateFileHref(scope.row)"
+                  @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
+                  class="clickable-filename">
                   {{ scope.row.name }}
-                </span>
+                </a>
               </div>
             </template>
           </el-table-column>
@@ -861,17 +1000,24 @@ function getAuthenticatedDownloadUrl(originalUrl) {
               <div class="file-browser">
                 <div class="folder-navigation">
                   <el-breadcrumb separator="/">
-                    <el-breadcrumb-item 
-                      @click="navigateToFolder(null, index)"
-                      :class="{ clickable: split.currentFolder }">
-                      Root
+                    <el-breadcrumb-item :class="{ clickable: split.currentFolder }">
+                      <a 
+                        :href="generateFolderHref(null)"
+                        @click.prevent="navigateToFolder(null, index)"
+                        class="breadcrumb-link">
+                        Root
+                      </a>
                     </el-breadcrumb-item>
                     <el-breadcrumb-item 
                       v-for="folder in split.folderBreadcrumbs" 
                       :key="folder.id"
-                      @click="navigateToFolder(folder, index)"
                       :class="{ clickable: folder.id !== split.currentFolder?.id }">
-                      {{ folder.name }}
+                      <a 
+                        :href="generateFolderHref(folder)"
+                        @click.prevent="navigateToFolder(folder, index)"
+                        class="breadcrumb-link">
+                        {{ folder.name }}
+                      </a>
                     </el-breadcrumb-item>
                   </el-breadcrumb>
                 </div>
@@ -887,13 +1033,14 @@ function getAuthenticatedDownloadUrl(originalUrl) {
                         <el-icon v-if="scope.row.type === 'dir'">
                           <Folder />
                         </el-icon>
-                        <span 
-                          class="clickable-filename"
-                          @click="scope.row.type === 'dir' ? 
+                        <a 
+                          :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : generateFileHref(scope.row)"
+                          @click.prevent="scope.row.type === 'dir' ? 
                             navigateToFolder(scope.row, index) : 
-                            handleSplitFileSelect(scope.row, index)">
+                            handleSplitFileSelect(scope.row, index)"
+                          class="clickable-filename">
                           {{ scope.row.name }}
-                        </span>
+                        </a>
                       </div>
                     </template>
                   </el-table-column>
@@ -1258,5 +1405,27 @@ function getAuthenticatedDownloadUrl(originalUrl) {
 }
 .el-breadcrumb {
   margin-bottom: 0 !important;
+}
+
+/* Anchor link styles */
+.clickable-filename {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.clickable-filename:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.breadcrumb-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.breadcrumb-link:hover {
+  color: inherit;
+  text-decoration: none;
 }
 </style>

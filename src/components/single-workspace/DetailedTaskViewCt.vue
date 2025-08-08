@@ -565,7 +565,7 @@
 
       <!-- Comments and Outline Tabs Section -->
       <div class="task-tabs-section">
-        <el-tabs v-model="activeTab" class="task-tabs">
+        <el-tabs v-model="activeTab" class="task-tabs" @tab-change="handleTabChange">
           <!-- Comments Tab -->
           <el-tab-pane label="Comments" name="comments">
             <template #label>
@@ -969,6 +969,24 @@
                   </el-button>
                 </el-empty>
               </div>
+            </div>
+          </el-tab-pane>
+          <!-- Canvas Tab -->
+          <el-tab-pane label="Canvas" name="canvas">
+            <template #label>
+              <span class="tab-label">
+                <el-icon><Brush /></el-icon>
+                Canvas
+              </span>
+            </template>
+            <div class="tab-content">
+              <ReusableCanvasCt 
+                ref="canvasComponent"
+                :task-id="task.id"
+                :workspace-id="currentWorkspace.id"
+                @save="handleCanvasSave"
+                @update="handleCanvasUpdate"
+                @mounted="() => console.log('Canvas component mounted')" />
             </div>
           </el-tab-pane>
         </el-tabs>
@@ -1493,7 +1511,7 @@
 </template>
 
 <script>
-import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload, Position } from '@element-plus/icons-vue';
+import { ArrowLeft, DocumentCopy, Folder, Close, Document, Star, StarFilled, ArrowDown, ArrowUp, Clock, Timer, User, Calendar, Edit, CircleCheck, Warning, Delete, More, Setting, Share, Download, View, Brush, CopyDocument, Link, Plus, Loading, DocumentChecked, ChatDotRound, List, InfoFilled, Upload, Position } from '@element-plus/icons-vue';
 import VerticalDotsIcon from '../icons/VerticalDotsIcon.vue';
 import { supabase } from '../../supabase';
 import { useWorkspaceStore } from '../../store/workspace';
@@ -1506,6 +1524,7 @@ import { sendTelegramNotification } from '../common/telegramNotification';
 import { emailNotification } from '../../utils/notificationHelpers';
 import { updateWorkspaceActivity } from '../../utils/workspaceActivity';
 import ReusableOutlineCt from './ReusableOutlineCt.vue';
+import ReusableCanvasCt from './ReusableCanvasCt.vue';
 import { useExternalTaskShare } from '../../composables/useExternalTaskShare';
 import PdfSignatureModal from '../common/PdfSignatureModal.vue';
 import { setTaskTitle } from '../../utils/page-title';
@@ -1536,6 +1555,7 @@ export default {
     Share,
     Download,
     View,
+    Brush,
     CopyDocument,
     Link,
     Plus,
@@ -1544,6 +1564,7 @@ export default {
     ChatDotRound,
     List,
     ReusableOutlineCt,
+    ReusableCanvasCt,
     InfoFilled,
     Upload,
     Position,
@@ -1741,6 +1762,36 @@ export default {
     // Refresh cache when component becomes active (e.g., when navigating back from child task)
     await this.refreshTaskCache();
   },
+  watch: {
+    activeTab(newTab, oldTab) {
+      console.log('=== WATCHER TRIGGERED ===')
+      console.log('Active tab changed from:', oldTab, 'to:', newTab)
+      console.log('Canvas component ref:', this.$refs.canvasComponent)
+      console.log('Available methods on canvas component:', Object.keys(this.$refs.canvasComponent || {}))
+
+      // Reinitialize canvas when canvas tab becomes active
+      if (newTab === 'canvas' && this.$refs.canvasComponent) {
+        console.log('Canvas component found, reloading...')
+        this.$nextTick(async () => {
+          console.log('Inside nextTick, canvas component:', this.$refs.canvasComponent)
+          if (this.$refs.canvasComponent.reloadCanvas) {
+            console.log('Calling reloadCanvas...')
+            await this.$refs.canvasComponent.reloadCanvas()
+          } else if (this.$refs.canvasComponent.initializeCanvas) {
+            console.log('Calling initializeCanvas...')
+            this.$refs.canvasComponent.initializeCanvas()
+          } else {
+            console.error('Canvas methods not found on canvas component')
+            console.log('Available methods:', Object.keys(this.$refs.canvasComponent))
+          }
+        })
+      } else if (newTab === 'canvas') {
+        console.log('Canvas tab active but canvas component not found')
+        console.log('Available refs:', Object.keys(this.$refs))
+      }
+    }
+  },
+  
   unmounted() {
     if (this.subscription) {
       this.subscription.unsubscribe();
@@ -1748,6 +1799,40 @@ export default {
     document.title = 'TaskManager';
   },
   methods: {
+    handleCanvasSave(canvasData) {
+      console.log('Canvas saved:', canvasData);
+      ElNotification.success({
+        title: 'Success',
+        message: 'Canvas saved successfully'
+      });
+    },
+    
+    handleCanvasUpdate(canvasData) {
+      console.log('Canvas updated:', canvasData);
+    },
+    
+    handleTabChange(tabName) {
+      console.log('=== TAB CHANGE EVENT ===')
+      console.log('Tab changed to:', tabName)
+      console.log('Current activeTab value:', this.activeTab)
+      
+      // Update the activeTab manually to ensure the watcher is triggered
+      this.activeTab = tabName
+      
+      if (tabName === 'canvas') {
+        console.log('Canvas tab clicked, triggering reload...')
+        this.$nextTick(async () => {
+          if (this.$refs.canvasComponent && this.$refs.canvasComponent.reloadCanvas) {
+            console.log('Calling reloadCanvas from tab change...')
+            await this.$refs.canvasComponent.reloadCanvas()
+          } else {
+            console.error('Canvas component or reloadCanvas method not found')
+            console.log('Available refs:', Object.keys(this.$refs))
+          }
+        })
+      }
+    },
+    
     updatePageTitle() {
       console.log('updatePageTitle', { 
         taskTitle: this.task?.title, 

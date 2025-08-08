@@ -1,5 +1,5 @@
 <template>
-  <div class="canvas-container">    
+  <div class="reusable-canvas-container">
     <div class="canvas-content">
       <div class="canvas-workspace">
         <div class="canvas-toolbar">
@@ -83,38 +83,38 @@
             </div>
           </div>
           
-                     <div class="canvas-toolbar-right">
-             <el-button @click="clearCanvas">
-               <template #icon>
-                 <Delete />
-               </template>
-               Clear
-             </el-button>
-           
-             <el-dropdown @command="handleToolCommand" trigger="click">
-               <el-button>
-                 <template #icon>
-                   <Setting />
-                 </template>
-               </el-button>
-               <template #dropdown>
-                 <el-dropdown-menu>
-                   <el-dropdown-item command="export">
-                     <el-icon><Download /></el-icon>
-                     Export
-                   </el-dropdown-item>
-                   <el-dropdown-item command="import">
-                     <el-icon><Upload /></el-icon>
-                     Import
-                   </el-dropdown-item>
-                   <el-dropdown-item command="history">
-                     <el-icon><Clock /></el-icon>
-                     History
-                   </el-dropdown-item>
-                 </el-dropdown-menu>
-               </template>
-             </el-dropdown>
-           </div>
+          <div class="canvas-toolbar-right">
+            <el-button @click="clearCanvas">
+              <template #icon>
+                <Delete />
+              </template>
+              Clear
+            </el-button>
+          
+            <el-dropdown @command="handleToolCommand" trigger="click">
+              <el-button>
+                <template #icon>
+                  <Setting />
+                </template>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="export">
+                    <el-icon><Download /></el-icon>
+                    Export
+                  </el-dropdown-item>
+                  <el-dropdown-item command="import">
+                    <el-icon><Upload /></el-icon>
+                    Import
+                  </el-dropdown-item>
+                  <el-dropdown-item command="history">
+                    <el-icon><Clock /></el-icon>
+                    History
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
         
         <div class="canvas-area" ref="canvasContainer">
@@ -123,10 +123,11 @@
             @mousedown="handleMouseDown"
             @mousemove="handleMouseMove"
             @mouseup="handleMouseUp"
-            @click="handleClick">
+            @click="handleClick"
+            :width="canvasWidth"
+            :height="canvasHeight">
           </canvas>
           
-          <!-- Text input overlay -->
           <div 
             v-if="showTextInput" 
             class="text-input-overlay"
@@ -142,49 +143,27 @@
         </div>
       </div>
     </div>
-    
-    <!-- Version History Dialog -->
-    <el-dialog
-      v-model="showVersionDialog"
-      title="Canvas Version History"
-      width="600px"
-      :close-on-click-modal="false">
-      <div v-if="canvasVersions.length === 0" class="empty-versions">
-        <el-empty description="No previous versions found" />
-      </div>
-      <div v-else class="version-list">
-        <div
-          v-for="version in canvasVersions"
-          :key="version.id"
-          class="version-item">
-          <div class="version-info">
-            <div class="version-header">
-              <span class="version-number">Version {{ version.version_number }}</span>
-              <span class="version-date">{{ new Date(version.created_at).toLocaleString() }}</span>
-            </div>
-            <div class="version-description">{{ version.change_description }}</div>
-          </div>
-          <el-button
-            size="small"
-            type="primary"
-            @click="restoreVersion(version)">
-            Restore
-          </el-button>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script>
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useWorkspaceStore } from '../../store/workspace'
 import { supabase } from '../../supabase'
-import { CaretBottom, Setting, Download, Upload, Clock, Delete, Select, Edit, Document, CirclePlus} from '@element-plus/icons-vue'
+import { 
+  CaretBottom, 
+  Setting, 
+  Download, 
+  Upload, 
+  Clock, 
+  Delete, 
+  Select, 
+  Edit, 
+  Document, 
+  CirclePlus
+} from '@element-plus/icons-vue'
 
 export default {
-  name: 'CanvasCt',
+  name: 'ReusableCanvasCt',
   components: {
     CaretBottom,
     Setting,
@@ -197,14 +176,44 @@ export default {
     Document,
     CirclePlus
   },
-  setup() {
-    const route = useRoute()
-    const workspaceStore = useWorkspaceStore()
+  
+  props: {
+    // Task ID for this canvas
+    taskId: {
+      type: [String, Number],
+      required: true
+    },
     
+    // Workspace ID
+    workspaceId: {
+      type: [String, Number],
+      required: true
+    },
+    
+    // Auto-save functionality
+    autoSave: {
+      type: Boolean,
+      default: true
+    },
+    
+    // Auto-save delay in milliseconds
+    autoSaveDelay: {
+      type: Number,
+      default: 3000
+    }
+  },
+  
+  emits: ['save', 'update'],
+  
+  setup(props, { emit }) {
     // Canvas refs
     const canvas = ref(null)
     const canvasContainer = ref(null)
     const textInput = ref(null)
+    
+    // Canvas dimensions
+    const canvasWidth = ref(800)
+    const canvasHeight = ref(800)
     
     // Canvas state
     const ctx = ref(null)
@@ -227,7 +236,7 @@ export default {
     const isDragging = ref(false)
     const isResizing = ref(false)
     const dragStart = ref({ x: 0, y: 0 })
-    const resizeHandle = ref(null) // 'nw', 'ne', 'sw', 'se'
+    const resizeHandle = ref(null)
     
     // Version history state
     const showVersionDialog = ref(false)
@@ -250,31 +259,51 @@ export default {
     const lastY = ref(0)
     const drawingPath = ref([])
     
-    const currentWorkspace = ref(null)
+    // Auto-save timer
+    let autoSaveTimer = null
+    
+    // Flag to prevent auto-save during initial loading
+    let isInitialLoading = true
+    
+    // Flag to track if canvas data has been loaded
+    let hasLoadedCanvasData = false
     
     onMounted(async () => {
-      const workspaceId = route.params.workspaceId
-      if (workspaceId) {
-        // Load workspaces if not already loaded
-        if (workspaceStore.workspaces.length === 0) {
-          await workspaceStore.loadWorkspaces()
-        }
-        
-        // Find the current workspace from the loaded workspaces
-        currentWorkspace.value = workspaceStore.workspaces.find(w => w.id == workspaceId)
-        
-        if (currentWorkspace.value) {
-          await loadCanvasData(workspaceId)
-          initializeCanvas()
-          setupKeyboardEvents()
-        }
-      }
+      console.log('ReusableCanvasCt mounted with props:', { taskId: props.taskId, workspaceId: props.workspaceId })
+      console.log('Canvas container ref:', canvasContainer.value)
+      console.log('Canvas ref:', canvas.value)
+      
+      // Set flag to prevent auto-save during initial loading
+      isInitialLoading = true
+      
+      setupKeyboardEvents()
+      setupResizeListener()
+      
+      // Wait for the next tick to ensure DOM elements are available
+      await nextTick()
+      
+      console.log('Initializing canvas...')
+      initializeCanvas()
+      
+      // Don't load canvas data on mount - only when tab becomes active
+      console.log('Canvas initialized, waiting for tab activation to load data')
     })
     
     const initializeCanvas = () => {
-      if (!canvas.value) return
+      console.log('initializeCanvas called, canvas.value:', canvas.value)
+      if (!canvas.value) {
+        console.error('Canvas element not found')
+        return
+      }
       
       ctx.value = canvas.value.getContext('2d')
+      console.log('Canvas context:', ctx.value)
+      
+      if (!ctx.value) {
+        console.error('Failed to get canvas context')
+        return
+      }
+      
       resizeCanvas()
       
       // Set initial canvas style
@@ -283,17 +312,314 @@ export default {
       ctx.value.lineCap = 'round'
       ctx.value.lineJoin = 'round'
       
-      renderCanvas()
+      console.log('Canvas initialized successfully')
+    }
+    
+    const reloadCanvas = async () => {
+      console.log('=== RELOAD CANVAS CALLED ===')
+      console.log('Reloading canvas...')
+      console.log('Canvas element available:', canvas.value)
+      console.log('Canvas container available:', canvasContainer.value)
+      
+      // Set flag to prevent auto-save during reload
+      isInitialLoading = true
+      
+      // Wait for the next tick to ensure DOM elements are available
+      await nextTick()
+      
+      console.log('After nextTick - Canvas element available:', canvas.value)
+      console.log('After nextTick - Canvas container available:', canvasContainer.value)
+      
+      // Reinitialize canvas
+      initializeCanvas()
+      
+      // Only load canvas data if it hasn't been loaded yet
+      if (!hasLoadedCanvasData) {
+        console.log('Loading canvas data for the first time...')
+        await loadCanvasData()
+      } else {
+        console.log('Canvas data already loaded, skipping data load')
+      }
+      
+      // Add a test drawing node for debugging if no data exists
+      if (canvasData.value.nodes.length === 0) {
+        console.log('Adding test drawing node...')
+        const testNode = {
+          id: 'test-drawing',
+          type: 'drawing',
+          x: 50,
+          y: 50,
+          width: 100,
+          height: 50,
+          data: {
+            path: [
+              { x: 50, y: 50 },
+              { x: 150, y: 50 },
+              { x: 150, y: 100 },
+              { x: 50, y: 100 },
+              { x: 50, y: 50 }
+            ],
+            strokeColor: '#ff0000',
+            strokeWidth: 3
+          }
+        }
+        canvasData.value.nodes.push(testNode)
+        console.log('Test node added:', testNode)
+      }
+      
+      // Render if canvas is initialized
+      if (ctx.value) {
+        renderCanvas()
+      } else {
+        console.error('Canvas context not available after reload')
+      }
     }
     
     const resizeCanvas = () => {
-      if (!canvas.value || !canvasContainer.value) return
+      console.log('resizeCanvas called, canvas.value:', canvas.value, 'canvasContainer.value:', canvasContainer.value)
+      if (!canvas.value || !canvasContainer.value) {
+        console.error('Canvas or container not found')
+        return
+      }
       
       const container = canvasContainer.value
-      canvas.value.width = container.clientWidth
-      canvas.value.height = container.clientHeight
+      // Set canvas to full available width
+      canvasWidth.value = container.clientWidth
+      // Set fixed height of 800px
+      canvasHeight.value = 800
+      
+      console.log('Canvas dimensions:', { width: canvasWidth.value, height: canvasHeight.value })
+      
+      // Update canvas element dimensions
+      canvas.value.width = canvasWidth.value
+      canvas.value.height = canvasHeight.value
     }
     
+    const setupKeyboardEvents = () => {
+      document.addEventListener('keydown', handleKeyDown)
+    }
+    
+    const setupResizeListener = () => {
+      const handleResize = () => {
+        if (canvasContainer.value) {
+          resizeCanvas()
+          renderCanvas()
+        }
+      }
+      
+      window.addEventListener('resize', handleResize)
+      
+      // Cleanup function
+      return () => {
+        window.removeEventListener('resize', handleResize)
+      }
+    }
+    
+    const handleKeyDown = (e) => {
+      // Check if we're in a text input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return
+      }
+      
+      // Support both CMD (Mac) and CTRL (other OS) keys
+      const isModifierKey = e.metaKey || e.ctrlKey
+      
+      if (isModifierKey && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (isModifierKey && e.shiftKey && e.key === 'Z') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    
+    const loadCanvasData = async () => {
+      try {
+        console.log('Loading canvas data for task ID:', props.taskId)
+        console.log('Querying canvas data with workspace_id:', props.workspaceId, 'task_id:', props.taskId)
+        const { data, error } = await supabase
+          .from('canvas_data')
+          .select('*')
+          .eq('workspace_id', props.workspaceId)
+          .eq('task_id', props.taskId)
+          .maybeSingle()
+        
+        console.log('Canvas data query result:', { data, error })
+        
+        if (data && !error) {
+          console.log('Found canvas data:', data.canvas_data)
+          canvasData.value = data.canvas_data || { nodes: [], edges: [] }
+          currentCanvasId.value = data.id
+          console.log('Canvas data loaded:', canvasData.value)
+          
+          // Render canvas if it's initialized
+          if (ctx.value) {
+            renderCanvas()
+          }
+        } else {
+          console.log('No canvas data found for task ID:', props.taskId)
+          canvasData.value = { nodes: [], edges: [] }
+        }
+        
+        // Mark initial loading as complete
+        isInitialLoading = true
+        hasLoadedCanvasData = true
+      } catch (error) {
+        console.error('Error loading canvas data:', error)
+        isInitialLoading = false
+      }
+    }
+    
+    const saveCanvasData = async () => {
+      try {
+        console.log('Saving canvas data:', canvasData.value)
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          console.error('No authenticated user found')
+          return
+        }
+        
+        // Check if canvas data already exists for this task
+        const { data: existingCanvas, error: fetchError } = await supabase
+          .from('canvas_data')
+          .select('*')
+          .eq('workspace_id', props.workspaceId)
+          .eq('task_id', props.taskId)
+          .maybeSingle()
+        
+        console.log('Existing canvas data:', existingCanvas)
+        
+        if (fetchError) {
+          console.error('Error fetching existing canvas data:', fetchError)
+          return
+        }
+        
+        if (existingCanvas) {
+          console.log('Updating existing canvas data...')
+          // Update existing canvas - save version first, then update
+          await saveCanvasVersion(existingCanvas, user.id)
+          
+          // Update the main canvas data
+          const { error: updateError } = await supabase
+            .from('canvas_data')
+            .update({
+              canvas_data: canvasData.value,
+              version_number: existingCanvas.version_number + 1,
+              updated_by: user.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingCanvas.id)
+          
+          if (updateError) {
+            console.error('Error updating canvas data:', updateError)
+          } else {
+            console.log('Canvas data updated successfully')
+          }
+        } else {
+          console.log('Creating new canvas data...')
+          // Create new canvas data
+          const { error: insertError } = await supabase
+            .from('canvas_data')
+            .insert({
+              task_id: props.taskId,
+              workspace_id: props.workspaceId,
+              canvas_data: canvasData.value,
+              version_number: 1,
+              created_by: user.id,
+              updated_by: user.id,
+              updated_at: new Date().toISOString()
+            })
+          
+          if (insertError) {
+            console.error('Error creating canvas data:', insertError)
+          } else {
+            console.log('Canvas data created successfully')
+          }
+        }
+        
+        // Emit save event
+        emit('save', canvasData.value)
+      } catch (error) {
+        console.error('Error saving canvas data:', error)
+      }
+    }
+    
+    const saveCanvasVersion = async (existingCanvas, userId) => {
+      try {
+        // Save the current version to canvas_data_versions
+        const { error: versionError } = await supabase
+          .from('canvas_data_versions')
+          .insert({
+            canvas_data_id: existingCanvas.id,
+            workspace_id: props.workspaceId,
+            canvas_data: existingCanvas.canvas_data,
+            version_number: existingCanvas.version_number,
+            created_by: userId,
+            change_description: `Version ${existingCanvas.version_number} - Auto-saved on ${new Date().toLocaleString()}`
+          })
+        
+        if (versionError) {
+          console.error('Error saving canvas version:', versionError)
+        }
+      } catch (error) {
+        console.error('Error saving canvas version:', error)
+      }
+    }
+    
+    const triggerAutoSave = () => {
+      if (!props.autoSave) return
+      
+      // Clear existing timer
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer)
+      }
+      
+      // Set new timer
+      autoSaveTimer = setTimeout(() => {
+        saveCanvasData()
+      }, props.autoSaveDelay)
+    }
+    
+    // Watch for canvas data changes and trigger auto-save
+    watch(canvasData, () => {
+      if (ctx.value) {
+        renderCanvas()
+        
+        // Only trigger auto-save if not during initial loading
+        if (!isInitialLoading) {
+          triggerAutoSave()
+        } else {
+          console.log('Skipping auto-save during initial loading')
+        }
+        
+        emit('update', canvasData.value)
+      } else {
+        console.log('Canvas context not available, skipping render')
+      }
+    }, { deep: true })
+    
+    // Watch for canvas container size changes
+    watch(canvasContainer, () => {
+      if (canvasContainer.value) {
+        nextTick(() => {
+          resizeCanvas()
+          renderCanvas()
+        })
+      }
+    }, { immediate: true })
+    
+    // Cleanup keyboard events on unmount
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('resize', setupResizeListener)
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer)
+      }
+    })
+    
+    // Basic canvas methods
     const setTool = (tool) => {
       currentTool.value = tool
       if (tool === 'text') {
@@ -310,30 +636,105 @@ export default {
       setTool('shape')
     }
     
-    const addShapeAtPosition = (shapeType, x, y) => {
-      saveState()
-      
-      const node = {
-        id: `shape-${Date.now()}`,
-        type: 'shape',
-        x: x,
-        y: y,
-        width: 100,
-        height: 100,
-        data: {
-          shapeType: shapeType,
-          strokeColor: strokeColor.value,
-          strokeWidth: strokeWidth.value,
-          fillColor: fillColor.value
-        }
+    const handleToolCommand = (command) => {
+      switch (command) {
+        case 'export':
+          exportCanvas()
+          break
+        case 'import':
+          importCanvas()
+          break
+        case 'history':
+          showVersionHistory()
+          break
       }
-      
-      canvasData.value.nodes.push(node)
-      saveCanvasData()
-      selectedShape.value = '' // Reset selected shape
-      setTool('select') // Switch back to select tool
     }
     
+    const clearCanvas = () => {
+      saveState()
+      canvasData.value = { nodes: [], edges: [] }
+      if (ctx.value) {
+        ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
+      }
+      saveCanvasData()
+    }
+    
+    const exportCanvas = () => {
+      const dataStr = JSON.stringify(canvasData.value, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `canvas-task-${props.taskId}-${Date.now()}.canvas`
+      link.click()
+      URL.revokeObjectURL(url)
+    }
+    
+    const importCanvas = () => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.canvas,.json'
+      input.onchange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result)
+              canvasData.value = data
+              renderCanvas()
+              saveCanvasData()
+            } catch (error) {
+              console.error('Error importing canvas:', error)
+            }
+          }
+          reader.readAsText(file)
+        }
+      }
+      input.click()
+    }
+    
+    const showVersionHistory = async () => {
+      if (!currentCanvasId.value) {
+        console.log('No canvas data found for this task')
+        return
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('canvas_data_versions')
+          .select('*')
+          .eq('canvas_data_id', currentCanvasId.value)
+          .order('version_number', { ascending: false })
+        
+        if (error) {
+          console.error('Error loading canvas versions:', error)
+          return
+        }
+        
+        canvasVersions.value = data || []
+        showVersionDialog.value = true
+      } catch (error) {
+        console.error('Error loading canvas versions:', error)
+      }
+    }
+    
+    const restoreVersion = async (version) => {
+      try {
+        // Update current canvas data with the selected version
+        canvasData.value = version.canvas_data
+        renderCanvas()
+        
+        // Save the restored version as a new version
+        await saveCanvasData()
+        
+        showVersionDialog.value = false
+      } catch (error) {
+        console.error('Error restoring version:', error)
+      }
+    }
+    
+    // Mouse event handlers
     const handleMouseDown = (e) => {
       const rect = canvas.value.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -517,6 +918,30 @@ export default {
       textInputValue.value = ''
     }
     
+    const addShapeAtPosition = (shapeType, x, y) => {
+      saveState()
+      
+      const node = {
+        id: `shape-${Date.now()}`,
+        type: 'shape',
+        x: x,
+        y: y,
+        width: 100,
+        height: 100,
+        data: {
+          shapeType: shapeType,
+          strokeColor: strokeColor.value,
+          strokeWidth: strokeWidth.value,
+          fillColor: fillColor.value
+        }
+      }
+      
+      canvasData.value.nodes.push(node)
+      saveCanvasData()
+      selectedShape.value = '' // Reset selected shape
+      setTool('select') // Switch back to select tool
+    }
+    
     const updateStrokeColor = (color) => {
       strokeColor.value = color
       if (ctx.value) {
@@ -533,42 +958,6 @@ export default {
     
     const updateFillColor = (color) => {
       fillColor.value = color
-    }
-    
-    const handleToolCommand = (command) => {
-      switch (command) {
-        case 'export':
-          exportCanvas()
-          break
-        case 'import':
-          importCanvas()
-          break
-        case 'history':
-          showVersionHistory()
-          break
-      }
-    }
-    
-    const setupKeyboardEvents = () => {
-      document.addEventListener('keydown', handleKeyDown)
-    }
-    
-    const handleKeyDown = (e) => {
-      // Check if we're in a text input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-        return
-      }
-      
-      // Support both CMD (Mac) and CTRL (other OS) keys
-      const isModifierKey = e.metaKey || e.ctrlKey
-      
-      if (isModifierKey && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        undo()
-      } else if (isModifierKey && e.shiftKey && e.key === 'Z') {
-        e.preventDefault()
-        redo()
-      }
     }
     
     const saveState = () => {
@@ -662,13 +1051,24 @@ export default {
     }
     
     const renderCanvas = () => {
-      if (!ctx.value) return
+      console.log('renderCanvas called, ctx.value:', ctx.value, 'canvasData.value:', canvasData.value)
+      if (!ctx.value) {
+        console.error('Canvas context not available')
+        return
+      }
+      
+      if (!canvas.value) {
+        console.error('Canvas element not available')
+        return
+      }
       
       // Clear canvas
       ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
       
+      console.log('Rendering nodes:', canvasData.value.nodes.length)
       // Render nodes
-      canvasData.value.nodes.forEach(node => {
+      canvasData.value.nodes.forEach((node, index) => {
+        console.log(`Rendering node ${index}:`, node)
         if (node.type === 'drawing') {
           renderDrawingNode(node)
         } else if (node.type === 'text') {
@@ -678,6 +1078,7 @@ export default {
         }
       })
       
+      console.log('Rendering edges:', canvasData.value.edges.length)
       // Render edges
       canvasData.value.edges.forEach(edge => {
         renderEdge(edge)
@@ -892,280 +1293,64 @@ export default {
       ctx.value.stroke()
     }
     
-    const clearCanvas = () => {
-      saveState()
-      canvasData.value = { nodes: [], edges: [] }
-      if (ctx.value) {
-        ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
-      }
-      saveCanvasData()
+    return {
+      canvas,
+      canvasContainer,
+      textInput,
+      canvasWidth,
+      canvasHeight,
+      currentTool,
+      strokeColor,
+      strokeWidth,
+      showTextInput,
+      textInputValue,
+      textInputPosition,
+      selectedShape,
+      selectedNode,
+      isDragging,
+      isResizing,
+      fillColor,
+      undoStack,
+      redoStack,
+      showVersionDialog,
+      canvasVersions,
+      setTool,
+      addShape,
+      updateFillColor,
+      handleToolCommand,
+      undo,
+      redo,
+      showVersionHistory,
+      restoreVersion,
+      handleMouseDown,
+      handleMouseMove,
+      handleMouseUp,
+      handleClick,
+      addTextNode,
+      cancelTextInput,
+      updateStrokeColor,
+      updateStrokeWidth,
+      clearCanvas,
+      exportCanvas,
+      importCanvas,
+      initializeCanvas,
+      reloadCanvas
     }
-    
-    const exportCanvas = () => {
-      const dataStr = JSON.stringify(canvasData.value, null, 2)
-      const dataBlob = new Blob([dataStr], { type: 'application/json' })
-      const url = URL.createObjectURL(dataBlob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `canvas-${Date.now()}.canvas`
-      link.click()
-      URL.revokeObjectURL(url)
-    }
-    
-    const importCanvas = () => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = '.canvas,.json'
-      input.onchange = (e) => {
-        const file = e.target.files[0]
-        if (file) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            try {
-              const data = JSON.parse(e.target.result)
-              canvasData.value = data
-              renderCanvas()
-              saveCanvasData()
-            } catch (error) {
-              console.error('Error importing canvas:', error)
-            }
-          }
-          reader.readAsText(file)
-        }
-      }
-      input.click()
-    }
-    
-    const loadCanvasData = async (workspaceId) => {
-      try {
-        const { data, error } = await supabase
-          .from('canvas_data')
-          .select('*')
-          .eq('workspace_id', workspaceId)
-          .is('task_id', null)
-          .maybeSingle()
-        
-        if (data && !error) {
-          canvasData.value = data.canvas_data || { nodes: [], edges: [] }
-          currentCanvasId.value = data.id
-        }
-      } catch (error) {
-        console.error('Error loading canvas data:', error)
-      }
-    }
-    
-    const showVersionHistory = async () => {
-      if (!currentCanvasId.value) {
-        console.log('No canvas data found for this workspace')
-        return
-      }
-      
-      try {
-        const { data, error } = await supabase
-          .from('canvas_data_versions')
-          .select('*')
-          .eq('canvas_data_id', currentCanvasId.value)
-          .order('version_number', { ascending: false })
-        
-        if (error) {
-          console.error('Error loading canvas versions:', error)
-          return
-        }
-        
-        canvasVersions.value = data || []
-        showVersionDialog.value = true
-      } catch (error) {
-        console.error('Error loading canvas versions:', error)
-      }
-    }
-    
-    const restoreVersion = async (version) => {
-      try {
-        // Update current canvas data with the selected version
-        canvasData.value = version.canvas_data
-        renderCanvas()
-        
-        // Save the restored version as a new version
-        await saveCanvasData()
-        
-        showVersionDialog.value = false
-      } catch (error) {
-        console.error('Error restoring version:', error)
-      }
-    }
-    
-    const saveCanvasData = async () => {
-      if (!currentWorkspace.value) return
-      
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          console.error('No authenticated user found')
-          return
-        }
-        
-        // Check if canvas data already exists for this workspace
-        const { data: existingCanvas, error: fetchError } = await supabase
-          .from('canvas_data')
-          .select('*')
-          .eq('workspace_id', currentWorkspace.value.id)
-          .is('task_id', null)
-          .maybeSingle()
-        
-        if (fetchError) {
-          console.error('Error fetching existing canvas data:', fetchError)
-          return
-        }
-        
-        if (existingCanvas) {
-          // Update existing canvas - save version first, then update
-          await saveCanvasVersion(existingCanvas, user.id)
-          
-          // Update the main canvas data
-          const { error: updateError } = await supabase
-            .from('canvas_data')
-            .update({
-              canvas_data: canvasData.value,
-              version_number: existingCanvas.version_number + 1,
-              updated_by: user.id,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingCanvas.id)
-          
-          if (updateError) {
-            console.error('Error updating canvas data:', updateError)
-          }
-        } else {
-          // Create new canvas data
-          const { error: insertError } = await supabase
-            .from('canvas_data')
-            .insert({
-              workspace_id: currentWorkspace.value.id,
-              task_id: null,
-              canvas_data: canvasData.value,
-              version_number: 1,
-              created_by: user.id,
-              updated_by: user.id,
-              updated_at: new Date().toISOString()
-            })
-          
-          if (insertError) {
-            console.error('Error creating canvas data:', insertError)
-          }
-        }
-      } catch (error) {
-        console.error('Error saving canvas data:', error)
-      }
-    }
-    
-    const saveCanvasVersion = async (existingCanvas, userId) => {
-      try {
-        // Save the current version to canvas_data_versions
-        const { error: versionError } = await supabase
-          .from('canvas_data_versions')
-          .insert({
-            canvas_data_id: existingCanvas.id,
-            workspace_id: currentWorkspace.value.id,
-            canvas_data: existingCanvas.canvas_data,
-            version_number: existingCanvas.version_number,
-            created_by: userId,
-            change_description: `Version ${existingCanvas.version_number} - Auto-saved on ${new Date().toLocaleString()}`
-          })
-        
-        if (versionError) {
-          console.error('Error saving canvas version:', versionError)
-        }
-      } catch (error) {
-        console.error('Error saving canvas version:', error)
-      }
-    }
-    
-    // Watch for canvas data changes and re-render
-    watch(canvasData, () => {
-      renderCanvas()
-    }, { deep: true })
-    
-    // Cleanup keyboard events on unmount
-    onUnmounted(() => {
-      document.removeEventListener('keydown', handleKeyDown)
-    })
-    
-          return {
-        canvas,
-        canvasContainer,
-        textInput,
-        currentTool,
-        strokeColor,
-        strokeWidth,
-        showTextInput,
-        textInputValue,
-        textInputPosition,
-        selectedShape,
-        selectedNode,
-        isDragging,
-        isResizing,
-        fillColor,
-        undoStack,
-        redoStack,
-        showVersionDialog,
-        canvasVersions,
-        currentWorkspace,
-        setTool,
-        addShape,
-        updateFillColor,
-        handleToolCommand,
-        undo,
-        redo,
-        showVersionHistory,
-        restoreVersion,
-        handleMouseDown,
-        handleMouseMove,
-        handleMouseUp,
-        handleClick,
-        addTextNode,
-        cancelTextInput,
-        updateStrokeColor,
-        updateStrokeWidth,
-        clearCanvas,
-        exportCanvas,
-        importCanvas
-      }
   }
 }
 </script>
 
 <style scoped>
-.canvas-container {
+.reusable-canvas-container {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #f5f7fa;
-}
-
-.canvas-header {
-  padding: 20px;
-  background-color: white;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.canvas-header h1 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.canvas-description {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
 }
 
 .canvas-content {
   flex: 1;
-  padding-top: 5px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .canvas-workspace {
@@ -1184,14 +1369,6 @@ export default {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
-}
-
-.canvas-toolbar-right {
-  margin-left: auto;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  float: right;
 }
 
 .color-controls {
@@ -1213,15 +1390,12 @@ export default {
   white-space: nowrap;
 }
 
-/* Icon styling */
-.el-icon {
-  width: 1em;
-  height: 1em;
-  vertical-align: middle;
-}
-
-.el-button .el-icon {
-  margin-right: 4px;
+.canvas-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  float: right;
 }
 
 .canvas-area {
@@ -1229,12 +1403,15 @@ export default {
   position: relative;
   overflow: hidden;
   min-height: 800px;
+  width: 100%;
 }
 
 canvas {
   display: block;
   cursor: crosshair;
   background-color: #fafafa;
+  width: 100%;
+  height: 800px;
 }
 
 .text-input-overlay {
@@ -1248,6 +1425,17 @@ canvas {
 
 .text-input-overlay .el-input {
   width: 200px;
+}
+
+/* Icon styling */
+.el-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.el-button .el-icon {
+  margin-right: 4px;
 }
 
 /* Version History Styles */

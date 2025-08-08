@@ -2,13 +2,14 @@
 CREATE TABLE IF NOT EXISTS canvas_data (
     id BIGSERIAL PRIMARY KEY,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    task_id BIGINT REFERENCES tasks(id) ON DELETE CASCADE,
     canvas_data JSONB NOT NULL DEFAULT '{"nodes": [], "edges": []}'::jsonb,
     version_number INTEGER DEFAULT 1,
     created_by UUID REFERENCES auth.users(id) NOT NULL,
     updated_by UUID REFERENCES auth.users(id) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(workspace_id)
+    UNIQUE(workspace_id, task_id)
 );
 
 COMMENT ON TABLE canvas_data IS 'Stores JSON Canvas format data for each workspace.

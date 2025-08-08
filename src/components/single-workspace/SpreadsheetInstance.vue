@@ -717,117 +717,9 @@ import '@univerjs/sheets-formula/facade'
         portfolioData.value = workbookData;
       }
     }
+    const fnCreateUniver = async (readonlyState) => {
 
-    const initializeUniver = async (workbookData = null, forceReadonly = false) => {
-      try {
-        console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
-
-        // Determine readonly state - use forceReadonly if provided, otherwise use props.readonly
-        const readonlyState = forceReadonly ? true : props.readonly;
-        console.log(`📝 Initializing with readonly=${readonlyState} (forceReadonly=${forceReadonly}, props.readonly=${props.readonly})`);
-
-        // Load current user for edit tracking
-        console.log(`🚀 Loading user for edit tracking in ${props.spreadsheetId}...`);
-        await getCurrentUser();
-        console.log(`🚀 User loading complete for ${props.spreadsheetId}:`, currentUser.value ? `✅ ${currentUser.value.email}` : '❌ No user');
-
-        // Store references to functions for menu commands
-        const emitFunction = emit;
-        const saveFunction = manualSave;
-
-        // Load complete workbook data from Supabase first
-        if (!workbookData) {
-          workbookData = await loadPortfolioData();
-        }
-        
-        // Use the loaded workbook data or create default structure
-        if (workbookData && workbookData.sheets) {
-          // Use the complete workbook data from Supabase
-          Object.assign(WORKBOOK_DATA, workbookData);
-          portfolioData.value = workbookData;
-          
-          // IMPORTANT: Ensure styles are at the root level of WORKBOOK_DATA
-          if (workbookData.styles) {
-            WORKBOOK_DATA.styles = { ...workbookData.styles };
-            realTimeStyleRegistry.value = { ...workbookData.styles };
-            console.log(`✅ Loaded ${Object.keys(workbookData.styles).length} styles from Supabase`);
-            console.log(`📊 Loaded styles applied to WORKBOOK_DATA:`, WORKBOOK_DATA.styles);
-          } else {
-            console.log(`⚠️ No styles found in loaded workbook data`);
-          }
-          
-          // Update current row count from loaded data
-          const firstSheet = Object.values(workbookData.sheets)[0];
-          if (firstSheet && firstSheet.rowCount) {
-            currentRowCount.value = firstSheet.rowCount;
-            console.log(`📏 Set current row count from loaded data (${props.spreadsheetId}):`, firstSheet.rowCount);
-          }
-          
-          console.log(`📊 Loaded complete workbook with features (${props.spreadsheetId}):`, {
-            id: WORKBOOK_DATA.id,
-            name: WORKBOOK_DATA.name,
-            sheets: Object.keys(WORKBOOK_DATA.sheets),
-            sheetOrder: WORKBOOK_DATA.sheetOrder,
-            stylesCount: WORKBOOK_DATA.styles ? Object.keys(WORKBOOK_DATA.styles).length : 0,
-            hasStylesInWorkbookData: !!(WORKBOOK_DATA.styles),
-            rowCount: currentRowCount.value
-          });
-        } else {
-          // Fallback to default workbook structure
-          WORKBOOK_DATA.sheets = {
-            'sheet-01': {
-              id: 'sheet-01',
-              name: props.spreadsheetName,
-              cellData: {},
-              tabColor: '',
-              hidden: 0,
-              rowCount: props.initialRows,
-              columnCount: props.initialColumns,
-              zoomRatio: 1,
-              scrollTop: 0,
-              scrollLeft: 0,
-              defaultColumnWidth: 120,
-              defaultRowHeight: 27,
-              mergeData: [],
-              rowData: {},
-              columnData: {},
-              showGridlines: 1,
-              rowHeader: {
-                width: 46,
-                hidden: 0,
-              },
-              columnHeader: {
-                height: 20,
-                hidden: 0,
-              },
-              selections: ['A1'],
-              rightToLeft: 0,
-            }
-          };
-          WORKBOOK_DATA.sheetOrder = ['sheet-01'];
-          WORKBOOK_DATA.styles = {}; // Ensure styles property exists
-        }
-
-        // Create Univer instance with locales - exactly as in documentation
-        /*univer = new Univer({
-          locale: LocaleType.EN_US,
-          locales: {
-            [LocaleType.EN_US]: merge(
-              {},
-              DesignEnUS,
-              UIEnUS,
-              DocsUIEnUS,
-              SheetsEnUS,
-              SheetsUIEnUS,
-              SheetsFormulaUIEnUS,
-              SheetsNumfmtUIEnUS,
-              SheetsNoteUIEnUS,
-            ),
-          },
-        });*/
-
-
-        const univerInstance = createUniver({
+      const univerInstance = createUniver({
           locale: LocaleType.EN_US,
           locales: {
             [LocaleType.EN_US]: merge(
@@ -879,369 +771,430 @@ import '@univerjs/sheets-formula/facade'
           univerAPI: !!univerAPI,
           readonly: props.readonly
         });
-        
-        
-        // Formula functionality is now enabled - no blocking needed
-        
-        // Currency value parsing utility function
-        const parseCurrencyValue = (value) => {
-          if (value === null || value === undefined) return 0;
-          
-          // If already a number, return it
-          if (typeof value === 'number') return value;
-          
-          // Convert to string and remove currency symbols and formatting
-          const str = String(value);
-          
-          // Remove common currency symbols, commas, and whitespace
-          const cleaned = str
-            .replace(/[$€£¥₹₽]/g, '') // Remove currency symbols
-            .replace(/[,\s]/g, '') // Remove commas and spaces
-            .replace(/[()]/g, '') // Remove parentheses (negative values)
-            .trim();
-          
-          // Check if the original had parentheses (negative)
-          const isNegative = str.includes('(') && str.includes(')');
-          
-          // Parse as float
-          const parsed = parseFloat(cleaned);
-          
-          // Return 0 if not a valid number, otherwise return the value (negative if needed)
-          return isNaN(parsed) ? 0 : (isNegative ? -parsed : parsed);
-        };
-        
-        // Enhanced formula calculation with currency support
-        const enhanceFormulaCalculation = () => {
-          try {
-            if (univerAPI && univerAPI.getFormula) {
-              const formula = univerAPI.getFormula();
-              
-              // Add event listener for formula calculations
-              formula.calculationStart((forceCalculate) => {
-                console.log('🧮 Formula calculation started, ensuring currency values are parsed correctly');
-              });
-              
-              formula.calculationEnd((functionsExecutedState) => {
-                console.log('✅ Formula calculation completed');
-              });
-              
-              // Set calculation mode to ensure formulas update automatically
-              formula.setInitialFormulaComputing('FORCED');
-            }
-          } catch (error) {
-            console.warn('⚠️ Could not enhance formula calculation:', error);
-          }
-        };
-        
-        // Apply enhancement after a short delay to ensure univerAPI is ready
-        setTimeout(enhanceFormulaCalculation, 1000);
+      
+    }
 
-        // We'll register custom functions after the workbook is created
-        console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
-
-        // Register plugins in exact order from 
-        /*
-        // those plugins are not needed for the new version of Univer for univerapi
-        //univer.registerPlugin(UniverRenderEnginePlugin);
-        //univer.registerPlugin(UniverFormulaEnginePlugin);
-        //univer.registerPlugin(UniverUIPlugin, {
-        //  container: `univer-container-${props.spreadsheetId}`,
-        //});
-
-        //univer.registerPlugin(UniverDocsPlugin);
-        //univer.registerPlugin(UniverDocsUIPlugin);
-
-        //univer.registerPlugin(UniverSheetsPlugin);
-        //univer.registerPlugin(UniverSheetsUIPlugin);
-        //univer.registerPlugin(UniverSheetsFormulaPlugin);
-        //univer.registerPlugin(UniverSheetsFormulaUIPlugin);
-        //univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
-        */
-
-        // Register annotation plugins
-        //univer.registerPlugin(UniverSheetsNotePlugin);
-        //univer.registerPlugin(UniverSheetsNoteUIPlugin);
-
-        // Add custom menu directly using Univer's injector (official documentation pattern)
-        try {
-          console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
-
-          // Check if univer instance was created successfully
-          if (!univer) {
-            console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
-            return;
-          }
+    // Currency value parsing utility function
+    const parseCurrencyValue = (value) => {
+      if (value === null || value === undefined) return 0;
+      
+      // If already a number, return it
+      if (typeof value === 'number') return value;
+      
+      // Convert to string and remove currency symbols and formatting
+      const str = String(value);
+      
+      // Remove common currency symbols, commas, and whitespace
+      const cleaned = str
+        .replace(/[$€£¥₹₽]/g, '') // Remove currency symbols
+        .replace(/[,\s]/g, '') // Remove commas and spaces
+        .replace(/[()]/g, '') // Remove parentheses (negative values)
+        .trim();
+      
+      // Check if the original had parentheses (negative)
+      const isNegative = str.includes('(') && str.includes(')');
+      
+      // Parse as float
+      const parsed = parseFloat(cleaned);
+      
+      // Return 0 if not a valid number, otherwise return the value (negative if needed)
+      return isNaN(parsed) ? 0 : (isNegative ? -parsed : parsed);
+    };
+    
+    // Enhanced formula calculation with currency support
+    const enhanceFormulaCalculation = () => {
+      try {
+        if (univerAPI && univerAPI.getFormula) {
+          const formula = univerAPI.getFormula();
           
-          
-          // Wait for Univer to be fully initialized
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Try to get the injector through different methods
-          let injector = null;
-          
-          // Method 1: Try the internal injector property
-          if (univer && univer._injector) {
-            injector = univer._injector;
-            console.log('✅ Got injector from _injector property');
-          }
-          // Method 2: Try through context
-          else if (univer && univer.getContext && univer.getContext().injector) {
-            injector = univer.getContext().injector;
-            console.log('✅ Got injector from context');
-          }
-          // Method 3: Try accessing it differently
-          else if (univer && univer.__container) {
-            injector = univer.__container;
-            console.log('✅ Got injector from __container property');
-          }
-          
-          if (!injector) {
-            console.warn('⚠️ Could not access injector, custom menu will not be added');
-            return;
-          }
-          
-          // Import custom menu dependencies
-          const { ICommandService, CommandType } = await import('@univerjs/core');
-          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType, ContextMenuPosition, ContextMenuGroup } = await import('@univerjs/ui');
-          
-          // Get services
-          const commandService = injector.get(ICommandService);
-          const menuManagerService = injector.get(IMenuManagerService);
-          const componentManager = injector.get(ComponentManager);
-          
-          console.log('✅ Got all required services from injector');
-          
-          // Define custom commands
-          const DROPDOWN_FIRST_ITEM_OPERATION = {
-            id: 'custom-menu.operation.dropdown-list-first-item',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Save spreadsheet functionality
-              console.log('💾 Save operation triggered from dropdown menu');
-              try {
-                await saveFunction();
-                console.log('✅ Save operation completed successfully');
-              } catch (error) {
-                console.error('❌ Save operation failed:', error);
-              }
-              return true;
-            },
-          };
-          
-          const DROPDOWN_SECOND_ITEM_OPERATION = {
-            id: 'custom-menu.operation.dropdown-list-second-item',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Delete spreadsheet functionality
-              console.log('🗑️ Delete operation triggered from dropdown menu');
-              if (props.canRemove) {
-                try {
-                  // Directly emit the delete event - parent component will handle confirmation
-                  emitFunction('remove-spreadsheet', props.spreadsheetId);
-                  console.log('✅ Delete operation initiated successfully');
-                } catch (error) {
-                  console.error('❌ Delete operation failed:', error);
-                }
-              } else {
-                alert('Cannot delete the last spreadsheet in a portfolio');
-                console.log('⚠️ Delete operation blocked - last spreadsheet in portfolio');
-              }
-              return true;
-            },
-          };
-          
-          const CONTEXT_MENU_EDIT_INFO_OPERATION = {
-            id: 'custom-menu.operation.context-edit-info',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // Edit info context menu action
-              console.log('📝 Edit info context menu item clicked');
-              
-              // Get current cell selection for context
-              const selection = getCurrentCellSelection();
-              if (selection) {
-                //const { row, col } = selection;
-                //const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
-
-                showCellEditInfo();
-                
-                // Show info about the selected cell
-                /*ElMessage({
-                  message: `Edit info action triggered on cell ${cellRef}`,
-                  type: 'info',
-                  duration: 3000
-                });
-                
-                console.log(`✅ Edit info action executed on cell [${row}, ${col}] (${cellRef})`);*/
-              } else {
-                ElMessage({
-                  message: 'Edit info context menu action triggered',
-                  type: 'info',
-                  duration: 3000
-                });
-              }
-              
-              return true;
-            },
-          };
-
-
-          const HISTORY_OPERATION = {
-            id: 'custom-menu.operation.history',
-            type: CommandType.OPERATION,
-            handler: async () => {
-              // History functionality
-              console.log('📚 History operation triggered from dropdown menu');
-              try {
-                await showHistory();
-                console.log('✅ History operation completed successfully');
-              } catch (error) {
-                console.error('❌ History operation failed:', error);
-              }
-              return true;
-            },
-          };
-          
-          
-          const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
-          
-          // Register commands
-          commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
-          commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
-          commandService.registerCommand(CONTEXT_MENU_EDIT_INFO_OPERATION);
-          commandService.registerCommand(HISTORY_OPERATION);
-          console.log('✅ Custom menu commands registered');
-          
-          // Register simple icon components (using createElement directly)
-          const SaveIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C13.66 12 15 13.34 15 15S13.66 18 12 18 9 16.66 9 15 10.34 12 12 12'
-            }));
-          };
-          
-          const DeleteIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z'
-            }));
-          };
-          
-          const MainButtonIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
-            }));
-          };
-          
-          const EditInfoIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
-            }));
-          };
-
-
-          const HistoryIcon = () => {
-            const React = window.React || window['React'];
-            if (!React) {
-              return null;
-            }
-            return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
-            }, React.createElement('path', {
-              d: 'M13 3C8.03 3 4 7.03 4 12s4.03 9 9 9s9-4.03 9-9c0-.46-.04-.92-.1-1.36c-.98 1.37-2.58 2.26-4.4 2.26c-2.98 0-5.4-2.42-5.4-5.4c0-1.81.89-3.42 2.26-4.4C13.92 3.04 13.46 3 13 3z'
-            }));
-          };
-          
-          componentManager.register('SaveIcon', SaveIcon);
-          componentManager.register('DeleteIcon', DeleteIcon);
-          componentManager.register('MainButtonIcon', MainButtonIcon);
-          componentManager.register('EditInfoIcon', EditInfoIcon);
-          componentManager.register('HistoryIcon', HistoryIcon);
-          console.log('✅ Custom menu components registered');
-          
-          // Register menu items using proper factory functions
-          menuManagerService.mergeMenu({
-            [RibbonStartGroup.OTHERS]: {
-              [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
-                order: 10,
-                menuItemFactory: () => ({
-                  id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
-                  type: MenuItemType.SUBITEMS,
-                  icon: 'MainButtonIcon',
-                  tooltip: 'Spreadsheet Actions (Save & Delete)',
-                  title: 'Actions',
-                }),
-                [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
-                  order: 0,
-                  menuItemFactory: () => ({
-                    id: DROPDOWN_FIRST_ITEM_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    title: 'Save',
-                  }),
-                },
-                [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
-                  order: 1,
-                  menuItemFactory: () => ({
-                    id: DROPDOWN_SECOND_ITEM_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    title: 'Delete',
-                  }),
-                },
-                [HISTORY_OPERATION.id]: {
-                  order: 2,
-                  menuItemFactory: () => ({
-                    id: HISTORY_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    icon: 'HistoryIcon',
-                    title: 'History',
-                    tooltip: 'View spreadsheet history'
-                  }),
-                },
-              },
-            },
-            // Add context menu configuration
-            [ContextMenuPosition.MAIN_AREA]: {
-              [ContextMenuGroup.OTHERS]: {
-                [CONTEXT_MENU_EDIT_INFO_OPERATION.id]: {
-                  order: 100,
-                  menuItemFactory: () => ({
-                    id: CONTEXT_MENU_EDIT_INFO_OPERATION.id,
-                    type: MenuItemType.BUTTON,
-                    icon: 'EditInfoIcon',
-                    title: 'View Edit info',
-                    tooltip: 'This is an example context menu item'
-                  }),
-                },
-              },
-            },
+          // Add event listener for formula calculations
+          formula.calculationStart((forceCalculate) => {
+            console.log('🧮 Formula calculation started, ensuring currency values are parsed correctly');
           });
           
-          console.log('✅ Custom menu items registered');
-          console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
-          console.log(`🎯 Edit info context menu item should now appear when right-clicking on cells for ${props.spreadsheetId}!`);
+          formula.calculationEnd((functionsExecutedState) => {
+            console.log('✅ Formula calculation completed');
+          });
           
+          // Set calculation mode to ensure formulas update automatically
+          formula.setInitialFormulaComputing('FORCED');
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not enhance formula calculation:', error);
+      }
+    };
+
+    // TASKSTATUS formula processor - fetches real task status from database
+    const processTaskStatusFormulas = async () => {
+      try {
+        console.log(`🔍 processTaskStatusFormulas started, global taskStatusCells has ${taskStatusCells.size} entries`);
+        const currentData = getCurrentSpreadsheetData();
+        if (!currentData || !currentData.sheets) return;
+        
+        let processedCount = 0;
+        let needsReload = false;
+        
+
+        
+        // Process each sheet
+        for (const sheetId of Object.keys(currentData.sheets)) {
+          const sheet = currentData.sheets[sheetId];
+          if (!sheet.cellData) continue;
+          
+          // Process each row
+          for (const row of Object.keys(sheet.cellData)) {
+            // Process each column
+            for (const col of Object.keys(sheet.cellData[row])) {
+              const cell = sheet.cellData[row][col];
+              if (cell && cell.f && typeof cell.f === 'string') {
+                const formula = cell.f.trim();
+                const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                
+                if (taskStatusMatch) {
+                  const taskId = parseInt(taskStatusMatch[1], 10);
+                  if (!isNaN(taskId)) {
+                    console.log(`🔍 Found TASKSTATUS formula at [${row}, ${col}] in sheet ${sheetId}: ${formula}`);
+                    // Always process TASKSTATUS formulas to get fresh status on page load
+                    console.log(`🔄 Processing TASKSTATUS formula at [${row}, ${col}] to get current status`);
+                    
+                    // Clear task cache to ensure fresh data
+                    taskStore.clearTaskCache();
+                    
+                    try {
+                      console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
+                      
+                      // Fetch task from database
+                      const task = await taskStore.getTaskById(taskId);
+                      
+                      if (task && task.status) {
+                        const formattedStatus = formatTaskStatus(task.status);
+                        
+                        // Update the cell value but keep the formula
+                        cell.v = formattedStatus;
+                        // Keep the formula so it can be processed again on page refresh
+                        
+                        // Store task data for click navigation
+                        cell.taskStatusData = {
+                          taskId: taskId,
+                          originalFormula: formula,
+                          workspaceId: workspaceStore.currentWorkspace?.id
+                        };
+                        
+                        console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                        
+                        // Note: Real-time tracking removed for simplicity
+                        
+                        // Add hyperlink to cell for right-click functionality
+                        setTimeout(() => {
+                          try {
+                            const workspaceId = workspaceStore.currentWorkspace?.id;
+                            if (workspaceId) {
+                              const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                              // Use absolute URL for hyperlink
+                              const absoluteUrl = `${window.location.origin}${taskUrl}`;
+                              insertHyperlinkInCell(parseInt(row), parseInt(col), formattedStatus, absoluteUrl);
+                              console.log(`🔗 Added hyperlink to TASKSTATUS cell [${row}, ${col}] → ${absoluteUrl}`);
+                            }
+                          } catch (linkError) {
+                            console.warn(`⚠️ Could not add hyperlink to cell [${row}, ${col}]:`, linkError);
+                          }
+                        }, 100); // Small delay to ensure cell is updated
+                        
+                        // Show user notification
+                        //ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
+                        
+                        // Formula processed successfully
+                        
+                        processedCount++;
+                        needsReload = true;
+                      } else {
+                        // Task not found or has no status
+                        cell.v = 'Task Not Found';
+                        // Keep the formula for future processing
+                        
+                        // Store task data even for failed cases to enable click navigation
+                        cell.taskStatusData = {
+                          taskId: taskId,
+                          originalFormula: formula,
+                          workspaceId: workspaceStore.currentWorkspace?.id
+                        };
+                        
+                        console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
+                        ElMessage.warning(`Task ${taskId} not found or not accessible`);
+                        
+                        // Note: Real-time tracking removed for simplicity
+                        
+                        // Task not found - formula processed
+                        
+                        processedCount++;
+                        needsReload = true;
+                      }
+                    } catch (fetchError) {
+                      console.error(`❌ Error fetching task ${taskId}:`, fetchError);
+                      
+                      // Update cell with error message but keep formula
+                      cell.v = 'Access Denied';
+                      // Keep the formula for future processing
+                      
+                      // Store task data even for error cases to enable click navigation
+                      cell.taskStatusData = {
+                        taskId: taskId,
+                        originalFormula: formula,
+                        workspaceId: workspaceStore.currentWorkspace?.id
+                      };
+                      
+                      ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
+                      
+                      // Note: Real-time tracking removed for simplicity
+                      
+                      // Error handled - formula processed
+                      
+                      processedCount++;
+                      needsReload = true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        if (needsReload) {
+          console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
+          
+          // Update portfolio data
+          portfolioData.value = { ...currentData };
+          
+          // Force immediate UI refresh to display cell values
+          setTimeout(() => {
+            try {
+              // Update Vue reactivity
+              portfolioData.value = { ...currentData };
+              
+              // Force browser re-render with a small DOM manipulation
+              const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
+              if (container) {
+                container.style.opacity = '0.999';
+                setTimeout(() => {
+                  container.style.opacity = '1';
+                }, 1);
+              }
+              
+              console.log(`🔄 Forced UI refresh for TASKSTATUS results (${props.spreadsheetId})`);
+            } catch (refreshError) {
+              console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
+            }
+          }, 10);
+          
+          // Save to database
+          try {
+            await savePortfolioData(currentData);
+            console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
+          } catch (saveError) {
+            console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
+          }
+          
+          // Trigger data refresh
+          console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
+        }
+      } catch (error) {
+        console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
+      }
+    };
+    
+    // APICALL formula processor - makes HTTP requests and extracts JSON values
+    // Cache to prevent re-processing the same formula repeatedly
+    const apiCallCache = new Map();
+    
+    const processApiCallFormulas = async () => {
+      try {
+        const currentData = getCurrentSpreadsheetData();
+        if (!currentData || !currentData.sheets) return;
+        
+        let processedCount = 0;
+        let needsReload = false;
+        
+        // Helper function to extract value from JSON using dot notation
+        const extractValue = (obj, key) => {
+          if (!obj || typeof obj !== 'object') return undefined;
+          
+          const keys = key.split('.');
+          let current = obj;
+          
+          for (const k of keys) {
+            if (current && typeof current === 'object' && k in current) {
+              current = current[k];
+            } else {
+              return undefined;
+            }
+          }
+          
+          return current;
+        };
+        
+        // Process each sheet
+        for (const sheetId of Object.keys(currentData.sheets)) {
+          const sheet = currentData.sheets[sheetId];
+          if (!sheet.cellData) continue;
+          
+          // Process each row
+          for (const row of Object.keys(sheet.cellData)) {
+            // Process each column
+            for (const col of Object.keys(sheet.cellData[row])) {
+              const cell = sheet.cellData[row][col];
+              if (cell && cell.f && typeof cell.f === 'string') {
+                const formula = cell.f.trim();
+                // Match APICALL("url", "key") pattern
+                const apiCallMatch = formula.match(/^=APICALL\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
+                
+                if (apiCallMatch) {
+                  const url = apiCallMatch[1];
+                  const key = apiCallMatch[2];
+                  
+                  // Create cache key to prevent re-processing the same formula
+                  const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
+                  const now = Date.now();
+                  const cacheEntry = apiCallCache.get(cacheKey);
+                  
+                  // Skip if processed within the last 30 seconds
+                  if (cacheEntry && (now - cacheEntry.timestamp) < 30000) {
+                    continue;
+                  }
+                  
+                  // Skip if cell already has a value (unless it's an error)
+                  if (cell.v && !String(cell.v).startsWith('Error:') && !String(cell.v).includes('not found')) {
+                    // Cache successful results for 30 seconds
+                    apiCallCache.set(cacheKey, { timestamp: now, status: 'cached' });
+                    continue;
+                  }
+                  
+                  try {
+                    console.log(`🌐 Making API call to ${url} for key '${key}' at [${row}, ${col}] (${props.spreadsheetId})`);
+                    
+                    // Validate URL format
+                    try {
+                      new URL(url);
+                    } catch (urlError) {
+                      throw new Error('Invalid URL format');
+                    }
+                    
+                    // Make the HTTP request
+                    const response = await fetch(url, {
+                      method: 'GET',
+                      headers: {
+                        'Accept': 'application/json',
+                      },
+                      mode: 'cors',
+                    });
+                    
+                    if (!response.ok) {
+                      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    // Parse JSON response
+                    const data = await response.json();
+                    console.log(`📊 APICALL: Received data from ${url}:`, data);
+                    
+                    // Extract the requested value
+                    const value = extractValue(data, key);
+                    
+                    if (value === undefined || value === null) {
+                      // Key not found - keep formula but set error value
+                      cell.v = `Key '${key}' not found`;
+                      // Keep cell.f - don't delete the formula
+                      
+                      console.warn(`⚠️ APICALL: Key '${key}' not found in response from ${url}`);
+                      ElMessage.warning(`APICALL: Key '${key}' not found in API response`);
+                    } else {
+                      // Success - keep formula and set calculated value
+                      const oldValue = cell.v;
+                      cell.v = String(value);
+                      // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                      
+                      console.log(`✅ Processed APICALL(${url}, ${key}) → "${value}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                      console.log(`📝 Cell update: "${oldValue}" → "${cell.v}" | Formula kept: ${!!cell.f}`);
+                      ElMessage.success(`APICALL: Got ${key} = ${value}`);
+                    }
+                    
+                    // Cache this result for 30 seconds
+                    apiCallCache.set(cacheKey, { timestamp: now, status: 'processed' });
+                    
+                    processedCount++;
+                    needsReload = true;
+                    
+                  } catch (apiError) {
+                    console.error(`❌ APICALL Error for ${url}:`, apiError);
+                    
+                    // Update cell with error message but keep formula
+                    cell.v = `Error: ${apiError.message || 'API call failed'}`;
+                    // Keep cell.f - don't delete the formula so it behaves like predefined formulas
+                    
+                    ElMessage.error(`APICALL failed: ${apiError.message || 'Unknown error'}`);
+                    
+                    // Cache this error for 30 seconds to prevent repeated failed calls
+                    apiCallCache.set(cacheKey, { timestamp: now, status: 'error' });
+                    
+                    processedCount++;
+                    needsReload = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        if (needsReload) {
+          console.log(`📊 Processed ${processedCount} APICALL formulas (${props.spreadsheetId})`);
+          
+          // Update portfolio data
+          portfolioData.value = { ...currentData };
+          
+          // Force immediate UI refresh to display cell values
+          setTimeout(() => {
+            try {
+              // Update Vue reactivity
+              const oldData = portfolioData.value;
+              portfolioData.value = { ...currentData };
+              console.log(`📊 Vue data updated - Old: ${!!oldData}, New: ${!!portfolioData.value}`);
+              
+              // Force browser re-render with a small DOM manipulation
+              const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
+              if (container) {
+                console.log(`🎯 Found container, forcing visual refresh`);
+                container.style.opacity = '0.999';
+                setTimeout(() => {
+                  container.style.opacity = '1';
+                  console.log(`🔄 Visual refresh completed`);
+                }, 1);
+              } else {
+                console.warn(`⚠️ Container not found: #univer-container-${props.spreadsheetId}`);
+              }
+              
+              console.log(`🔄 Forced UI refresh for APICALL results (${props.spreadsheetId})`);
+            } catch (refreshError) {
+              console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
+            }
+          }, 10);
+          
+          // Save to database
+          try {
+            await savePortfolioData(currentData);
+            console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
+          } catch (saveError) {
+            console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
+          }
+          
+          // Trigger data refresh
+          console.log(`🔄 APICALL data updated, will reflect on next reload (${props.spreadsheetId})`);
+        }
+      } catch (error) {
+        console.error(`❌ Error processing APICALL formulas (${props.spreadsheetId}):`, error);
+      }
+    };
+
+    const hyperlinkEventListener = (univerAPI, hasUnsavedChanges, commandService) => {
+
+                
           // Setup hyperlink event listeners (v0.9.4 compatible)
           try {
             console.log(`🔗 Setting up hyperlink event listeners for ${props.spreadsheetId}...`);
@@ -1332,7 +1285,12 @@ import '@univerjs/sheets-formula/facade'
             console.warn(`⚠️ Failed to set up hyperlink event listeners for ${props.spreadsheetId}:`, hyperlinkError);
             console.log(`ℹ️ Hyperlink functionality will still work, but without event tracking`);
           }
-          
+
+    }
+
+    const fnChangeDetectionListener = (univerAPI, commandService) => {
+
+
           // Set up change detection for unsaved changes indicator
           try {
             console.log(`🔥 Setting up change detection for ${props.spreadsheetId}...`);
@@ -1633,6 +1591,248 @@ import '@univerjs/sheets-formula/facade'
           } catch (changeDetectionError) {
             console.warn(`⚠️ Could not set up command detection for ${props.spreadsheetId}:`, changeDetectionError);
           }
+    }
+
+    const fnRegisterCustomCommands = (commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction) => {
+
+
+
+          // Define custom commands
+          const DROPDOWN_FIRST_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-first-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Save spreadsheet functionality
+              console.log('💾 Save operation triggered from dropdown menu');
+              try {
+                await saveFunction();
+                console.log('✅ Save operation completed successfully');
+              } catch (error) {
+                console.error('❌ Save operation failed:', error);
+              }
+              return true;
+            },
+          };
+          
+          const DROPDOWN_SECOND_ITEM_OPERATION = {
+            id: 'custom-menu.operation.dropdown-list-second-item',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Delete spreadsheet functionality
+              console.log('🗑️ Delete operation triggered from dropdown menu');
+              if (props.canRemove) {
+                try {
+                  // Directly emit the delete event - parent component will handle confirmation
+                  emitFunction('remove-spreadsheet', props.spreadsheetId);
+                  console.log('✅ Delete operation initiated successfully');
+                } catch (error) {
+                  console.error('❌ Delete operation failed:', error);
+                }
+              } else {
+                alert('Cannot delete the last spreadsheet in a portfolio');
+                console.log('⚠️ Delete operation blocked - last spreadsheet in portfolio');
+              }
+              return true;
+            },
+          };
+          
+          const CONTEXT_MENU_EDIT_INFO_OPERATION = {
+            id: 'custom-menu.operation.context-edit-info',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // Edit info context menu action
+              console.log('📝 Edit info context menu item clicked');
+              
+              // Get current cell selection for context
+              const selection = getCurrentCellSelection();
+              if (selection) {
+                //const { row, col } = selection;
+                //const cellRef = `${String.fromCharCode(65 + col)}${row + 1}`;
+
+                showCellEditInfo();
+                
+                // Show info about the selected cell
+                /*ElMessage({
+                  message: `Edit info action triggered on cell ${cellRef}`,
+                  type: 'info',
+                  duration: 3000
+                });
+                
+                console.log(`✅ Edit info action executed on cell [${row}, ${col}] (${cellRef})`);*/
+              } else {
+                ElMessage({
+                  message: 'Edit info context menu action triggered',
+                  type: 'info',
+                  duration: 3000
+                });
+              }
+              
+              return true;
+            },
+          };
+
+
+          const HISTORY_OPERATION = {
+            id: 'custom-menu.operation.history',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              // History functionality
+              console.log('📚 History operation triggered from dropdown menu');
+              try {
+                await showHistory();
+                console.log('✅ History operation completed successfully');
+              } catch (error) {
+                console.error('❌ History operation failed:', error);
+              }
+              return true;
+            },
+          };
+          
+          
+          const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
+          
+          // Register commands
+          commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
+          commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
+          commandService.registerCommand(CONTEXT_MENU_EDIT_INFO_OPERATION);
+          commandService.registerCommand(HISTORY_OPERATION);
+          console.log('✅ Custom menu commands registered');
+          
+          // Register simple icon components (using createElement directly)
+          const SaveIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C13.66 12 15 13.34 15 15S13.66 18 12 18 9 16.66 9 15 10.34 12 12 12'
+            }));
+          };
+          
+          const DeleteIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19Z'
+            }));
+          };
+          
+          const MainButtonIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
+            }));
+          };
+          
+          const EditInfoIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'
+            }));
+          };
+
+
+          const HistoryIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M13 3C8.03 3 4 7.03 4 12s4.03 9 9 9s9-4.03 9-9c0-.46-.04-.92-.1-1.36c-.98 1.37-2.58 2.26-4.4 2.26c-2.98 0-5.4-2.42-5.4-5.4c0-1.81.89-3.42 2.26-4.4C13.92 3.04 13.46 3 13 3z'
+            }));
+          };
+          
+          componentManager.register('SaveIcon', SaveIcon);
+          componentManager.register('DeleteIcon', DeleteIcon);
+          componentManager.register('MainButtonIcon', MainButtonIcon);
+          componentManager.register('EditInfoIcon', EditInfoIcon);
+          componentManager.register('HistoryIcon', HistoryIcon);
+          console.log('✅ Custom menu components registered');
+          
+          // Register menu items using proper factory functions
+          menuManagerService.mergeMenu({
+            [RibbonStartGroup.OTHERS]: {
+              [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
+                order: 10,
+                menuItemFactory: () => ({
+                  id: CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
+                  type: MenuItemType.SUBITEMS,
+                  icon: 'MainButtonIcon',
+                  tooltip: 'Spreadsheet Actions (Save & Delete)',
+                  title: 'Actions',
+                }),
+                [DROPDOWN_FIRST_ITEM_OPERATION.id]: {
+                  order: 0,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_FIRST_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Save',
+                  }),
+                },
+                [DROPDOWN_SECOND_ITEM_OPERATION.id]: {
+                  order: 1,
+                  menuItemFactory: () => ({
+                    id: DROPDOWN_SECOND_ITEM_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    title: 'Delete',
+                  }),
+                },
+                [HISTORY_OPERATION.id]: {
+                  order: 2,
+                  menuItemFactory: () => ({
+                    id: HISTORY_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'HistoryIcon',
+                    title: 'History',
+                    tooltip: 'View spreadsheet history'
+                  }),
+                },
+              },
+            },
+            // Add context menu configuration
+            [ContextMenuPosition.MAIN_AREA]: {
+              [ContextMenuGroup.OTHERS]: {
+                [CONTEXT_MENU_EDIT_INFO_OPERATION.id]: {
+                  order: 100,
+                  menuItemFactory: () => ({
+                    id: CONTEXT_MENU_EDIT_INFO_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'EditInfoIcon',
+                    title: 'View Edit info',
+                    tooltip: 'This is an example context menu item'
+                  }),
+                },
+              },
+            },
+          });
+          
+          console.log('✅ Custom menu items registered');
+          console.log(`🎯 Custom dropdown menu should now appear in Univer toolbar for ${props.spreadsheetId}!`);
+          console.log(`🎯 Edit info context menu item should now appear when right-clicking on cells for ${props.spreadsheetId}!`);
+
+    }
+
+    const fnSmartChangeDetectionListener = (univerAPI, commandService) => {
+    
+
           
           // Smart fallback change detection via DOM events with debouncing
           setTimeout(() => {
@@ -1681,390 +1881,214 @@ import '@univerjs/sheets-formula/facade'
               console.log(`📝 Smart DOM event detection set up for ${props.spreadsheetId} with debouncing`);
             }
           }, 3000); // Wait longer for DOM to be ready
+    }
+    
+    const initializeUniver = async (workbookData = null, forceReadonly = false) => {
+      try {
+        console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
+
+        // Determine readonly state - use forceReadonly if provided, otherwise use props.readonly
+        const readonlyState = forceReadonly ? true : props.readonly;
+        console.log(`📝 Initializing with readonly=${readonlyState} (forceReadonly=${forceReadonly}, props.readonly=${props.readonly})`);
+
+        // Load current user for edit tracking
+        console.log(`🚀 Loading user for edit tracking in ${props.spreadsheetId}...`);
+        await getCurrentUser();
+        console.log(`🚀 User loading complete for ${props.spreadsheetId}:`, currentUser.value ? `✅ ${currentUser.value.email}` : '❌ No user');
+
+        // Store references to functions for menu commands
+        const emitFunction = emit;
+        const saveFunction = manualSave;
+
+        // Load complete workbook data from Supabase first
+        if (!workbookData) {
+          workbookData = await loadPortfolioData();
+        }
+        
+        // Use the loaded workbook data or create default structure
+        if (workbookData && workbookData.sheets) {
+          // Use the complete workbook data from Supabase
+          Object.assign(WORKBOOK_DATA, workbookData);
+          portfolioData.value = workbookData;
+          
+          // IMPORTANT: Ensure styles are at the root level of WORKBOOK_DATA
+          if (workbookData.styles) {
+            WORKBOOK_DATA.styles = { ...workbookData.styles };
+            realTimeStyleRegistry.value = { ...workbookData.styles };
+            console.log(`✅ Loaded ${Object.keys(workbookData.styles).length} styles from Supabase`);
+            console.log(`📊 Loaded styles applied to WORKBOOK_DATA:`, WORKBOOK_DATA.styles);
+          } else {
+            console.log(`⚠️ No styles found in loaded workbook data`);
+          }
+          
+          // Update current row count from loaded data
+          const firstSheet = Object.values(workbookData.sheets)[0];
+          if (firstSheet && firstSheet.rowCount) {
+            currentRowCount.value = firstSheet.rowCount;
+            console.log(`📏 Set current row count from loaded data (${props.spreadsheetId}):`, firstSheet.rowCount);
+          }
+          
+          console.log(`📊 Loaded complete workbook with features (${props.spreadsheetId}):`, {
+            id: WORKBOOK_DATA.id,
+            name: WORKBOOK_DATA.name,
+            sheets: Object.keys(WORKBOOK_DATA.sheets),
+            sheetOrder: WORKBOOK_DATA.sheetOrder,
+            stylesCount: WORKBOOK_DATA.styles ? Object.keys(WORKBOOK_DATA.styles).length : 0,
+            hasStylesInWorkbookData: !!(WORKBOOK_DATA.styles),
+            rowCount: currentRowCount.value
+          });
+        } else {
+          // Fallback to default workbook structure
+          WORKBOOK_DATA.sheets = {
+            'sheet-01': {
+              id: 'sheet-01',
+              name: props.spreadsheetName,
+              cellData: {},
+              tabColor: '',
+              hidden: 0,
+              rowCount: props.initialRows,
+              columnCount: props.initialColumns,
+              zoomRatio: 1,
+              scrollTop: 0,
+              scrollLeft: 0,
+              defaultColumnWidth: 120,
+              defaultRowHeight: 27,
+              mergeData: [],
+              rowData: {},
+              columnData: {},
+              showGridlines: 1,
+              rowHeader: {
+                width: 46,
+                hidden: 0,
+              },
+              columnHeader: {
+                height: 20,
+                hidden: 0,
+              },
+              selections: ['A1'],
+              rightToLeft: 0,
+            }
+          };
+          WORKBOOK_DATA.sheetOrder = ['sheet-01'];
+          WORKBOOK_DATA.styles = {}; // Ensure styles property exists
+        }
+
+        // Create Univer instance with locales - exactly as in documentation
+        /*univer = new Univer({
+          locale: LocaleType.EN_US,
+          locales: {
+            [LocaleType.EN_US]: merge(
+              {},
+              DesignEnUS,
+              UIEnUS,
+              DocsUIEnUS,
+              SheetsEnUS,
+              SheetsUIEnUS,
+              SheetsFormulaUIEnUS,
+              SheetsNumfmtUIEnUS,
+              SheetsNoteUIEnUS,
+            ),
+          },
+        });*/
+
+        await fnCreateUniver(readonlyState);
+        
+        
+        // Formula functionality is now enabled - no blocking needed
+        // Apply enhancement after a short delay to ensure univerAPI is ready
+        setTimeout(enhanceFormulaCalculation, 1000);
+
+        // We'll register custom functions after the workbook is created
+        console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
+
+        // Register plugins in exact order from 
+        /*
+        // those plugins are not needed for the new version of Univer for univerapi
+        //univer.registerPlugin(UniverRenderEnginePlugin);
+        //univer.registerPlugin(UniverFormulaEnginePlugin);
+        //univer.registerPlugin(UniverUIPlugin, {
+        //  container: `univer-container-${props.spreadsheetId}`,
+        //});
+
+        //univer.registerPlugin(UniverDocsPlugin);
+        //univer.registerPlugin(UniverDocsUIPlugin);
+
+        //univer.registerPlugin(UniverSheetsPlugin);
+        //univer.registerPlugin(UniverSheetsUIPlugin);
+        //univer.registerPlugin(UniverSheetsFormulaPlugin);
+        //univer.registerPlugin(UniverSheetsFormulaUIPlugin);
+        //univer.registerPlugin(UniverSheetsNumfmtUIPlugin);
+        */
+
+        // Register annotation plugins
+        //univer.registerPlugin(UniverSheetsNotePlugin);
+        //univer.registerPlugin(UniverSheetsNoteUIPlugin);
+
+        // Add custom menu directly using Univer's injector (official documentation pattern)
+        try {
+          console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
+
+          // Check if univer instance was created successfully
+          if (!univer) {
+            console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
+            return;
+          }
+          
+          
+          // Wait for Univer to be fully initialized
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Try to get the injector through different methods
+          let injector = null;
+          
+          // Method 1: Try the internal injector property
+          if (univer && univer._injector) {
+            injector = univer._injector;
+            console.log('✅ Got injector from _injector property');
+          }
+          // Method 2: Try through context
+          else if (univer && univer.getContext && univer.getContext().injector) {
+            injector = univer.getContext().injector;
+            console.log('✅ Got injector from context');
+          }
+          // Method 3: Try accessing it differently
+          else if (univer && univer.__container) {
+            injector = univer.__container;
+            console.log('✅ Got injector from __container property');
+          }
+          
+          if (!injector) {
+            console.warn('⚠️ Could not access injector, custom menu will not be added');
+            return;
+          }
+          
+          // Import custom menu dependencies
+          const { ICommandService, CommandType } = await import('@univerjs/core');
+          const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType, ContextMenuPosition, ContextMenuGroup } = await import('@univerjs/ui');
+          
+          // Get services
+          const commandService = injector.get(ICommandService);
+          const menuManagerService = injector.get(IMenuManagerService);
+          const componentManager = injector.get(ComponentManager);
+          console.log('✅ Got all required services from injector');
+          
+          fnRegisterCustomCommands(commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction);
+
+          hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
+
+          fnChangeDetectionListener(univerAPI, commandService);
+
+          fnSmartChangeDetectionListener(univerAPI, commandService);
           
         } catch (error) {
           console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);
           console.error('Error details:', error);
         }
 
-        // TASKSTATUS formula processor - fetches real task status from database
-        
-
-        
-        const processTaskStatusFormulas = async () => {
-          try {
-            console.log(`🔍 processTaskStatusFormulas started, global taskStatusCells has ${taskStatusCells.size} entries`);
-            const currentData = getCurrentSpreadsheetData();
-            if (!currentData || !currentData.sheets) return;
-            
-            let processedCount = 0;
-            let needsReload = false;
-            
-
-            
-            // Process each sheet
-            for (const sheetId of Object.keys(currentData.sheets)) {
-              const sheet = currentData.sheets[sheetId];
-              if (!sheet.cellData) continue;
-              
-              // Process each row
-              for (const row of Object.keys(sheet.cellData)) {
-                // Process each column
-                for (const col of Object.keys(sheet.cellData[row])) {
-                  const cell = sheet.cellData[row][col];
-                  if (cell && cell.f && typeof cell.f === 'string') {
-                    const formula = cell.f.trim();
-                    const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
-                    
-                    if (taskStatusMatch) {
-                      const taskId = parseInt(taskStatusMatch[1], 10);
-                      if (!isNaN(taskId)) {
-                        console.log(`🔍 Found TASKSTATUS formula at [${row}, ${col}] in sheet ${sheetId}: ${formula}`);
-                        // Always process TASKSTATUS formulas to get fresh status on page load
-                        console.log(`🔄 Processing TASKSTATUS formula at [${row}, ${col}] to get current status`);
-                        
-                        // Clear task cache to ensure fresh data
-                        taskStore.clearTaskCache();
-                        
-                        try {
-                          console.log(`🔍 Fetching status for task ID: ${taskId} at [${row}, ${col}] (${props.spreadsheetId})`);
-                          
-                          // Fetch task from database
-                          const task = await taskStore.getTaskById(taskId);
-                          
-                          if (task && task.status) {
-                            const formattedStatus = formatTaskStatus(task.status);
-                            
-                            // Update the cell value but keep the formula
-                            cell.v = formattedStatus;
-                            // Keep the formula so it can be processed again on page refresh
-                            
-                            // Store task data for click navigation
-                            cell.taskStatusData = {
-                              taskId: taskId,
-                              originalFormula: formula,
-                              workspaceId: workspaceStore.currentWorkspace?.id
-                            };
-                            
-                            console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
-                            
-                            // Note: Real-time tracking removed for simplicity
-                            
-                            // Add hyperlink to cell for right-click functionality
-                            setTimeout(() => {
-                              try {
-                                const workspaceId = workspaceStore.currentWorkspace?.id;
-                                if (workspaceId) {
-                                  const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
-                                  // Use absolute URL for hyperlink
-                                  const absoluteUrl = `${window.location.origin}${taskUrl}`;
-                                  insertHyperlinkInCell(parseInt(row), parseInt(col), formattedStatus, absoluteUrl);
-                                  console.log(`🔗 Added hyperlink to TASKSTATUS cell [${row}, ${col}] → ${absoluteUrl}`);
-                                }
-                              } catch (linkError) {
-                                console.warn(`⚠️ Could not add hyperlink to cell [${row}, ${col}]:`, linkError);
-                              }
-                            }, 100); // Small delay to ensure cell is updated
-                            
-                            // Show user notification
-                            //ElMessage.success(`Task ${taskId} status: ${formattedStatus}`);
-                            
-                            // Formula processed successfully
-                            
-                            processedCount++;
-                            needsReload = true;
-                          } else {
-                            // Task not found or has no status
-                            cell.v = 'Task Not Found';
-                            // Keep the formula for future processing
-                            
-                            // Store task data even for failed cases to enable click navigation
-                            cell.taskStatusData = {
-                              taskId: taskId,
-                              originalFormula: formula,
-                              workspaceId: workspaceStore.currentWorkspace?.id
-                            };
-                            
-                            console.warn(`⚠️ Task ${taskId} not found or has no status (${props.spreadsheetId})`);
-                            ElMessage.warning(`Task ${taskId} not found or not accessible`);
-                            
-                            // Note: Real-time tracking removed for simplicity
-                            
-                            // Task not found - formula processed
-                            
-                            processedCount++;
-                            needsReload = true;
-                          }
-                        } catch (fetchError) {
-                          console.error(`❌ Error fetching task ${taskId}:`, fetchError);
-                          
-                          // Update cell with error message but keep formula
-                          cell.v = 'Access Denied';
-                          // Keep the formula for future processing
-                          
-                          // Store task data even for error cases to enable click navigation
-                          cell.taskStatusData = {
-                            taskId: taskId,
-                            originalFormula: formula,
-                            workspaceId: workspaceStore.currentWorkspace?.id
-                          };
-                          
-                          ElMessage.error(`Cannot access task ${taskId}: ${fetchError.message || 'Permission denied'}`);
-                          
-                          // Note: Real-time tracking removed for simplicity
-                          
-                          // Error handled - formula processed
-                          
-                          processedCount++;
-                          needsReload = true;
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            
-            if (needsReload) {
-              console.log(`📊 Processed ${processedCount} TASKSTATUS formulas (${props.spreadsheetId})`);
-              
-              // Update portfolio data
-              portfolioData.value = { ...currentData };
-              
-              // Force immediate UI refresh to display cell values
-              setTimeout(() => {
-                try {
-                  // Update Vue reactivity
-                  portfolioData.value = { ...currentData };
-                  
-                  // Force browser re-render with a small DOM manipulation
-                  const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
-                  if (container) {
-                    container.style.opacity = '0.999';
-                    setTimeout(() => {
-                      container.style.opacity = '1';
-                    }, 1);
-                  }
-                  
-                  console.log(`🔄 Forced UI refresh for TASKSTATUS results (${props.spreadsheetId})`);
-                } catch (refreshError) {
-                  console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
-                }
-              }, 10);
-              
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
-              }
-              
-              // Trigger data refresh
-              console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
-            }
-          } catch (error) {
-            console.error(`❌ Error processing TASKSTATUS formulas (${props.spreadsheetId}):`, error);
-          }
-        };
-        
-        // Start monitoring for TASKSTATUS formulas
-        console.log(`🔧 Starting TASKSTATUS formula processor (${props.spreadsheetId})...`);
-
         // Create workbook with loaded data and styles
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
-
-        // APICALL formula processor - makes HTTP requests and extracts JSON values
-        // Cache to prevent re-processing the same formula repeatedly
-        const apiCallCache = new Map();
-        
-        const processApiCallFormulas = async () => {
-          try {
-            const currentData = getCurrentSpreadsheetData();
-            if (!currentData || !currentData.sheets) return;
-            
-            let processedCount = 0;
-            let needsReload = false;
-            
-            // Helper function to extract value from JSON using dot notation
-            const extractValue = (obj, key) => {
-              if (!obj || typeof obj !== 'object') return undefined;
-              
-              const keys = key.split('.');
-              let current = obj;
-              
-              for (const k of keys) {
-                if (current && typeof current === 'object' && k in current) {
-                  current = current[k];
-                } else {
-                  return undefined;
-                }
-              }
-              
-              return current;
-            };
-            
-            // Process each sheet
-            for (const sheetId of Object.keys(currentData.sheets)) {
-              const sheet = currentData.sheets[sheetId];
-              if (!sheet.cellData) continue;
-              
-              // Process each row
-              for (const row of Object.keys(sheet.cellData)) {
-                // Process each column
-                for (const col of Object.keys(sheet.cellData[row])) {
-                  const cell = sheet.cellData[row][col];
-                  if (cell && cell.f && typeof cell.f === 'string') {
-                    const formula = cell.f.trim();
-                    // Match APICALL("url", "key") pattern
-                    const apiCallMatch = formula.match(/^=APICALL\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
-                    
-                    if (apiCallMatch) {
-                      const url = apiCallMatch[1];
-                      const key = apiCallMatch[2];
-                      
-                      // Create cache key to prevent re-processing the same formula
-                      const cacheKey = `${sheetId}-${row}-${col}-${formula}`;
-                      const now = Date.now();
-                      const cacheEntry = apiCallCache.get(cacheKey);
-                      
-                      // Skip if processed within the last 30 seconds
-                      if (cacheEntry && (now - cacheEntry.timestamp) < 30000) {
-                        continue;
-                      }
-                      
-                      // Skip if cell already has a value (unless it's an error)
-                      if (cell.v && !String(cell.v).startsWith('Error:') && !String(cell.v).includes('not found')) {
-                        // Cache successful results for 30 seconds
-                        apiCallCache.set(cacheKey, { timestamp: now, status: 'cached' });
-                        continue;
-                      }
-                      
-                      try {
-                        console.log(`🌐 Making API call to ${url} for key '${key}' at [${row}, ${col}] (${props.spreadsheetId})`);
-                        
-                        // Validate URL format
-                        try {
-                          new URL(url);
-                        } catch (urlError) {
-                          throw new Error('Invalid URL format');
-                        }
-                        
-                        // Make the HTTP request
-                        const response = await fetch(url, {
-                          method: 'GET',
-                          headers: {
-                            'Accept': 'application/json',
-                          },
-                          mode: 'cors',
-                        });
-                        
-                        if (!response.ok) {
-                          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        
-                        // Parse JSON response
-                        const data = await response.json();
-                        console.log(`📊 APICALL: Received data from ${url}:`, data);
-                        
-                        // Extract the requested value
-                        const value = extractValue(data, key);
-                        
-                        if (value === undefined || value === null) {
-                          // Key not found - keep formula but set error value
-                          cell.v = `Key '${key}' not found`;
-                          // Keep cell.f - don't delete the formula
-                          
-                          console.warn(`⚠️ APICALL: Key '${key}' not found in response from ${url}`);
-                          ElMessage.warning(`APICALL: Key '${key}' not found in API response`);
-                        } else {
-                          // Success - keep formula and set calculated value
-                          const oldValue = cell.v;
-                          cell.v = String(value);
-                          // Keep cell.f - don't delete the formula so it behaves like predefined formulas
-                          
-                          console.log(`✅ Processed APICALL(${url}, ${key}) → "${value}" at [${row}, ${col}] (${props.spreadsheetId})`);
-                          console.log(`📝 Cell update: "${oldValue}" → "${cell.v}" | Formula kept: ${!!cell.f}`);
-                          ElMessage.success(`APICALL: Got ${key} = ${value}`);
-                        }
-                        
-                        // Cache this result for 30 seconds
-                        apiCallCache.set(cacheKey, { timestamp: now, status: 'processed' });
-                        
-                        processedCount++;
-                        needsReload = true;
-                        
-                      } catch (apiError) {
-                        console.error(`❌ APICALL Error for ${url}:`, apiError);
-                        
-                        // Update cell with error message but keep formula
-                        cell.v = `Error: ${apiError.message || 'API call failed'}`;
-                        // Keep cell.f - don't delete the formula so it behaves like predefined formulas
-                        
-                        ElMessage.error(`APICALL failed: ${apiError.message || 'Unknown error'}`);
-                        
-                        // Cache this error for 30 seconds to prevent repeated failed calls
-                        apiCallCache.set(cacheKey, { timestamp: now, status: 'error' });
-                        
-                        processedCount++;
-                        needsReload = true;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            
-            if (needsReload) {
-              console.log(`📊 Processed ${processedCount} APICALL formulas (${props.spreadsheetId})`);
-              
-              // Update portfolio data
-              portfolioData.value = { ...currentData };
-              
-              // Force immediate UI refresh to display cell values
-              setTimeout(() => {
-                try {
-                  // Update Vue reactivity
-                  const oldData = portfolioData.value;
-                  portfolioData.value = { ...currentData };
-                  console.log(`📊 Vue data updated - Old: ${!!oldData}, New: ${!!portfolioData.value}`);
-                  
-                  // Force browser re-render with a small DOM manipulation
-                  const container = document.querySelector(`#univer-container-${props.spreadsheetId}`);
-                  if (container) {
-                    console.log(`🎯 Found container, forcing visual refresh`);
-                    container.style.opacity = '0.999';
-                    setTimeout(() => {
-                      container.style.opacity = '1';
-                      console.log(`🔄 Visual refresh completed`);
-                    }, 1);
-                  } else {
-                    console.warn(`⚠️ Container not found: #univer-container-${props.spreadsheetId}`);
-                  }
-                  
-                  console.log(`🔄 Forced UI refresh for APICALL results (${props.spreadsheetId})`);
-                } catch (refreshError) {
-                  console.warn(`⚠️ UI refresh failed, but data was saved (${props.spreadsheetId}):`, refreshError);
-                }
-              }, 10);
-              
-              // Save to database
-              try {
-                await savePortfolioData(currentData);
-                console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
-              } catch (saveError) {
-                console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
-              }
-              
-              // Trigger data refresh
-              console.log(`🔄 APICALL data updated, will reflect on next reload (${props.spreadsheetId})`);
-            }
-          } catch (error) {
-            console.error(`❌ Error processing APICALL formulas (${props.spreadsheetId}):`, error);
-          }
-        };
 
         // Add readonly event listener if needed
         if (readonlyState) {
@@ -2131,7 +2155,6 @@ import '@univerjs/sheets-formula/facade'
           const handleBeforeUnload = (event) => {
             if (hasUnsavedChanges.value) {
 
-              
               // Show warning to user (browser will show standard message)
               const message = 'You have unsaved changes that will be lost if you leave this page.';
               event.returnValue = message; // For Chrome
@@ -2146,10 +2169,6 @@ import '@univerjs/sheets-formula/facade'
             window.spreadsheetBeforeUnloadHandlers = new Map();
           }
           window.spreadsheetBeforeUnloadHandlers.set(props.spreadsheetId, handleBeforeUnload);
-          
-
-          
-
           
         }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
         

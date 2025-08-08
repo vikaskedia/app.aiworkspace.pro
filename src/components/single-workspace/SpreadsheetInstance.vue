@@ -92,9 +92,10 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue';
 import { supabase } from '../../supabase';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElNotification } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { useTaskStore } from '../../store/task';
+import { useUserStore } from '../../store/user';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 
@@ -228,6 +229,9 @@ import '@univerjs/sheets-formula/facade'
     
     // Task store for fetching task information
     const taskStore = useTaskStore();
+    
+    // User store for fetching user/assignee information
+    const userStore = useUserStore();
     
     // Real-time subscription for task updates
     let taskUpdateSubscription = null;
@@ -869,18 +873,50 @@ import '@univerjs/sheets-formula/facade'
                       if (task && task.status) {
                         const formattedStatus = formatTaskStatus(task.status);
                         
+                        // Get assignee info to include in the same cell
+                        let assigneeInfo = null;
+                        if (task.assignee) {
+                          try {
+                            console.log(`🔍 Fetching assignee info for user ID: ${task.assignee}`);
+                            assigneeInfo = await userStore.getUserInfo(task.assignee);
+                            console.log(`👤 Assignee info result:`, assigneeInfo);
+                          } catch (assigneeError) {
+                            console.warn(`⚠️ Could not fetch assignee info for ${task.assignee}:`, assigneeError);
+                          }
+                        } else {
+                          console.log(`📝 Task ${taskId} has no assignee (task.assignee is null/undefined)`);
+                        }
+                        
+                        // Create combined display: "Status 👤" or "Status 👤Name"
+                        let cellDisplay = formattedStatus;
+                        if (assigneeInfo) {
+                          const assigneeName = assigneeInfo.fullName || assigneeInfo.username || assigneeInfo.email.split('@')[0];
+                          cellDisplay = `${formattedStatus} 👤 ${assigneeName}`;
+                        } else if (task.assignee) {
+                          cellDisplay = `${formattedStatus} 👤 Unknown`;
+                        } else {
+                          cellDisplay = `${formattedStatus} 👤 Unassigned`;
+                        }
+                        
                         // Update the cell value but keep the formula
-                        cell.v = formattedStatus;
+                        cell.v = cellDisplay;
                         // Keep the formula so it can be processed again on page refresh
                         
-                        // Store task data for click navigation
+                        // Store task data for click navigation AND assignee info
                         cell.taskStatusData = {
                           taskId: taskId,
                           originalFormula: formula,
-                          workspaceId: workspaceStore.currentWorkspace?.id
+                          workspaceId: workspaceStore.currentWorkspace?.id,
+                          status: formattedStatus,
+                          assigneeInfo: assigneeInfo ? {
+                            id: task.assignee,
+                            name: assigneeInfo.fullName || assigneeInfo.username || assigneeInfo.email.split('@')[0],
+                            email: assigneeInfo.email,
+                            avatarUrl: assigneeInfo.avatarUrl
+                          } : null
                         };
                         
-                        console.log(`✅ Processed TASKSTATUS(${taskId}) → "${formattedStatus}" at [${row}, ${col}] (${props.spreadsheetId})`);
+                        console.log(`✅ Processed TASKSTATUS(${taskId}) → "${cellDisplay}" at [${row}, ${col}] (${props.spreadsheetId})`);
                         
                         // Note: Real-time tracking removed for simplicity
                         
@@ -892,7 +928,7 @@ import '@univerjs/sheets-formula/facade'
                               const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
                               // Use absolute URL for hyperlink
                               const absoluteUrl = `${window.location.origin}${taskUrl}`;
-                              insertHyperlinkInCell(parseInt(row), parseInt(col), formattedStatus, absoluteUrl);
+                              insertHyperlinkInCell(parseInt(row), parseInt(col), cellDisplay, absoluteUrl);
                               console.log(`🔗 Added hyperlink to TASKSTATUS cell [${row}, ${col}] → ${absoluteUrl}`);
                             }
                           } catch (linkError) {
@@ -1407,23 +1443,73 @@ import '@univerjs/sheets-formula/facade'
                         }
                         
                         if (taskId && !isNaN(taskId)) {
-                          console.log(`🔗 TASKSTATUS cell clicked: ${formula || 'stored data'}, navigating to task ${taskId}`);
+                          console.log(`🔗 TASKSTATUS cell clicked: ${formula || 'stored data'}, task ${taskId}`);
                           
-                          // Navigate to task detail page
-                          try {
-                            const workspaceId = workspaceStore.currentWorkspace?.id;
-                            if (workspaceId) {
-                              const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
-                              console.log(`🔗 Navigating to: ${taskUrl}`);
-                              router.push(taskUrl);
-                              //ElMessage.success(`Opening task ${taskId}`);
+                          // Check if assignee info is available and show it
+                          const assigneeInfo = cell.taskStatusData?.assigneeInfo;
+                          if (assigneeInfo) {
+                            console.log(`👤 Showing assignee details for task ${taskId}:`, assigneeInfo);
+                            
+                            // Show assignee popup with avatar
+                            if (assigneeInfo.avatarUrl) {
+                              ElNotification({
+                                title: `Task ${taskId} - ${cell.taskStatusData.status}`,
+                                message: `
+                                  <div style="display: flex; align-items: center; gap: 12px;">
+                                    <img src="${assigneeInfo.avatarUrl}" 
+                                         style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #e0e0e0;" 
+                                         onerror="this.style.display='none'" />
+                                    <div>
+                                      <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">👤 ${assigneeInfo.name}</div>
+                                      <div style="color: #666; font-size: 12px;">${assigneeInfo.email}</div>
+                                      <div style="color: #999; font-size: 11px; margin-top: 2px;">Assigned to this task</div>
+                                    </div>
+                                  </div>
+                                `,
+                                dangerouslyUseHTMLString: true,
+                                duration: 5000,
+                                position: 'top-right',
+                                type: 'info'
+                              });
                             } else {
-                              console.warn('⚠️ No current workspace available for navigation');
-                              ElMessage.warning('Cannot navigate: No workspace selected');
+                              ElNotification({
+                                title: `Task ${taskId} - ${cell.taskStatusData.status}`,
+                                message: `👤 ${assigneeInfo.name}\n📧 ${assigneeInfo.email}\n📋 Assigned to this task`,
+                                duration: 4000,
+                                position: 'top-right',
+                                type: 'info'
+                              });
                             }
-                          } catch (navError) {
-                            console.error('❌ Error navigating to task:', navError);
-                            ElMessage.error(`Failed to open task ${taskId}`);
+                            
+                            // Don't navigate immediately, let user see the popup first
+                            setTimeout(() => {
+                              const workspaceId = workspaceStore.currentWorkspace?.id;
+                              if (workspaceId) {
+                                const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                                console.log(`🔗 Navigating to: ${taskUrl}`);
+                                router.push(taskUrl);
+                              }
+                            }, 2000); // Wait 2 seconds to let user see assignee details
+                            
+                          } else {
+                            // No assignee info, just navigate to task
+                            console.log(`📝 Task ${taskId} has no assignee, navigating directly`);
+                            
+                            try {
+                              const workspaceId = workspaceStore.currentWorkspace?.id;
+                              if (workspaceId) {
+                                const taskUrl = `/single-workspace/${workspaceId}/tasks/${taskId}`;
+                                console.log(`🔗 Navigating to: ${taskUrl}`);
+                                router.push(taskUrl);
+                                //ElMessage.success(`Opening task ${taskId}`);
+                              } else {
+                                console.warn('⚠️ No current workspace available for navigation');
+                                ElMessage.warning('Cannot navigate: No workspace selected');
+                              }
+                            } catch (navError) {
+                              console.error('❌ Error navigating to task:', navError);
+                              ElMessage.error(`Failed to open task ${taskId}`);
+                            }
                           }
                         }
                       }
@@ -2117,7 +2203,8 @@ import '@univerjs/sheets-formula/facade'
           // This prevents repeated processing and duplicate status display
           
           console.log(`✅ TASKSTATUS formula processor run once on load (${props.spreadsheetId})`);
-          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get the status of task 2464.`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get status + assignee of task 2464.`);
+          console.log(`👤 Click any TASKSTATUS cell to see assignee details with profile picture.`);
         }, 1000);
 
         // Enable change tracking with error handling

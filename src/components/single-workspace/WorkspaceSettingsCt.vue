@@ -880,6 +880,11 @@ export default {
         ElMessage.error('Error updating action: ' + error.message);
       }
     },
+  },
+  computed: {
+    sortedSharedUsers() {
+      return [...this.sharedUsers].sort((a, b) => a.email.localeCompare(b.email));
+    }
   }
 };
 </script>
@@ -979,7 +984,7 @@ export default {
         <!-- Shared Users List -->
         <div class="shared-users">
           <h4>Shared With</h4>
-          <el-table :data="sharedUsers">
+          <el-table :data="sortedSharedUsers">
             <el-table-column label="User" min-width="200">
               <template #default="{ row }">
                 {{ row.email }}

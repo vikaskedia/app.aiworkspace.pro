@@ -65,6 +65,7 @@
     "supabase": "^2.1.1",
     "telnyx": "^2.0.0",
     "vue": "^3.2.47",
+    "vue-advanced-cropper": "^2.8.9",
     "vue-draggable-next": "^2.2.1",
     "vue-pdf": "^4.3.0",
     "vue-pdf-embed": "^2.1.1",

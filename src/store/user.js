@@ -97,7 +97,8 @@ export const useUserStore = defineStore('user', {
             ...cachedUser,
             fullName: profileData.full_name,
             username: profileData.user_name,
-            avatarUrl: profileData.avatar_url
+            avatarUrl: profileData.avatar_url,
+            profileIconUrl: profileData.profile_icon_url
           };
           this.setCachedUser(userId, updatedUser);
         }
@@ -117,6 +118,7 @@ export const useUserStore = defineStore('user', {
           fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
           username: user.user_metadata?.user_name || user.user_metadata?.username || '',
           avatarUrl: user.user_metadata?.avatar_url || '',
+          profileIconUrl: user.user_metadata?.profile_icon_url || '',
           displayNamePreference: user.user_metadata?.display_name_preference || 'full_name'
         };
       } catch (error) {

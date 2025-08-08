@@ -104,6 +104,9 @@ export default {
     },
     isBillingRoute() {
       return this.$route.path.includes('/billing')
+    },
+    isProfileRoute() {
+      return this.$route.path.includes('/profile')
     }
   },
   async mounted() {
@@ -442,6 +445,9 @@ export default {
       </template>
       <template v-else-if="isBillingRoute">
         <h2 class="section-title">Billing</h2>
+      </template>
+      <template v-else-if="isProfileRoute">
+        <h2 class="section-title">Edit Profile</h2>
       </template>
       <template v-else>
         <WorkspaceSelector @workspace-selected="handleWorkspaceSelect" />

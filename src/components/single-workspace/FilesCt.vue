@@ -5,7 +5,7 @@ The files are stored in the workspace's repository.
 -->
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import { Plus, UploadFilled, Folder, FolderAdd } from '@element-plus/icons-vue';
+import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
@@ -935,6 +935,58 @@ function generateFileHref(file) {
     return '#';
   }
 }
+
+// Function to handle back navigation
+function handleBackNavigation() {
+  try {
+    // If we have a selected file, clear it first
+    if (selectedFile.value) {
+      selectedFile.value = null;
+      
+      // Update URL to remove file parameter
+      isUpdatingUrl.value = true;
+      const query = { ...route.query };
+      delete query.file;
+      
+      router.replace({
+        name: 'ManageFilesPage',
+        params: { workspaceId: currentWorkspace.value.id },
+        query: Object.keys(query).length > 0 ? query : undefined
+      }).then(() => {
+        setTimeout(() => {
+          isUpdatingUrl.value = false;
+        }, 100);
+      }).catch(error => {
+        console.warn('Back navigation URL update failed:', error);
+        isUpdatingUrl.value = false;
+      });
+      return;
+    }
+    
+    // If we're in a subfolder, go back one level
+    if (folderBreadcrumbs.value.length > 0) {
+      const parentFolder = folderBreadcrumbs.value.length > 1 
+        ? folderBreadcrumbs.value[folderBreadcrumbs.value.length - 2] 
+        : null;
+      
+      navigateToFolder(parentFolder, null);
+      return;
+    }
+    
+    // If we're at root level, go back to workspace dashboard
+    router.push({
+      name: 'WorkspaceDashboard',
+      params: { workspaceId: currentWorkspace.value.id }
+    });
+  } catch (error) {
+    console.error('Error in back navigation:', error);
+  }
+}
+
+// Check if back button should be shown
+const showBackButton = computed(() => {
+  return selectedFile.value || folderBreadcrumbs.value.length > 0;
+});
 </script>
 
 <template>
@@ -945,27 +997,37 @@ function generateFileHref(file) {
       <div class="files-section" v-if="!splitViews.length">
         <div class="header">
           <div class="breadcrumbs">
-            <el-breadcrumb separator="/">
-              <el-breadcrumb-item :class="{ clickable: currentFolder }">
-                <a 
-                  :href="generateFolderHref(null)"
-                  @click.prevent="navigateToFolder(null, null)"
-                  class="breadcrumb-link">
-                  Root
-                </a>
-              </el-breadcrumb-item>
-              <el-breadcrumb-item 
-                v-for="folder in folderBreadcrumbs" 
-                :key="folder.id"
-                :class="{ clickable: folder.id !== currentFolder?.id }">
-                <a 
-                  :href="generateFolderHref(folder)"
-                  @click.prevent="navigateToFolder(folder, null)"
-                  class="breadcrumb-link">
-                  {{ folder.name }}
-                </a>
-              </el-breadcrumb-item>
-            </el-breadcrumb>
+            <div class="breadcrumb-container">
+              <el-button
+                v-if="showBackButton"
+                @click="handleBackNavigation"
+                type="text"
+                :icon="ArrowLeft"
+                class="back-button">
+                Back
+              </el-button>
+              <el-breadcrumb separator="/">
+                <el-breadcrumb-item :class="{ clickable: currentFolder }">
+                  <a 
+                    :href="generateFolderHref(null)"
+                    @click.prevent="navigateToFolder(null, null)"
+                    class="breadcrumb-link">
+                    Root
+                  </a>
+                </el-breadcrumb-item>
+                <el-breadcrumb-item 
+                  v-for="folder in folderBreadcrumbs" 
+                  :key="folder.id"
+                  :class="{ clickable: folder.id !== currentFolder?.id }">
+                  <a 
+                    :href="generateFolderHref(folder)"
+                    @click.prevent="navigateToFolder(folder, null)"
+                    class="breadcrumb-link">
+                    {{ folder.name }}
+                  </a>
+                </el-breadcrumb-item>
+              </el-breadcrumb>
+            </div>
           </div>
           <div class="actions">
             <el-button 
@@ -1076,6 +1138,13 @@ function generateFileHref(file) {
       <template v-if="selectedFile">
         <div class="preview-container">
           <div class="preview-actions">
+            <el-button
+              @click="handleBackNavigation"
+              type="text"
+              :icon="ArrowLeft"
+              size="small">
+              Back
+            </el-button>
             <el-button
                 type="primary"
                 @click="addSplitView"
@@ -1407,6 +1476,25 @@ function generateFileHref(file) {
 /* Add these styles to the existing styles */
 .breadcrumbs {
   margin-bottom: 1rem;
+}
+
+.breadcrumb-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #409EFF;
+  padding: 4px 8px;
+  margin-right: 0.5rem;
+}
+
+.back-button:hover {
+  background-color: #ecf5ff;
 }
 
 .clickable {

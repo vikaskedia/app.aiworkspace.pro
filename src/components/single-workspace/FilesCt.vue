@@ -71,6 +71,14 @@ const activeFiltersCount = computed(() => {
   return count;
 });
 
+// Function to create a natural sort key for alphanumeric sorting
+function createNaturalSortKey(name) {
+  return name.toLowerCase().replace(/(\d+)/g, (match) => {
+    // Pad numbers with leading zeros to ensure proper numeric sorting
+    return match.padStart(10, '0');
+  });
+}
+
 const filteredItems = computed(() => {
   // Use different source arrays based on whether we're in a split view
   const sourceFiles = splitViews.value.length > 0 ? splitFiles.value : files.value;
@@ -97,36 +105,14 @@ const filteredItems = computed(() => {
     });
   }
   
-  // Sort alphabetically by name, with folders first, and date-prefixed files by date
-  result.sort((a, b) => {
-    // Folders should come before files
-    if (a.type === 'dir' && b.type !== 'dir') return -1;
-    if (a.type !== 'dir' && b.type === 'dir') return 1;
-    
-    // Within the same type (both folders or both files), apply custom sorting
-    // Check if both items start with a date pattern (YYYY-MM-DD)
-    const datePattern = /^(\d{4}-\d{2}-\d{2})/;
-    const aMatch = a.name.match(datePattern);
-    const bMatch = b.name.match(datePattern);
-    
-    if (aMatch && bMatch) {
-      // Both start with dates, sort by date (most recent first)
-      const dateA = new Date(aMatch[1]);
-      const dateB = new Date(bMatch[1]);
-      return dateB - dateA; // Descending order (newest first)
-    } else if (aMatch && !bMatch) {
-      // Only a starts with date, put date-prefixed files first
-      return -1;
-    } else if (!aMatch && bMatch) {
-      // Only b starts with date, put date-prefixed files first
-      return 1;
-    } else {
-      // Neither starts with date, sort alphabetically (case-insensitive)
-      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-    }
-  });
-  
-  return result;
+  // Add sorting properties to help ElementPlus sort correctly
+  return result.map(item => ({
+    ...item,
+    // Use natural/numeric sorting without separating folders and files
+    sortKey: createNaturalSortKey(item.name),
+    // Convert size to number for proper sorting (folders get -1)
+    sizeForSort: item.type === 'dir' ? -1 : (item.size || 0)
+  }));
 });
 
 // Load files when workspace changes
@@ -862,36 +848,7 @@ function handleFileSelect(file) {
   }
 }
 
-// Add this function to handle sorting
-function handleSort({ prop, order }) {
-  if (!prop || !order) return;
-  
-  const sortedItems = [...filteredItems.value].sort((a, b) => {
-    if (prop === 'size') {
-      // Handle folder size sorting
-      if (a.type === 'dir' && b.type === 'dir') return 0;
-      if (a.type === 'dir') return -1;
-      if (b.type === 'dir') return 1;
-      return a.size - b.size;
-    }
-    
-    if (prop === 'type') {
-      if (a.type === 'dir' && b.type !== 'dir') return -1;
-      if (a.type !== 'dir' && b.type === 'dir') return 1;
-      return a.type.localeCompare(b.type);
-    }
-    
-    // Default name sorting
-    return a[prop].localeCompare(b[prop]);
-  });
-  
-  if (order === 'descending') {
-    sortedItems.reverse();
-  }
-  
-  files.value = sortedItems.filter(item => item.type !== 'dir');
-  folders.value = sortedItems.filter(item => item.type === 'dir');
-}
+
 
 function getGiteaHeaders(token) {
   return {
@@ -1439,12 +1396,12 @@ async function downloadSelectedFiles() {
           v-loading="loading"
           :data="filteredItems"
           style="width: 100%"
-          @sort-change="handleSort">
+          :default-sort="{ prop: 'sortKey', order: 'ascending' }">
           
           <el-table-column 
-            prop="name" 
+            prop="sortKey" 
             label="Name"
-            sortable="custom"
+            sortable
             min-width="200">
             <template #default="scope">
               <div class="name-cell">
@@ -1462,7 +1419,7 @@ async function downloadSelectedFiles() {
           <el-table-column 
             prop="type" 
             label="Type" 
-            sortable="custom"
+            sortable
             width="120"
             :show-overflow-tooltip="true">
             <template #default="scope">
@@ -1471,9 +1428,9 @@ async function downloadSelectedFiles() {
           </el-table-column>
           
           <el-table-column 
-            prop="size" 
+            prop="sizeForSort" 
             label="Size" 
-            sortable="custom"
+            sortable
             width="90">
             <template #default="scope">
               {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
@@ -1576,8 +1533,8 @@ async function downloadSelectedFiles() {
                   v-loading="loading"
                   :data="filteredItems"
                   style="width: 100%"
-                  @sort-change="handleSort">
-                  <el-table-column prop="name" label="Name" sortable="custom">
+                  :default-sort="{ prop: 'sortKey', order: 'ascending' }">
+                  <el-table-column prop="sortKey" label="Name" sortable>
                     <template #default="scope">
                       <div class="name-cell">
                         <el-icon v-if="scope.row.type === 'dir'">

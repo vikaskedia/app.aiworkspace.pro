@@ -2,18 +2,18 @@
   <div class="file-preview-pane" v-if="file">
     <div class="preview-header">
       <h3>{{ file.name }}</h3>
-      <!-- <div class="header-actions">
-        <el-button 
-          type="primary" 
-          link 
-          @click="showRenameDialog"
-          @click.native="console.log('Rename button clicked')">
-          <el-icon><Edit /></el-icon>
-        </el-button>
-        <el-button type="primary" link @click="$emit('close')">
-          <el-icon><Close /></el-icon>
-        </el-button>
-      </div> -->
+      <div class="header-actions">
+        <el-tooltip content="Download File" placement="bottom">
+          <el-button 
+            type="primary" 
+            link 
+            @click="downloadFile"
+            :loading="downloading"
+            size="small">
+            <el-icon v-if="!downloading"><Download /></el-icon>
+          </el-button>
+        </el-tooltip>
+      </div>
     </div>
     
     <el-dialog
@@ -147,7 +147,7 @@
 
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue';
-import { Close, Edit, Document, Warning } from '@element-plus/icons-vue';
+import { Close, Edit, Document, Warning, Download } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import VuePdfEmbed from 'vue-pdf-embed'
 import MarkDownEditor from '../common/MarkDownEditor.vue'
@@ -178,6 +178,7 @@ const pdfPages = ref([]);
 const observers = ref([]);
 const isScrolling = ref(false);
 const hasUnsavedChanges = ref(false);
+const downloading = ref(false);
 
 async function loadTextContent() {
   if (!props.file) return;
@@ -221,8 +222,40 @@ function retryLoad() {
   loadTextContent();
 }
 
-function downloadFile() {
-  window.open(props.file.download_url, '_blank');
+async function downloadFile() {
+  try {
+    downloading.value = true;
+    
+    // Fetch the file as blob to force download instead of opening in browser
+    const response = await fetch(props.file.download_url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    
+    // Create object URL and download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = props.file.name;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the object URL
+    URL.revokeObjectURL(url);
+    
+    ElMessage.success(`Downloaded ${props.file.name}`);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    ElMessage.error('Failed to download file: ' + error.message);
+  } finally {
+    downloading.value = false;
+  }
 }
 
 function handleImageLoad() {

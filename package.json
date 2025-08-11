@@ -45,6 +45,7 @@
     "dotenv": "^16.5.0",
     "element-plus": "^2.3.4",
     "ical.js": "^2.1.0",
+    "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "mailersend": "^2.3.0",
     "mailparser": "^3.7.3",

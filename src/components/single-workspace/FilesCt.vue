@@ -5,7 +5,7 @@ The files are stored in the workspace's repository.
 -->
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft } from '@element-plus/icons-vue';
+import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
@@ -42,6 +42,7 @@ const maxSplits = 10;
 const splitFiles = ref([]);
 const splitFolders = ref([]);
 const isUpdatingUrl = ref(false);
+const downloadingFiles = ref(new Set());
 
 // Expose these refs to make them accessible from parent
 defineExpose({
@@ -987,6 +988,199 @@ function handleBackNavigation() {
 const showBackButton = computed(() => {
   return selectedFile.value || folderBreadcrumbs.value.length > 0;
 });
+
+// Download functionality
+async function downloadFile(file) {
+  try {
+    // Add file to downloading set
+    downloadingFiles.value.add(file.id);
+    
+    // For images and PDFs, we need to fetch the file as blob to force download
+    const response = await fetch(file.download_url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    
+    // Create object URL and download
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the object URL
+    URL.revokeObjectURL(url);
+    
+    ElMessage.success(`Downloaded ${file.name}`);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    ElMessage.error('Failed to download file: ' + error.message);
+  } finally {
+    // Remove file from downloading set
+    downloadingFiles.value.delete(file.id);
+  }
+}
+
+async function downloadFolder(folder) {
+  try {
+    loading.value = true;
+    ElMessage.info('Preparing folder download...');
+    
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    
+    // Get the archive URL from Gitea
+    const archiveUrl = `${giteaHost}/associateattorney/${currentWorkspace.value.git_repo}/archive/main.zip`;
+    
+    // For folder-specific download, we'll create a zip of just that folder's contents
+    // Since Gitea doesn't have a direct folder archive API, we'll collect all files in the folder
+    const files = await getAllFilesInFolder(folder.path);
+    
+    if (files.length === 0) {
+      ElMessage.warning('Folder is empty');
+      return;
+    }
+    
+    // Create a zip file using JSZip
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    const folderZip = zip.folder(folder.name);
+    
+    // Download all files and add to zip
+    for (const file of files) {
+      try {
+        const response = await fetch(file.download_url);
+        if (response.ok) {
+          const blob = await response.blob();
+          const relativePath = file.storage_path.replace(folder.path + '/', '');
+          folderZip.file(relativePath, blob);
+        }
+      } catch (err) {
+        console.warn(`Failed to include ${file.name} in zip:`, err);
+      }
+    }
+    
+    // Generate and download the zip
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(zipBlob);
+    link.download = `${folder.name}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    ElMessage.success(`Downloaded ${folder.name}.zip`);
+  } catch (error) {
+    console.error('Error downloading folder:', error);
+    ElMessage.error('Failed to download folder: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function getAllFilesInFolder(folderPath) {
+  try {
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${folderPath}`,
+      {
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include'
+      }
+    );
+    
+    if (!response.ok) throw new Error('Failed to fetch folder contents');
+    
+    const contents = await response.json();
+    let allFiles = [];
+    
+    for (const item of contents) {
+      if (item.type === 'file' && item.name !== '.gitkeep') {
+        allFiles.push({
+          name: item.name,
+          storage_path: item.path,
+          download_url: getAuthenticatedDownloadUrl(item.download_url)
+        });
+      } else if (item.type === 'dir') {
+        // Recursively get files from subdirectories
+        const subFiles = await getAllFilesInFolder(item.path);
+        allFiles = allFiles.concat(subFiles);
+      }
+    }
+    
+    return allFiles;
+  } catch (error) {
+    console.error('Error getting files in folder:', error);
+    return [];
+  }
+}
+
+async function downloadWorkspace() {
+  try {
+    loading.value = true;
+    ElMessage.info('Preparing workspace download...');
+    
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    
+    // Get all files in the workspace (root directory)
+    const files = await getAllFilesInFolder('');
+    
+    if (files.length === 0) {
+      ElMessage.warning('Workspace is empty');
+      return;
+    }
+    
+    // Create a zip file using JSZip
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    
+    // Download all files and add to zip
+    for (const file of files) {
+      try {
+        const response = await fetch(file.download_url);
+        if (response.ok) {
+          const blob = await response.blob();
+          zip.file(file.storage_path, blob);
+        }
+      } catch (err) {
+        console.warn(`Failed to include ${file.name} in zip:`, err);
+      }
+    }
+    
+    // Generate and download the zip
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(zipBlob);
+    link.download = `${currentWorkspace.value.title || 'workspace'}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    ElMessage.success(`Downloaded ${currentWorkspace.value.title || 'workspace'}.zip`);
+  } catch (error) {
+    console.error('Error downloading workspace:', error);
+    ElMessage.error('Failed to download workspace: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function downloadSelectedFiles() {
+  // This function can be implemented later for bulk downloads
+  ElMessage.info('Bulk download feature coming soon!');
+}
 </script>
 
 <template>
@@ -1036,6 +1230,22 @@ const showBackButton = computed(() => {
               plain
               size="small">
               {{ filters.showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
+            </el-button>
+            <el-button 
+              v-if="currentFolder"
+              type="success" 
+              @click="downloadFolder(currentFolder)" 
+              size="small" 
+              :icon="Download">
+              Download Folder
+            </el-button>
+            <el-button 
+              v-else
+              type="success" 
+              @click="downloadWorkspace" 
+              size="small" 
+              :icon="Download">
+              Download All
             </el-button>
             <el-button 
               type="primary" 
@@ -1131,6 +1341,26 @@ const showBackButton = computed(() => {
               {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
             </template>
           </el-table-column>
+          
+          <el-table-column 
+            label="Actions" 
+            width="100"
+            fixed="right">
+            <template #default="scope">
+              <el-tooltip 
+                :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
+                placement="top">
+                <el-button
+                  type="primary"
+                  link
+                  :icon="Download"
+                  :loading="downloadingFiles.has(scope.row.id)"
+                  @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
+                  size="small">
+                </el-button>
+              </el-tooltip>
+            </template>
+          </el-table-column>
         </el-table>
       </div>
 
@@ -1224,6 +1454,24 @@ const showBackButton = computed(() => {
                           {{ scope.row.name }}
                         </a>
                       </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column 
+                    label="Actions" 
+                    width="60">
+                    <template #default="scope">
+                      <el-tooltip 
+                        :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
+                        placement="top">
+                        <el-button
+                          type="primary"
+                          link
+                          :icon="Download"
+                          :loading="downloadingFiles.has(scope.row.id)"
+                          @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
+                          size="small">
+                        </el-button>
+                      </el-tooltip>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -1596,6 +1844,25 @@ const showBackButton = computed(() => {
   .content.split-view {
     grid-template-columns: 1fr;
   }
+}
+
+/* Download button styles */
+.download-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.download-button:hover {
+  background-color: #f0f9ff;
+}
+
+.download-button .el-icon {
+  font-size: 14px;
 }
 </style>
 

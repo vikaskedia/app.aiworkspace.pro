@@ -92,6 +92,35 @@ const filteredItems = computed(() => {
     });
   }
   
+  // Sort alphabetically by name, with folders first, and date-prefixed files by date
+  result.sort((a, b) => {
+    // Folders should come before files
+    if (a.type === 'dir' && b.type !== 'dir') return -1;
+    if (a.type !== 'dir' && b.type === 'dir') return 1;
+    
+    // Within the same type (both folders or both files), apply custom sorting
+    // Check if both items start with a date pattern (YYYY-MM-DD)
+    const datePattern = /^(\d{4}-\d{2}-\d{2})/;
+    const aMatch = a.name.match(datePattern);
+    const bMatch = b.name.match(datePattern);
+    
+    if (aMatch && bMatch) {
+      // Both start with dates, sort by date (most recent first)
+      const dateA = new Date(aMatch[1]);
+      const dateB = new Date(bMatch[1]);
+      return dateB - dateA; // Descending order (newest first)
+    } else if (aMatch && !bMatch) {
+      // Only a starts with date, put date-prefixed files first
+      return -1;
+    } else if (!aMatch && bMatch) {
+      // Only b starts with date, put date-prefixed files first
+      return 1;
+    } else {
+      // Neither starts with date, sort alphabetically (case-insensitive)
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    }
+  });
+  
   return result;
 });
 

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear User Cache</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #409eff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #337ecc;
+        }
+        .success {
+            color: #67c23a;
+            font-weight: bold;
+        }
+        .info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug User Profile Icon Cache</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This tool helps debug why your uploaded profile icon isn't showing in spreadsheet task status cells.
+        </div>
+
+        <h3>Step 1: Check Current Cache</h3>
+        <button onclick="checkCache()">Check Current User Cache</button>
+        <div id="cacheStatus"></div>
+
+        <h3>Step 2: Clear User Cache</h3>
+        <button onclick="clearUserCache()">Clear User Cache</button>
+        <div id="clearStatus"></div>
+
+        <h3>Step 3: Instructions</h3>
+        <div class="info">
+            After clearing the cache:
+            <ol>
+                <li>Go back to your spreadsheet</li>
+                <li>Find a cell with a task status formula (like <code>=TASKSTATUS(123)</code>)</li>
+                <li>Refresh the page or click on the cell</li>
+                <li>The cell should now fetch fresh user data and show your custom icon (🎯) instead of the default (👤)</li>
+            </ol>
+        </div>
+
+        <h3>Step 4: Verify Database Function</h3>
+        <button onclick="testDatabaseFunction()">Test Database Function</button>
+        <div id="dbTestStatus"></div>
+    </div>
+
+    <script>
+        function checkCache() {
+            const userCache = localStorage.getItem('user');
+            const cacheDiv = document.getElementById('cacheStatus');
+            
+            if (userCache) {
+                try {
+                    const parsed = JSON.parse(userCache);
+                    cacheDiv.innerHTML = `
+                        <h4>Current Cache Contents:</h4>
+                        <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                        <p><strong>Users cached:</strong> ${Object.keys(parsed.users || {}).length}</p>
+                    `;
+                } catch (e) {
+                    cacheDiv.innerHTML = `<p style="color: red;">Cache exists but is corrupted: ${e.message}</p>`;
+                }
+            } else {
+                cacheDiv.innerHTML = `<p>No user cache found in localStorage.</p>`;
+            }
+        }
+
+        function clearUserCache() {
+            try {
+                localStorage.removeItem('user');
+                document.getElementById('clearStatus').innerHTML = `
+                    <p class="success">✅ User cache cleared successfully!</p>
+                    <p>Now refresh your spreadsheet page to fetch fresh user data.</p>
+                `;
+            } catch (e) {
+                document.getElementById('clearStatus').innerHTML = `
+                    <p style="color: red;">❌ Error clearing cache: ${e.message}</p>
+                `;
+            }
+        }
+
+        async function testDatabaseFunction() {
+            const statusDiv = document.getElementById('dbTestStatus');
+            statusDiv.innerHTML = '<p>🔄 Testing database connection...</p>';
+            
+            try {
+                // Try to get current user and test the database function
+                const response = await fetch('/api/test-user-function');
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusDiv.innerHTML = `
+                        <p class="success">✅ Database function working!</p>
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <p style="color: red;">❌ Database function test failed: ${result.error}</p>
+                    `;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = `
+                    <p style="color: orange;">⚠️ Could not test database function from this page.</p>
+                    <p>This is normal - the test requires being logged in to your main app.</p>
+                    <p>Just clear the cache and test in your actual spreadsheet.</p>
+                `;
+            }
+        }
+
+        // Auto-check cache on load
+        window.onload = checkCache;
+    </script>
+</body>
+</html>

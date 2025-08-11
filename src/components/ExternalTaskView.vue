@@ -556,6 +556,7 @@ import { supabase } from '../supabase';
 import { ElMessage, ElNotification } from 'element-plus';
 import { useExternalTaskShare } from '../composables/useExternalTaskShare';
 import PdfSignatureModal from './common/PdfSignatureModal.vue';
+import { setFavicon } from '../utils/favicon.js';
 
 export default {
   name: 'ExternalTaskView',
@@ -948,6 +949,12 @@ export default {
 
           this.task = shareData.tasks;
           this.workspace = shareData.tasks.workspaces;
+          
+          // Set task favicon and update document title
+          setFavicon('task');
+          if (this.task?.title) {
+            document.title = `${this.task.title} - AI Workspace`;
+          }
           
           // Load comments for the task
           let commentsData;

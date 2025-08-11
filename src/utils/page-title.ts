@@ -1,6 +1,8 @@
 // Page title utility for consistent tab titles across the application
 // Format: [Component specific navigation] < [workspace-component-name] < [workspace name] < [App name]
 
+import { setFavicon } from './favicon.js';
+
 interface TitleParts {
   componentSpecific?: string; // e.g., "HF" (outline node), "Task Title (25 char)"
   componentName?: string; // e.g., "Outlines", "Tasks", "Dashboard"
@@ -76,6 +78,9 @@ export function setOutlineTitle(focusedNodeText?: string, workspaceName?: string
     componentName: 'Outlines',
     workspaceName,
   });
+  
+  // Set outlines favicon
+  setFavicon('outlines');
 }
 
 /**
@@ -94,6 +99,9 @@ export function setTaskTitle(taskTitle?: string, workspaceName?: string, compone
     componentName,
     workspaceName,
   });
+  
+  // Set task favicon
+  setFavicon('task');
 }
 
 /**
@@ -112,6 +120,20 @@ export function setComponentTitle(componentName: string, workspaceName?: string,
     componentName,
     workspaceName,
   });
+  
+  // Set favicon based on component type
+  const faviconMap: Record<string, string> = {
+    'AI Portfolio': 'spreadsheet',
+    'All Tasks': 'task',
+    'All Workspaces': 'dashboard',
+    'All Goals': 'goals',
+    'All Events': 'events',
+    'All Files': 'files',
+    'All Contacts': 'communication'
+  };
+  
+  const faviconType = faviconMap[componentName] || 'default';
+  setFavicon(faviconType);
 }
 
 /**
@@ -122,4 +144,23 @@ export function setWorkspaceTitle(componentName: string, workspaceName?: string)
     componentName,
     workspaceName,
   });
+  
+  // Set favicon based on component type
+  const faviconMap: Record<string, string> = {
+    'Tasks': 'task',
+    'Files': 'files',
+    'Goals': 'goals',
+    'Events': 'events',
+    'Outlines': 'outlines',
+    'AI Phone': 'phone',
+    'AI Intake': 'communication',
+    'AI Fax': 'communication',
+    'AI Fund Analyst': 'dashboard',
+    'Communications': 'communication',
+    'Settings': 'settings',
+    'Dashboard': 'dashboard'
+  };
+  
+  const faviconType = faviconMap[componentName] || 'default';
+  setFavicon(faviconType);
 }

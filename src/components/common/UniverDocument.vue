@@ -43,6 +43,18 @@
             <el-button @click="initializeUniver" type="primary" size="small">Retry Initialize</el-button>
           </div>
         </div>
+        
+        <!-- Save Changes Button (like markdown files) -->
+        <div v-if="univer && !loading" class="save-actions">
+          <el-button 
+            type="primary" 
+            @click="saveDocument" 
+            :loading="saving"
+            size="default">
+            <el-icon style="margin-right: 4px;"><Document /></el-icon>
+            Save Changes
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -50,7 +62,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
-import { Warning } from '@element-plus/icons-vue';
+import { Warning, Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
 // Import Univer packages and styles
@@ -107,9 +119,18 @@ const saving = ref(false);
 const hasUnsavedChanges = ref(false);
 const documentTitle = ref('');
 const documentId = ref(`univer-doc-${Date.now()}`);
+// Store the last known document data as fallback
+const lastKnownDocumentData = ref(null);
 
 const containerHeight = computed(() => {
-  return props.showHeader ? `calc(${props.height} - 60px)` : props.height;
+  // Account for header (60px) and save actions section (60px)
+  let deductions = '0px';
+  if (props.showHeader) {
+    deductions = '120px'; // 60px header + 60px save actions
+  } else {
+    deductions = '60px'; // Just save actions
+  }
+  return `calc(${props.height} - ${deductions})`;
 });
 
 // Default document data structure for Univer Docs
@@ -245,6 +266,9 @@ const initializeUniver = async () => {
     
     console.log('Creating document with data:', docData);
     
+    // Store the document data as fallback
+    lastKnownDocumentData.value = docData;
+    
     // Create the document unit using the standard Univer API
     univer.value.createUnit(UniverInstanceType.UNIVER_DOC, docData);
     console.log('✅ Document unit created successfully');
@@ -303,22 +327,60 @@ const getDocumentData = () => {
   }
   
   try {
-    // Try multiple approaches to get document data
-    if (univerAPI.value && univerAPI.value.getActiveDocument) {
-      const activeDoc = univerAPI.value.getActiveDocument();
-      if (activeDoc && activeDoc.getSnapshot) {
-        return activeDoc.getSnapshot();
+    // Try univerAPI approach first
+    if (univerAPI.value) {
+      try {
+        const activeDoc = univerAPI.value.getActiveDocument();
+        if (activeDoc && activeDoc.getSnapshot) {
+          console.log('✅ Got document data using univerAPI.getActiveDocument');
+          return activeDoc.getSnapshot();
+        }
+      } catch (apiError) {
+        console.warn('univerAPI.getActiveDocument failed:', apiError.message);
       }
     }
     
-    // Fallback: Get the active document unit and its snapshot
-    const activeUnit = univer.value.getActiveUnit();
-    if (activeUnit && activeUnit.getSnapshot) {
-      const snapshot = activeUnit.getSnapshot();
-      return snapshot;
+    // Try core Univer API approaches
+    if (univer.value) {
+      try {
+        // Try getActiveUnit if available
+        if (typeof univer.value.getActiveUnit === 'function') {
+          const activeUnit = univer.value.getActiveUnit();
+          if (activeUnit && typeof activeUnit.getSnapshot === 'function') {
+            console.log('✅ Got document data using getActiveUnit');
+            return activeUnit.getSnapshot();
+          }
+        }
+      } catch (unitError) {
+        console.warn('getActiveUnit failed:', unitError.message);
+      }
+      
+      try {
+        // Try getting units by type
+        if (typeof univer.value.getUnitsByType === 'function') {
+          const docUnits = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+          if (docUnits && docUnits.length > 0) {
+            const firstUnit = docUnits[0];
+            if (firstUnit && typeof firstUnit.getSnapshot === 'function') {
+              console.log('✅ Got document data using getUnitsByType');
+              return firstUnit.getSnapshot();
+            }
+          }
+        }
+      } catch (unitsError) {
+        console.warn('getUnitsByType failed:', unitsError.message);
+      }
     }
     
-    console.warn('Could not retrieve document data - no valid API available');
+    console.warn('Could not retrieve document data - no valid API method available');
+    console.warn('Available methods on univer:', Object.getOwnPropertyNames(univer.value || {}));
+    
+    // Fallback to last known document data
+    if (lastKnownDocumentData.value) {
+      console.log('⚠️ Using fallback: last known document data');
+      return lastKnownDocumentData.value;
+    }
+    
     return null;
   } catch (err) {
     console.error('Error getting document data:', err);
@@ -329,14 +391,23 @@ const getDocumentData = () => {
 // Save document
 const saveDocument = async () => {
   // Always attempt save since we don't have automatic change tracking
+  console.log('🔄 Starting document save...');
 
   try {
     saving.value = true;
+    
+    // Get current document data with enhanced error handling
+    console.log('📊 Attempting to retrieve document data...');
     const docData = getDocumentData();
     
     if (!docData) {
-      throw new Error('Failed to get document data');
+      console.error('❌ No document data available for saving');
+      // Provide user-friendly message
+      ElMessage.warning('Unable to retrieve document content. Please try again or check if the document is properly loaded.');
+      return;
     }
+
+    console.log('✅ Document data retrieved successfully:', docData);
 
     // Emit save event with document data
     emit('save', docData);
@@ -345,9 +416,10 @@ const saveDocument = async () => {
     hasUnsavedChanges.value = false;
     emit('unsaved-changes', false);
     
+    console.log('✅ Document save completed successfully');
     ElMessage.success('Document saved successfully');
   } catch (error) {
-    console.error('Error saving document:', error);
+    console.error('❌ Error saving document:', error);
     ElMessage.error('Failed to save document: ' + error.message);
   } finally {
     saving.value = false;
@@ -491,6 +563,8 @@ defineExpose({
   width: 100%;
   height: 100%;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .univer-doc-container {
@@ -500,6 +574,7 @@ defineExpose({
   position: relative;
   overflow: hidden;
   background: #fff;
+  flex: 1; /* Allow the container to grow and the save section to be at bottom */
 }
 
 .univer-doc-container.loading {
@@ -546,6 +621,15 @@ defineExpose({
   height: 100% !important;
 }
 
+/* Save actions section */
+.save-actions {
+  padding: 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #dcdfe6;
+  background: #f8f9fa;
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
   .univer-header {
@@ -559,6 +643,14 @@ defineExpose({
   .univer-actions .el-button {
     padding: 4px 8px;
     font-size: 12px;
+  }
+  
+  .save-actions {
+    padding: 12px;
+  }
+  
+  .save-actions .el-button {
+    width: 100%;
   }
 }
 </style>

@@ -124,6 +124,18 @@
                 <el-button type="text" size="small" class="set-parent-link" @click="createChildTaskDialogVisible = true">
                   <el-icon><Plus /></el-icon> Add Child Task
                 </el-button>
+                <!-- Task Creator Information - Inline -->
+                <span v-if="task.created_by" class="task-creator-info-inline">
+                  Created by
+                  <el-tooltip 
+                    :content="userEmails[task.created_by] || 'Loading...'"
+                    placement="top"
+                    effect="light"
+                  >
+                    <span class="creator-name">{{ formatEmail(userEmails[task.created_by]) || 'Loading...' }}</span>
+                  </el-tooltip>
+                  on {{ formatDate(task.created_at) }}
+                </span>
               </div>
             </template>
             <template v-else>
@@ -161,6 +173,18 @@
                     <el-icon><Plus /></el-icon> Set Parent Task
                   </el-button>
                 </template>
+                <!-- Task Creator Information - Inline -->
+                <span v-if="task.created_by" class="task-creator-info-inline">
+                  Created by
+                  <el-tooltip 
+                    :content="userEmails[task.created_by] || 'Loading...'"
+                    placement="top"
+                    effect="light"
+                  >
+                    <span class="creator-name">{{ formatEmail(userEmails[task.created_by]) || 'Loading...' }}</span>
+                  </el-tooltip>
+                  on {{ formatDate(task.created_at) }}
+                </span>
             </div>
               <!-- If there are no child tasks, show Add Child Task button below parent section -->
               <div v-if="!sortedChildTasks.length" class="add-child-task-row">
@@ -2420,6 +2444,11 @@ export default {
               userIds.add(history.edited_by);
             }
           });
+        }
+
+        // Add task creator
+        if (this.task.created_by && !this.userEmails[this.task.created_by]) {
+          userIds.add(this.task.created_by);
         }
 
         // Load all user emails in parallel
@@ -7874,6 +7903,21 @@ table.editor-table {
   gap: 12px;
   margin-bottom: 8px;
   align-items: center;
+}
+
+.task-creator-info-inline {
+  margin-left: 16px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-creator-info-inline .creator-name {
+  color: var(--el-color-primary);
+  cursor: pointer;
+  font-weight: 500;
 }
 
 /* Compact Task Metadata Section */

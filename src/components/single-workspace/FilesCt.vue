@@ -5,7 +5,7 @@ The files are stored in the workspace's repository.
 -->
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
-import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download } from '@element-plus/icons-vue';
+import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download, MoreFilled, ArrowDown } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
@@ -1311,50 +1311,58 @@ async function downloadSelectedFiles() {
             </div>
           </div>
           <div class="actions">
-            <el-button 
-              @click="filters.showFilters = !filters.showFilters"
-              type="info"
-              plain
-              size="small">
-              {{ filters.showFilters ? `Hide Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` : `Show Filters${activeFiltersCount ? ` (${activeFiltersCount})` : ''}` }}
-            </el-button>
-            <el-button 
-              v-if="currentFolder"
-              type="success" 
-              @click="downloadFolder(currentFolder)" 
-              size="small" 
-              :icon="Download">
-              Download Folder
-            </el-button>
-            <el-button 
-              v-else
-              type="success" 
-              @click="downloadWorkspace" 
-              size="small" 
-              :icon="Download">
-              Download All
-            </el-button>
-            <el-button 
-              type="primary" 
-              @click="newFolderDialogVisible = true" 
-              size="small" 
-              :icon="FolderAdd">
-              New Folder
-            </el-button>
-            <el-button 
-              type="success" 
-              @click="newDocDialogVisible = true" 
-              size="small" 
-              :icon="Plus">
-              New Document
-            </el-button>
-            <el-button 
-              type="primary" 
-              @click="uploadDialogVisible = true" 
-              size="small" 
-              :icon="Plus">
-              Upload Files
-            </el-button>
+            <!-- Menu Dropdown with All Actions -->
+            <el-dropdown trigger="click" placement="bottom-end">
+              <el-button 
+                type="primary" 
+                size="small">
+                Menu
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item 
+                    @click="uploadDialogVisible = true"
+                    :icon="UploadFilled">
+                    Upload Files
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="newDocDialogVisible = true"
+                    :icon="Plus">
+                    New Document
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="newFolderDialogVisible = true"
+                    :icon="FolderAdd">
+                    New Folder
+                  </el-dropdown-item>
+                  <el-dropdown-item divided></el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="filters.showFilters = !filters.showFilters"
+                    icon="Filter">
+                    {{ filters.showFilters ? 'Hide Filters' : 'Show Filters' }}
+                    <el-badge 
+                      v-if="activeFiltersCount > 0" 
+                      :value="activeFiltersCount" 
+                      class="filter-badge"
+                      type="info" />
+                  </el-dropdown-item>
+                  <el-dropdown-item divided></el-dropdown-item>
+                  <el-dropdown-item 
+                    v-if="currentFolder"
+                    @click="downloadFolder(currentFolder)"
+                    :icon="Download">
+                    Download Folder
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    v-else
+                    @click="downloadWorkspace"
+                    :icon="Download">
+                    Download All Files
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </div>
 
@@ -1765,20 +1773,22 @@ async function downloadSelectedFiles() {
   }
   
   .header {
-    flex-direction: row;
+    flex-direction: column;
     gap: 1rem;
-    align-items: center;
+    align-items: stretch;
   }
   
   .header h2 {
     font-size: 1.4rem;
-    flex: 1;
   }
   
-  /* Make upload button full width on mobile */
-  .header .el-button {
-    width: auto;
-    white-space: nowrap;
+  .actions {
+    justify-content: flex-end;
+  }
+  
+  /* Single menu button styling for mobile */
+  .actions .el-dropdown .el-button {
+    min-width: 100px;
   }
   
   /* Adjust table for mobile */
@@ -1834,7 +1844,7 @@ async function downloadSelectedFiles() {
   }
 }
 
-/* Add responsive styles for the preview pane */
+/* Add responsive styles for tablets */
 @media (max-width: 1024px) {
   .content {
     flex-direction: column;
@@ -1842,6 +1852,16 @@ async function downloadSelectedFiles() {
   
   .content.with-preview {
     padding: 1rem;
+  }
+  
+  .actions {
+    justify-content: flex-end;
+  }
+  
+  .actions .el-dropdown .el-button {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    min-width: 120px;
   }
 }
 
@@ -1876,7 +1896,27 @@ async function downloadSelectedFiles() {
 
 .actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filter-badge {
+  margin-left: 8px;
+}
+
+/* Dropdown menu styling */
+:deep(.el-dropdown-menu) {
+  min-width: 180px;
+}
+
+:deep(.el-dropdown-menu__item) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:deep(.el-dropdown-menu__item .el-badge) {
+  margin-left: auto;
 }
 
 /* Add these to your existing styles */

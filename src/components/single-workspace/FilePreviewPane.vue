@@ -42,7 +42,7 @@
       </template>
     </el-dialog>
     
-    <div class="preview-content">
+    <div class="preview-content" ref="previewContentRef">
       <!-- Loading State -->
       <el-skeleton v-if="loading" :rows="10" animated />
       
@@ -198,6 +198,111 @@ const hasUnsavedChanges = ref(false);
 const downloading = ref(false);
 const univerDocumentData = ref(null);
 const univerDocumentComponent = ref(null);
+const previewContentRef = ref(null);
+
+// Function to scroll preview content to top
+function scrollToTop() {
+  console.log('scrollToTop called');
+  
+  // Try multiple approaches to ensure scrolling works
+  const scrollMethods = [
+    () => {
+      // Method 1: Scroll the preview content ref
+      if (previewContentRef.value) {
+        console.log('Method 1: previewContentRef scroll');
+        console.log('Current scrollTop:', previewContentRef.value.scrollTop);
+        console.log('ScrollHeight:', previewContentRef.value.scrollHeight);
+        console.log('ClientHeight:', previewContentRef.value.clientHeight);
+        
+        previewContentRef.value.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+        return true;
+      }
+      return false;
+    },
+    () => {
+      // Method 2: Scroll the file preview pane container
+      const previewPane = document.querySelector('.file-preview-pane');
+      if (previewPane) {
+        console.log('Method 2: file-preview-pane scroll');
+        previewPane.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+        return true;
+      }
+      return false;
+    },
+    () => {
+      // Method 3: Scroll the preview container
+      const previewContainer = document.querySelector('.preview-container');
+      if (previewContainer) {
+        console.log('Method 3: preview-container scroll');
+        previewContainer.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+        return true;
+      }
+      return false;
+    },
+    () => {
+      // Method 4: Scroll the content container
+      const contentContainer = document.querySelector('.content.split-view');
+      if (contentContainer) {
+        console.log('Method 4: content.split-view scroll');
+        contentContainer.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+        return true;
+      }
+      return false;
+    },
+    () => {
+      // Method 5: Scroll the manage-files container
+      const manageFilesContainer = document.querySelector('.manage-files');
+      if (manageFilesContainer) {
+        console.log('Method 5: manage-files scroll');
+        manageFilesContainer.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+        return true;
+      }
+      return false;
+    },
+    () => {
+      // Method 6: Scroll the window/body
+      console.log('Method 6: window scroll');
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+      return true;
+    }
+  ];
+  
+  // Try ALL methods (don't stop at first success)
+  let successCount = 0;
+  for (const method of scrollMethods) {
+    if (method()) {
+      successCount++;
+    }
+  }
+  
+  console.log(`Successfully tried ${successCount} scroll methods`);
+  
+  // Fallback with immediate scroll after delay
+  setTimeout(() => {
+    if (previewContentRef.value && previewContentRef.value.scrollTop > 0) {
+      console.log('Fallback: immediate scroll');
+      previewContentRef.value.scrollTop = 0;
+    }
+  }, 200);
+}
 
 async function loadTextContent() {
   if (!props.file) return;
@@ -222,6 +327,10 @@ async function loadTextContent() {
     const data = await response.json();
     // Content from API is base64 encoded
     textContent.value = atob(data.content);
+    // Scroll to top after content loads
+    setTimeout(() => {
+      scrollToTop();
+    }, 100);
   } catch (err) {
     error.value = 'Failed to load text content';
     console.error('Error loading text content:', err);
@@ -256,6 +365,10 @@ async function loadUniverDocument() {
     
     try {
       univerDocumentData.value = JSON.parse(documentContent);
+      // Scroll to top after document loads
+      setTimeout(() => {
+        scrollToTop();
+      }, 100);
     } catch (parseError) {
       console.error('Error parsing Univer document:', parseError);
       error.value = 'Invalid Univer document format';
@@ -318,6 +431,10 @@ async function downloadFile() {
 function handleImageLoad() {
   loading.value = false;
   error.value = null;
+  // Scroll to top after image loads with delay
+  setTimeout(() => {
+    scrollToTop();
+  }, 100);
 }
 
 function handleImageError(e) {
@@ -682,6 +799,12 @@ watch(() => props.file, async (newFile) => {
     loading.value = true;
     error.value = null;
     
+    // Scroll to top when new file is selected - with longer delay for content to load
+    await nextTick();
+    setTimeout(() => {
+      scrollToTop();
+    }, 300);
+    
     if (newFile.type === 'text/plain') {
       await loadTextContent();
     } else if (newFile.type === 'text/markdown') {
@@ -711,6 +834,11 @@ watch(() => props.file, async (newFile) => {
           markdownContent.value = savedContent;
           hasUnsavedChanges.value = savedContent !== originalContent;
         }
+        
+        // Scroll to top after markdown loads
+        setTimeout(() => {
+          scrollToTop();
+        }, 100);
         
       } catch (err) {
         error.value = 'Failed to load markdown content';
@@ -760,10 +888,25 @@ watch(() => props.file, () => {
   flex: 1;
   overflow: auto;
   position: relative;
+  padding: 16px;
+}
+
+/* Center content for images and other content that needs centering */
+.preview-content .image-container,
+.preview-content .no-preview {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  min-height: 100%;
+}
+
+/* For PDFs, text, markdown, and Univer docs, use block layout */
+.preview-content .pdf-viewer,
+.preview-content .text-preview,
+.preview-content .markdown-preview,
+.preview-content .univer-document-preview {
+  width: 100%;
+  height: 100%;
 }
 
 .pdf-viewer {

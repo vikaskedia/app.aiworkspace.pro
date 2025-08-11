@@ -819,6 +819,17 @@ function handleFileSelect(file) {
     
     selectedFile.value = file;
     
+    // On mobile/smaller screens, scroll to ensure preview is visible
+    nextTick(() => {
+      const previewContainer = document.querySelector('.preview-container');
+      if (previewContainer && window.innerWidth <= 1024) {
+        previewContainer.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    });
+    
     // Update URL to include file selection
     if (currentWorkspace.value) {
       isUpdatingUrl.value = true;

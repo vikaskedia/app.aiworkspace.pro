@@ -133,6 +133,22 @@
         </div>
       </div>
       
+      <!-- Univer Document Preview -->
+      <div
+        v-else-if="file.type === 'application/vnd.univer-doc'"
+        class="univer-document-preview"
+      >
+        <UniverDocument
+          ref="univerDocumentComponent"
+          :document-data="univerDocumentData"
+          :file="file"
+          :show-header="false"
+          height="100%"
+          @save="handleUniverDocumentSave"
+          @unsaved-changes="handleUnsavedChanges"
+        />
+      </div>
+      
       <!-- Fallback -->
       <div v-else-if="file.type !== 'application/pdf'" class="no-preview">
         <el-icon class="no-preview-icon"><Document /></el-icon>
@@ -151,6 +167,7 @@ import { Close, Edit, Document, Warning, Download } from '@element-plus/icons-vu
 import { ElMessage } from 'element-plus';
 import VuePdfEmbed from 'vue-pdf-embed'
 import MarkDownEditor from '../common/MarkDownEditor.vue'
+import UniverDocument from '../common/UniverDocument.vue'
 
 const props = defineProps({
   file: {
@@ -179,6 +196,8 @@ const observers = ref([]);
 const isScrolling = ref(false);
 const hasUnsavedChanges = ref(false);
 const downloading = ref(false);
+const univerDocumentData = ref(null);
+const univerDocumentComponent = ref(null);
 
 async function loadTextContent() {
   if (!props.file) return;
@@ -206,6 +225,44 @@ async function loadTextContent() {
   } catch (err) {
     error.value = 'Failed to load text content';
     console.error('Error loading text content:', err);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadUniverDocument() {
+  if (!props.file) return;
+  
+  loading.value = true;
+  try {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    
+    // Use the API endpoint to get file content
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      {
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
+        mode: 'cors'
+      }
+    );
+    
+    if (!response.ok) throw new Error('Failed to load Univer document');
+    
+    const data = await response.json();
+    // Content from API is base64 encoded
+    const documentContent = atob(data.content);
+    
+    try {
+      univerDocumentData.value = JSON.parse(documentContent);
+    } catch (parseError) {
+      console.error('Error parsing Univer document:', parseError);
+      error.value = 'Invalid Univer document format';
+    }
+  } catch (err) {
+    error.value = 'Failed to load Univer document';
+    console.error('Error loading Univer document:', err);
   } finally {
     loading.value = false;
   }
@@ -509,6 +566,62 @@ function handleUnsavedChanges(hasChanges) {
   hasUnsavedChanges.value = hasChanges;
 }
 
+async function handleUniverDocumentSave(documentData) {
+  if (!documentData || !props.file) return;
+
+  try {
+    saving.value = true;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    
+    // Convert document data to JSON string and then to base64
+    const documentContent = JSON.stringify(documentData, null, 2);
+    const base64Content = btoa(documentContent);
+
+    // Save changes to Gitea
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      {
+        method: 'PUT',
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
+        mode: 'cors',
+        body: JSON.stringify({
+          message: `Update Univer document ${props.file.name}`,
+          content: base64Content,
+          sha: props.file.id,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!response.ok) throw new Error('Failed to save Univer document');
+
+    const newFileData = await response.json();
+    
+    // Update the file object with new SHA and download URL
+    const updatedFile = {
+      ...props.file,
+      id: newFileData.content.sha,
+      download_url: getAuthenticatedDownloadUrl(newFileData.content.download_url)
+    };
+
+    // Update local document data
+    univerDocumentData.value = documentData;
+
+    // Emit the updated file to parent
+    emit('update:file', updatedFile);
+    
+    ElMessage.success('Univer document saved successfully');
+
+  } catch (error) {
+    console.error('Error saving Univer document:', error);
+    ElMessage.error('Failed to save document: ' + error.message);
+  } finally {
+    saving.value = false;
+  }
+}
+
 function handlePageChange(newPage) {
   isScrolling.value = true;
   currentPage.value = newPage;
@@ -563,7 +676,7 @@ function setupIntersectionObserver() {
   });
 }
 
-// Initialize PDF when file changes
+// Initialize when file changes
 watch(() => props.file, async (newFile) => {
   if (newFile) {
     loading.value = true;
@@ -605,6 +718,8 @@ watch(() => props.file, async (newFile) => {
       } finally {
         loading.value = false;
       }
+    } else if (newFile.type === 'application/vnd.univer-doc') {
+      await loadUniverDocument();
     } else if (!newFile.type.startsWith('image/')) {
       loading.value = false;
     }
@@ -773,5 +888,23 @@ watch(() => props.file, () => {
   padding: 1rem;
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.univer-document-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.univer-document-preview :deep(.univer-document) {
+  height: 100%;
+  border: none;
+}
+
+.univer-document-preview :deep(.univer-container) {
+  border: none;
+  border-radius: 0;
 }
 </style> 

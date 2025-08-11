@@ -4,7 +4,7 @@ All the files are stored in the Gitea server.
 The files are stored in the workspace's repository.
 -->
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
@@ -31,6 +31,8 @@ const currentFolder = ref(null);
 const folders = ref([]);
 const newFolderDialogVisible = ref(false);
 const newFolderName = ref('');
+const newDocDialogVisible = ref(false);
+const newDocName = ref('');
 const folderBreadcrumbs = ref([]);
 const filters = ref({
   search: '',
@@ -48,6 +50,7 @@ const downloadingFiles = ref(new Set());
 defineExpose({
   uploadDialogVisible,
   newFolderDialogVisible,
+  newDocDialogVisible,
   filters
 });
 
@@ -57,7 +60,8 @@ const FILE_TYPES = {
   WORD: 'application/msword',
   TEXT: 'text/plain',
   IMAGE: ['image/jpeg', 'image/png', 'image/gif'],
-  MD: 'text/markdown'
+  MD: 'text/markdown',
+  UNIVER_DOC: 'application/vnd.univer-doc'
 };
 
 const activeFiltersCount = computed(() => {
@@ -334,7 +338,8 @@ function getFileType(filename) {
     jpg: 'image/jpeg', 
     jpeg: 'image/jpeg',
     gif: 'image/gif',  
-    md: 'text/markdown'
+    md: 'text/markdown',
+    univer: 'application/vnd.univer-doc'
   };
   return mimeTypes[ext] || 'application/octet-stream';
 }
@@ -596,6 +601,131 @@ async function createFolder() {
     ElMessage.success('Folder created successfully');
   } catch (error) {
     ElMessage.error('Error creating folder: ' + error.message);
+  }
+}
+
+async function createUniverDocument() {
+  if (!currentWorkspace.value || !newDocName.value.trim()) return;
+  
+  try {
+    loading.value = true;
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    
+    // Ensure the filename has the correct extension
+    const fileName = newDocName.value.endsWith('.univer') ? 
+      newDocName.value : 
+      `${newDocName.value}.univer`;
+    
+    const path = currentFolder.value ? 
+      `${currentFolder.value.path}/${fileName}` : 
+      fileName;
+
+    // Create default Univer document structure
+    const defaultDocumentData = {
+      id: `doc-${Date.now()}`,
+      body: {
+        dataStream: `${newDocName.value}\r\n\r\nWelcome to your new Univer document! Start typing to add your content.\r\n\r\n`,
+        textRuns: [
+          {
+            st: 0,
+            ed: newDocName.value.length,
+            ts: {
+              fs: 24,
+              bl: 1, // Bold
+            },
+          },
+          {
+            st: newDocName.value.length + 2,
+            ed: newDocName.value.length + 2 + 69,
+            ts: {
+              fs: 14,
+            },
+          },
+        ],
+        paragraphs: [
+          {
+            startIndex: newDocName.value.length + 1,
+            paragraphStyle: {
+              spaceBelow: { v: 20 },
+              headingId: 'heading1',
+            },
+          },
+          {
+            startIndex: newDocName.value.length + 2 + 69 + 1,
+            paragraphStyle: {
+              spaceBelow: { v: 10 },
+            },
+          },
+        ],
+      },
+      documentStyle: {
+        pageSize: {
+          width: 595,
+          height: 842,
+        },
+        marginTop: 72,
+        marginBottom: 72,
+        marginRight: 90,
+        marginLeft: 90,
+      },
+    };
+
+    // Convert document data to base64
+    const documentContent = JSON.stringify(defaultDocumentData, null, 2);
+    const base64Content = btoa(documentContent);
+
+    // Create the file in Gitea
+    const response = await fetch(
+      `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`,
+      {
+        method: 'POST',
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'include',
+        body: JSON.stringify({
+          message: `Create Univer document ${fileName}`,
+          content: base64Content,
+          branch: 'main'
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to create Univer document');
+    }
+
+    const giteaData = await response.json();
+
+    // Add file to local state
+    const newFile = {
+      id: giteaData.content.sha,
+      name: fileName,
+      type: 'application/vnd.univer-doc',
+      size: giteaData.content.size,
+      storage_path: giteaData.content.path,
+      workspace_id: currentWorkspace.value.id,
+      git_repo: currentWorkspace.value.git_repo,
+      created_at: new Date().toISOString(),
+      tags: [],
+      download_url: getAuthenticatedDownloadUrl(giteaData.content.download_url)
+    };
+
+    files.value.unshift(newFile);
+    newDocDialogVisible.value = false;
+    newDocName.value = '';
+    
+    // Update workspace activity
+    await updateWorkspaceActivity(currentWorkspace.value.id);
+    
+    ElMessage.success('Univer document created successfully');
+    
+    // Automatically select the new document
+    handleFileSelect(newFile);
+
+  } catch (error) {
+    ElMessage.error('Error creating Univer document: ' + error.message);
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -1255,6 +1385,13 @@ async function downloadSelectedFiles() {
               New Folder
             </el-button>
             <el-button 
+              type="success" 
+              @click="newDocDialogVisible = true" 
+              size="small" 
+              :icon="Plus">
+              New Document
+            </el-button>
+            <el-button 
               type="primary" 
               @click="uploadDialogVisible = true" 
               size="small" 
@@ -1285,6 +1422,7 @@ async function downloadSelectedFiles() {
                   <el-option label="Word" :value="FILE_TYPES.WORD" />
                   <el-option label="Text" :value="FILE_TYPES.TEXT" />
                   <el-option label="Images" :value="FILE_TYPES.IMAGE" />
+                  <el-option label="Univer Documents" :value="FILE_TYPES.UNIVER_DOC" />
                 </el-select>
               </el-form-item>
               <el-form-item>
@@ -1568,6 +1706,35 @@ async function downloadSelectedFiles() {
             @click="createFolder"
             :disabled="!newFolderName.trim()">
             Create
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- New Document Dialog -->
+    <el-dialog
+      v-model="newDocDialogVisible"
+      title="Create New Univer Document"
+      width="400px">
+      <el-form>
+        <el-form-item label="Document Name" required>
+          <el-input 
+            v-model="newDocName"
+            placeholder="Enter document name"
+            @keyup.enter="createUniverDocument" />
+          <div class="el-form-item__help">
+            The file will be saved with .univer extension
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="newDocDialogVisible = false">Cancel</el-button>
+          <el-button
+            type="primary"
+            @click="createUniverDocument"
+            :disabled="!newDocName.trim()">
+            Create Document
           </el-button>
         </span>
       </template>

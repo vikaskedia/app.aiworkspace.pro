@@ -550,14 +550,8 @@ async function createFolder() {
       `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}/.gitkeep`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `token ${giteaToken}`,
-          'Content-Type': 'application/json',
-          'Authorization': `token ${giteaToken}`,
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
+        headers: getGiteaHeaders(giteaToken),
+        credentials: 'same-origin',
         body: JSON.stringify({
           message: `Create folder ${newFolderName.value}`,
           content: '', // Empty file

@@ -254,6 +254,7 @@
 
     <FileInsertDialog
       v-model="showFileDialog"
+      :is-task-context="isTaskComment || isTaskRelated"
       @file-selected="handleFileSelected"
     />
 
@@ -404,6 +405,10 @@ export default {
       required: true
     },
     isTaskComment: {
+      type: Boolean,
+      default: false
+    },
+    isTaskRelated: {
       type: Boolean,
       default: false
     },
@@ -709,6 +714,61 @@ export default {
       return `${baseName}_${timestamp}${ext}`;
     },
 
+    async ensureTaskAttachmentsFolder() {
+      const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+      const giteaHost = import.meta.env.VITE_GITEA_HOST;
+      const folderName = 'task-attachments';
+      
+      try {
+        // Check if folder exists
+        const checkResponse = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${folderName}`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+            }
+          }
+        );
+        
+        if (checkResponse.ok) {
+          // Folder exists
+          return true;
+        }
+        
+        // Folder doesn't exist, create it
+        const createResponse = await fetch(
+          `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${folderName}/.gitkeep`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${giteaToken}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: `Create ${folderName} folder for task attachments`,
+              content: '', // Empty file content
+              branch: 'main'
+            })
+          }
+        );
+        
+        if (!createResponse.ok) {
+          throw new Error('Failed to create task-attachments folder');
+        }
+        
+        console.log('Created task-attachments folder successfully');
+        return true;
+        
+      } catch (error) {
+        console.error('Error ensuring task-attachments folder:', error);
+        // Don't throw error, just log it and continue with upload to root
+        return false;
+      }
+    },
+
     async handleFileSelected(file) {
       try {
         if (file.download_url) {
@@ -722,6 +782,15 @@ export default {
           const giteaHost = import.meta.env.VITE_GITEA_HOST;
           const uniqueFileName = this.getUniqueFileName(file.name);
           
+          // Ensure task-attachments folder exists if this is task-related content
+          let uploadPath = uniqueFileName;
+          if (this.isTaskComment || this.isTaskRelated) {
+            const folderCreated = await this.ensureTaskAttachmentsFolder();
+            if (folderCreated) {
+              uploadPath = `task-attachments/${uniqueFileName}`;
+            }
+          }
+          
           // Convert file to base64
           const base64Content = await new Promise((resolve) => {
             const reader = new FileReader();
@@ -732,9 +801,9 @@ export default {
             reader.readAsDataURL(file);
           });
 
-          // Upload with new filename
+          // Upload with appropriate path
           const response = await fetch(
-            `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${uniqueFileName}`,
+            `${giteaHost}/api/v1/repos/associateattorney/${this.currentWorkspace.git_repo}/contents/${uploadPath}`,
             {
               method: 'POST',
               headers: {
@@ -743,7 +812,7 @@ export default {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                message: `Upload ${uniqueFileName}`,
+                message: `Upload ${uniqueFileName}${(this.isTaskComment || this.isTaskRelated) ? ' to task-attachments' : ''}`,
                 content: base64Content,
                 branch: 'main'
               })
@@ -758,7 +827,7 @@ export default {
           // Insert the file link into the editor
           this.editor.chain().focus().insertContent(`[${uniqueFileName}](${downloadUrl})`).run();
           this.showFileDialog = false;
-          ElMessage.success('File uploaded successfully');
+          ElMessage.success(`File uploaded successfully${(this.isTaskComment || this.isTaskRelated) ? ' to task-attachments folder' : ''}`);
         }
       } catch (error) {
         console.error('Error handling file:', error);

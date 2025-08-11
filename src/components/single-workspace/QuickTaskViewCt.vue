@@ -1691,6 +1691,7 @@ Please provide assistance based on this context, the comment history, the availa
             placeholder="Add a description..."
             :autofocus="true"
             :isTaskComment="false"
+            :isTaskRelated="true"
             :sharedUsers="sharedUsers"
             :taskId="String(task.id)"
             :taskTitle="task.title"

@@ -1,7 +1,7 @@
 <template>
     <el-dialog
       v-model="dialogVisible"
-      title="Insert File"
+      :title="props.isTaskContext ? 'Insert File (uploads to task-attachments folder)' : 'Insert File'"
       width="600px">
       <el-tabs v-model="activeTab">
         <!-- Upload New File Tab -->
@@ -97,7 +97,11 @@
   import { storeToRefs } from 'pinia'
   
   const props = defineProps({
-    modelValue: Boolean
+    modelValue: Boolean,
+    isTaskContext: {
+      type: Boolean,
+      default: false
+    }
   })
   
   const emit = defineEmits(['update:modelValue', 'file-selected'])
@@ -129,10 +133,20 @@
     return result;
   })
   
-  watch(() => props.modelValue, (val) => {
+  watch(() => props.modelValue, async (val) => {
     dialogVisible.value = val
     if (val) {
-      loadFiles()
+      // If in task context, try to navigate to task-attachments folder first
+      if (props.isTaskContext) {
+        await loadFiles()
+        // Look for task-attachments folder
+        const taskAttachmentsFolder = folders.value.find(f => f.name === 'task-attachments')
+        if (taskAttachmentsFolder) {
+          await navigateFolder(taskAttachmentsFolder)
+        }
+      } else {
+        await loadFiles()
+      }
     }
   })
   
@@ -262,6 +276,61 @@
     return `${baseName}_${timestamp}${ext}`;
   }
   
+  const ensureTaskAttachmentsFolder = async () => {
+    const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
+    const giteaHost = import.meta.env.VITE_GITEA_HOST;
+    const folderName = 'task-attachments';
+    
+    try {
+      // Check if folder exists
+      const checkResponse = await fetch(
+        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${folderName}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `token ${giteaToken}`,
+            'Accept': 'application/json',
+          }
+        }
+      );
+      
+      if (checkResponse.ok) {
+        // Folder exists
+        return true;
+      }
+      
+      // Folder doesn't exist, create it
+      const createResponse = await fetch(
+        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${folderName}/.gitkeep`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `token ${giteaToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: `Create ${folderName} folder for task attachments`,
+            content: '', // Empty file content
+            branch: 'main'
+          })
+        }
+      );
+      
+      if (!createResponse.ok) {
+        throw new Error('Failed to create task-attachments folder');
+      }
+      
+      console.log('Created task-attachments folder successfully');
+      return true;
+      
+    } catch (error) {
+      console.error('Error ensuring task-attachments folder:', error);
+      // Don't throw error, just log it and continue with upload to root
+      return false;
+    }
+  }
+
   const uploadFile = async () => {
     if (!fileList.value.length) return
     
@@ -276,6 +345,18 @@
       // Generate unique filename for new uploads only
       const uniqueFileName = getUniqueFileName(file.name)
       
+      // Ensure task-attachments folder exists if this is a task context
+      let uploadPath = uniqueFileName;
+      let uploadMessage = `Upload ${uniqueFileName}`;
+      
+      if (props.isTaskContext) {
+        const folderCreated = await ensureTaskAttachmentsFolder();
+        if (folderCreated) {
+          uploadPath = `task-attachments/${uniqueFileName}`;
+          uploadMessage = `Upload ${uniqueFileName} to task-attachments`;
+        }
+      }
+      
       // Convert file to base64
       const base64Content = await new Promise((resolve) => {
         const reader = new FileReader()
@@ -286,9 +367,9 @@
         reader.readAsDataURL(file)
       })
   
-      // Upload to Gitea with unique filename
+      // Upload to Gitea with appropriate path
       const response = await fetch(
-        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${uniqueFileName}`,
+        `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${uploadPath}`,
         {
           method: 'POST',
           headers: {
@@ -297,7 +378,7 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: `Upload ${uniqueFileName}`,
+            message: uploadMessage,
             content: base64Content,
             branch: 'main'
           })

@@ -2037,6 +2037,7 @@ export default {
               @input="handleDescriptionInput"
               :task-title="newTask.title || 'New Task'"
               :shared-users="sharedUsers"
+              :isTaskRelated="true"
               :enable-typeahead="false"
             />
           </el-form-item>

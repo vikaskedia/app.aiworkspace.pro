@@ -431,6 +431,7 @@
                 placeholder="Add a description..."
                 :autofocus="true" 
                 :isTaskComment="false"
+                :isTaskRelated="true"
                 :sharedUsers="sharedUsers"
                 :taskId="String(task.id)"
                 :taskTitle="task.title"
@@ -1314,6 +1315,7 @@
             :taskId="String(task.id)"
             :taskTitle="task.title"
             :isTaskComment="false"
+            :isTaskRelated="true"
             :enable-typeahead="false"
           />
         </el-form-item>
@@ -1410,6 +1412,7 @@
             placeholder="Write a description..."
             :task-title="newTask.title || 'New Task'"
             :shared-users="sharedUsers"
+            :isTaskRelated="true"
             :enable-typeahead="false"
           />
         </el-form-item>

@@ -38,6 +38,7 @@ export default {
       if (path.includes('/events')) return 'events'
       if (path.includes('/outlines')) return 'outlines'
       if (path.includes('/contacts')) return 'contacts'
+      /*if (path.includes('/excalidraw')) return 'excalidraw'*/
       if (path.includes('/ai_phone')) return 'ai-phone'
       if (path.includes('/ai_intake')) return 'ai-intake'
       if (path.includes('/ai_fax')) return 'ai-fax'

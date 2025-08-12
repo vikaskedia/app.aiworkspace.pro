@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
+    "@excalidraw/excalidraw": "^0.18.0",
     "@supabase/supabase-js": "^2.47.8",
     "@tiptap/extension-link": "^2.11.1",
     "@tiptap/extension-table": "^2.11.0",
@@ -65,6 +66,7 @@
     "splitpanes": "^3.1.5",
     "supabase": "^2.1.1",
     "telnyx": "^2.0.0",
+    "veaury": "^2.6.3",
     "vue": "^3.2.47",
     "vue-advanced-cropper": "^2.8.9",
     "vue-draggable-next": "^2.2.1",

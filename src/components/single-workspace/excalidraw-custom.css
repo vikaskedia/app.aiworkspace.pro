@@ -1,0 +1,15 @@
+/* ===== EXCALIDRAW CUSTOM STYLES ===== */
+
+/* Import this file in your main.js or App.vue for global application */
+
+/* Simple CSS variable overrides - minimal approach */
+.excalidraw {
+  --color-primary: #409eff;
+  --color-primary-darker: #337ecc;
+  --color-surface-primary-container: #e6f3ff;
+  --color-on-primary-container: #409eff;
+  --button-hover-bg: #f0f9ff;
+  --button-active-border: #409eff;
+}
+
+/* Simple theme overrides - let Excalidraw handle the rest */ 

@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import './style.css'
+import './components/single-workspace/excalidraw-custom.css'
 import App from './router.vue'
 import { createPinia } from 'pinia';
 import { useCacheStore } from './store/cache';

@@ -55,6 +55,7 @@ export default {
       if (path.includes('/contacts')) return 'Contacts';
       if (path.includes('/communications')) return 'Communications';
       if (path.includes('/canvas')) return 'Canvas';
+      if (path.includes('/excalidraw')) return 'Excalidraw';
       if (path.includes('/ai_phone')) return 'AI Phone';
       if (path.includes('/ai_intake')) return 'AI Intake';
       if (path.includes('/ai_fax')) return 'AI Fax';
@@ -471,6 +472,7 @@ export default {
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/canvas') }"><a :href="`/single-workspace/${currentWorkspace.id}/canvas`">Canvas</a></el-dropdown-item>
+                <!--<el-dropdown-item :class="{ 'is-active': $route.path.includes('/excalidraw') }"><a :href="`/single-workspace/${currentWorkspace.id}/excalidraw`">Excalidraw</a></el-dropdown-item>-->
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fax`">AI Fax</a></el-dropdown-item>

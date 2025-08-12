@@ -220,9 +220,14 @@ const routes = [
       },
       {
         path: 'canvas',
-        name: 'CanvasPage',
-        component: () => import('./components/single-workspace/CanvasCt.vue')
+        name: 'ExcalidrawPage',
+        component: () => import('./components/single-workspace/ExcalidrawPage.vue')
       },
+      /*{
+        path: 'excalidraw',
+        name: 'ExcalidrawPage',
+        component: () => import('./components/single-workspace/ExcalidrawPage.vue')
+      },*/
     ]
   },
   {

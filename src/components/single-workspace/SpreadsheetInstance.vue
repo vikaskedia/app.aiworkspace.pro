@@ -1732,9 +1732,114 @@ import '@univerjs/sheets-formula/facade'
       return result;
     };
 
-    const fnRegisterCustomCommands = (commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction) => {
+          // Helper function to export current spreadsheet data to CSV
+      const exportToCSV = () => {
+        try {
+          console.log('📤 Starting CSV export...');
+          
+          // Get current workbook data
+          const currentData = getCurrentSpreadsheetData();
+          
+          if (!currentData || !currentData.sheets) {
+            console.warn('⚠️ No spreadsheet data to export');
+            alert('No data to export. Please add content to the spreadsheet first.');
+            return;
+          }
+          
+          // Get the active sheet
+          const activeSheet = univerAPI.getActiveWorkbook().getActiveSheet();
+          const activeSheetId = activeSheet.getSheetId();
+          const sheetData = currentData.sheets[activeSheetId];
+          
+          if (!sheetData || !sheetData.cellData) {
+            console.warn('⚠️ No data in active sheet to export');
+            alert('No data in the current sheet to export.');
+            return;
+          }
+          
+          console.log('📊 Converting sheet data to CSV format...');
+          
+          // Convert sheet data to CSV format
+          const csvContent = convertSheetDataToCSV(sheetData.cellData);
+          
+          // Create and download CSV file
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          
+          link.setAttribute('href', url);
+          link.setAttribute('download', `${props.spreadsheetName || 'spreadsheet'}.csv`);
+          link.style.visibility = 'hidden';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          console.log('✅ CSV export completed successfully');
+          alert(`CSV file "${props.spreadsheetName || 'spreadsheet'}.csv" has been downloaded!`);
+          
+        } catch (error) {
+          console.error('❌ Error exporting to CSV:', error);
+          alert(`Failed to export CSV: ${error.message}`);
+        }
+      };
+
+      // Helper function to convert sheet cell data to CSV format
+      const convertSheetDataToCSV = (cellData) => {
+        const csvRows = [];
+        const maxRow = Math.max(...Object.keys(cellData).map(Number));
+        let maxCol = 0;
+        
+        // Find the maximum column across all rows
+        Object.keys(cellData).forEach(rowIndex => {
+          const row = cellData[rowIndex];
+          if (row) {
+            const colNumbers = Object.keys(row).map(Number);
+            maxCol = Math.max(maxCol, ...colNumbers);
+          }
+        });
+        
+        // Convert each row to CSV format
+        for (let rowIndex = 0; rowIndex <= maxRow; rowIndex++) {
+          const row = cellData[rowIndex] || {};
+          const csvCells = [];
+          
+          for (let colIndex = 0; colIndex <= maxCol; colIndex++) {
+            const cell = row[colIndex];
+            let cellValue = '';
+            
+            if (cell && cell.v !== undefined && cell.v !== null) {
+              cellValue = String(cell.v);
+              
+              // Escape quotes and wrap in quotes if necessary
+              if (cellValue.includes(',') || cellValue.includes('"') || cellValue.includes('\n')) {
+                cellValue = '"' + cellValue.replace(/"/g, '""') + '"';
+              }
+            }
+            
+            csvCells.push(cellValue);
+          }
+          
+          csvRows.push(csvCells.join(','));
+        }
+        
+        return csvRows.join('\n');
+      };
+
+      const fnRegisterCustomCommands = (commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction) => {
 
 
+
+          // Define CSV export command
+          const CSV_EXPORT_OPERATION = {
+            id: 'custom-menu.operation.csv-export',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              console.log('🔽 CSV Export command triggered');
+              exportToCSV();
+              return true;
+            },
+          };
 
           // Define CSV import command
           const CSV_IMPORT_OPERATION = {
@@ -1932,6 +2037,7 @@ import '@univerjs/sheets-formula/facade'
           const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
           
           // Register commands
+          commandService.registerCommand(CSV_EXPORT_OPERATION);
           commandService.registerCommand(CSV_IMPORT_OPERATION);
           commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
           commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
@@ -2012,7 +2118,22 @@ import '@univerjs/sheets-formula/facade'
               d: 'M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M19 19H5V5H19V19M7 7H9V9H7V7M11 7H13V9H11V7M15 7H17V9H15V7M7 11H9V13H7V11M11 11H13V13H11V11M15 11H17V13H15V11M7 15H9V17H7V15M11 15H13V17H11V15M15 15H17V17H15V15Z'
             }));
           };
+
+          const ExportCsvIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'
+            }), React.createElement('path', {
+              d: 'M12,16L16,12H13V8H11V12H8L12,16Z'
+            }));
+          };
           
+          componentManager.register('ExportCsvIcon', ExportCsvIcon);
           componentManager.register('ImportCsvIcon', ImportCsvIcon);
           componentManager.register('SaveIcon', SaveIcon);
           componentManager.register('DeleteIcon', DeleteIcon);
@@ -2064,9 +2185,19 @@ import '@univerjs/sheets-formula/facade'
                   menuItemFactory: () => ({
                     id: CSV_IMPORT_OPERATION.id,
                     type: MenuItemType.BUTTON,
-                    icon: 'SaveIcon',
+                    icon: 'ImportCsvIcon',
                     title: 'Import CSV',
                     tooltip: 'Import data from a CSV file into the current spreadsheet',
+                  }),
+                },
+                [CSV_EXPORT_OPERATION.id]: {
+                  order: 4,
+                  menuItemFactory: () => ({
+                    id: CSV_EXPORT_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'ExportCsvIcon',
+                    title: 'Export CSV',
+                    tooltip: 'Export current spreadsheet data to a CSV file',
                   }),
                 },
               },

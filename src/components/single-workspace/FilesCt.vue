@@ -52,6 +52,12 @@ const activeRequests = ref({
   loadFolders: null
 });
 
+// Track the last requested path to avoid unnecessary cancellations
+const lastRequestedPaths = ref({
+  loadFiles: '',
+  loadFolders: ''
+});
+
 // Expose these refs to make them accessible from parent
 defineExpose({
   uploadDialogVisible,
@@ -286,11 +292,16 @@ onUnmounted(() => {
   if (activeRequests.value.loadFiles) {
     console.log('Cancelling active loadFiles request on unmount');
     activeRequests.value.loadFiles.abort();
+    activeRequests.value.loadFiles = null;
   }
   if (activeRequests.value.loadFolders) {
     console.log('Cancelling active loadFolders request on unmount');
     activeRequests.value.loadFolders.abort();
+    activeRequests.value.loadFolders = null;
   }
+  // Clear path tracking
+  lastRequestedPaths.value.loadFiles = '';
+  lastRequestedPaths.value.loadFolders = '';
 });
 // Add this before your loadFiles function
 function validateGiteaConfig() {
@@ -311,11 +322,19 @@ function validateGiteaConfig() {
 async function loadFiles() {
   if (!currentWorkspace.value) return;
   
-  // Cancel any previous loadFiles request
-  if (activeRequests.value.loadFiles) {
-    console.log('Cancelling previous loadFiles request');
+  const path = currentFolder.value?.path || '';
+  
+  // Only cancel if we're requesting a different path
+  if (activeRequests.value.loadFiles && lastRequestedPaths.value.loadFiles !== path) {
+    console.log('Cancelling previous loadFiles request for different path:', lastRequestedPaths.value.loadFiles, '→', path);
     activeRequests.value.loadFiles.abort();
+  } else if (activeRequests.value.loadFiles && lastRequestedPaths.value.loadFiles === path) {
+    console.log('loadFiles already in progress for same path:', path, '- skipping duplicate request');
+    return;
   }
+  
+  // Track the path we're requesting
+  lastRequestedPaths.value.loadFiles = path;
   
   // Create new AbortController for this request
   const abortController = new AbortController();
@@ -326,7 +345,6 @@ async function loadFiles() {
     validateGiteaConfig();
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
-    const path = currentFolder.value?.path || '';
     
     console.log('loadFiles API call for path:', path);
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
@@ -379,17 +397,23 @@ async function loadFiles() {
       return;
     }
     
-    console.error('Error loading files for path:', path, error);
-    ElMessage.error('Error loading files: ' + error.message);
-    if (splitViews.value.length > 0) {
-      splitFiles.value = [];
+    // Only show error if this is still the current request (not a stale one)
+    if (activeRequests.value.loadFiles === abortController) {
+      console.error('Error loading files for path:', path, error);
+      ElMessage.error('Error loading files: ' + error.message);
+      if (splitViews.value.length > 0) {
+        splitFiles.value = [];
+      } else {
+        files.value = [];
+      }
     } else {
-      files.value = [];
+      console.log('Ignoring error from stale loadFiles request for path:', path);
     }
   } finally {
     // Clear the active request if it's still the current one
     if (activeRequests.value.loadFiles === abortController) {
       activeRequests.value.loadFiles = null;
+      lastRequestedPaths.value.loadFiles = '';
     }
     loading.value = false;
   }
@@ -568,11 +592,19 @@ async function loadFolders() {
     return;
   }
   
-  // Cancel any previous loadFolders request
-  if (activeRequests.value.loadFolders) {
-    console.log('Cancelling previous loadFolders request');
+  const path = currentFolder.value?.path || '';
+  
+  // Only cancel if we're requesting a different path
+  if (activeRequests.value.loadFolders && lastRequestedPaths.value.loadFolders !== path) {
+    console.log('Cancelling previous loadFolders request for different path:', lastRequestedPaths.value.loadFolders, '→', path);
     activeRequests.value.loadFolders.abort();
+  } else if (activeRequests.value.loadFolders && lastRequestedPaths.value.loadFolders === path) {
+    console.log('loadFolders already in progress for same path:', path, '- skipping duplicate request');
+    return;
   }
+  
+  // Track the path we're requesting
+  lastRequestedPaths.value.loadFolders = path;
   
   // Create new AbortController for this request
   const abortController = new AbortController();
@@ -582,7 +614,6 @@ async function loadFolders() {
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
-    const path = currentFolder.value?.path || '';
     
     console.log('loadFolders API call for path:', path);
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
@@ -629,17 +660,23 @@ async function loadFolders() {
       return;
     }
     
-    console.error('Folder loading error for path:', path, error);
-    ElMessage.error('Error loading folders: ' + error.message);
-    if (splitViews.value.length > 0) {
-      splitFolders.value = [];
+    // Only show error if this is still the current request (not a stale one)
+    if (activeRequests.value.loadFolders === abortController) {
+      console.error('Folder loading error for path:', path, error);
+      ElMessage.error('Error loading folders: ' + error.message);
+      if (splitViews.value.length > 0) {
+        splitFolders.value = [];
+      } else {
+        folders.value = [];
+      }
     } else {
-      folders.value = [];
+      console.log('Ignoring error from stale loadFolders request for path:', path);
     }
   } finally {
     // Clear the active request if it's still the current one
     if (activeRequests.value.loadFolders === abortController) {
       activeRequests.value.loadFolders = null;
+      lastRequestedPaths.value.loadFolders = '';
     }
     loading.value = false;
   }

@@ -2,9 +2,11 @@ import { Disposable, ICommandService, Injector } from '@univerjs/core';
 import { ComponentManager, IMenuManagerService, RibbonStartGroup, ContextMenuGroup, ContextMenuPosition } from '@univerjs/ui';
 import { DropdownListFirstItemOperation, DropdownListSecondItemOperation } from './commands/dropdown-list.operation';
 import { SingleButtonOperation } from './commands/single-button.operation';
+import { CsvImportOperation } from './commands/csv-import.operation';
 import { ButtonIcon } from './components/button-icon';
 import { ItemIcon } from './components/item-icon';
 import { MainButtonIcon } from './components/main-button-icon';
+import { ImportCsvIcon } from './components/import-csv-icon';
 import {
   CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
   CustomMenuItemDropdownListFirstItemFactory,
@@ -12,6 +14,7 @@ import {
   CustomMenuItemDropdownListSecondItemFactory,
 } from './menu/dropdown-list.menu';
 import { CustomMenuItemSingleButtonFactory } from './menu/single-button.menu';
+import { CsvImportMenuItemFactory } from './menu/csv-import.menu';
 
 export class CustomMenuController extends Disposable {
   private readonly _injector: Injector;
@@ -82,6 +85,7 @@ export class CustomMenuController extends Disposable {
    */
   private _initCommands(): void {
     [
+      CsvImportOperation,
       SingleButtonOperation,
       DropdownListFirstItemOperation,
       DropdownListSecondItemOperation,
@@ -95,6 +99,7 @@ export class CustomMenuController extends Disposable {
    */
   private _registerComponents(): void {
     this.disposeWithMe(this._componentManager.register('ButtonIcon', ButtonIcon));
+    this.disposeWithMe(this._componentManager.register('ImportCsvIcon', ImportCsvIcon));
     this.disposeWithMe(this._componentManager.register('ItemIcon', ItemIcon));
     this.disposeWithMe(this._componentManager.register('MainButtonIcon', MainButtonIcon));
   }
@@ -105,6 +110,10 @@ export class CustomMenuController extends Disposable {
   private _initMenus(): void {
     this._menuManagerService.mergeMenu({
       [RibbonStartGroup.OTHERS]: {
+        [CsvImportOperation.id]: {
+          order: 9,
+          menuItemFactory: CsvImportMenuItemFactory,
+        },
         [SingleButtonOperation.id]: {
           order: 10,
           menuItemFactory: CustomMenuItemSingleButtonFactory,

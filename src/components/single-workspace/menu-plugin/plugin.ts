@@ -1,6 +1,7 @@
 import { Plugin, Injector, ICommandService } from '@univerjs/core';
 import { ComponentManager, IMenuManagerService, RibbonStartGroup } from '@univerjs/ui';
 import { SingleButtonOperation } from './commands/single-button.operation';
+import { CsvImportOperation } from './commands/csv-import.operation';
 import { 
   DropdownListFirstItemOperation,
   DropdownListSecondItemOperation 
@@ -8,6 +9,7 @@ import {
 import { ButtonIcon } from './components/button-icon';
 import { ItemIcon } from './components/item-icon';
 import { MainButtonIcon } from './components/main-button-icon';
+import { ImportCsvIcon } from './components/import-csv-icon';
 import {
   CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID,
   CustomMenuItemDropdownListFirstItemFactory,
@@ -15,6 +17,7 @@ import {
   CustomMenuItemDropdownListSecondItemFactory,
 } from './menu/dropdown-list.menu';
 import { CustomMenuItemSingleButtonFactory } from './menu/single-button.menu';
+import { CsvImportMenuItemFactory } from './menu/csv-import.menu';
 
 export class UniverSheetsCustomMenuPlugin extends Plugin {
   static override pluginName = 'UNIVER_SHEETS_CUSTOM_MENU_PLUGIN';
@@ -87,12 +90,14 @@ export class UniverSheetsCustomMenuPlugin extends Plugin {
       
       // Register commands
       this.disposeWithMe(commandService.registerCommand(SingleButtonOperation));
+      this.disposeWithMe(commandService.registerCommand(CsvImportOperation));
       this.disposeWithMe(commandService.registerCommand(DropdownListFirstItemOperation));
       this.disposeWithMe(commandService.registerCommand(DropdownListSecondItemOperation));
       console.log('✅ Commands registered');
       
       // Register components
       this.disposeWithMe(componentManager.register('ButtonIcon', ButtonIcon));
+      this.disposeWithMe(componentManager.register('ImportCsvIcon', ImportCsvIcon));
       this.disposeWithMe(componentManager.register('ItemIcon', ItemIcon));
       this.disposeWithMe(componentManager.register('MainButtonIcon', MainButtonIcon));
       console.log('✅ Components registered');
@@ -100,6 +105,10 @@ export class UniverSheetsCustomMenuPlugin extends Plugin {
       // Register menus
       menuManagerService.mergeMenu({
         [RibbonStartGroup.OTHERS]: {
+          [CsvImportOperation.id]: {
+            order: 9,
+            menuItemFactory: CsvImportMenuItemFactory,
+          },
           [SingleButtonOperation.id]: {
             order: 10,
             menuItemFactory: CustomMenuItemSingleButtonFactory,

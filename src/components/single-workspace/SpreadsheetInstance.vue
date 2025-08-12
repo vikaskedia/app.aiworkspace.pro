@@ -1679,9 +1679,160 @@ import '@univerjs/sheets-formula/facade'
           }
     }
 
+    // Helper functions for CSV parsing
+    const readFileAsText = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsText(file);
+      });
+    };
+
+    const parseCSV = (csvContent) => {
+      const lines = csvContent.split('\n');
+      const result = [];
+      
+      for (const line of lines) {
+        // Skip empty lines
+        if (line.trim() === '') continue;
+        
+        // Simple CSV parsing (handles basic cases)
+        const row = parseCSVLine(line.trim());
+        result.push(row);
+      }
+      
+      return result;
+    };
+
+    const parseCSVLine = (line) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      
+      // Don't forget the last field
+      result.push(current.trim());
+      
+      return result;
+    };
+
     const fnRegisterCustomCommands = (commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction) => {
 
 
+
+          // Define CSV import command
+          const CSV_IMPORT_OPERATION = {
+            id: 'custom-menu.operation.csv-import',
+            type: CommandType.OPERATION,
+            handler: async () => {
+              console.log('🔄 CSV Import operation started');
+              
+              try {
+                // Create file input element
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.csv';
+                fileInput.style.display = 'none';
+                
+                // Add to DOM temporarily
+                document.body.appendChild(fileInput);
+                
+                // Wait for user to select file
+                const file = await new Promise((resolve) => {
+                  fileInput.onchange = (event) => {
+                    const target = event.target;
+                    const selectedFile = target.files?.[0] || null;
+                    resolve(selectedFile);
+                    document.body.removeChild(fileInput);
+                  };
+                  
+                  fileInput.oncancel = () => {
+                    resolve(null);
+                    document.body.removeChild(fileInput);
+                  };
+                  
+                  fileInput.click();
+                });
+                
+                if (!file) {
+                  console.log('📝 CSV import cancelled by user');
+                  return false;
+                }
+                
+                console.log('📁 Selected file:', file.name);
+                
+                // Read and parse CSV file
+                const csvContent = await readFileAsText(file);
+                const csvData = parseCSV(csvContent);
+                
+                if (csvData.length === 0) {
+                  console.warn('⚠️ CSV file is empty or invalid');
+                  alert('The selected CSV file is empty or invalid.');
+                  return false;
+                }
+                
+                console.log('📊 Parsed CSV data:', csvData.length, 'rows');
+                
+                // Get current selection from univerAPI
+                const activeSheet = univerAPI.getActiveWorkbook().getActiveSheet();
+                const selection = activeSheet.getSelection().getActiveRange();
+                
+                const startRow = selection?.startRow ?? 0;
+                const startCol = selection?.startColumn ?? 0;
+                
+                console.log(`📍 Importing CSV data starting at row ${startRow}, column ${startCol}`);
+                
+                // Convert CSV data to cell values and set to worksheet
+                const cellValues = [];
+                
+                csvData.forEach((row, rowIndex) => {
+                  const rowData = [];
+                  row.forEach((cellValue, colIndex) => {
+                    // Detect if it's a number or string
+                    const cleanValue = cellValue.replace(/^["']|["']$/g, '');
+                    if (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '') {
+                      rowData.push(Number(cleanValue));
+                    } else {
+                      rowData.push(cleanValue);
+                    }
+                  });
+                  cellValues.push(rowData);
+                });
+                
+                // Set the values using univerAPI
+                const range = activeSheet.getRange(startRow, startCol, csvData.length, csvData[0].length);
+                range.setValues(cellValues);
+                
+                console.log('✅ CSV data imported successfully');
+                alert(`CSV file "${file.name}" imported successfully! ${csvData.length} rows imported.`);
+                
+                // Trigger save after import
+                setTimeout(() => {
+                  saveFunction();
+                }, 500);
+                
+                return true;
+                
+              } catch (error) {
+                console.error('❌ Error importing CSV:', error);
+                alert('Error importing CSV file. Please check the console for details.');
+                return false;
+              }
+            },
+          };
 
           // Define custom commands
           const DROPDOWN_FIRST_ITEM_OPERATION = {
@@ -1778,6 +1929,7 @@ import '@univerjs/sheets-formula/facade'
           const CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID = 'custom-menu.operation.dropdown-list';
           
           // Register commands
+          commandService.registerCommand(CSV_IMPORT_OPERATION);
           commandService.registerCommand(DROPDOWN_FIRST_ITEM_OPERATION);
           commandService.registerCommand(DROPDOWN_SECOND_ITEM_OPERATION);
           commandService.registerCommand(CONTEXT_MENU_EDIT_INFO_OPERATION);
@@ -1845,7 +1997,52 @@ import '@univerjs/sheets-formula/facade'
               d: 'M13 3C8.03 3 4 7.03 4 12s4.03 9 9 9s9-4.03 9-9c0-.46-.04-.92-.1-1.36c-.98 1.37-2.58 2.26-4.4 2.26c-2.98 0-5.4-2.42-5.4-5.4c0-1.81.89-3.42 2.26-4.4C13.92 3.04 13.46 3 13 3z'
             }));
           };
+
+          const ImportCsvIcon = () => {
+            const React = window.React || window['React'];
+            if (!React) {
+              return null;
+            }
+            return React.createElement('svg', {
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none'
+            }, [
+              React.createElement('path', {
+                key: 'document',
+                d: 'M14 2H6C4.89 2 4 2.89 4 4V20C4 21.11 4.89 22 6 22H18C19.11 22 20 21.11 20 20V8L14 2Z',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                fill: 'none'
+              }),
+              React.createElement('path', {
+                key: 'fold',
+                d: 'M14 2V8H20',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                fill: 'none'
+              }),
+              React.createElement('path', {
+                key: 'lines',
+                d: 'M8 12H12M8 16H16M8 20H12',
+                stroke: 'currentColor',
+                strokeWidth: '1.5',
+                strokeLinecap: 'round'
+              }),
+              React.createElement('path', {
+                key: 'arrow',
+                d: 'M16 14L18 12L16 10',
+                stroke: 'currentColor',
+                strokeWidth: '1.5',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round'
+              })
+            ]);
+          };
           
+          componentManager.register('ImportCsvIcon', ImportCsvIcon);
           componentManager.register('SaveIcon', SaveIcon);
           componentManager.register('DeleteIcon', DeleteIcon);
           componentManager.register('MainButtonIcon', MainButtonIcon);
@@ -1856,6 +2053,16 @@ import '@univerjs/sheets-formula/facade'
           // Register menu items using proper factory functions
           menuManagerService.mergeMenu({
             [RibbonStartGroup.OTHERS]: {
+              [CSV_IMPORT_OPERATION.id]: {
+                order: 9,
+                menuItemFactory: () => ({
+                  id: CSV_IMPORT_OPERATION.id,
+                  type: MenuItemType.BUTTON,
+                  icon: 'ImportCsvIcon',
+                  title: 'Import CSV',
+                  tooltip: 'Import data from a CSV file into the current spreadsheet',
+                }),
+              },
               [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
                 order: 10,
                 menuItemFactory: () => ({

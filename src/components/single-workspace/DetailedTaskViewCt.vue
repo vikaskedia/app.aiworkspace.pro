@@ -1789,35 +1789,6 @@ export default {
     // Refresh cache when component becomes active (e.g., when navigating back from child task)
     await this.refreshTaskCache();
   },
-  watch: {
-    activeTab(newTab, oldTab) {
-      console.log('=== WATCHER TRIGGERED ===')
-      console.log('Active tab changed from:', oldTab, 'to:', newTab)
-      console.log('Canvas component ref:', this.$refs.canvasComponent)
-      console.log('Available methods on canvas component:', Object.keys(this.$refs.canvasComponent || {}))
-
-      // Reinitialize canvas when canvas tab becomes active
-      if (newTab === 'canvas' && this.$refs.canvasComponent) {
-        console.log('Canvas component found, reloading...')
-        this.$nextTick(async () => {
-          console.log('Inside nextTick, canvas component:', this.$refs.canvasComponent)
-          if (this.$refs.canvasComponent.reloadCanvas) {
-            console.log('Calling reloadCanvas...')
-            await this.$refs.canvasComponent.reloadCanvas()
-          } else if (this.$refs.canvasComponent.initializeCanvas) {
-            console.log('Calling initializeCanvas...')
-            this.$refs.canvasComponent.initializeCanvas()
-          } else {
-            console.error('Canvas methods not found on canvas component')
-            console.log('Available methods:', Object.keys(this.$refs.canvasComponent))
-          }
-        })
-      } else if (newTab === 'canvas') {
-        console.log('Canvas tab active but canvas component not found')
-        console.log('Available refs:', Object.keys(this.$refs))
-      }
-    }
-  },
   
   unmounted() {
     if (this.subscription) {
@@ -1845,19 +1816,6 @@ export default {
       
       // Update the activeTab manually to ensure the watcher is triggered
       this.activeTab = tabName
-      
-      if (tabName === 'canvas') {
-        console.log('Canvas tab clicked, triggering reload...')
-        this.$nextTick(async () => {
-          if (this.$refs.canvasComponent && this.$refs.canvasComponent.reloadCanvas) {
-            console.log('Calling reloadCanvas from tab change...')
-            await this.$refs.canvasComponent.reloadCanvas()
-          } else {
-            console.error('Canvas component or reloadCanvas method not found')
-            console.log('Available refs:', Object.keys(this.$refs))
-          }
-        })
-      }
     },
     
     updatePageTitle() {

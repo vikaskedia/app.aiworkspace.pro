@@ -355,9 +355,11 @@ import '@univerjs/sheets-formula/facade'
           const sheet = currentData.sheets[sheetId];
           if (!sheet.cellData) continue;
           
-          for (const row of Object.keys(sheet.cellData)) {
-            for (const col of Object.keys(sheet.cellData[row])) {
-              const cell = sheet.cellData[row][col];
+                      for (const row of Object.keys(sheet.cellData)) {
+              const rowData = sheet.cellData[row];
+              if (!rowData || typeof rowData !== 'object') continue;
+              for (const col of Object.keys(rowData)) {
+                const cell = rowData[col];
               
               if (cell?.f && typeof cell.f === 'string') {
                 const formula = cell.f.trim();
@@ -421,10 +423,12 @@ import '@univerjs/sheets-formula/facade'
           if (!sheet.cellData) continue;
           
           // Scan all rows
-          for (const row of Object.keys(sheet.cellData)) {
-            // Scan all columns
-            for (const col of Object.keys(sheet.cellData[row])) {
-              const cell = sheet.cellData[row][col];
+                      for (const row of Object.keys(sheet.cellData)) {
+              // Scan all columns
+              const rowData = sheet.cellData[row];
+              if (!rowData || typeof rowData !== 'object') continue;
+              for (const col of Object.keys(rowData)) {
+                const cell = rowData[col];
               
               // Debug: log every cell that has any data
               if (cell && (cell.f || cell.v || cell.taskStatusData)) {
@@ -846,13 +850,15 @@ import '@univerjs/sheets-formula/facade'
           if (!sheet.cellData) continue;
           
           // Process each row
-          for (const row of Object.keys(sheet.cellData)) {
-            // Process each column
-            for (const col of Object.keys(sheet.cellData[row])) {
-              const cell = sheet.cellData[row][col];
-              if (cell && cell.f && typeof cell.f === 'string') {
-                const formula = cell.f.trim();
-                const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
+                      for (const row of Object.keys(sheet.cellData)) {
+              // Process each column
+              const rowData = sheet.cellData[row];
+              if (!rowData || typeof rowData !== 'object') continue;
+              for (const col of Object.keys(rowData)) {
+                const cell = rowData[col];
+                if (cell && cell.f && typeof cell.f === 'string') {
+                  const formula = cell.f.trim();
+                  const taskStatusMatch = formula.match(/^=TASKSTATUS\((\d+)\)$/i);
                 
                 if (taskStatusMatch) {
                   const taskId = parseInt(taskStatusMatch[1], 10);
@@ -1074,14 +1080,16 @@ import '@univerjs/sheets-formula/facade'
           if (!sheet.cellData) continue;
           
           // Process each row
-          for (const row of Object.keys(sheet.cellData)) {
-            // Process each column
-            for (const col of Object.keys(sheet.cellData[row])) {
-              const cell = sheet.cellData[row][col];
-              if (cell && cell.f && typeof cell.f === 'string') {
-                const formula = cell.f.trim();
-                // Match APICALL("url", "key") pattern
-                const apiCallMatch = formula.match(/^=APICALL\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
+                      for (const row of Object.keys(sheet.cellData)) {
+              // Process each column
+              const rowData = sheet.cellData[row];
+              if (!rowData || typeof rowData !== 'object') continue;
+              for (const col of Object.keys(rowData)) {
+                const cell = rowData[col];
+                if (cell && cell.f && typeof cell.f === 'string') {
+                  const formula = cell.f.trim();
+                  // Match APICALL("url", "key") pattern
+                  const apiCallMatch = formula.match(/^=APICALL\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']\s*\)$/i);
                 
                 if (apiCallMatch) {
                   const url = apiCallMatch[1];
@@ -2974,8 +2982,8 @@ import '@univerjs/sheets-formula/facade'
               const richText = univerAPI.newRichText().insertLink(text, url);
               fRange.setRichTextValueForCell(richText);
               
-              console.log(`✅ Inserted hyperlink "${text}" -> "${url}" in cell [${row}, ${col}]`);
-              ElMessage.success(`Hyperlink added to cell ${cellRef}`);
+              //console.log(`✅ Inserted hyperlink "${text}" -> "${url}" in cell [${row}, ${col}]`);
+              //ElMessage.success(`Hyperlink added to cell ${cellRef}`);
               
               // Force mark as unsaved for hyperlink changes (bypass smart detection)
               hasUnsavedChanges.value = true;
@@ -3936,9 +3944,10 @@ import '@univerjs/sheets-formula/facade'
                       }
                     }
 
-                    const cellCount = Object.keys(manualData.sheets['sheet-01'].cellData).reduce((total, row) => {
-                      return total + Object.keys(manualData.sheets['sheet-01'].cellData[row]).length;
-                    }, 0);
+                                          const cellCount = Object.keys(manualData.sheets['sheet-01'].cellData).reduce((total, row) => {
+                        const rowData = manualData.sheets['sheet-01'].cellData[row];
+                        return total + (rowData && typeof rowData === 'object' ? Object.keys(rowData).length : 0);
+                      }, 0);
 
                     console.log(`✅ Manual extraction complete (${props.spreadsheetId}): ${cellCount} cells with data`);
                     
@@ -4030,9 +4039,11 @@ import '@univerjs/sheets-formula/facade'
         Object.keys(data.sheets).forEach(sheetId => {
           const sheet = data.sheets[sheetId];
           if (sheet.cellData) {
-            Object.keys(sheet.cellData).forEach(row => {
-              Object.keys(sheet.cellData[row]).forEach(col => {
-                const cell = sheet.cellData[row][col];
+                          Object.keys(sheet.cellData).forEach(row => {
+                const rowData = sheet.cellData[row];
+                if (!rowData || typeof rowData !== 'object') return;
+                Object.keys(rowData).forEach(col => {
+                  const cell = rowData[col];
                 if (cell) {
                   // Include cell value
                   if (cell.v !== undefined) {
@@ -4186,7 +4197,10 @@ import '@univerjs/sheets-formula/facade'
             const sheet = currentData.sheets[sheetId];
             if (sheet.cellData) {
               Object.keys(sheet.cellData).forEach(row => {
-                totalCells += Object.keys(sheet.cellData[row]).length;
+                const rowData = sheet.cellData[row];
+                if (rowData && typeof rowData === 'object') {
+                  totalCells += Object.keys(rowData).length;
+                }
               });
             }
           });

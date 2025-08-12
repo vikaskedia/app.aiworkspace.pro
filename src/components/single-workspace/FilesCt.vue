@@ -4,7 +4,7 @@ All the files are stored in the Gitea server.
 The files are stored in the workspace's repository.
 -->
 <script setup>
-import { ref, onMounted, watch, computed, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download, MoreFilled, ArrowDown } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
@@ -45,6 +45,12 @@ const splitFiles = ref([]);
 const splitFolders = ref([]);
 const isUpdatingUrl = ref(false);
 const downloadingFiles = ref(new Set());
+
+// Add request tracking to prevent race conditions
+const activeRequests = ref({
+  loadFiles: null,
+  loadFolders: null
+});
 
 // Expose these refs to make them accessible from parent
 defineExpose({
@@ -136,13 +142,20 @@ watch(currentWorkspace, async (newWorkspace) => {
 
 // Watch for route changes (when user manually changes URL or uses browser back/forward)
 watch(() => route.query, async (newQuery, oldQuery) => {
-  // Only respond to route changes if we're not currently updating the URL ourselves
-  if (!isUpdatingUrl.value && currentWorkspace.value) {
-    // Check if the query actually changed
-    const queryChanged = JSON.stringify(newQuery) !== JSON.stringify(oldQuery);
-    if (queryChanged) {
-      await initializeFromUrl();
+  // Check if the query actually changed
+  const queryChanged = JSON.stringify(newQuery) !== JSON.stringify(oldQuery);
+  if (queryChanged && currentWorkspace.value) {
+    console.log('Route query changed, initializing from URL:', newQuery);
+    console.log('isUpdatingUrl.value:', isUpdatingUrl.value);
+    
+    // Always respond to browser navigation, even if we're updating URL
+    // Reset the updating flag first to prevent conflicts
+    if (isUpdatingUrl.value) {
+      console.log('Resetting isUpdatingUrl flag for browser navigation');
+      isUpdatingUrl.value = false;
     }
+    
+    await initializeFromUrl();
   }
 }, { deep: true });
 
@@ -154,7 +167,17 @@ const updatePageTitle = () => {
 
 // Function to initialize from URL parameters
 async function initializeFromUrl() {
-  if (!currentWorkspace.value || isUpdatingUrl.value) return;
+  console.log('initializeFromUrl called with:', {
+    currentWorkspace: currentWorkspace.value?.id,
+    isUpdatingUrl: isUpdatingUrl.value,
+    folderParam: route.query.folder,
+    fileParam: route.query.file
+  });
+  
+  if (!currentWorkspace.value) {
+    console.log('No current workspace, skipping initialization');
+    return;
+  }
   
   const folderParam = route.query.folder;
   const fileParam = route.query.file;
@@ -165,15 +188,23 @@ async function initializeFromUrl() {
     
     // Navigate to folder if specified
     if (folderParam) {
+      console.log('Navigating to folder from URL:', folderParam);
       const folderPath = folderParam.split('/');
+      
+      // Reset navigation state first
+      currentFolder.value = null;
+      folderBreadcrumbs.value = [];
       
       // Load folders first to get the folder objects
       await loadFolders();
+      console.log('Available folders after loadFolders:', folders.value.map(f => f.name));
       
       // Navigate through the folder path WITHOUT updating URL
       for (const folderName of folderPath) {
+        console.log('Looking for folder:', folderName);
         const folder = folders.value.find(f => f.name === folderName);
         if (folder) {
+          console.log('Found folder:', folder.name, 'adding to breadcrumbs');
           // Navigate directly without URL updates
           const existingIndex = folderBreadcrumbs.value.findIndex(f => f.id === folder.id);
           
@@ -184,10 +215,19 @@ async function initializeFromUrl() {
           }
           currentFolder.value = folder;
           
-          // Load folders and files for this path
+          // Load folders and files for this path (programmatic, not user action)
+          currentFolder.value = folder;
           await Promise.all([loadFolders(), loadFiles()]);
+        } else {
+          console.log('Folder not found:', folderName);
         }
       }
+    } else {
+      console.log('No folder param, resetting to root');
+      // Reset to root if no folder specified
+      currentFolder.value = null;
+      folderBreadcrumbs.value = [];
+      await Promise.all([loadFolders(), loadFiles()]);
     }
     
     // Select file if specified (only if files are already loaded)
@@ -239,6 +279,19 @@ onMounted(async () => {
   // Initialize from URL parameters
   await initializeFromUrl();
 });
+
+// Cleanup function to cancel active requests when component unmounts
+onUnmounted(() => {
+  // Cancel any active requests
+  if (activeRequests.value.loadFiles) {
+    console.log('Cancelling active loadFiles request on unmount');
+    activeRequests.value.loadFiles.abort();
+  }
+  if (activeRequests.value.loadFolders) {
+    console.log('Cancelling active loadFolders request on unmount');
+    activeRequests.value.loadFolders.abort();
+  }
+});
 // Add this before your loadFiles function
 function validateGiteaConfig() {
   const errors = [];
@@ -258,6 +311,16 @@ function validateGiteaConfig() {
 async function loadFiles() {
   if (!currentWorkspace.value) return;
   
+  // Cancel any previous loadFiles request
+  if (activeRequests.value.loadFiles) {
+    console.log('Cancelling previous loadFiles request');
+    activeRequests.value.loadFiles.abort();
+  }
+  
+  // Create new AbortController for this request
+  const abortController = new AbortController();
+  activeRequests.value.loadFiles = abortController;
+  
   loading.value = true;
   try {
     validateGiteaConfig();
@@ -265,12 +328,14 @@ async function loadFiles() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const path = currentFolder.value?.path || '';
     
+    console.log('loadFiles API call for path:', path);
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: getGiteaHeaders(giteaToken),
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      signal: abortController.signal
     });
 
     if (!response.ok) {
@@ -294,14 +359,27 @@ async function loadFiles() {
         download_url: getAuthenticatedDownloadUrl(file.download_url)
       }));
 
-    // Update the appropriate array based on context
-    if (splitViews.value.length > 0) {
-      splitFiles.value = fileItems;
+    // Only update state if this request wasn't cancelled
+    if (!abortController.signal.aborted) {
+      console.log('loadFiles completed successfully for path:', path, 'with', fileItems.length, 'files');
+      // Update the appropriate array based on context
+      if (splitViews.value.length > 0) {
+        splitFiles.value = fileItems;
+      } else {
+        files.value = fileItems;
+      }
     } else {
-      files.value = fileItems;
+      console.log('loadFiles request was cancelled for path:', path);
     }
 
   } catch (error) {
+    // Don't show error for cancelled requests
+    if (error.name === 'AbortError') {
+      console.log('loadFiles request was aborted for path:', path);
+      return;
+    }
+    
+    console.error('Error loading files for path:', path, error);
     ElMessage.error('Error loading files: ' + error.message);
     if (splitViews.value.length > 0) {
       splitFiles.value = [];
@@ -309,6 +387,10 @@ async function loadFiles() {
       files.value = [];
     }
   } finally {
+    // Clear the active request if it's still the current one
+    if (activeRequests.value.loadFiles === abortController) {
+      activeRequests.value.loadFiles = null;
+    }
     loading.value = false;
   }
 }
@@ -486,19 +568,31 @@ async function loadFolders() {
     return;
   }
   
+  // Cancel any previous loadFolders request
+  if (activeRequests.value.loadFolders) {
+    console.log('Cancelling previous loadFolders request');
+    activeRequests.value.loadFolders.abort();
+  }
+  
+  // Create new AbortController for this request
+  const abortController = new AbortController();
+  activeRequests.value.loadFolders = abortController;
+  
   loading.value = true;
   try {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     const path = currentFolder.value?.path || '';
     
+    console.log('loadFolders API call for path:', path);
     const apiUrl = `${giteaHost}/api/v1/repos/associateattorney/${currentWorkspace.value.git_repo}/contents/${path}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: getGiteaHeaders(giteaToken),
       credentials: 'include',
-      mode: 'cors'
+      mode: 'cors',
+      signal: abortController.signal
     });
 
     if (!response.ok) {
@@ -515,15 +609,27 @@ async function loadFolders() {
         type: 'dir'
       }));
 
-    // Update the appropriate array based on context
-    if (splitViews.value.length > 0) {
-      splitFolders.value = folderItems;
+    // Only update state if this request wasn't cancelled
+    if (!abortController.signal.aborted) {
+      console.log('loadFolders completed successfully for path:', path, 'with', folderItems.length, 'folders');
+      // Update the appropriate array based on context
+      if (splitViews.value.length > 0) {
+        splitFolders.value = folderItems;
+      } else {
+        folders.value = folderItems;
+      }
     } else {
-      folders.value = folderItems;
+      console.log('loadFolders request was cancelled for path:', path);
     }
 
   } catch (error) {
-    console.error('Folder loading error:', error);
+    // Don't show error for cancelled requests
+    if (error.name === 'AbortError') {
+      console.log('loadFolders request was aborted for path:', path);
+      return;
+    }
+    
+    console.error('Folder loading error for path:', path, error);
     ElMessage.error('Error loading folders: ' + error.message);
     if (splitViews.value.length > 0) {
       splitFolders.value = [];
@@ -531,6 +637,10 @@ async function loadFolders() {
       folders.value = [];
     }
   } finally {
+    // Clear the active request if it's still the current one
+    if (activeRequests.value.loadFolders === abortController) {
+      activeRequests.value.loadFolders = null;
+    }
     loading.value = false;
   }
 }
@@ -709,9 +819,15 @@ async function createUniverDocument() {
   }
 }
 
-async function navigateToFolder(folder, splitIndex = null) {
+async function navigateToFolder(folder, splitIndex = null, fromUserAction = true) {
   try {
     loading.value = true;
+    console.log('navigateToFolder called:', { 
+      folder: folder?.name, 
+      splitIndex, 
+      fromUserAction,
+      isUpdatingUrl: isUpdatingUrl.value 
+    });
     
     if (splitIndex !== null) {
       const split = splitViews.value[splitIndex];
@@ -759,7 +875,8 @@ async function navigateToFolder(folder, splitIndex = null) {
     await Promise.all([loadFolders(), loadFiles()]);
 
     // Update URL to reflect current navigation state (only for main view, not split views)
-    if (splitIndex === null && currentWorkspace.value) {
+    // Only update URL for user-initiated actions, not programmatic navigation
+    if (splitIndex === null && currentWorkspace.value && fromUserAction) {
       isUpdatingUrl.value = true;
       const query = { ...route.query };
       
@@ -772,20 +889,35 @@ async function navigateToFolder(folder, splitIndex = null) {
         delete query.folder;
       }
       
-      // Update URL without triggering navigation
-      router.replace({
-        name: 'ManageFilesPage',
-        params: { workspaceId: currentWorkspace.value.id },
-        query: Object.keys(query).length > 0 ? query : undefined
-      }).then(() => {
-        // Reset flag after URL update is complete
+      // Only update URL if it's actually different from current URL
+      const currentQuery = route.query;
+      const targetQuery = Object.keys(query).length > 0 ? query : {};
+      const isQueryDifferent = JSON.stringify(currentQuery) !== JSON.stringify(targetQuery);
+      
+      if (isQueryDifferent) {
+        console.log('URL needs update for folder navigation (user action):', query);
+        // Use push for user actions to create proper history entries
+        router.push({
+          name: 'ManageFilesPage',
+          params: { workspaceId: currentWorkspace.value.id },
+          query: Object.keys(query).length > 0 ? query : undefined
+        }).then(() => {
+          // Reset flag after URL update is complete
+          setTimeout(() => {
+            isUpdatingUrl.value = false;
+          }, 100);
+        }).catch(error => {
+          console.warn('Folder URL update failed:', error);
+          isUpdatingUrl.value = false;
+        });
+      } else {
+        console.log('URL already matches target, skipping update');
         setTimeout(() => {
           isUpdatingUrl.value = false;
         }, 100);
-      }).catch(error => {
-        console.warn('Folder URL update failed:', error);
-        isUpdatingUrl.value = false;
-      });
+      }
+    } else if (!fromUserAction) {
+      console.log('Skipping URL update for programmatic navigation');
     }
 
   } catch (error) {
@@ -830,20 +962,32 @@ function handleFileSelect(file) {
       const query = { ...route.query };
       query.file = file.name;
       
-      // Update URL without triggering navigation
-      router.replace({
-        name: 'ManageFilesPage',
-        params: { workspaceId: currentWorkspace.value.id },
-        query
-      }).then(() => {
-        // Reset flag after URL update is complete
+      // Only update URL if it's actually different from current URL
+      const currentQuery = route.query;
+      const isQueryDifferent = JSON.stringify(currentQuery) !== JSON.stringify(query);
+      
+      if (isQueryDifferent) {
+        console.log('URL needs update for file selection:', query);
+        // Use replace for file selection to avoid excessive history entries
+        router.replace({
+          name: 'ManageFilesPage',
+          params: { workspaceId: currentWorkspace.value.id },
+          query
+        }).then(() => {
+          // Reset flag after URL update is complete
+          setTimeout(() => {
+            isUpdatingUrl.value = false;
+          }, 100);
+        }).catch(error => {
+          console.warn('URL update failed:', error);
+          isUpdatingUrl.value = false;
+        });
+      } else {
+        console.log('URL already matches target for file selection, skipping update');
         setTimeout(() => {
           isUpdatingUrl.value = false;
         }, 100);
-      }).catch(error => {
-        console.warn('URL update failed:', error);
-        isUpdatingUrl.value = false;
-      });
+      }
     }
   } catch (error) {
     console.error('Error handling file selection:', error);
@@ -1032,47 +1176,24 @@ function generateFileHref(file) {
 // Function to handle back navigation
 function handleBackNavigation() {
   try {
-    // If we have a selected file, clear it first
-    if (selectedFile.value) {
-      selectedFile.value = null;
-      
-      // Update URL to remove file parameter
-      isUpdatingUrl.value = true;
-      const query = { ...route.query };
-      delete query.file;
-      
-      router.replace({
-        name: 'ManageFilesPage',
-        params: { workspaceId: currentWorkspace.value.id },
-        query: Object.keys(query).length > 0 ? query : undefined
-      }).then(() => {
-        setTimeout(() => {
-          isUpdatingUrl.value = false;
-        }, 100);
-      }).catch(error => {
-        console.warn('Back navigation URL update failed:', error);
-        isUpdatingUrl.value = false;
+    // Use browser's back navigation instead of manual navigation
+    // This will properly work with browser back/forward buttons and trackpad gestures
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      // If no history, go to workspace dashboard
+      router.push({
+        name: 'WorkspaceDashboard',
+        params: { workspaceId: currentWorkspace.value.id }
       });
-      return;
     }
-    
-    // If we're in a subfolder, go back one level
-    if (folderBreadcrumbs.value.length > 0) {
-      const parentFolder = folderBreadcrumbs.value.length > 1 
-        ? folderBreadcrumbs.value[folderBreadcrumbs.value.length - 2] 
-        : null;
-      
-      navigateToFolder(parentFolder, null);
-      return;
-    }
-    
-    // If we're at root level, go back to workspace dashboard
+  } catch (error) {
+    console.error('Error in back navigation:', error);
+    // Fallback to workspace dashboard
     router.push({
       name: 'WorkspaceDashboard',
       params: { workspaceId: currentWorkspace.value.id }
     });
-  } catch (error) {
-    console.error('Error in back navigation:', error);
   }
 }
 

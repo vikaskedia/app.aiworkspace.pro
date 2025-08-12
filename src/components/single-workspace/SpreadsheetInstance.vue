@@ -1533,7 +1533,9 @@ import '@univerjs/sheets-formula/facade'
               
               if (isCellEdit) {
                 console.log(`✅ Cell edit detected for command: ${command.id}`);
-                
+                /*
+                //  depricated code for currency conversion due to univer API formatting cells in json format
+
                 // Currency conversion for cell values
                 if (command.params && command.params.value) {
                   const originalValue = command.params.value;
@@ -1560,6 +1562,7 @@ import '@univerjs/sheets-formula/facade'
                     }
                   });
                 }
+                */
                 
                 // Extract actual cell coordinates from command parameters
                 const extractCellCoordinates = (commandParams) => {
@@ -2338,8 +2341,8 @@ import '@univerjs/sheets-formula/facade'
           hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
 
           fnChangeDetectionListener(univerAPI, commandService);
-
-          fnSmartChangeDetectionListener(univerAPI, commandService);
+          //  depricated code for smart change detection due to new univer API 
+          // fnSmartChangeDetectionListener(univerAPI, commandService);
           
         } catch (error) {
           console.warn(`⚠️ Failed to add custom menu for ${props.spreadsheetId}:`, error);

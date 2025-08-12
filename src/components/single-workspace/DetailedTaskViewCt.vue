@@ -4682,7 +4682,7 @@ ${comment.content}
       if (comment.type === 'ai_response') {
         return comment.metadata?.ai_name || 'AI Attorney';
       } else if (comment.type === 'activity') {
-        return 'System';
+        return this.userEmails[comment.user_id] || 'System';
       } else if (comment.external_user_email) {
         return comment.external_user_email;
       } else if (comment.user_id) {

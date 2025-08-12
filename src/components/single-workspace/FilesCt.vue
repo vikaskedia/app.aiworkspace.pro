@@ -46,6 +46,12 @@ const splitFolders = ref([]);
 const isUpdatingUrl = ref(false);
 const downloadingFiles = ref(new Set());
 
+// Column visibility settings with localStorage persistence
+const columnVisibility = ref({
+  type: JSON.parse(localStorage.getItem('filesTable_showTypeColumn') || 'false'),
+  size: JSON.parse(localStorage.getItem('filesTable_showSizeColumn') || 'false')
+});
+
 // Add request tracking to prevent race conditions
 const activeRequests = ref({
   loadFiles: null,
@@ -1441,6 +1447,18 @@ async function downloadSelectedFiles() {
   // This function can be implemented later for bulk downloads
   ElMessage.info('Bulk download feature coming soon!');
 }
+
+// Function to toggle column visibility
+function toggleColumnVisibility(column) {
+  columnVisibility.value[column] = !columnVisibility.value[column];
+  
+  // Save to localStorage
+  if (column === 'type') {
+    localStorage.setItem('filesTable_showTypeColumn', JSON.stringify(columnVisibility.value.type));
+  } else if (column === 'size') {
+    localStorage.setItem('filesTable_showSizeColumn', JSON.stringify(columnVisibility.value.size));
+  }
+}
 </script>
 
 <template>
@@ -1522,6 +1540,17 @@ async function downloadSelectedFiles() {
                   </el-dropdown-item>
                   <el-dropdown-item divided></el-dropdown-item>
                   <el-dropdown-item 
+                    @click="toggleColumnVisibility('type')"
+                    icon="View">
+                    {{ columnVisibility.type ? 'Hide Type Column' : 'Show Type Column' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="toggleColumnVisibility('size')"
+                    icon="View">
+                    {{ columnVisibility.size ? 'Hide Size Column' : 'Show Size Column' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item divided></el-dropdown-item>
+                  <el-dropdown-item 
                     v-if="currentFolder"
                     @click="downloadFolder(currentFolder)"
                     :icon="Download">
@@ -1599,6 +1628,7 @@ async function downloadSelectedFiles() {
           </el-table-column>
           
           <el-table-column 
+            v-if="columnVisibility.type"
             prop="type" 
             label="Type" 
             sortable
@@ -1610,6 +1640,7 @@ async function downloadSelectedFiles() {
           </el-table-column>
           
           <el-table-column 
+            v-if="columnVisibility.size"
             prop="sizeForSort" 
             label="Size" 
             sortable
@@ -1730,6 +1761,27 @@ async function downloadSelectedFiles() {
                           {{ scope.row.name }}
                         </a>
                       </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column 
+                    v-if="columnVisibility.type"
+                    prop="type" 
+                    label="Type" 
+                    sortable
+                    width="120"
+                    :show-overflow-tooltip="true">
+                    <template #default="scope">
+                      {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column 
+                    v-if="columnVisibility.size"
+                    prop="sizeForSort" 
+                    label="Size" 
+                    sortable
+                    width="90">
+                    <template #default="scope">
+                      {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
                     </template>
                   </el-table-column>
                   <el-table-column 

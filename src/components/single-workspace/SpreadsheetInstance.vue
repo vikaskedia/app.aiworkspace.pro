@@ -2004,42 +2004,10 @@ import '@univerjs/sheets-formula/facade'
               return null;
             }
             return React.createElement('svg', {
-              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none'
-            }, [
-              React.createElement('path', {
-                key: 'document',
-                d: 'M14 2H6C4.89 2 4 2.89 4 4V20C4 21.11 4.89 22 6 22H18C19.11 22 20 21.11 20 20V8L14 2Z',
-                stroke: 'currentColor',
-                strokeWidth: '2',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                fill: 'none'
-              }),
-              React.createElement('path', {
-                key: 'fold',
-                d: 'M14 2V8H20',
-                stroke: 'currentColor',
-                strokeWidth: '2',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round',
-                fill: 'none'
-              }),
-              React.createElement('path', {
-                key: 'lines',
-                d: 'M8 12H12M8 16H16M8 20H12',
-                stroke: 'currentColor',
-                strokeWidth: '1.5',
-                strokeLinecap: 'round'
-              }),
-              React.createElement('path', {
-                key: 'arrow',
-                d: 'M16 14L18 12L16 10',
-                stroke: 'currentColor',
-                strokeWidth: '1.5',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round'
-              })
-            ]);
+              width: 16, height: 16, viewBox: '0 0 24 24', fill: 'currentColor'
+            }, React.createElement('path', {
+              d: 'M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M19 19H5V5H19V19M7 7H9V9H7V7M11 7H13V9H11V7M15 7H17V9H15V7M7 11H9V13H7V11M11 11H13V13H11V11M15 11H17V13H15V11M7 15H9V17H7V15M11 15H13V17H11V15M15 15H17V17H15V15Z'
+            }));
           };
           
           componentManager.register('ImportCsvIcon', ImportCsvIcon);
@@ -2053,16 +2021,6 @@ import '@univerjs/sheets-formula/facade'
           // Register menu items using proper factory functions
           menuManagerService.mergeMenu({
             [RibbonStartGroup.OTHERS]: {
-              [CSV_IMPORT_OPERATION.id]: {
-                order: 9,
-                menuItemFactory: () => ({
-                  id: CSV_IMPORT_OPERATION.id,
-                  type: MenuItemType.BUTTON,
-                  icon: 'ImportCsvIcon',
-                  title: 'Import CSV',
-                  tooltip: 'Import data from a CSV file into the current spreadsheet',
-                }),
-              },
               [CUSTOM_MENU_DROPDOWN_LIST_OPERATION_ID]: {
                 order: 10,
                 menuItemFactory: () => ({
@@ -2096,6 +2054,16 @@ import '@univerjs/sheets-formula/facade'
                     icon: 'HistoryIcon',
                     title: 'History',
                     tooltip: 'View spreadsheet history'
+                  }),
+                },
+                [CSV_IMPORT_OPERATION.id]: {
+                  order: 3,
+                  menuItemFactory: () => ({
+                    id: CSV_IMPORT_OPERATION.id,
+                    type: MenuItemType.BUTTON,
+                    icon: 'SaveIcon',
+                    title: 'Import CSV',
+                    tooltip: 'Import data from a CSV file into the current spreadsheet',
                   }),
                 },
               },

@@ -1181,34 +1181,7 @@ function generateFolderHref(folder) {
   }
 }
 
-// Function to generate href URL for file selection
-function generateFileHref(file) {
-  try {
-    if (!currentWorkspace.value) return '#';
-    
-    const query = {};
-    
-    // Include current folder path if we're in a subfolder
-    if (currentFolder.value) {
-      const folderPath = [...folderBreadcrumbs.value].map(f => f.name).join('/');
-      query.folder = folderPath;
-    }
-    
-    // Add file selection
-    query.file = file.name;
-    
-    const resolved = router.resolve({
-      name: 'ManageFilesPage',
-      params: { workspaceId: currentWorkspace.value.id },
-      query
-    });
-    
-    return resolved.href;
-  } catch (error) {
-    console.error('Error generating file href:', error);
-    return '#';
-  }
-}
+
 
 // Function to handle back navigation
 function handleBackNavigation() {
@@ -1578,8 +1551,9 @@ async function downloadSelectedFiles() {
               <div class="name-cell">
                 <el-icon v-if="scope.row.type === 'dir'"><Folder /></el-icon>
                 <a 
-                  :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : generateFileHref(scope.row)"
+                  :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
                   @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
+                  @contextmenu.stop
                   class="clickable-filename">
                   {{ scope.row.name }}
                 </a>
@@ -1712,10 +1686,11 @@ async function downloadSelectedFiles() {
                           <Folder />
                         </el-icon>
                         <a 
-                          :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : generateFileHref(scope.row)"
+                          :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
                           @click.prevent="scope.row.type === 'dir' ? 
                             navigateToFolder(scope.row, index) : 
                             handleSplitFileSelect(scope.row, index)"
+                          @contextmenu.stop
                           class="clickable-filename">
                           {{ scope.row.name }}
                         </a>

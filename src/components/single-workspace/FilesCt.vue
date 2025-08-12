@@ -5,7 +5,7 @@ The files are stored in the workspace's repository.
 -->
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
-import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download, MoreFilled, ArrowDown } from '@element-plus/icons-vue';
+import { Plus, UploadFilled, Folder, FolderAdd, ArrowLeft, Download, MoreFilled, ArrowDown, Document, Picture, Tickets, ReadingLamp, Files } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useWorkspaceStore } from '../../store/workspace';
 import { storeToRefs } from 'pinia';
@@ -434,6 +434,43 @@ function getFileType(filename) {
     univer: 'application/vnd.univer-doc'
   };
   return mimeTypes[ext] || 'application/octet-stream';
+}
+
+function getFileIcon(file) {
+  if (file.type === 'dir') {
+    return Folder;
+  }
+  
+  const filename = file.name.toLowerCase();
+  const ext = filename.split('.').pop();
+  
+  // Image files
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
+    return Picture;
+  }
+  
+  // Document files
+  if (['pdf', 'doc', 'docx', 'odt', 'rtf'].includes(ext)) {
+    return Document;
+  }
+  
+  // Spreadsheet files
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) {
+    return Tickets;
+  }
+  
+  // Text files
+  if (['txt', 'md', 'markdown', 'log', 'json', 'xml', 'yaml', 'yml'].includes(ext)) {
+    return ReadingLamp;
+  }
+  
+  // Univer documents
+  if (ext === 'univer') {
+    return Document;
+  }
+  
+  // Default file icon
+  return Files;
 }
 
 async function handleFileUpload(file) {
@@ -1415,14 +1452,14 @@ async function downloadSelectedFiles() {
         <div class="header">
           <div class="breadcrumbs">
             <div class="breadcrumb-container">
-              <el-button
+              <!--el-button
                 v-if="showBackButton"
                 @click="handleBackNavigation"
                 type="text"
                 :icon="ArrowLeft"
                 class="back-button">
                 Back
-              </el-button>
+              </el-button-->
               <el-breadcrumb separator="/">
                 <el-breadcrumb-item :class="{ clickable: currentFolder }">
                   <a 
@@ -1549,7 +1586,7 @@ async function downloadSelectedFiles() {
             min-width="200">
             <template #default="scope">
               <div class="name-cell">
-                <el-icon v-if="scope.row.type === 'dir'"><Folder /></el-icon>
+                <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
                 <a 
                   :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
                   @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
@@ -1682,9 +1719,7 @@ async function downloadSelectedFiles() {
                   <el-table-column prop="sortKey" label="Name" sortable>
                     <template #default="scope">
                       <div class="name-cell">
-                        <el-icon v-if="scope.row.type === 'dir'">
-                          <Folder />
-                        </el-icon>
+                        <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
                         <a 
                           :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
                           @click.prevent="scope.row.type === 'dir' ? 

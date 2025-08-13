@@ -6490,6 +6490,7 @@ table.editor-table {
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--el-border-color);
+  table-layout: fixed;
 
   th, td {
     padding: 12px 16px;
@@ -6497,6 +6498,7 @@ table.editor-table {
     border: 1px solid var(--el-border-color-lighter);
     line-height: 1.5;
     font-size: 14px;
+    min-width: 100px;
 
     &:first-child {
       padding-left: 16px;
@@ -6511,7 +6513,7 @@ table.editor-table {
     background: var(--el-fill-color-light);
     font-weight: 600;
     color: var(--el-text-color-primary);
-    white-space: nowrap;
+    /*white-space: nowrap;*/
   }
 
   tr {

@@ -127,30 +127,38 @@
                     v-for="(spreadsheet, index) in getPortfolioSpreadsheets(portfolio.id)"
                     :key="`${spreadsheet.id}-${getPortfolioReadonlyState(portfolio.id)}`"
                     class="spreadsheet-item"
-                    :class="{ 'has-drag-handle': !getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 }">
+                    :class="{ 'has-drag-handle': !getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId }">
                     
-                    <!-- Drag Handle with manual reorder buttons -->
+                    <!-- 3-dot dropdown menu for spreadsheet actions -->
                     <div 
-                      v-if="!getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1" 
-                      class="manual-reorder-controls">
-                      <el-button 
-                        v-if="index > 0"
-                        @click="moveSpreadsheetUp(spreadsheet.id, portfolio.id)"
-                        size="small"
-                        type="text"
-                        class="reorder-btn"
-                        title="Move up">
-                        <el-icon><ArrowUp /></el-icon>
-                      </el-button>
-                      <el-button 
-                        v-if="index < getPortfolioSpreadsheets(portfolio.id).length - 1"
-                        @click="moveSpreadsheetDown(spreadsheet.id, portfolio.id)"
-                        size="small"
-                        type="text"
-                        class="reorder-btn"
-                        title="Move down">
-                        <el-icon><ArrowDown /></el-icon>
-                      </el-button>
+                      v-if="!getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId" 
+                      class="spreadsheet-actions-dropdown">
+                      <el-dropdown 
+                        @command="handleSpreadsheetAction" 
+                        trigger="click"
+                        @click.stop>
+                        <el-icon class="spreadsheet-dropdown-icon">
+                          <MoreFilled />
+                        </el-icon>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item 
+                              v-if="index > 0"
+                              :command="{ action: 'moveUp', spreadsheetId: spreadsheet.id, portfolioId: portfolio.id }"
+                              @click.stop>
+                              <el-icon><ArrowUp /></el-icon>
+                              Move up
+                            </el-dropdown-item>
+                            <el-dropdown-item
+                              v-if="index < getPortfolioSpreadsheets(portfolio.id).length - 1"
+                              :command="{ action: 'moveDown', spreadsheetId: spreadsheet.id, portfolioId: portfolio.id }"
+                              @click.stop>
+                              <el-icon><ArrowDown /></el-icon>
+                              Move down
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
                     </div>
                     
                     <SpreadsheetInstance
@@ -1993,6 +2001,21 @@ export default {
       }
     };
 
+    // Handle spreadsheet actions from dropdown menu
+    const handleSpreadsheetAction = async (command) => {
+      const { action, spreadsheetId, portfolioId } = command;
+      
+      switch (action) {
+        case 'moveUp':
+          await moveSpreadsheetUp(spreadsheetId, portfolioId);
+          break;
+        case 'moveDown':
+          await moveSpreadsheetDown(spreadsheetId, portfolioId);
+          break;
+        default:
+          console.warn('Unknown spreadsheet action:', action);
+      }
+    };
 
     // Initialize component
     onMounted(async () => {
@@ -2080,7 +2103,8 @@ export default {
         loadAvailableWorkspaces,
         handleWorkspaceSelection,
         resetMoveDialog,
-        confirmMovePortfolio
+        confirmMovePortfolio,
+        handleSpreadsheetAction
     };
   },
 };
@@ -2282,7 +2306,7 @@ export default {
 /* Spreadsheets Container - Compact */
 .spreadsheets-container {
   margin-bottom: 20px;
-  margin-left: 60px; /* Make room for reorder controls */
+  margin-left: 60px; /* Make room for action controls */
 }
 
 /* Spreadsheets List */
@@ -2301,46 +2325,44 @@ export default {
   margin-bottom: 0;
 }
 
-/* Manual Reorder Controls */
-.manual-reorder-controls {
+/* Spreadsheet Actions Dropdown */
+.spreadsheet-actions-dropdown {
   position: absolute;
   top: 8px;
   left: -55px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   z-index: 100;
 }
 
-.reorder-btn {
-  width: 28px !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  padding: 0 !important;
+.spreadsheet-dropdown-icon {
+  font-size: 16px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 6px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.reorder-btn:hover {
+.spreadsheet-dropdown-icon:hover {
+  color: #475569;
   background: #e2e8f0;
   border-color: #cbd5e1;
   transform: scale(1.05);
 }
 
-.reorder-btn:active {
+.spreadsheet-dropdown-icon:active {
   transform: scale(0.98);
 }
 
-.reorder-btn .el-icon {
-  font-size: 14px;
-  color: #64748b;
+/* Manual Reorder Controls - Removed */
+.manual-reorder-controls {
+  display: none;
 }
 
-.reorder-btn:hover .el-icon {
-  color: #475569;
+.reorder-btn {
+  display: none;
 }
 
 /* Add Spreadsheet Section - Compact */

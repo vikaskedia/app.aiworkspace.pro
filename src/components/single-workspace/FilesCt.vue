@@ -45,6 +45,7 @@ const splitFiles = ref([]);
 const splitFolders = ref([]);
 const isUpdatingUrl = ref(false);
 const downloadingFiles = ref(new Set());
+const isNavigating = ref(false); // Add navigation lock
 
 // Column visibility settings with localStorage persistence
 const columnVisibility = ref({
@@ -160,11 +161,11 @@ watch(() => route.query, async (newQuery, oldQuery) => {
     console.log('Route query changed, initializing from URL:', newQuery);
     console.log('isUpdatingUrl.value:', isUpdatingUrl.value);
     
-    // Always respond to browser navigation, even if we're updating URL
-    // Reset the updating flag first to prevent conflicts
+    // Only respond to route changes if we're not currently updating the URL
+    // This prevents conflicts during user-initiated navigation
     if (isUpdatingUrl.value) {
-      console.log('Resetting isUpdatingUrl flag for browser navigation');
-      isUpdatingUrl.value = false;
+      console.log('Skipping route change during URL update');
+      return;
     }
     
     await initializeFromUrl();
@@ -232,6 +233,11 @@ async function initializeFromUrl() {
           await Promise.all([loadFolders(), loadFiles()]);
         } else {
           console.log('Folder not found:', folderName);
+          // If folder not found, stop navigation and reset to root
+          currentFolder.value = null;
+          folderBreadcrumbs.value = [];
+          await Promise.all([loadFolders(), loadFiles()]);
+          break;
         }
       }
     } else {
@@ -258,11 +264,15 @@ async function initializeFromUrl() {
     }
   } catch (error) {
     console.error('Error initializing from URL:', error);
+    // Reset to root on error
+    currentFolder.value = null;
+    folderBreadcrumbs.value = [];
+    await Promise.all([loadFolders(), loadFiles()]);
   } finally {
     // Reset flag after initialization is complete
     setTimeout(() => {
       isUpdatingUrl.value = false;
-    }, 100);
+    }, 50); // Reduced timeout for faster response
   }
 }
 
@@ -901,6 +911,13 @@ async function createUniverDocument() {
 
 async function navigateToFolder(folder, splitIndex = null, fromUserAction = true) {
   try {
+    // Prevent rapid successive navigation calls
+    if (isNavigating.value) {
+      console.log('Navigation already in progress, skipping');
+      return;
+    }
+    
+    isNavigating.value = true;
     loading.value = true;
     console.log('navigateToFolder called:', { 
       folder: folder?.name, 
@@ -957,7 +974,6 @@ async function navigateToFolder(folder, splitIndex = null, fromUserAction = true
     // Update URL to reflect current navigation state (only for main view, not split views)
     // Only update URL for user-initiated actions, not programmatic navigation
     if (splitIndex === null && currentWorkspace.value && fromUserAction) {
-      isUpdatingUrl.value = true;
       const query = { ...route.query };
       
       if (currentFolder.value) {
@@ -976,6 +992,10 @@ async function navigateToFolder(folder, splitIndex = null, fromUserAction = true
       
       if (isQueryDifferent) {
         console.log('URL needs update for folder navigation (user action):', query);
+        
+        // Set flag before URL update to prevent route watcher interference
+        isUpdatingUrl.value = true;
+        
         // Use push for user actions to create proper history entries
         router.push({
           name: 'ManageFilesPage',
@@ -985,16 +1005,13 @@ async function navigateToFolder(folder, splitIndex = null, fromUserAction = true
           // Reset flag after URL update is complete
           setTimeout(() => {
             isUpdatingUrl.value = false;
-          }, 100);
+          }, 50); // Reduced timeout for faster response
         }).catch(error => {
           console.warn('Folder URL update failed:', error);
           isUpdatingUrl.value = false;
         });
       } else {
         console.log('URL already matches target, skipping update');
-        setTimeout(() => {
-          isUpdatingUrl.value = false;
-        }, 100);
       }
     } else if (!fromUserAction) {
       console.log('Skipping URL update for programmatic navigation');
@@ -1013,8 +1030,10 @@ async function navigateToFolder(folder, splitIndex = null, fromUserAction = true
     }
     // Reset URL updating flag on error
     isUpdatingUrl.value = false;
+    isNavigating.value = false; // Reset navigation lock on error
   } finally {
     loading.value = false;
+    isNavigating.value = false; // Reset navigation lock
   }
 }
 
@@ -1479,22 +1498,24 @@ function toggleColumnVisibility(column) {
                 Back
               </el-button-->
               <el-breadcrumb separator="/">
-                <el-breadcrumb-item :class="{ clickable: currentFolder }">
+                <el-breadcrumb-item :class="{ clickable: currentFolder, 'navigation-disabled': isNavigating }">
                   <a 
                     :href="generateFolderHref(null)"
                     @click.prevent="navigateToFolder(null, null)"
-                    class="breadcrumb-link">
+                    class="breadcrumb-link"
+                    :class="{ 'disabled': isNavigating }">
                     Root
                   </a>
                 </el-breadcrumb-item>
                 <el-breadcrumb-item 
                   v-for="folder in folderBreadcrumbs" 
                   :key="folder.id"
-                  :class="{ clickable: folder.id !== currentFolder?.id }">
+                  :class="{ clickable: folder.id !== currentFolder?.id, 'navigation-disabled': isNavigating }">
                   <a 
                     :href="generateFolderHref(folder)"
                     @click.prevent="navigateToFolder(folder, null)"
-                    class="breadcrumb-link">
+                    class="breadcrumb-link"
+                    :class="{ 'disabled': isNavigating }">
                     {{ folder.name }}
                   </a>
                 </el-breadcrumb-item>
@@ -1620,7 +1641,8 @@ function toggleColumnVisibility(column) {
                   :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
                   @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
                   @contextmenu.stop
-                  class="clickable-filename">
+                  class="clickable-filename"
+                  :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
                   {{ scope.row.name }}
                 </a>
               </div>
@@ -1720,22 +1742,24 @@ function toggleColumnVisibility(column) {
               <div class="file-browser">
                 <div class="folder-navigation">
                   <el-breadcrumb separator="/">
-                    <el-breadcrumb-item :class="{ clickable: split.currentFolder }">
+                    <el-breadcrumb-item :class="{ clickable: split.currentFolder, 'navigation-disabled': isNavigating }">
                       <a 
                         :href="generateFolderHref(null)"
                         @click.prevent="navigateToFolder(null, index)"
-                        class="breadcrumb-link">
+                        class="breadcrumb-link"
+                        :class="{ 'disabled': isNavigating }">
                         Root
                       </a>
                     </el-breadcrumb-item>
                     <el-breadcrumb-item 
                       v-for="folder in split.folderBreadcrumbs" 
                       :key="folder.id"
-                      :class="{ clickable: folder.id !== split.currentFolder?.id }">
+                      :class="{ clickable: folder.id !== split.currentFolder?.id, 'navigation-disabled': isNavigating }">
                       <a 
                         :href="generateFolderHref(folder)"
                         @click.prevent="navigateToFolder(folder, index)"
-                        class="breadcrumb-link">
+                        class="breadcrumb-link"
+                        :class="{ 'disabled': isNavigating }">
                         {{ folder.name }}
                       </a>
                     </el-breadcrumb-item>
@@ -1757,7 +1781,8 @@ function toggleColumnVisibility(column) {
                             navigateToFolder(scope.row, index) : 
                             handleSplitFileSelect(scope.row, index)"
                           @contextmenu.stop
-                          class="clickable-filename">
+                          class="clickable-filename"
+                          :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
                           {{ scope.row.name }}
                         </a>
                       </div>
@@ -1977,6 +2002,16 @@ function toggleColumnVisibility(column) {
   text-decoration: underline;
 }
 
+.clickable-filename.disabled {
+  cursor: not-allowed;
+  color: #909399;
+  opacity: 0.6;
+}
+
+.clickable-filename.disabled:hover {
+  text-decoration: none;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
@@ -2117,6 +2152,24 @@ function toggleColumnVisibility(column) {
 .clickable {
   cursor: pointer;
   color: #409EFF;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+}
+
+.navigation-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.navigation-disabled .breadcrumb-link.disabled {
+  cursor: not-allowed;
+  color: #909399;
+}
+
+.navigation-disabled .breadcrumb-link.disabled:hover {
+  text-decoration: none;
 }
 
 .actions {

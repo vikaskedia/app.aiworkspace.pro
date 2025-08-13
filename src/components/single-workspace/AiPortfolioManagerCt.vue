@@ -2499,7 +2499,7 @@ export default {
 /* Spreadsheets Container - Compact */
 .spreadsheets-container {
   margin-bottom: 20px;
-  margin-left: 60px; /* Make room for action controls */
+  margin-left: 40px; /* Make room for action controls */
 }
 
 /* Spreadsheets List */
@@ -2522,7 +2522,7 @@ export default {
 .spreadsheet-actions-dropdown {
   position: absolute;
   top: 8px;
-  left: -55px;
+  left: -35px;
   z-index: 100;
 }
 

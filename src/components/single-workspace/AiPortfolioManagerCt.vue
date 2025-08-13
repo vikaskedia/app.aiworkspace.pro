@@ -95,16 +95,6 @@
                           Archive portfolio
                         </el-dropdown-item>
                         <el-dropdown-item 
-                          @click.stop
-                          divided>
-                          <el-checkbox 
-                            :model-value="getPortfolioReadonlyState(portfolio.id)" 
-                            @change="handleReadonlyChange(portfolio.id, $event)"
-                            @click.stop>
-                            Readonly
-                          </el-checkbox>
-                        </el-dropdown-item>
-                        <el-dropdown-item 
                           :command="{ action: 'move', portfolio: portfolio }"
                           @click.stop
                           divided>
@@ -125,13 +115,13 @@
                 <div class="spreadsheets-list">
                   <div 
                     v-for="(spreadsheet, index) in getPortfolioSpreadsheets(portfolio.id)"
-                    :key="`${spreadsheet.id}-${getPortfolioReadonlyState(portfolio.id)}`"
+                    :key="`${spreadsheet.id}-${getSpreadsheetReadonlyState(spreadsheet.id)}`"
                     class="spreadsheet-item"
-                    :class="{ 'has-drag-handle': !getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId }">
+                    :class="{ 'has-drag-handle': !getSpreadsheetReadonlyState(spreadsheet.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId }">
                     
                     <!-- 3-dot dropdown menu for spreadsheet actions -->
                     <div 
-                      v-if="!getPortfolioReadonlyState(portfolio.id) && getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId" 
+                      v-if="getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId" 
                       class="spreadsheet-actions-dropdown">
                       <el-dropdown 
                         @command="handleSpreadsheetAction" 
@@ -156,6 +146,14 @@
                               <el-icon><ArrowDown /></el-icon>
                               Move down
                             </el-dropdown-item>
+                            <el-dropdown-item 
+                              :command="{ action: 'toggleReadonly', spreadsheetId: spreadsheet.id, portfolioId: portfolio.id }"
+                              @click.stop
+                              divided>
+                              <el-icon><Lock /></el-icon>
+                              <!-- {{ getSpreadsheetReadonlyState(spreadsheet.id) }} -->
+                              {{ getSpreadsheetReadonlyState(spreadsheet.id) ? 'Enable Edit' : 'Make Readonly' }}
+                            </el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>
@@ -169,7 +167,7 @@
                       :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
                       :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
                       :portfolio-id="portfolio.id"
-                      :readonly="getPortfolioReadonlyState(portfolio.id)"
+                      :readonly="getSpreadsheetReadonlyState(spreadsheet.id)"
                       @remove-spreadsheet="removeSpreadsheet"
                     />
                   </div>
@@ -403,7 +401,7 @@
 <script>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Folder, Edit, Close, MoreFilled, Rank, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import { Plus, Delete, Folder, Edit, Close, MoreFilled, Rank, ArrowUp, ArrowDown, Lock } from '@element-plus/icons-vue';
 import SpreadsheetInstance from './SpreadsheetInstance.vue';
 import { supabase } from '../../supabase';
 import { useWorkspaceStore } from '../../store/workspace';
@@ -431,6 +429,7 @@ export default {
     Rank,
     ArrowUp,
     ArrowDown,
+    Lock,
     draggable
   },
   setup(props) {
@@ -1294,7 +1293,10 @@ export default {
         }
 
         // Load view mode preferences after portfolios are loaded
-        await loadPortfolioViewModePreferences();
+        //await loadPortfolioViewModePreferences();
+        
+        // Load spreadsheet readonly state
+        await loadSpreadsheetReadonlyState();
 
         // Set active portfolio to first one
         if (portfolios.value.length > 0) {
@@ -1777,6 +1779,7 @@ export default {
             spreadsheets.value = [];
             activePortfolioId.value = '';
             portfolioReadonlyState.value = {}; // Clear previous preferences
+            spreadsheetReadonlyState.value = {}; // Clear previous spreadsheet readonly state
             currentEditor.value = {}; // Clear previous editor tracking
             initializePortfolios();
             setupEditingSubscription(); // Setup collaborative editing subscription
@@ -2012,6 +2015,9 @@ export default {
         case 'moveDown':
           await moveSpreadsheetDown(spreadsheetId, portfolioId);
           break;
+        case 'toggleReadonly':
+          await toggleSpreadsheetReadonly(spreadsheetId, portfolioId);
+          break;
         default:
           console.warn('Unknown spreadsheet action:', action);
       }
@@ -2042,6 +2048,191 @@ export default {
         editingSubscription = null;
       }
     });
+
+    // Spreadsheet readonly state management
+    const spreadsheetReadonlyState = ref({}); // Store readonly state for each spreadsheet
+    
+    // Load spreadsheet readonly state from ai_portfolio_data
+    const loadSpreadsheetReadonlyState = async () => {
+      if (!currentWorkspaceId.value) {
+        console.warn('⚠️ No current workspace ID, cannot load spreadsheet readonly state');
+        return;
+      }
+
+      try {
+        console.log(`🔍 Loading spreadsheet readonly state for workspace ${currentWorkspaceId.value}...`);
+        const { data: user } = await supabase.auth.getUser();
+        
+        if (!user?.user?.id) {
+          console.warn('⚠️ No user found, using default spreadsheet readonly state');
+          return;
+        }
+        
+        // Load current user's spreadsheet readonly preferences
+        const { data, error } = await supabase
+          .from('ai_portfolio_data')
+          .select('spreadsheet_id, view_mode, user_id')
+          .eq('workspace_id', currentWorkspaceId.value)
+          .not('spreadsheet_id', 'is', null);
+
+        if (error) {
+          console.error('Error loading spreadsheet readonly state:', error);
+          return;
+        }
+        
+        // Convert array to object for easier lookup
+        const readonlyState = {};
+        if (data && data.length > 0) {
+          data.forEach(record => {
+            if (record.spreadsheet_id) {
+              readonlyState[record.spreadsheet_id] = record.view_mode || false;
+            }
+          });
+          console.log(`✅ Loaded ${Object.keys(readonlyState).length} spreadsheet readonly states:`, readonlyState);
+        } else {
+          console.log('ℹ️ No spreadsheet readonly state found, will use defaults (edit mode)');
+        }
+        
+        spreadsheetReadonlyState.value = readonlyState;
+        
+      } catch (error) {
+        console.error('Error loading spreadsheet readonly state:', error);
+      }
+    };
+
+    // Save spreadsheet readonly state to ai_portfolio_data
+    const saveSpreadsheetReadonlyState = async (spreadsheetId, isReadonly) => {
+      if (!currentWorkspaceId.value) {
+        console.warn('⚠️ No current workspace ID, cannot save spreadsheet readonly state');
+        return;
+      }
+
+      try {
+        console.log(`💾 Saving spreadsheet readonly state for ${spreadsheetId}: ${isReadonly ? 'readonly' : 'edit'}`);
+        const { data: user } = await supabase.auth.getUser();
+        
+        if (!user?.user?.id) {
+          console.warn('⚠️ No user found, cannot save spreadsheet readonly state');
+          return;
+        }
+        
+        // Update the latest record for this spreadsheet
+        const { data: latestRecord, error: fetchError } = await supabase
+          .from('ai_portfolio_data')
+          .select('id')
+          .eq('spreadsheet_id', spreadsheetId)
+          .eq('workspace_id', currentWorkspaceId.value)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching latest spreadsheet record:', fetchError);
+          throw fetchError;
+        }
+
+        // Update the latest record with new readonly state
+        const { error: updateError } = await supabase
+          .from('ai_portfolio_data')
+          .update({
+            view_mode: isReadonly,
+            user_id: user.user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', latestRecord.id)
+          .eq('workspace_id', currentWorkspaceId.value);
+
+        if (updateError) {
+          console.error('Error updating spreadsheet readonly state:', updateError);
+          throw updateError;
+        }
+        
+        console.log(`✅ Successfully saved spreadsheet readonly state for ${spreadsheetId}: ${isReadonly ? 'readonly' : 'edit'}`);
+      } catch (error) {
+        console.error('Failed to save spreadsheet readonly state:', error);
+        throw error;
+      }
+    };
+
+    // Get readonly state for a specific spreadsheet
+    const getSpreadsheetReadonlyState = (spreadsheetId) => {
+      return spreadsheetReadonlyState.value[spreadsheetId] || false; // Default to edit mode
+    };
+
+    // Check if spreadsheet is being edited by another user
+    const checkSpreadsheetEditConflict = async (spreadsheetId) => {
+      try {
+        const { data: user } = await supabase.auth.getUser();
+        if (!user?.user?.id) return false;
+
+        // Check if another user is editing this spreadsheet
+        const { data: editingUsers, error } = await supabase
+          .from('ai_portfolio_data')
+          .select('user_id, view_mode')
+          .eq('spreadsheet_id', spreadsheetId)
+          .eq('workspace_id', currentWorkspaceId.value)
+          .eq('view_mode', false) // false = edit mode
+          .neq('user_id', user.user.id); // exclude current user
+
+        if (error) {
+          console.error('Error checking spreadsheet edit conflict:', error);
+          return false;
+        }
+
+        if (editingUsers && editingUsers.length > 0) {
+          // Get user info for the editor
+          const { data: editorData } = await supabase
+            .rpc('get_user_info_by_id', { user_id: editingUsers[0].user_id });
+          
+          const editorEmail = editorData?.[0]?.email || 'Another user';
+          const editorName = editorEmail.split('@')[0];
+          const spreadsheet = spreadsheets.value.find(s => s.id === spreadsheetId);
+          const spreadsheetName = spreadsheet?.name || 'Spreadsheet';
+          
+          ElMessage.warning(`${editorName} is already editing "${spreadsheetName}". Please try again later.`);
+          return true;
+        }
+
+        return false;
+      } catch (error) {
+        console.error('Error checking spreadsheet edit conflict:', error);
+        return false;
+      }
+    };
+
+    // Toggle spreadsheet readonly state
+    const toggleSpreadsheetReadonly = async (spreadsheetId, portfolioId) => {
+      try {
+        const currentState = getSpreadsheetReadonlyState(spreadsheetId);
+        const newState = !currentState;
+        
+        // If enabling edit mode, check for conflicts
+        if (!newState) { // newState is false = enabling edit mode
+          const hasConflict = await checkSpreadsheetEditConflict(spreadsheetId);
+          if (hasConflict) {
+            return; // Don't proceed if there's a conflict
+          }
+        }
+        
+        // Save to database
+        await saveSpreadsheetReadonlyState(spreadsheetId, newState);
+        
+        // Update local state
+        spreadsheetReadonlyState.value = {
+          ...spreadsheetReadonlyState.value,
+          [spreadsheetId]: newState
+        };
+        
+        const spreadsheet = spreadsheets.value.find(s => s.id === spreadsheetId);
+        const spreadsheetName = spreadsheet?.name || 'Spreadsheet';
+        
+        ElMessage.success(`Spreadsheet "${spreadsheetName}" is now ${newState ? 'Readonly' : 'Editable'}.`);
+        
+      } catch (error) {
+        console.error('Error toggling spreadsheet readonly state:', error);
+        ElMessage.error('Failed to update spreadsheet readonly state: ' + error.message);
+      }
+    };
 
     return {
       props,
@@ -2093,18 +2284,20 @@ export default {
       handlePortfolioAction,
       handleReadonlyChange,
       getPortfolioReadonlyState,
-              getCurrentEditor,
-        movePortfolioDialogVisible,
-        selectedDestinationWorkspaceId,
-        availableWorkspaces,
-        portfolioToMove,
-        movingPortfolio,
-        movePortfolio,
-        loadAvailableWorkspaces,
-        handleWorkspaceSelection,
-        resetMoveDialog,
-        confirmMovePortfolio,
-        handleSpreadsheetAction
+      getSpreadsheetReadonlyState,
+      toggleSpreadsheetReadonly,
+      movePortfolioDialogVisible,
+      selectedDestinationWorkspaceId,
+      availableWorkspaces,
+      portfolioToMove,
+      movingPortfolio,
+      movePortfolio,
+      loadAvailableWorkspaces,
+      handleWorkspaceSelection,
+      resetMoveDialog,
+      confirmMovePortfolio,
+      handleSpreadsheetAction,
+      getCurrentEditor
     };
   },
 };

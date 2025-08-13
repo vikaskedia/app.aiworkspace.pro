@@ -743,10 +743,10 @@ import '@univerjs/sheets-formula/facade'
               container: `univer-container-${props.spreadsheetId}`,
               header: !readonlyState, // Show header when not readonly
               toolbar: !readonlyState, // Show toolbar when not readonly
-              formula: {
-                // Enable automatic formula calculation when cells change
-                initialFormulaComputing: 'FORCED'
-              }
+              // formula: {
+              //   // Enable automatic formula calculation when cells change
+              //   initialFormulaComputing: 'FORCED'
+              // }
             }),
             UniverSheetsNotePreset(),
             UniverSheetsHyperLinkPreset({

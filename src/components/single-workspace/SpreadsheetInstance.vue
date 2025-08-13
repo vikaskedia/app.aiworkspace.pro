@@ -2577,7 +2577,7 @@ import '@univerjs/sheets-formula/facade'
         console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
 
         // check if the hash has changed after univer is initialized
-        // fnCheckHashAfterUniverInit(hasUnsavedChanges);
+        fnCheckHashAfterUniverInit(hasUnsavedChanges);
 
         
 

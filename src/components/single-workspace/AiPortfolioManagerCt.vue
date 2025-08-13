@@ -954,9 +954,11 @@ export default {
     
     // Get spreadsheets for a specific portfolio
     const getPortfolioSpreadsheets = (portfolioId) => {
-      return spreadsheets.value
+      const portfolioSpreadsheets = spreadsheets.value
         .filter(sheet => sheet.portfolioId === portfolioId)
         .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+      
+      return portfolioSpreadsheets;
     };
     
     // Get spreadsheet count for a portfolio
@@ -1008,12 +1010,10 @@ export default {
       const updatedSpreadsheets = [];
       portfolioSpreadsheets.forEach((sheet, index) => {
         const newDisplayOrder = index + 1;
-        if (sheet.displayOrder !== newDisplayOrder) {
-          updatedSpreadsheets.push({
-            spreadsheet_id: sheet.id,
-            display_order: newDisplayOrder
-          });
-        }
+        updatedSpreadsheets.push({
+          spreadsheet_id: sheet.id,
+          display_order: newDisplayOrder
+        });
         sheet.displayOrder = newDisplayOrder;
       });
 
@@ -1021,16 +1021,17 @@ export default {
       const otherSpreadsheets = spreadsheets.value.filter(sheet => sheet.portfolioId !== portfolioId);
       spreadsheets.value = [...otherSpreadsheets, ...portfolioSpreadsheets];
 
-      // Save new order to database - update only the most recent record for each spreadsheet
+      // Save new order to database - update the latest record for each spreadsheet
       if (updatedSpreadsheets.length > 0) {
         try {
           for (const update of updatedSpreadsheets) {
-            // First, get the most recent record for this spreadsheet
+            // Get the latest record for this spreadsheet in this portfolio
             const { data: latestRecord, error: fetchError } = await supabase
               .from('ai_portfolio_data')
               .select('id')
               .eq('spreadsheet_id', update.spreadsheet_id)
               .eq('portfolio_id', portfolioId)
+              .eq('workspace_id', currentWorkspaceId.value) // Only current workspace
               .order('created_at', { ascending: false })
               .limit(1)
               .single();
@@ -1041,11 +1042,15 @@ export default {
               return;
             }
 
-            // Update only the most recent record
+            // Update the latest record with new display_order
             const { error } = await supabase
               .from('ai_portfolio_data')
-              .update({ display_order: update.display_order })
-              .eq('id', latestRecord.id);
+              .update({ 
+                display_order: update.display_order,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', latestRecord.id)
+              .eq('workspace_id', currentWorkspaceId.value); // Ensure workspace_id matches
             
             if (error) {
               console.error('Error updating spreadsheet order:', error);
@@ -1055,6 +1060,7 @@ export default {
           }
           
           console.log(`📊 Updated order for ${updatedSpreadsheets.length} spreadsheets in portfolio ${portfolioId}`);
+          ElMessage.success('Spreadsheet order updated successfully');
         } catch (error) {
           console.error('Error saving spreadsheet order:', error);
           ElMessage.error('Failed to save spreadsheet order');
@@ -1205,7 +1211,6 @@ export default {
           .select('*')
           .eq('workspace_id', currentWorkspaceId.value)
           .not('spreadsheet_id', 'is', null)
-          .order('display_order', { ascending: true })
           .order('created_at', { ascending: false });
 
         if (spreadsheetError) {
@@ -1214,26 +1219,41 @@ export default {
 
         // Process spreadsheets and assign to portfolios
         if (spreadsheetData && spreadsheetData.length > 0) {
-          // Create a map to track the latest record for each spreadsheet_id
-          const uniqueSpreadsheets = new Map();
+          // Get the latest record for each spreadsheet_id
+          const latestSpreadsheets = new Map();
           
           [...spreadsheetData, ...childSpreadsheetData].forEach(sheet => {
             const spreadsheetId = sheet.spreadsheet_id;
-            if (spreadsheetId && !uniqueSpreadsheets.has(spreadsheetId)) {
-              // Only add the first occurrence (latest due to DESC order) of each spreadsheet_id
-              uniqueSpreadsheets.set(spreadsheetId, sheet);
+            if (spreadsheetId) {
+              if (!latestSpreadsheets.has(spreadsheetId)) {
+                latestSpreadsheets.set(spreadsheetId, sheet);
+              } else {
+                // Keep the record with the latest created_at (most recent)
+                const existing = latestSpreadsheets.get(spreadsheetId);
+                if (new Date(sheet.created_at) > new Date(existing.created_at)) {
+                  latestSpreadsheets.set(spreadsheetId, sheet);
+                }
+              }
             }
           });
           
-          // Convert map values to array
-          const uniqueSpreadsheetArray = Array.from(uniqueSpreadsheets.values());
+          // Convert to array and sort by portfolio_id and display_order
+          const sortedSpreadsheets = Array.from(latestSpreadsheets.values())
+            .sort((a, b) => {
+              // First sort by portfolio_id
+              if (a.portfolio_id !== b.portfolio_id) {
+                return a.portfolio_id.localeCompare(b.portfolio_id);
+              }
+              // Then sort by display_order
+              return (a.display_order || 0) - (b.display_order || 0);
+            });
           
-          spreadsheets.value = uniqueSpreadsheetArray.map(sheet => ({
+          spreadsheets.value = sortedSpreadsheets.map(sheet => ({
             id: sheet.spreadsheet_id,
             name: sheet.name || 'Spreadsheet',
             rows: 10,
             columns: 10,
-            portfolioId: sheet.portfolio_id || portfolios.value[0]?.id, // Assign to first portfolio if no portfolio_id
+            portfolioId: sheet.portfolio_id,
             createdAt: new Date(sheet.created_at),
             displayOrder: sheet.display_order || 0
           }));
@@ -1353,17 +1373,39 @@ export default {
       try {
         const spreadsheetId = generateSpreadsheetId();
         
+        // Calculate the next display order for this portfolio
+        const portfolioSpreadsheets = getPortfolioSpreadsheets(portfolioId);
+        const nextDisplayOrder = portfolioSpreadsheets.length + 1;
+        
+        // Save to database first
+        const { error: dbError } = await supabase
+          .from('ai_portfolio_data')
+          .insert([{
+            workspace_id: currentWorkspaceId.value,
+            portfolio_id: portfolioId,
+            spreadsheet_id: spreadsheetId,
+            name: 'Spreadsheet 1',
+            display_order: nextDisplayOrder,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          }]);
+
+        if (dbError) {
+          console.error('Error saving default spreadsheet to database:', dbError);
+          throw dbError;
+        }
+        
         const newSpreadsheet = {
           id: spreadsheetId,
           name: 'Spreadsheet 1',
           rows: 10,
           columns: 10,
           portfolioId: portfolioId,
-          createdAt: new Date()
+          createdAt: new Date(),
+          displayOrder: nextDisplayOrder
         };
         
         spreadsheets.value.push(newSpreadsheet);
-        console.log(`✅ Created default spreadsheet in portfolio ${portfolioId}: ${spreadsheetId}`);
+        console.log(`✅ Created default spreadsheet in portfolio ${portfolioId}: ${spreadsheetId} with display_order ${nextDisplayOrder}`);
       } catch (error) {
         console.error('Error creating default spreadsheet:', error);
       }
@@ -1589,9 +1631,29 @@ export default {
         // Calculate next display order
         const nextDisplayOrder = portfolioSpreadsheets.length + 1;
         
-        // Create new spreadsheet
+        // Create new spreadsheet ID
+        const spreadsheetId = generateSpreadsheetId();
+        
+        // Save to database first
+        const { error: dbError } = await supabase
+          .from('ai_portfolio_data')
+          .insert([{
+            workspace_id: currentWorkspaceId.value,
+            portfolio_id: targetPortfolioId.value,
+            spreadsheet_id: spreadsheetId,
+            name: newSpreadsheetForm.value.name,
+            display_order: nextDisplayOrder,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          }]);
+
+        if (dbError) {
+          console.error('Error saving new spreadsheet to database:', dbError);
+          throw dbError;
+        }
+        
+        // Create new spreadsheet object
         const newSpreadsheet = {
-          id: generateSpreadsheetId(),
+          id: spreadsheetId,
           name: newSpreadsheetForm.value.name,
           rows: newSpreadsheetForm.value.rows,
           columns: newSpreadsheetForm.value.columns,

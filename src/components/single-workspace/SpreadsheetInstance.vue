@@ -2285,6 +2285,81 @@ import '@univerjs/sheets-formula/facade'
             }
           }, 3000); // Wait longer for DOM to be ready
     }
+
+    const fnCheckHashAfterUniverInit = (hasUnsavedChanges) => {
+        // Mark initialization as complete after a delay to ensure all setup is done
+        setTimeout(() => {
+          isInitializing.value = false;
+          
+          // Establish initial data state for comparison after initialization
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            const currentHash = getDataHash(currentData);
+            lastKnownDataState.value = currentHash;
+            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
+          } catch (error) {
+            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
+          }
+          
+          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
+          
+          // Set up beforeunload event to catch browser tab close/reload
+          const handleBeforeUnload = (event) => {
+            if (hasUnsavedChanges.value) {
+
+              // Show warning to user (browser will show standard message)
+              const message = 'You have unsaved changes that will be lost if you leave this page.';
+              event.returnValue = message; // For Chrome
+              return message; // For other browsers
+            }
+          };
+          
+          window.addEventListener('beforeunload', handleBeforeUnload);
+          
+          // Store the event handler for cleanup
+          if (!window.spreadsheetBeforeUnloadHandlers) {
+            window.spreadsheetBeforeUnloadHandlers = new Map();
+          }
+          window.spreadsheetBeforeUnloadHandlers.set(props.spreadsheetId, handleBeforeUnload);
+          
+        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
+
+    }
+
+    const fnCellEditAndApiCallListener = (readonlyState, univerAPI) => {
+
+        // Add readonly event listener if needed
+        if (readonlyState) {
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            params.cancel = true
+          })
+        } else {
+          // Add edit listener for immediate APICALL processing in non-readonly mode
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            console.log(`🔍 Sheet edit detected, checking for APICALL formulas:`, params);
+            // Process APICALL formulas immediately when user edits
+            setTimeout(() => {
+              processApiCallFormulas();
+            }, 200); // Small delay to let the edit complete
+          })
+        }
+    }
+
+    const fnTrackSheetChangesListener = () => {      
+        // Enable change tracking with error handling
+        setTimeout(() => {
+          try {
+            trackSheetChanges();
+            updateLocalSheetData();
+            updateRowCount();
+            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
+          } catch (trackingError) {
+            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
+            // Continue without change tracking rather than failing completely
+          }
+        }, 500);
+
+    }
     
     const initializeUniver = async (workbookData = null, forceReadonly = false) => {
       try {
@@ -2399,7 +2474,7 @@ import '@univerjs/sheets-formula/facade'
         
         // Formula functionality is now enabled - no blocking needed
         // Apply enhancement after a short delay to ensure univerAPI is ready
-        setTimeout(enhanceFormulaCalculation, 1000);
+        //setTimeout(enhanceFormulaCalculation, 1000);
 
         // We'll register custom functions after the workbook is created
         console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
@@ -2439,7 +2514,7 @@ import '@univerjs/sheets-formula/facade'
           
           
           // Wait for Univer to be fully initialized
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Try to get the injector through different methods
           let injector = null;
@@ -2477,9 +2552,11 @@ import '@univerjs/sheets-formula/facade'
           
           fnRegisterCustomCommands(commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction);
 
-          hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
+          // depricated code for hyperlink event listener due to new univer API 
+          // hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
 
           fnChangeDetectionListener(univerAPI, commandService);
+
           //  depricated code for smart change detection due to new univer API 
           // fnSmartChangeDetectionListener(univerAPI, commandService);
           
@@ -2493,88 +2570,17 @@ import '@univerjs/sheets-formula/facade'
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
 
-        // Add readonly event listener if needed
-        if (readonlyState) {
-          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
-            params.cancel = true
-          })
-        } else {
-          // Add edit listener for immediate APICALL processing in non-readonly mode
-          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
-            console.log(`🔍 Sheet edit detected, checking for APICALL formulas:`, params);
-            // Process APICALL formulas immediately when user edits
-            setTimeout(() => {
-              processApiCallFormulas();
-            }, 200); // Small delay to let the edit complete
-          })
-        }
+        fnCellEditAndApiCallListener(readonlyState, univerAPI);
 
-        // Start formula processing after workbook is created
-        setTimeout(() => {
-          console.log(`🚀 Running initial formula processing for ${props.spreadsheetId}...`);
-          // Process TASKSTATUS formulas once on load
-          processTaskStatusFormulas();
-          processApiCallFormulas();
-          
-          // Note: Removed intervals - formulas are processed once on load only
-          // This prevents repeated processing and duplicate status display
-          
-          console.log(`✅ TASKSTATUS formula processor run once on load (${props.spreadsheetId})`);
-          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get status + assignee of task 2464.`);
-          console.log(`👤 Click any TASKSTATUS cell to see assignee details with profile picture.`);
-        }, 1000);
+        // fnTrackSheetChangesListener();
 
-        // Enable change tracking with error handling
-        setTimeout(() => {
-          try {
-            trackSheetChanges();
-            updateLocalSheetData();
-            updateRowCount();
-            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
-          } catch (trackingError) {
-            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
-            // Continue without change tracking rather than failing completely
-          }
-        }, 500);
-        
         console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
-        
-        // Mark initialization as complete after a delay to ensure all setup is done
-        setTimeout(() => {
-          isInitializing.value = false;
-          
-          // Establish initial data state for comparison after initialization
-          try {
-            const currentData = getCurrentSpreadsheetData();
-            const currentHash = getDataHash(currentData);
-            lastKnownDataState.value = currentHash;
-            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
-          } catch (error) {
-            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
-          }
-          
-          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
-          
-          // Set up beforeunload event to catch browser tab close/reload
-          const handleBeforeUnload = (event) => {
-            if (hasUnsavedChanges.value) {
 
-              // Show warning to user (browser will show standard message)
-              const message = 'You have unsaved changes that will be lost if you leave this page.';
-              event.returnValue = message; // For Chrome
-              return message; // For other browsers
-            }
-          };
-          
-          window.addEventListener('beforeunload', handleBeforeUnload);
-          
-          // Store the event handler for cleanup
-          if (!window.spreadsheetBeforeUnloadHandlers) {
-            window.spreadsheetBeforeUnloadHandlers = new Map();
-          }
-          window.spreadsheetBeforeUnloadHandlers.set(props.spreadsheetId, handleBeforeUnload);
-          
-        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
+        // check if the hash has changed after univer is initialized
+        // fnCheckHashAfterUniverInit(hasUnsavedChanges);
+
+        
+
         
       } catch (error) {
         console.error(`❌ Failed to initialize Univer (${props.spreadsheetId}):`, error);
@@ -3451,10 +3457,10 @@ import '@univerjs/sheets-formula/facade'
         return;
       }
 
-      if (!hasUnsavedChanges.value) {
-        ElMessage.warning(`No changes to save`);
-        return;
-      }
+      // if (!hasUnsavedChanges.value) {
+      //   ElMessage.warning(`No changes to save`);
+      //   return;
+      // }
       
       try {
         saving.value = true;

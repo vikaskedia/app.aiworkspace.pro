@@ -27,12 +27,12 @@
           </el-button>
         </el-button-group>
         
-        <el-button @click="goBack" plain>
+        <!--<el-button @click="goBack" plain>
           <template #icon>
             <ArrowLeft />
           </template>
           Back to Workspace
-        </el-button>
+        </el-button>-->
       </div>
     </div>
     

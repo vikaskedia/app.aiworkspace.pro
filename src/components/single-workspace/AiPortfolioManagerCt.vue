@@ -167,6 +167,7 @@
                       :can-remove="getPortfolioSpreadsheets(portfolio.id).length > 1"
                       :workspace-id="portfolio.childWorkspaceId || currentWorkspaceId"
                       :portfolio-id="portfolio.id"
+                      :view-mode="getSpreadsheetReadonlyState(spreadsheet.id)"
                       :readonly="getSpreadsheetReadonlyState(spreadsheet.id)"
                       @remove-spreadsheet="removeSpreadsheet"
                     />

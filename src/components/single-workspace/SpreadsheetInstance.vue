@@ -205,6 +205,10 @@ import '@univerjs/sheets-formula/facade'
       readonly: {
         type: Boolean,
         default: false
+      },
+      viewMode: {
+        type: Boolean,
+        default: false
       }
     })
 
@@ -668,7 +672,6 @@ import '@univerjs/sheets-formula/facade'
     let univer = null;
     let univerAPI = null;
     let editEventListener = null;
-    let isComponentMounted = true; // Track component mount state to prevent disposed injector access
     const portfolioData = ref({});
     const saving = ref(false);
     const portfolioId = ref(null);
@@ -744,10 +747,10 @@ import '@univerjs/sheets-formula/facade'
               container: `univer-container-${props.spreadsheetId}`,
               header: !readonlyState, // Show header when not readonly
               toolbar: !readonlyState, // Show toolbar when not readonly
-              // formula: {
-              //   // Enable automatic formula calculation when cells change
-              //   initialFormulaComputing: 'FORCED'
-              // }
+              formula: {
+                // Enable automatic formula calculation when cells change
+                initialFormulaComputing: 'FORCED'
+              }
             }),
             UniverSheetsNotePreset(),
             UniverSheetsHyperLinkPreset({
@@ -1030,12 +1033,12 @@ import '@univerjs/sheets-formula/facade'
           }, 10);
           
           // Save to database
-          try {
-            await savePortfolioData(currentData);
-            console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
-          } catch (saveError) {
-            console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
-          }
+          // try {
+          //   await savePortfolioData(currentData);
+          //   console.log(`💾 Saved processed formulas to database (${props.spreadsheetId})`);
+          // } catch (saveError) {
+          //   console.warn(`⚠️ Could not save processed data (${props.spreadsheetId}):`, saveError.message);
+          // }
           
           // Trigger data refresh
           console.log(`🔄 Task status data updated, will reflect on next reload (${props.spreadsheetId})`);
@@ -1222,12 +1225,12 @@ import '@univerjs/sheets-formula/facade'
           }, 10);
           
           // Save to database
-          try {
-            await savePortfolioData(currentData);
-            console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
-          } catch (saveError) {
-            console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
-          }
+          // try {
+          //   await savePortfolioData(currentData);
+          //   console.log(`💾 Saved processed APICALL results to database (${props.spreadsheetId})`);
+          // } catch (saveError) {
+          //   console.warn(`⚠️ Could not save APICALL data (${props.spreadsheetId}):`, saveError.message);
+          // }
           
           // Trigger data refresh
           console.log(`🔄 APICALL data updated, will reflect on next reload (${props.spreadsheetId})`);
@@ -2286,114 +2289,7 @@ import '@univerjs/sheets-formula/facade'
             }
           }, 3000); // Wait longer for DOM to be ready
     }
-
-    const fnCheckHashAfterUniverInit = (hasUnsavedChanges) => {
-        // Mark initialization as complete after a delay to ensure all setup is done
-        setTimeout(() => {
-          isInitializing.value = false;
-          
-          // Establish initial data state for comparison after initialization
-          try {
-            const currentData = getCurrentSpreadsheetData();
-            const currentHash = getDataHash(currentData);
-            lastKnownDataState.value = currentHash;
-            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
-          } catch (error) {
-            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
-          }
-          
-          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
-          
-          // Set up beforeunload event to catch browser tab close/reload
-          const handleBeforeUnload = (event) => {
-            if (hasUnsavedChanges.value) {
-
-              // Show warning to user (browser will show standard message)
-              const message = 'You have unsaved changes that will be lost if you leave this page.';
-              event.returnValue = message; // For Chrome
-              return message; // For other browsers
-            }
-          };
-          
-          window.addEventListener('beforeunload', handleBeforeUnload);
-          
-          // Store the event handler for cleanup
-          if (!window.spreadsheetBeforeUnloadHandlers) {
-            window.spreadsheetBeforeUnloadHandlers = new Map();
-          }
-          window.spreadsheetBeforeUnloadHandlers.set(props.spreadsheetId, handleBeforeUnload);
-          
-        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
-
-    }
-
-    const fnCellEditAndApiCallListener = (readonlyState, univerAPI) => {
-
-        // Add readonly event listener if needed
-        if (readonlyState) {
-          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
-            params.cancel = true
-          })
-        } else {
-          // Add edit listener for immediate APICALL processing in non-readonly mode
-          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
-            console.log(`🔍 Sheet edit detected, checking for APICALL formulas:`, params);
-            // Process APICALL formulas immediately when user edits
-            setTimeout(() => {
-              processApiCallFormulas();
-            }, 200); // Small delay to let the edit complete
-          })
-        }
-    }
-
-    const fnTrackSheetChangesListener = () => {      
-        // Enable change tracking with error handling
-        setTimeout(() => {
-          try {
-            trackSheetChanges();
-            updateLocalSheetData();
-            updateRowCount();
-            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
-          } catch (trackingError) {
-            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
-            // Continue without change tracking rather than failing completely
-          }
-        }, 500);
-
-    }
     
-    // Wrapper function to handle initialization with retry logic
-    const initializeUniverWithRetry = async (workbookData = null, forceReadonly = false, retryCount = 0) => {
-      const maxRetries = 2;
-      
-      try {
-        await initializeUniver(workbookData, forceReadonly);
-      } catch (error) {
-        console.error(`❌ Initialization attempt ${retryCount + 1} failed for ${props.spreadsheetId}:`, error);
-        
-        // If this is a disposal error and we have retries left, try again
-        if (retryCount < maxRetries && 
-            (error.message?.includes('disposed') || 
-             error.message?.includes('Cannot read properties of null'))) {
-          console.log(`🔄 Retrying initialization for ${props.spreadsheetId} (attempt ${retryCount + 2}/${maxRetries + 1})`);
-          
-          // Wait a bit before retrying and check if component is still mounted
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          if (isComponentMounted) {
-            return initializeUniverWithRetry(workbookData, forceReadonly, retryCount + 1);
-          } else {
-            console.log(`⚠️ Component unmounted during retry, aborting for ${props.spreadsheetId}`);
-            return;
-          }
-        }
-        
-        // If we've exhausted retries or it's a different error, show user-friendly message
-        ElMessage.error(`Failed to initialize ${props.spreadsheetName}. Please refresh the page.`);
-        throw error;
-      }
-    };
-
     const initializeUniver = async (workbookData = null, forceReadonly = false) => {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
@@ -2507,7 +2403,7 @@ import '@univerjs/sheets-formula/facade'
         
         // Formula functionality is now enabled - no blocking needed
         // Apply enhancement after a short delay to ensure univerAPI is ready
-        //setTimeout(enhanceFormulaCalculation, 1000);
+        setTimeout(enhanceFormulaCalculation, 1000);
 
         // We'll register custom functions after the workbook is created
         console.log(`⏭️ Custom functions will be registered after workbook creation (${props.spreadsheetId})`);
@@ -2539,26 +2435,15 @@ import '@univerjs/sheets-formula/facade'
         try {
           console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
 
-          // Check if component is still mounted before proceeding
-          if (!isComponentMounted) {
-            console.log(`⚠️ Component unmounted during initialization, skipping custom menu for ${props.spreadsheetId}`);
-            return;
-          }
-
           // Check if univer instance was created successfully
           if (!univer) {
             console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
             return;
           }
           
-          // Wait for Univer to be fully initialized with mount state checks
-          await new Promise(resolve => setTimeout(resolve, 500));
           
-          // Final mount state check before accessing injector
-          if (!isComponentMounted) {
-            console.log(`⚠️ Component unmounted before injector access, aborting custom menu for ${props.spreadsheetId}`);
-            return;
-          }
+          // Wait for Univer to be fully initialized
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Try to get the injector through different methods
           let injector = null;
@@ -2584,44 +2469,21 @@ import '@univerjs/sheets-formula/facade'
             return;
           }
           
-          // Check if injector is disposed before using it
-          if (injector.disposed || (injector._disposed === true)) {
-            console.warn(`⚠️ Injector is already disposed, skipping custom menu for ${props.spreadsheetId}`);
-            return;
-          }
-          
           // Import custom menu dependencies
           const { ICommandService, CommandType } = await import('@univerjs/core');
           const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType, ContextMenuPosition, ContextMenuGroup } = await import('@univerjs/ui');
           
-          // Check mount state one more time before getting services
-          if (!isComponentMounted) {
-            console.log(`⚠️ Component unmounted before getting services, aborting custom menu for ${props.spreadsheetId}`);
-            return;
-          }
-          
-          // Get services with error handling for disposed injector
-          let commandService, menuManagerService, componentManager;
-          try {
-            commandService = injector.get(ICommandService);
-            menuManagerService = injector.get(IMenuManagerService);
-            componentManager = injector.get(ComponentManager);
-          } catch (serviceError) {
-            if (serviceError.message && serviceError.message.includes('disposed')) {
-              console.warn(`⚠️ Injector was disposed while getting services for ${props.spreadsheetId}, skipping custom menu`);
-              return;
-            }
-            throw serviceError; // Re-throw if it's not a disposal error
-          }
+          // Get services
+          const commandService = injector.get(ICommandService);
+          const menuManagerService = injector.get(IMenuManagerService);
+          const componentManager = injector.get(ComponentManager);
           console.log('✅ Got all required services from injector');
           
           fnRegisterCustomCommands(commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction);
 
-          // depricated code for hyperlink event listener due to new univer API 
-          // hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
+          hyperlinkEventListener(univerAPI, hasUnsavedChanges, commandService);
 
           fnChangeDetectionListener(univerAPI, commandService);
-
           //  depricated code for smart change detection due to new univer API 
           // fnSmartChangeDetectionListener(univerAPI, commandService);
           
@@ -2632,32 +2494,27 @@ import '@univerjs/sheets-formula/facade'
 
         // Create workbook with loaded data and styles
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
-        
-        // Check if component is still mounted and univerAPI is available before creating workbook
-        if (!isComponentMounted) {
-          console.log(`⚠️ Component unmounted before workbook creation, aborting for ${props.spreadsheetId}`);
-          return;
-        }
-        
-        if (!univerAPI) {
-          console.error(`❌ UniversAPI is null, cannot create workbook for ${props.spreadsheetId}`);
-          throw new Error('UniversAPI is not available');
-        }
-        
-        // Validate WORKBOOK_DATA structure before creating
-        if (!WORKBOOK_DATA || typeof WORKBOOK_DATA !== 'object') {
-          console.error(`❌ Invalid WORKBOOK_DATA for ${props.spreadsheetId}:`, WORKBOOK_DATA);
-          throw new Error('Invalid workbook data structure');
-        }
-        
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
 
-        fnCellEditAndApiCallListener(readonlyState, univerAPI);
+        // Add readonly event listener if needed
+        if (readonlyState) {
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            params.cancel = true
+          })
+        } else {
+          // Add edit listener for immediate APICALL processing in non-readonly mode
+          editEventListener = univerAPI.addEvent(univerAPI.Event.BeforeSheetEditStart, (params) => {
+            console.log(`🔍 Sheet edit detected, checking for APICALL formulas:`, params);
+            // Process APICALL formulas immediately when user edits
+            setTimeout(() => {
+              processApiCallFormulas();
+            }, 200); // Small delay to let the edit complete
+          })
+        }
 
-
-         // Start formula processing after workbook is created
-         setTimeout(() => {
+        // Start formula processing after workbook is created
+        setTimeout(() => {
           console.log(`🚀 Running initial formula processing for ${props.spreadsheetId}...`);
           // Process TASKSTATUS formulas once on load
           processTaskStatusFormulas();
@@ -2671,16 +2528,57 @@ import '@univerjs/sheets-formula/facade'
           console.log(`👤 Click any TASKSTATUS cell to see assignee details with profile picture.`);
         }, 1000);
 
-
-        // fnTrackSheetChangesListener();
-
-        console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
-
-        // check if the hash has changed after univer is initialized
-        fnCheckHashAfterUniverInit(hasUnsavedChanges);
-
+        // Enable change tracking with error handling
+        setTimeout(() => {
+          try {
+            trackSheetChanges();
+            updateLocalSheetData();
+            updateRowCount();
+            console.log(`✅ Change tracking initialized (${props.spreadsheetId})`);
+          } catch (trackingError) {
+            console.warn(`⚠️ Failed to initialize change tracking (${props.spreadsheetId}):`, trackingError.message);
+            // Continue without change tracking rather than failing completely
+          }
+        }, 500);
         
+        console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);
+        
+        // Mark initialization as complete after a delay to ensure all setup is done
+        setTimeout(() => {
+          isInitializing.value = false;
+          
+          // Establish initial data state for comparison after initialization
+          try {
+            const currentData = getCurrentSpreadsheetData();
+            const currentHash = getDataHash(currentData);
+            lastKnownDataState.value = currentHash;
+            console.log(`📊 Established initial data state for comparison after initialization (${props.spreadsheetId})`);
+          } catch (error) {
+            console.warn(`Error establishing initial data state for ${props.spreadsheetId}:`, error);
+          }
+          
+          console.log(`🎯 Initialization complete for ${props.spreadsheetId} - smart change detection now active`);
+          
+          // Set up beforeunload event to catch browser tab close/reload
+          const handleBeforeUnload = (event) => {
+            if (hasUnsavedChanges.value) {
 
+              // Show warning to user (browser will show standard message)
+              const message = 'You have unsaved changes that will be lost if you leave this page.';
+              event.returnValue = message; // For Chrome
+              return message; // For other browsers
+            }
+          };
+          
+          window.addEventListener('beforeunload', handleBeforeUnload);
+          
+          // Store the event handler for cleanup
+          if (!window.spreadsheetBeforeUnloadHandlers) {
+            window.spreadsheetBeforeUnloadHandlers = new Map();
+          }
+          window.spreadsheetBeforeUnloadHandlers.set(props.spreadsheetId, handleBeforeUnload);
+          
+        }, 5000); // Wait 5 seconds to ensure all initialization commands are processed
         
       } catch (error) {
         console.error(`❌ Failed to initialize Univer (${props.spreadsheetId}):`, error);
@@ -2901,21 +2799,11 @@ import '@univerjs/sheets-formula/facade'
         
         console.log('🔍 Injector found, getting services...');
         
-        // Try to get workbook service with disposal check
+        // Try to get workbook service
         let workbookService = null;
         try {
-          // Check if injector is disposed before using it
-          if (injector.disposed || (injector._disposed === true)) {
-            console.log('⚠️ Injector is disposed, cannot get workbook service');
-            return { row: 0, col: 0 };
-          }
-          
           workbookService = injector.get('IWorkbookService') || injector.get('WorkbookService');
         } catch (serviceError) {
-          if (serviceError.message && serviceError.message.includes('disposed')) {
-            console.log('⚠️ Injector was disposed while getting workbook service');
-            return { row: 0, col: 0 };
-          }
           console.log('⚠️ Could not get workbook service:', serviceError.message);
           return { row: 0, col: 0 };
         }
@@ -3306,16 +3194,12 @@ import '@univerjs/sheets-formula/facade'
       } else {
         // Ensure DOM is ready before initialization
         setTimeout(() => {
-          initializeUniverWithRetry();
+          initializeUniver();
         }, 100);
       }
     });
 
     onBeforeUnmount(() => {
-      // Mark component as unmounted to prevent further injector access
-      isComponentMounted = false;
-      console.log(`🔒 Component marked as unmounted for ${props.spreadsheetId}`);
-      
       // Clean up real-time task update subscription
       if (taskUpdateSubscription) {
         taskUpdateSubscription.unsubscribe();
@@ -3571,10 +3455,10 @@ import '@univerjs/sheets-formula/facade'
         return;
       }
 
-      // if (!hasUnsavedChanges.value) {
-      //   ElMessage.warning(`No changes to save`);
-      //   return;
-      // }
+      if (!hasUnsavedChanges.value) {
+        ElMessage.warning(`No changes to save`);
+        return;
+      }
       
       try {
         saving.value = true;
@@ -3638,6 +3522,8 @@ import '@univerjs/sheets-formula/facade'
             spreadsheet_id: props.spreadsheetId,
             workspace_id: currentWorkspaceId.value,
             portfolio_id: props.portfolioId,
+            view_mode: props.viewMode,
+            user_id: currentUser.value.id,
             display_order: currentDisplayOrder,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -3834,16 +3720,9 @@ import '@univerjs/sheets-formula/facade'
     // Update current row count based on worksheet data
     const updateRowCount = () => {
       try {
-        if (!isComponentMounted || !univer || !univer.__getInjector) return;
+        if (!univer || !univer.__getInjector) return;
         
         const injector = univer.__getInjector();
-        
-        // Check if injector is disposed before using it
-        if (!injector || injector.disposed || (injector._disposed === true)) {
-          console.log('⚠️ Injector is disposed in updateRowCount, skipping');
-          return;
-        }
-        
         const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
         
         if (workbookService) {
@@ -3966,16 +3845,10 @@ import '@univerjs/sheets-formula/facade'
         
         // First try to get data through the injector services
         try {
-          if (!isComponentMounted || !univer || !univer.__getInjector) {
+          if (!univer || !univer.__getInjector) {
             throw new Error('Univer instance not available');
           }
           const injector = univer.__getInjector();
-          
-          // Check if injector is disposed before using it
-          if (!injector || injector.disposed || (injector._disposed === true)) {
-            throw new Error('Injector is disposed');
-          }
-          
           if (injector) {
             const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
             if (workbookService) {
@@ -4636,7 +4509,7 @@ import '@univerjs/sheets-formula/facade'
         const cleanedHistoryData = cleanDataForSerialization(workbookData);
         
         // Initialize Univer with history data in readonly mode
-        await initializeUniverWithRetry(cleanedHistoryData, true);
+        await initializeUniver(cleanedHistoryData, true);
         
         // Mark as saved since we loaded from history
         markAsSaved();
@@ -4665,7 +4538,7 @@ import '@univerjs/sheets-formula/facade'
         const cleanedHistoryData = cleanDataForSerialization(workbookData);
         
         // Pass readonly=true to initializeUniver for history loading
-        await initializeUniverWithRetry(cleanedHistoryData, true);
+        await initializeUniver(cleanedHistoryData, true);
 
         // Update URL to reflect the history state
         const historyUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio/${props.portfolioId}/spreadsheet/${historyRecord.spreadsheetId}/history/${historyRecord.id}`;

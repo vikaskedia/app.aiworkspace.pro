@@ -1,41 +1,5 @@
 <template>
-  <div class="excalidraw-page">
-    <div class="excalidraw-header">
-      <div class="header-content">
-        &nbsp;
-      </div>
-      
-      <div class="header-actions">
-        <el-button-group>
-          <el-button @click="exportDrawing" type="primary">
-            <template #icon>
-              <Download />
-            </template>
-            Export
-          </el-button>
-          <el-button @click="importDrawing">
-            <template #icon>
-              <Upload />
-            </template>
-            Import
-          </el-button>
-          <el-button @click="clearDrawing" type="danger">
-            <template #icon>
-              <Delete />
-            </template>
-            Clear
-          </el-button>
-        </el-button-group>
-        
-        <!--<el-button @click="goBack" plain>
-          <template #icon>
-            <ArrowLeft />
-          </template>
-          Back to Workspace
-        </el-button>-->
-      </div>
-    </div>
-    
+  <div class="excalidraw-page">    
     <div class="excalidraw-container">
       <div v-if="!isDataLoaded" class="loading-container">
         <div class="loading-spinner">
@@ -195,9 +159,16 @@ export default {
       UIOptions: {
         canvasActions: {
           saveToActiveFile: false,
-          loadScene: false,
+          loadScene: true,
           export: false,
-          saveAsImage: false
+          saveAsImage: true,
+          clearCanvas: true,
+          changeViewBackgroundColor: true,
+          search: true,
+          help: true,
+          theme: true,
+          socials: false,
+          liveCollaboration: false
         }
       }
     })
@@ -573,35 +544,6 @@ export default {
   background-color: #f5f7fa;
 }
 
-.excalidraw-header {
-  background-color: white;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.header-content h1 {
-  margin: 0 0 8px 0;
-  color: #303133;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.header-description {
-  margin: 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
 .excalidraw-container {
   flex: 1;
   position: relative;
@@ -646,18 +588,32 @@ export default {
   height: 100% !important;
   width: 100% !important;
 }
+.excalidraw .dropdown-menu-group {
+    display: none !important;
+}
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .excalidraw-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-  }
-  
-  .header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
+/* Hide the next div after dropdown-menu-group */
+.excalidraw .dropdown-menu-group + div {
+    display: none !important;
+}
+
+/* Hide separator lines in main menu */
+.excalidraw .Menu__content hr,
+.excalidraw .Menu__content .DropdownMenuItem--separator,
+.excalidraw .Menu__content .separator,
+.excalidraw .Menu__content [role="separator"],
+.excalidraw .Menu__content .menu-separator,
+.excalidraw .Menu__content .divider {
+    display: none !important;
+}
+
+/* Hide any border lines that act as separators */
+.excalidraw .Menu__content .DropdownMenuItem:not(:last-child) {
+    border-bottom: none !important;
+}
+
+.excalidraw .Menu__content .DropdownMenuItem {
+    border-bottom: none !important;
+    border-top: none !important;
 }
 </style> 

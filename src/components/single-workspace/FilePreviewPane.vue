@@ -140,6 +140,7 @@
       >
         <UniverDocument
           ref="univerDocumentComponent"
+          :key="`univer-${file.id}-${univerDocumentData?.id || 'no-data'}`"
           :document-data="univerDocumentData"
           :file="file"
           :show-header="false"
@@ -347,9 +348,10 @@ async function loadUniverDocument() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     
-    // Use the API endpoint to get file content
+    // Use the API endpoint to get file content with cache busting
+    console.log('🔍 Loading Univer document with cache busting...');
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}?t=${Date.now()}`,
       {
         headers: getGiteaHeaders(giteaToken),
         credentials: 'include',
@@ -364,7 +366,23 @@ async function loadUniverDocument() {
     const documentContent = atob(data.content);
     
     try {
-      univerDocumentData.value = JSON.parse(documentContent);
+      const parsedContent = JSON.parse(documentContent);
+      
+      // INVESTIGATION: Check what content we're actually loading
+      console.log('🔍 INVESTIGATION - Content Loading Analysis:');
+      console.log('📄 File SHA:', props.file.id);
+      console.log('📄 Raw content length:', documentContent.length);
+      console.log('📄 Parsed document ID:', parsedContent.id);
+      console.log('📄 DataStream content:', parsedContent.body?.dataStream);
+      console.log('📄 Expected content check:', {
+        hasJaidurgamaa: parsedContent.body?.dataStream?.includes('jaidurgamaa'),
+        hasJaikalimaa: parsedContent.body?.dataStream?.includes('jaikalimaa'),
+        hasWelcome: parsedContent.body?.dataStream?.includes('Welcome'),
+        actualLength: parsedContent.body?.dataStream?.length
+      });
+      
+      univerDocumentData.value = parsedContent;
+      
       // Scroll to top after document loads
       setTimeout(() => {
         scrollToTop();

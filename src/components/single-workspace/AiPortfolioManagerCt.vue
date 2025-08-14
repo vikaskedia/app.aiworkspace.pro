@@ -121,7 +121,7 @@
                     
                     <!-- 3-dot dropdown menu for spreadsheet actions -->
                     <div 
-                      v-if="getPortfolioSpreadsheets(portfolio.id).length > 1 && !portfolio.childWorkspaceId" 
+                      v-if="!portfolio.childWorkspaceId" 
                       class="spreadsheet-actions-dropdown">
                       <el-dropdown 
                         @command="handleSpreadsheetAction" 

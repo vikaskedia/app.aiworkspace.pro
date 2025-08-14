@@ -151,7 +151,7 @@
                               @click.stop
                               divided>
                               <el-icon><Lock /></el-icon>
-                              <!-- {{ getSpreadsheetReadonlyState(spreadsheet.id) }} -->
+                              <!-- {{ spreadsheet.id }} -->
                               {{ getSpreadsheetReadonlyState(spreadsheet.id) ? 'Enable Edit' : 'Make Readonly' }}
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -2073,12 +2073,14 @@ export default {
           .from('ai_portfolio_data')
           .select('spreadsheet_id, view_mode, user_id')
           .eq('workspace_id', currentWorkspaceId.value)
-          .not('spreadsheet_id', 'is', null);
+          .not('spreadsheet_id', 'is', null)
+          .order('created_at', { ascending: false });
 
         if (error) {
           console.error('Error loading spreadsheet readonly state:', error);
           return;
         }
+        console.log('🔍 Spreadsheet readonly state data:', data);
         
         // Convert array to object for easier lookup
         const readonlyState = {};

@@ -38,7 +38,15 @@
     </div>
     
     <div class="excalidraw-container">
-      <component :is="ExcalidrawVueComponent" v-bind="excalidrawProps" />
+      <div v-if="!isDataLoaded" class="loading-container">
+        <div class="loading-spinner">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <p>Loading canvas data...</p>
+        </div>
+      </div>
+      <div v-else class="excalidraw-wrapper">
+        <component :is="ExcalidrawVueComponent" v-bind="excalidrawProps" />
+      </div>
     </div>
   </div>
 </template>
@@ -49,10 +57,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useWorkspaceStore } from '../../store/workspace'
 import { supabase } from '../../supabase'
 import { applyReactInVue } from 'veaury'
-import { Download, Upload, Delete, ArrowLeft } from '@element-plus/icons-vue'
+import { Download, Upload, Delete, ArrowLeft, Loading } from '@element-plus/icons-vue'
 
 // Import Excalidraw components and CSS
-import { Excalidraw } from '@excalidraw/excalidraw'
+import { Excalidraw, convertToExcalidrawElements } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 
 export default {
@@ -61,7 +69,8 @@ export default {
     Download,
     Upload,
     Delete,
-    ArrowLeft
+    ArrowLeft,
+    Loading
   },
   setup() {
     const route = useRoute()
@@ -72,9 +81,90 @@ export default {
     const excalidrawData = ref(null)
     const currentCanvasId = ref(null)
     const currentWorkspace = ref(null)
+    const isDataLoaded = ref(false) // Flag to track if data loading is complete
+    const currentUser = ref(null) // Store current user to avoid repeated auth calls
     
     // Excalidraw component reference - simplified approach
     const ExcalidrawVueComponent = applyReactInVue(Excalidraw)
+    
+    // Function to clean and sanitize Excalidraw elements
+    const sanitizeElements = (elements) => {
+      if (!Array.isArray(elements)) return []
+      
+      return elements.map(element => {
+        try {
+          // Create a clean copy of the element
+          const cleanElement = { ...element }
+          
+          // Ensure required properties exist
+          if (!cleanElement.id || !cleanElement.type) {
+            console.warn('Element missing required properties:', element)
+            return null
+          }
+          
+          // Fix arrow elements with invalid fixedSegments
+          if (element.type === 'arrow') {
+            // Remove invalid fixedSegments
+            if (cleanElement.fixedSegments) {
+              // Only keep segments that are horizontal or vertical
+              cleanElement.fixedSegments = cleanElement.fixedSegments.filter(segment => {
+                if (Array.isArray(segment) && segment.length === 2) {
+                  const [x1, y1] = segment[0]
+                  const [x2, y2] = segment[1]
+                  // Check if segment is horizontal or vertical
+                  return x1 === x2 || y1 === y2
+                }
+                return false
+              })
+              
+              // If no valid segments remain, remove the property
+              if (cleanElement.fixedSegments.length === 0) {
+                delete cleanElement.fixedSegments
+              }
+            }
+            
+            // Ensure points array is valid
+            if (cleanElement.points && Array.isArray(cleanElement.points)) {
+              cleanElement.points = cleanElement.points.filter(point => {
+                return Array.isArray(point) && point.length === 2 && 
+                       typeof point[0] === 'number' && typeof point[1] === 'number'
+              })
+            }
+            
+            // Remove other problematic arrow properties that might cause issues
+            const problematicProps = ['lastCommittedPoint', 'startBinding', 'endBinding', 'boundElements']
+            problematicProps.forEach(prop => {
+              if (cleanElement[prop]) {
+                // Only keep valid object properties, remove everything else
+                if (typeof cleanElement[prop] !== 'object' || cleanElement[prop] === null) {
+                  delete cleanElement[prop]
+                }
+              }
+            })
+          }
+          
+          // Ensure numeric properties are valid numbers
+          const numericProps = ['x', 'y', 'width', 'height', 'angle', 'opacity', 'strokeWidth']
+          numericProps.forEach(prop => {
+            if (cleanElement[prop] !== undefined && (isNaN(cleanElement[prop]) || !isFinite(cleanElement[prop]))) {
+              cleanElement[prop] = 0
+            }
+          })
+          
+          // Remove any undefined or null values that might cause issues
+          Object.keys(cleanElement).forEach(key => {
+            if (cleanElement[key] === undefined || cleanElement[key] === null) {
+              delete cleanElement[key]
+            }
+          })
+          
+          return cleanElement
+        } catch (error) {
+          console.error('Error sanitizing element:', error, element)
+          return null
+        }
+      }).filter(element => element !== null) // Remove any null elements
+    }
     
     // Excalidraw props - simplified to match sandbox
     const excalidrawProps = ref({
@@ -84,10 +174,19 @@ export default {
           viewBackgroundColor: '#ffffff'
         }
       },
-      onChange: (elements, appState) => {
-        excalidrawData.value = { elements, appState }
-        saveCanvasData()
-      },
+              onChange: (elements, appState) => {
+          try {
+            // Sanitize elements before updating state
+            const sanitizedElements = sanitizeElements(elements)
+            excalidrawData.value = { elements: sanitizedElements, appState }
+            saveCanvasData()
+          } catch (error) {
+            console.error('Error in onChange handler:', error)
+            // Continue with unsanitized elements if sanitization fails
+            excalidrawData.value = { elements, appState }
+            saveCanvasData()
+          }
+        },
       theme: 'light',
       gridModeEnabled: false,
       zenModeEnabled: false,
@@ -106,46 +205,133 @@ export default {
     onMounted(async () => {
       const workspaceId = route.params.workspaceId
       if (workspaceId) {
-        if (workspaceStore.workspaces.length === 0) {
-          await workspaceStore.loadWorkspaces()
-        }
-        
         currentWorkspace.value = workspaceStore.workspaces.find(w => w.id == workspaceId)
         
         if (currentWorkspace.value) {
+          console.log('currentWorkspace.value', currentWorkspace.value)
           await loadCanvasData(workspaceId)
         }
       }
     })
     
-    const loadCanvasData = async (workspaceId) => {
-      try {
-        const { data, error } = await supabase
-          .from('canvas_data')
-          .select('*')
-          .eq('workspace_id', workspaceId)
-          .is('task_id', null)
-          .maybeSingle()
-        
-        if (data && !error) {
-          currentCanvasId.value = data.id
-          // Load Excalidraw data if it exists
-          if (data.canvas_data && data.canvas_data.excalidraw) {
-            excalidrawProps.value.initialData = data.canvas_data.excalidraw
-            excalidrawData.value = data.canvas_data.excalidraw
+          const loadCanvasData = async (workspaceId) => {
+        try {
+          const { data, error } = await supabase
+            .from('canvas_data')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .is('task_id', null)
+            .maybeSingle()
+          
+          console.log('data', data)
+          console.log('error', error)
+          
+          if (data && !error) {
+            currentCanvasId.value = data.id
+            
+            // Load Excalidraw data if it exists
+            if (data.canvas_data && data.canvas_data.excalidraw) {
+              console.log('data.canvas_data.excalidraw', data.canvas_data.excalidraw)
+              
+              // Extract elements and appState from the saved data
+              const savedElements = data.canvas_data.excalidraw.elements || []
+              const savedAppState = {}
+              
+                             // Convert the saved elements to Excalidraw elements if needed
+               let excalidrawElements = Array.isArray(savedElements) ? savedElements : convertToExcalidrawElements(savedElements)
+               
+               // Sanitize the elements to fix any invalid data
+               excalidrawElements = sanitizeElements(excalidrawElements)
+              
+              // Update the initialData with the loaded elements and appState
+              excalidrawProps.value.initialData = {
+                elements: excalidrawElements,
+                appState: {
+                  viewBackgroundColor: '#ffffff',
+                  ...savedAppState
+                }
+              }
+              
+              // Also update excalidrawData for consistency
+              excalidrawData.value = {
+                elements: excalidrawElements,
+                appState: {
+                  viewBackgroundColor: '#ffffff',
+                  ...savedAppState
+                }
+              }
+              
+              console.log('Loaded Elements:', excalidrawElements)
+              console.log('Loaded AppState:', savedAppState)
+            } else {
+              // No saved data found, initialize with empty canvas
+              excalidrawProps.value.initialData = {
+                elements: [],
+                appState: {
+                  viewBackgroundColor: '#ffffff'
+                }
+              }
+              
+              excalidrawData.value = {
+                elements: [],
+                appState: {
+                  viewBackgroundColor: '#ffffff'
+                }
+              }
+              
+              console.log('No saved data found, initializing with empty canvas')
+            }
+          } else {
+            // No data found, initialize with empty canvas
+            excalidrawProps.value.initialData = {
+              elements: [],
+              appState: {
+                viewBackgroundColor: '#ffffff'
+              }
+            }
+            
+            excalidrawData.value = {
+              elements: [],
+              appState: {
+                viewBackgroundColor: '#ffffff'
+              }
+            }
+            
+            console.log('No data found, initializing with empty canvas')
           }
+          
+          // Mark data loading as complete
+          isDataLoaded.value = true
+          console.log('Data loading complete, component will render')
+          
+        } catch (error) {
+          console.error('Error loading canvas data:', error)
+          
+          // Even if there's an error, initialize with empty canvas and mark as loaded
+          excalidrawProps.value.initialData = {
+            elements: [],
+            appState: {
+              viewBackgroundColor: '#ffffff'
+            }
+          }
+          
+          excalidrawData.value = {
+            elements: [],
+            appState: {
+              viewBackgroundColor: '#ffffff'
+            }
+          }
+          
+          isDataLoaded.value = true
+          console.log('Error occurred, but component will render with empty canvas')
         }
-      } catch (error) {
-        console.error('Error loading canvas data:', error)
       }
-    }
     
     const saveCanvasData = async () => {
       if (!currentWorkspace.value || !excalidrawData.value) return
       
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
+        if (!currentUser.value) {
           console.error('No authenticated user found')
           return
         }
@@ -157,14 +343,17 @@ export default {
         
         if (currentCanvasId.value) {
           // Update existing canvas
+          console.log('Updating currentCanvasId.value', currentCanvasId.value)
+          console.log('canvasData', canvasData)
           const { error } = await supabase
             .from('canvas_data')
             .update({
               canvas_data: canvasData,
-              updated_by: user.id,
+              updated_by: currentUser.value.id,
               updated_at: new Date().toISOString()
             })
-            .eq('id', currentCanvasId.value)
+            .eq('workspace_id', currentWorkspace.value.id)
+            .is('task_id', null)
           
           if (error) {
             console.error('Error updating canvas data:', error)
@@ -178,8 +367,8 @@ export default {
               task_id: null,
               canvas_data: canvasData,
               version_number: 1,
-              created_by: user.id,
-              updated_by: user.id,
+              created_by: currentUser.value.id,
+              updated_by: currentUser.value.id,
               updated_at: new Date().toISOString()
             })
           
@@ -205,53 +394,105 @@ export default {
       URL.revokeObjectURL(url)
     }
     
-    const importDrawing = () => {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = '.json'
-      input.onchange = (e) => {
-        const file = e.target.files[0]
-        if (file) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            try {
-              const data = JSON.parse(e.target.result)
-              excalidrawProps.value.initialData = data
-              excalidrawData.value = data
-              saveCanvasData()
-            } catch (error) {
-              console.error('Error importing drawing:', error)
+          const importDrawing = () => {
+        // Only allow importing if data is loaded
+        if (!isDataLoaded.value) {
+          console.log('Cannot import drawing - data not loaded yet')
+          return
+        }
+        
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json'
+        input.onchange = (e) => {
+          const file = e.target.files[0]
+          if (file) {
+            const reader = new FileReader()
+            reader.onload = (e) => {
+              try {
+                const data = JSON.parse(e.target.result)
+                
+                // Extract elements and appState from imported data
+                let importedElements = data.elements || []
+                const importedAppState = data.appState || {}
+                
+                // Sanitize the imported elements
+                importedElements = sanitizeElements(importedElements)
+                
+                excalidrawProps.value.initialData = {
+                  elements: importedElements,
+                  appState: {
+                    viewBackgroundColor: '#ffffff',
+                    ...importedAppState
+                  }
+                }
+                excalidrawData.value = {
+                  elements: importedElements,
+                  appState: {
+                    viewBackgroundColor: '#ffffff',
+                    ...importedAppState
+                  }
+                }
+                saveCanvasData()
+              } catch (error) {
+                console.error('Error importing drawing:', error)
+              }
             }
+            reader.readAsText(file)
           }
-          reader.readAsText(file)
         }
+        input.click()
       }
-      input.click()
-    }
     
-    const clearDrawing = () => {
-      excalidrawProps.value.initialData = {
-        elements: [],
-        appState: {
-          viewBackgroundColor: '#ffffff'
+          const clearDrawing = () => {
+        // Only allow clearing if data is loaded
+        if (!isDataLoaded.value) {
+          console.log('Cannot clear drawing - data not loaded yet')
+          return
         }
-      }
-      excalidrawData.value = {
-        elements: [],
-        appState: {
-          viewBackgroundColor: '#ffffff'
+        
+        excalidrawProps.value.initialData = {
+          elements: [],
+          appState: {
+            viewBackgroundColor: '#ffffff'
+          }
         }
+        excalidrawData.value = {
+          elements: [],
+          appState: {
+            viewBackgroundColor: '#ffffff'
+          }
+        }
+        saveCanvasData()
       }
-      saveCanvasData()
-    }
     
     const goBack = () => {
       router.push(`/single-workspace/${route.params.workspaceId}/dashboard`)
     }
     
+    // Get current user once to avoid repeated auth calls
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          currentUser.value = user
+        } else {
+          console.error('No authenticated user found')
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error)
+      }
+    }
+    
+    // Get current user when component is mounted
+    onMounted(async () => {
+      await getCurrentUser()
+    })
+    
     return {
       ExcalidrawVueComponent,
       excalidrawProps,
+      isDataLoaded,
       exportDrawing,
       importDrawing,
       clearDrawing,
@@ -303,6 +544,35 @@ export default {
   position: relative;
   overflow: hidden;
   height: 100%;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: #f5f7fa;
+}
+
+.loading-spinner {
+  text-align: center;
+  color: #606266;
+}
+
+.loading-spinner .el-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.loading-spinner p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.excalidraw-wrapper {
+  height: 100%;
+  width: 100%;
+  position: relative;
 }
 
 /* Simple approach - let Excalidraw handle its own styling */

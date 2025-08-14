@@ -47,9 +47,10 @@ export function setPageTitle(parts: TitleParts): void {
  * @param maxLength - Maximum length (default: 25)
  */
 export function truncateText(text: string, maxLength: number = 25): string {
-  if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 1).trim() + '…';
+  //if (!text) return '';
+  //if (text.length <= maxLength) return text;
+  //return text.substring(0, maxLength - 1).trim() + '…';
+  return text;
 }
 
 /**
@@ -86,7 +87,7 @@ export function setOutlineTitle(focusedNodeText?: string, workspaceName?: string
 /**
  * Sets title for task components
  */
-export function setTaskTitle(taskTitle?: string, workspaceName?: string, componentName: string = 'Tasks'): void {
+export function setTaskTitle(taskTitle?: string, workspaceName?: string, componentName?: string): void {
   let componentSpecific: string | undefined = undefined;
   
   if (taskTitle) {

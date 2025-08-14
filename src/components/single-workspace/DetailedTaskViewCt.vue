@@ -1833,7 +1833,7 @@ export default {
       
       const workspaceName = this.currentWorkspace.title;
       const taskTitle = this.task.title;
-      setTaskTitle(taskTitle, workspaceName, 'Tasks');
+      setTaskTitle(taskTitle, workspaceName);
     },
 
     async handleDueDateChange(date) {

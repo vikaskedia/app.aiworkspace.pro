@@ -2,10 +2,7 @@
   <div class="excalidraw-page">
     <div class="excalidraw-header">
       <div class="header-content">
-        <h1>Canvas{{ currentTaskId ? ' - Task' : '' }}</h1>
-        <p class="header-description">
-          {{ currentTaskId ? 'Task-specific canvas for diagrams and sketches' : 'Create beautiful hand-drawn diagrams and sketches' }}
-        </p>
+        &nbsp;
       </div>
       
       <div class="header-actions">
@@ -641,6 +638,9 @@ export default {
   position: relative;
 }
 
+.excalidraw .sidebar-trigger__label-element {
+  display: none;
+}
 /* Simple approach - let Excalidraw handle its own styling */
 .excalidraw-container :deep(.excalidraw) {
   height: 100% !important;

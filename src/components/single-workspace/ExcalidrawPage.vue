@@ -2,8 +2,7 @@
   <div class="excalidraw-page">
     <div class="excalidraw-header">
       <div class="header-content">
-        <h1>Canvas</h1>
-        <p class="header-description">Create beautiful hand-drawn diagrams and sketches</p>
+        &nbsp;
       </div>
       
       <div class="header-actions">
@@ -579,6 +578,10 @@ export default {
 .excalidraw-container :deep(.excalidraw) {
   height: 100% !important;
   width: 100% !important;
+}
+
+.excalidraw .sidebar-trigger__label-element {
+  display: none;
 }
 
 /* Responsive design */

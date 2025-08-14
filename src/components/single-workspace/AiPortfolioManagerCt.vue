@@ -2067,25 +2067,34 @@ export default {
           console.warn('⚠️ No user found, using default spreadsheet readonly state');
           return;
         }
-        
+
         // Load current user's spreadsheet readonly preferences
         const { data, error } = await supabase
           .from('ai_portfolio_data')
-          .select('spreadsheet_id, view_mode, user_id')
+          .select('spreadsheet_id, view_mode, user_id, created_at')
           .eq('workspace_id', currentWorkspaceId.value)
           .not('spreadsheet_id', 'is', null)
           .order('created_at', { ascending: false });
+          
+
+        // loop and get latest record for each spreadsheet
+        const latestRecords = [];
+        data.forEach(record => {
+          if (!latestRecords.some(r => r.spreadsheet_id === record.spreadsheet_id)) {
+            latestRecords.push(record);
+          }
+        });
 
         if (error) {
           console.error('Error loading spreadsheet readonly state:', error);
           return;
         }
-        console.log('🔍 Spreadsheet readonly state data:', data);
+        console.log('🔍 Spreadsheet readonly state data:', latestRecords);
         
         // Convert array to object for easier lookup
         const readonlyState = {};
-        if (data && data.length > 0) {
-          data.forEach(record => {
+        if (latestRecords && latestRecords.length > 0) {
+          latestRecords.forEach(record => {
             if (record.spreadsheet_id) {
               readonlyState[record.spreadsheet_id] = record.view_mode || false;
             }

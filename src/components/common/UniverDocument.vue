@@ -42,11 +42,6 @@
             <p>Container ID: univer-doc-container-{{ documentId }}</p>
             <el-button @click="initializeUniver" type="primary" size="small">Retry Initialize</el-button>
           </div>
-          
-          <!-- Fallback content display if Univer doesn't show content -->
-          <div v-if="univer && documentData && !loading" class="fallback-content" style="position: absolute; top: 60px; left: 20px; right: 20px; padding: 20px; background: rgba(255,255,255,0.9); border: 1px solid #eee; z-index: 999; font-family: Arial, sans-serif; white-space: pre-wrap; display: none;" :id="`fallback-${documentId}`">
-            {{ documentData.body?.dataStream }}
-          </div>
         </div>
         
         <!-- Save Changes Button (like markdown files) -->
@@ -138,66 +133,45 @@ const containerHeight = computed(() => {
   return `calc(${props.height} - ${deductions})`;
 });
 
-// Function to create a valid document structure from text content
-const createValidDocumentStructure = (textContent) => {
-  // Clean up the text content - remove extra whitespace and normalize
-  const cleanContent = textContent.trim();
-  
-  // For Univer, use simple structure - just basic text with minimal formatting
-  const dataStream = cleanContent + '\r\n';
-  
-  console.log('🔧 Creating document structure for content:', {
-    originalLength: textContent.length,
-    cleanLength: cleanContent.length,
-    dataStreamLength: dataStream.length,
-    content: dataStream
-  });
-  
-  // Create minimal, valid structure
-  const paragraphs = [];
-  const textRuns = [];
-  
-  // Only add paragraph and text run if we have content
-  if (cleanContent.length > 0) {
-    // Single paragraph at the end
-    paragraphs.push({
-      startIndex: dataStream.length - 2, // Before the \r\n
-      paragraphStyle: {
-        spaceBelow: { v: 10 }
-      }
-    });
-    
-    // Single text run covering all content except the final \r\n
-    textRuns.push({
-      st: 0,
-      ed: cleanContent.length,
-      ts: {
-        fs: 14,
-      }
-    });
-  } else {
-    // Empty document - minimal structure
-    paragraphs.push({
-      startIndex: 0,
-      paragraphStyle: {
-        spaceBelow: { v: 10 }
-      }
-    });
-  }
-  
-  const documentStructure = {
-    id: lastKnownDocumentData.value?.id || `doc-${Date.now()}`,
+// Default document data structure for Univer Docs
+const getDefaultDocumentData = () => {
+  const docName = props.file?.name?.replace(/\.[^/.]+$/, '') || 'Untitled Document';
+  return {
+    id: `doc-${Date.now()}`,
     body: {
-      dataStream: dataStream,
-      textRuns: textRuns,
-      paragraphs: paragraphs,
-      customRanges: [],
-      customDecorations: [],
-      sectionBreaks: [
+      dataStream: `${docName}\r\n\r\nWelcome to your new Univer document! Start typing to add your content.\r\n\r\n`,
+      textRuns: [
         {
-          startIndex: dataStream.length
-        }
-      ]
+          st: 0,
+          ed: docName.length,
+          ts: {
+            fs: 24,
+            bl: 1, // Bold
+          },
+        },
+        {
+          st: docName.length + 2,
+          ed: docName.length + 2 + 69,
+          ts: {
+            fs: 14,
+          },
+        },
+      ],
+      paragraphs: [
+        {
+          startIndex: docName.length + 1,
+          paragraphStyle: {
+            spaceBelow: { v: 20 },
+            headingId: 'heading1',
+          },
+        },
+        {
+          startIndex: docName.length + 2 + 69 + 1,
+          paragraphStyle: {
+            spaceBelow: { v: 10 },
+          },
+        },
+      ],
     },
     documentStyle: {
       pageSize: {
@@ -210,17 +184,6 @@ const createValidDocumentStructure = (textContent) => {
       marginLeft: 90,
     },
   };
-  
-  console.log('📄 Generated document structure:', documentStructure);
-  return documentStructure;
-};
-
-// Default document data structure for Univer Docs
-const getDefaultDocumentData = () => {
-  const docName = props.file?.name?.replace(/\.[^/.]+$/, '') || 'Untitled Document';
-  const content = `${docName}\r\n\r\nWelcome to your new Univer document! Start typing to add your content.\r\n\r\n`;
-  
-  return createValidDocumentStructure(content);
 };
 
 // Initialize Univer document
@@ -230,6 +193,49 @@ const initializeUniver = async () => {
     error.value = null;
     
     console.log('Initializing Univer document editor...');
+    console.log('🔍 CONTENT TRACE - Document data being passed to initialize:', props.documentData);
+    
+    // Check for any global Univer instances that might be caching content
+    if (window.univer) {
+      console.log('⚠️ Found global window.univer - clearing it');
+      delete window.univer;
+    }
+    
+    // Check for any potential module-level caches
+    if (typeof global !== 'undefined' && global.univer) {
+      console.log('⚠️ Found global.univer - clearing it');
+      delete global.univer;
+    }
+    
+    // Clear any potential browser storage caches related to Univer
+    try {
+      const storageKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('univer') || key.includes('doc-'))) {
+          storageKeys.push(key);
+        }
+      }
+      storageKeys.forEach(key => {
+        console.log('🗑️ Clearing localStorage key:', key);
+        localStorage.removeItem(key);
+      });
+      
+      // Also clear sessionStorage
+      const sessionKeys = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('univer') || key.includes('doc-'))) {
+          sessionKeys.push(key);
+        }
+      }
+      sessionKeys.forEach(key => {
+        console.log('🗑️ Clearing sessionStorage key:', key);
+        sessionStorage.removeItem(key);
+      });
+    } catch (storageError) {
+      console.warn('⚠️ Error clearing storage:', storageError);
+    }
     
     // Set document title
     if (props.file?.name) {
@@ -242,6 +248,19 @@ const initializeUniver = async () => {
     if (!univerContainer.value) {
       throw new Error('Container element not found');
     }
+    
+    // Force clear the container to prevent DOM caching
+    console.log('🧹 Clearing container DOM to prevent caching...');
+    const oldContainer = univerContainer.value;
+    oldContainer.innerHTML = '';
+    
+    // Force a complete container regeneration by changing its ID
+    const newContainerId = `univer-doc-container-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+    oldContainer.id = newContainerId;
+    documentId.value = newContainerId;
+    
+    console.log('🆕 Container regenerated with new ID:', newContainerId);
+    console.log('Container innerHTML after clear:', oldContainer.innerHTML);
     
     console.log('Container found, proceeding with initialization...');
     
@@ -291,186 +310,285 @@ const initializeUniver = async () => {
     univerAPI.value = FUniver.newAPI(univer.value);
     console.log('✅ UniversAPI facade created successfully');
     
-    // Get document data and ensure it's valid
+    // Get document data
     let docData;
-    if (props.documentData && props.documentData.body && props.documentData.body.dataStream) {
-      // Re-create document structure from the content to ensure validity
-      console.log('📄 Validating and reconstructing document data...');
-      const originalContent = props.documentData.body.dataStream
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-      
-      docData = createValidDocumentStructure(originalContent);
-      
-      // Preserve original ID if available
-      if (props.documentData.id) {
-        docData.id = props.documentData.id;
-      }
-      
-      console.log('✅ Document data reconstructed and validated');
+    if (props.documentData && props.documentData.body) {
+      // Use existing document data
+      docData = props.documentData;
     } else {
       // Create new document with default content
       docData = getDefaultDocumentData();
-      console.log('📄 No valid document data provided, using default');
     }
     
-    console.log('🏗️ Creating document unit with enhanced data...');
+    console.log('Creating document with data:', docData);
     
     // Store the document data as fallback
     lastKnownDocumentData.value = docData;
     
-    // CRITICAL: Try to create document unit with ultra-minimal structure
-    try {
-      // Start with absolutely minimal structure that should always work
-      const minimalDocData = {
-        id: `doc-${Date.now()}`,
-        body: {
-          dataStream: '\r\n',
-          textRuns: [],
-          paragraphs: [
-            {
-              startIndex: 0,
-              paragraphStyle: {}
+    // Create the document - this should work correctly with saved content
+    console.log('📝 Document data structure:', JSON.stringify(docData, null, 2));
+    
+    // Validate and potentially fix the document data structure
+    if (docData && docData.body && docData.body.dataStream) {
+      console.log('📝 Original dataStream:', JSON.stringify(docData.body.dataStream));
+      
+      // Ensure proper line ending format
+      docData.body.dataStream = docData.body.dataStream.replace(/\r\n/g, '\r\n').replace(/\r(?!\n)/g, '\r\n');
+      console.log('📝 Normalized dataStream:', JSON.stringify(docData.body.dataStream));
+      
+      // Validate textRuns and paragraphs alignment with dataStream length
+      const streamLength = docData.body.dataStream.length;
+      console.log('📝 DataStream length:', streamLength);
+      
+      // Check for structural issues and rebuild if necessary
+      let hasStructuralIssues = false;
+      
+      if (docData.body.textRuns) {
+        console.log('📝 TextRuns:', docData.body.textRuns);
+        // Check if textRuns are within bounds
+        docData.body.textRuns.forEach((run, index) => {
+          if (run.ed > streamLength) {
+            console.warn(`⚠️ TextRun ${index} end position ${run.ed} exceeds dataStream length ${streamLength}`);
+            hasStructuralIssues = true;
+          }
+        });
+      }
+      
+      if (docData.body.paragraphs) {
+        console.log('📝 Paragraphs:', docData.body.paragraphs);
+        // Check if paragraphs are within bounds
+        docData.body.paragraphs.forEach((para, index) => {
+          if (para.startIndex > streamLength) {
+            console.warn(`⚠️ Paragraph ${index} startIndex ${para.startIndex} exceeds dataStream length ${streamLength}`);
+            hasStructuralIssues = true;
+          }
+        });
+      }
+      
+      // If there are structural issues or the content seems problematic, rebuild the structure
+      if (hasStructuralIssues || streamLength !== docData.body.dataStream.length) {
+        console.warn('🔧 Rebuilding document structure due to detected issues...');
+        
+        // Create a simple structure that covers the entire content
+        docData.body.textRuns = [
+          {
+            st: 0,
+            ed: streamLength,
+            ts: {
+              fs: 14 // Default font size
             }
-          ],
-          sectionBreaks: [
-            {
-              startIndex: 2
-            }
-          ]
-        },
-        documentStyle: {
-          pageSize: { width: 595, height: 842 },
-          marginTop: 72,
-          marginBottom: 72,
-          marginRight: 90,
-          marginLeft: 90
+          }
+        ];
+        
+        // Create paragraphs based on line breaks
+        const paragraphs = [];
+        let currentIndex = 0;
+        const lines = docData.body.dataStream.split(/\r\n|\r|\n/);
+        
+        for (let i = 0; i < lines.length; i++) {
+          if (currentIndex < streamLength) {
+            paragraphs.push({
+              startIndex: currentIndex,
+              paragraphStyle: {
+                spaceBelow: { v: 10 }
+              }
+            });
+          }
+          currentIndex += lines[i].length + (i < lines.length - 1 ? 2 : 0); // +2 for \r\n
         }
-      };
-      
-      console.log('🔧 Creating document with minimal structure first...');
-      univer.value.createUnit(UniverInstanceType.UNIVER_DOC, minimalDocData);
-      console.log('✅ Minimal document unit created successfully');
-      
-      // Store the minimal data initially
-      lastKnownDocumentData.value = minimalDocData;
-      
-    } catch (createError) {
-      console.error('❌ Even minimal document creation failed:', createError);
-      
-      // If even minimal fails, just initialize Univer without a document
-      console.log('🚨 Skipping document creation, Univer will start with empty state');
+        
+        docData.body.paragraphs = paragraphs;
+        
+        console.log('🔧 Rebuilt textRuns:', docData.body.textRuns);
+        console.log('🔧 Rebuilt paragraphs:', docData.body.paragraphs);
+      }
     }
     
-    // Set isInitialized flag
-    isInitialized.value = true;
-    loading.value = false;
+    // Force a fresh document creation by generating a new ID
+    const freshDocData = {
+      ...docData,
+      id: `doc-fresh-${Date.now()}-${Math.random().toString(36).substring(2)}`
+    };
     
-    console.log('✅ Univer document editor initialization completed');
+    console.log('🆕 Creating fresh document with new ID:', freshDocData.id);
     
-    // FINAL SOLUTION: Create a working editable overlay if content isn't visible
+    // Clear any existing documents first
+    try {
+      const existingUnits = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+      existingUnits.forEach(unit => {
+        console.log('🗑️ Disposing existing document unit:', unit.getUnitId());
+        univer.value.disposeUnit(unit.getUnitId());
+      });
+    } catch (disposeError) {
+      console.warn('⚠️ Error disposing existing units:', disposeError);
+    }
+    
+    // Log what we're about to create
+    console.log('🔍 CONTENT TRACE - About to create document:');
+    console.log('Document ID:', freshDocData.id);
+    console.log('DataStream content:', JSON.stringify(freshDocData.body.dataStream));
+    console.log('Full document data:', JSON.stringify(freshDocData, null, 2));
+    
+    // Create the document unit with the fresh data
+    univer.value.createUnit(UniverInstanceType.UNIVER_DOC, freshDocData);
+    console.log('✅ Fresh document unit created successfully with ID:', freshDocData.id);
+    
+    // Immediately check what was actually created
     setTimeout(() => {
-      const container = univerContainer.value;
-      if (container) {
-        const allText = container.textContent || '';
-        console.log(`📋 Final content verification:`);
-        console.log(`📝 Container text length: ${allText.length}`);
-        console.log(`📝 Text preview: "${allText.substring(0, 100)}..."`);
-        console.log(`🎯 Expected content visible: ${allText.includes('jaidurgamaa') || allText.includes('jaikalimaa')}`);
-        
-        // Always create overlay since Univer document structure is problematic
-        console.log('🚀 Creating functional editable overlay (always showing overlay due to Univer structure issues)...');
-        
-        // Create a transparent overlay that allows editing
-        const editableOverlay = document.createElement('div');
-        editableOverlay.contentEditable = true;
-        editableOverlay.id = 'univer-content-overlay';
+      const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+      console.log('🔍 CONTENT TRACE - All document units after creation:', units.length);
+      units.forEach((unit, index) => {
+        console.log(`Unit ${index}:`, unit.getUnitId());
+        if (typeof unit.getSnapshot === 'function') {
+          const snapshot = unit.getSnapshot();
+          console.log(`Unit ${index} content:`, snapshot.body?.dataStream);
+        }
+      });
+    }, 100);
+    
+    // Try alternative approach if the document content seems incorrect after a delay
+    setTimeout(async () => {
+      if (univerAPI.value && univerAPI.value.getActiveDocument) {
+        const activeDoc = univerAPI.value.getActiveDocument();
+        if (activeDoc) {
+          console.log('🔍 Checking document content after creation...');
           
-          // Style it to overlay perfectly on the Univer editor with visible border for debugging
-          editableOverlay.style.cssText = `
-            position: absolute;
-            top: 60px;
-            left: 20px;
-            right: 20px;
-            bottom: 20px;
-            background: white;
-            border: 2px solid #007ACC;
-            z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 20px;
-            outline: none;
-            overflow: auto;
-            white-space: pre-wrap;
-            min-height: 200px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-          `;
-          
-          // Set the content from our original document data (not the minimal one)
-          const originalData = props.documentData || lastKnownDocumentData.value;
-          let displayContent = '';
-          
-          if (originalData?.body?.dataStream) {
-            displayContent = originalData.body.dataStream
-              .replace(/\\r\\n/g, '\n')
-              .replace(/\\r/g, '\n')
-              .replace(/\r\n/g, '\n')
-              .replace(/\r/g, '\n');
-          } else {
-            // Fallback content
-            displayContent = 'jaidurgamaa\njaikalimaa\nThis is test message\nhello\nWelcome to your new Univer document! Start typing to add your content.';
+          // Try to get the actual content from the rendered document
+          if (typeof activeDoc.getSnapshot === 'function') {
+            const currentSnapshot = activeDoc.getSnapshot();
+            console.log('📸 Current document snapshot:', currentSnapshot);
+            
+            // Compare with what we expected
+            if (docData && docData.body && docData.body.dataStream) {
+              const expectedContent = docData.body.dataStream;
+              const actualContent = currentSnapshot?.body?.dataStream || '';
+              
+              console.log('🔍 Expected content:', expectedContent);
+              console.log('🔍 Actual content:', actualContent);
+              
+              if (actualContent !== expectedContent) {
+                console.warn('⚠️ Document content mismatch detected');
+                console.warn('⚠️ This might indicate a document rendering issue');
+                console.warn('⚠️ Attempting to recreate document...');
+                
+                // Try to recreate the document by disposing and recreating
+                try {
+                  // Get all units and dispose them
+                  const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+                  units.forEach(unit => {
+                    if (unit.dispose) {
+                      unit.dispose();
+                    }
+                  });
+                  
+                  // Try a completely different approach - create empty document and set content
+                  setTimeout(async () => {
+                    try {
+                      // Create a minimal document first
+                      const minimalDoc = {
+                        id: docData.id || `doc-${Date.now()}`,
+                        body: {
+                          dataStream: '\r\n',
+                          textRuns: [],
+                          paragraphs: [
+                            {
+                              startIndex: 0,
+                              paragraphStyle: { spaceBelow: { v: 10 } }
+                            }
+                          ]
+                        },
+                        documentStyle: docData.documentStyle || {
+                          pageSize: { width: 595, height: 842 },
+                          marginTop: 72,
+                          marginBottom: 72,
+                          marginRight: 90,
+                          marginLeft: 90
+                        }
+                      };
+                      
+                      univer.value.createUnit(UniverInstanceType.UNIVER_DOC, minimalDoc);
+                      console.log('🔄 Minimal document created');
+                      
+                      // Try to replace content using the active document API
+                      setTimeout(() => {
+                        const activeDoc = univerAPI.value?.getActiveDocument();
+                        if (activeDoc && typeof activeDoc.appendText === 'function') {
+                          console.log('📝 Attempting to set content via appendText...');
+                          
+                          // Extract the text content from dataStream
+                          const textContent = docData.body.dataStream
+                            .replace(/\r\n/g, '\n')
+                            .replace(/\r/g, '\n');
+                          
+                          activeDoc.appendText(textContent);
+                          console.log('✅ Content set via appendText');
+                        } else {
+                          console.log('❌ appendText method not available');
+                        }
+                      }, 200);
+                      
+                    } catch (fallbackError) {
+                      console.error('❌ Fallback approach failed:', fallbackError);
+                      // Final fallback - recreate with original data
+                      univer.value.createUnit(UniverInstanceType.UNIVER_DOC, { ...docData });
+                      console.log('🔄 Document recreated with original data as final fallback');
+                    }
+                  }, 100);
+                } catch (recreateError) {
+                  console.error('❌ Failed to recreate document:', recreateError);
+                }
+              }
+            }
           }
-          
-          console.log('📝 Setting overlay content:', displayContent);
-          editableOverlay.textContent = displayContent;
-          
-          // Add event listener to track changes (no auto-save)
-          editableOverlay.addEventListener('input', () => {
-            console.log('📝 Content changed in overlay editor');
-            hasUnsavedChanges.value = true;
-            
-            // Update our document data with proper structure (for manual save)
-            const newContent = editableOverlay.textContent;
-            const updatedDocumentData = createValidDocumentStructure(newContent);
-            lastKnownDocumentData.value = updatedDocumentData;
-            
-            // Emit unsaved changes event to parent
-            emit('unsaved-changes', true);
-          });
-          
-          // Style for focus state
-          editableOverlay.addEventListener('focus', () => {
-            editableOverlay.style.boxShadow = '0 0 0 2px #409EFF';
-            editableOverlay.style.borderRadius = '4px';
-          });
-          
-          editableOverlay.addEventListener('blur', () => {
-            editableOverlay.style.boxShadow = 'none';
-          });
-          
-          container.appendChild(editableOverlay);
-          
-          console.log('✅ Functional editable overlay created and ready for use!');
-          console.log('📝 Overlay element:', editableOverlay);
-          console.log('📝 Overlay content:', editableOverlay.textContent);
-          console.log('📝 Overlay styles:', editableOverlay.style.cssText);
-          console.log('📝 Container element:', container);
-          console.log('📝 Click anywhere in the document area to start editing');
-          
-          // Focus the overlay after a short delay
-          setTimeout(() => {
-            editableOverlay.focus();
-            // Position cursor at the end
-            const range = document.createRange();
-            const selection = window.getSelection();
-            range.selectNodeContents(editableOverlay);
-            range.collapse(false);
-            selection.removeAllRanges();
-            selection.addRange(range);
-          }, 500);
+        }
       }
-    }, 2000);
+    }, 1500);
+    
+    // Wait a moment for the document to be fully created
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Immediate content verification and force refresh if needed
+    if (univerAPI.value && univerAPI.value.getActiveDocument) {
+      const activeDoc = univerAPI.value.getActiveDocument();
+      if (activeDoc && typeof activeDoc.getSnapshot === 'function') {
+        const currentSnapshot = activeDoc.getSnapshot();
+        const actualContent = currentSnapshot?.body?.dataStream || '';
+        const expectedContent = freshDocData.body?.dataStream || '';
+        
+        console.log('🔍 Immediate content check:');
+        console.log('Expected:', expectedContent.substring(0, 50) + '...');
+        console.log('Actual:', actualContent.substring(0, 50) + '...');
+        
+        if (actualContent !== expectedContent && actualContent.length < expectedContent.length) {
+          console.warn('⚠️ Immediate content mismatch detected - forcing Univer reinitialize');
+          
+          // Try to completely reinitialize Univer
+          setTimeout(async () => {
+            try {
+              cleanup();
+              await new Promise(resolve => setTimeout(resolve, 100));
+              await initializeUniver();
+            } catch (reinitError) {
+              console.error('❌ Failed to reinitialize Univer:', reinitError);
+            }
+          }, 100);
+        }
+      }
+    }
+    
+    // Log available methods to debug the API
+    console.log('📋 Available methods on univerAPI:', Object.getOwnPropertyNames(univerAPI.value));
+    if (univerAPI.value.getActiveDocument) {
+      const activeDoc = univerAPI.value.getActiveDocument();
+      console.log('📋 Available methods on activeDocument:', activeDoc ? Object.getOwnPropertyNames(activeDoc) : 'No active document');
+      
+      if (activeDoc) {
+        console.log('📄 Active document details:', {
+          hasSnapshot: typeof activeDoc.getSnapshot === 'function',
+          hasAppendText: typeof activeDoc.appendText === 'function'
+        });
+      }
+    }
     
     // Check if the editor UI was actually created
     setTimeout(() => {
@@ -589,46 +707,28 @@ const getDocumentData = () => {
 
 // Save document
 const saveDocument = async () => {
+  // Always attempt save since we don't have automatic change tracking
   console.log('🔄 Starting document save...');
 
   try {
     saving.value = true;
     
-    // Check if we have an overlay editor with content
-    const overlayEditor = document.getElementById('univer-content-overlay');
-    let docData;
-    
-    if (overlayEditor) {
-      // Get content from overlay and create valid structure
-      console.log('📝 Saving content from overlay editor...');
-      const currentContent = overlayEditor.textContent || '';
-      docData = createValidDocumentStructure(currentContent);
-      console.log('📄 Generated valid document structure for save');
-    } else {
-      // Fall back to getting document data from Univer
-      console.log('📊 Attempting to retrieve document data from Univer...');
-      docData = getDocumentData();
-    }
+    // Get current document data with enhanced error handling
+    console.log('📊 Attempting to retrieve document data...');
+    const docData = getDocumentData();
     
     if (!docData) {
       console.error('❌ No document data available for saving');
+      // Provide user-friendly message
       ElMessage.warning('Unable to retrieve document content. Please try again or check if the document is properly loaded.');
       return;
     }
 
-    console.log('✅ Document data prepared for save:', {
-      id: docData.id,
-      dataStreamLength: docData.body?.dataStream?.length,
-      paragraphsCount: docData.body?.paragraphs?.length,
-      textRunsCount: docData.body?.textRuns?.length
-    });
+    console.log('✅ Document data retrieved successfully:', docData);
 
-    // Emit save event with validated document data
+    // Emit save event with document data
     emit('save', docData);
     emit('update:documentData', docData);
-    
-    // Update our stored data
-    lastKnownDocumentData.value = docData;
     
     hasUnsavedChanges.value = false;
     emit('unsaved-changes', false);
@@ -645,8 +745,6 @@ const saveDocument = async () => {
 
 // Cleanup Univer instance
 const cleanup = () => {
-  console.log('🧹 Cleaning up Univer instance for reinitialize...');
-  
   if (univer.value) {
     try {
       // Dispose change listener
@@ -672,17 +770,8 @@ const cleanup = () => {
     univerAPI.value = null;
   }
   
-  // Clear the container
-  if (univerContainer.value) {
-    univerContainer.value.innerHTML = '';
-  }
-  
-  // Reset all flags
+  // Reset initialization flag
   isInitialized.value = false;
-  loading.value = false;
-  error.value = null;
-  
-  console.log('✅ Cleanup completed');
 };
 
 // Retry loading
@@ -699,42 +788,23 @@ const isInitialized = ref(false);
 
 // Watch for document data changes and initialize when ready
 watch(() => props.documentData, (newData, oldData) => {
-  console.log('📝 Document data changed:', {
-    hasNewData: !!newData,
-    hasOldData: !!oldData,
-    newDataId: newData?.id,
-    oldDataId: oldData?.id,
-    isInitialized: isInitialized.value
-  });
+  // Check if this is genuinely new data (not just initial load)
+  const isNewData = newData && oldData && JSON.stringify(newData) !== JSON.stringify(oldData);
   
   if (newData && !isInitialized.value && !univer.value) {
     console.log('📝 Document data loaded, initializing editor...');
     nextTick(() => {
       initializeUniver();
     });
-  }
-  // CRITICAL FIX: Force reinitialize when document ID changes (new content)
-  else if (newData && oldData && newData.id !== oldData.id && isInitialized.value) {
-    console.log('🔄 Document content changed - forcing Univer reinitialize...');
+  } else if (isNewData && isInitialized.value) {
+    console.log('📝 Document data changed, reinitializing editor...');
     cleanup();
     isInitialized.value = false;
     nextTick(() => {
       initializeUniver();
     });
   }
-  // ADDITIONAL FIX: Also reinitialize if content changes but same ID
-  else if (newData && oldData && 
-           newData.id === oldData.id && 
-           newData.body?.dataStream !== oldData.body?.dataStream &&
-           isInitialized.value) {
-    console.log('🔄 Document dataStream changed - forcing Univer reinitialize...');
-    cleanup();
-    isInitialized.value = false;
-    nextTick(() => {
-      initializeUniver();
-    });
-  }
-}, { immediate: true });
+}, { immediate: true, deep: true });
 
 // Lifecycle hooks
 onMounted(async () => {

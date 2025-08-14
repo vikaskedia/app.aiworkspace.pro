@@ -138,9 +138,13 @@
         v-else-if="file.type === 'application/vnd.univer-doc'"
         class="univer-document-preview"
       >
+        <!-- Show loading while univerDocumentData is being loaded -->
+        <el-skeleton v-if="loading || !univerDocumentData" :rows="10" animated />
+        
+        <!-- Only render UniverDocument when data is actually loaded -->
         <UniverDocument
+          v-else
           ref="univerDocumentComponent"
-          :key="`univer-${file.id}-${univerDocumentData?.id || 'no-data'}`"
           :document-data="univerDocumentData"
           :file="file"
           :show-header="false"
@@ -348,10 +352,9 @@ async function loadUniverDocument() {
     const giteaToken = import.meta.env.VITE_GITEA_TOKEN;
     const giteaHost = import.meta.env.VITE_GITEA_HOST;
     
-    // Use the API endpoint to get file content with cache busting
-    console.log('🔍 Loading Univer document with cache busting...');
+    // Use the API endpoint to get file content
     const response = await fetch(
-      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}?t=${Date.now()}`,
+      `${giteaHost}/api/v1/repos/associateattorney/${props.file.git_repo}/contents/${props.file.storage_path}`,
       {
         headers: getGiteaHeaders(giteaToken),
         credentials: 'include',
@@ -366,22 +369,14 @@ async function loadUniverDocument() {
     const documentContent = atob(data.content);
     
     try {
-      const parsedContent = JSON.parse(documentContent);
+      console.log('📄 Raw document content length:', documentContent.length);
+      console.log('📄 Raw document content preview:', documentContent.substring(0, 200));
       
-      // INVESTIGATION: Check what content we're actually loading
-      console.log('🔍 INVESTIGATION - Content Loading Analysis:');
-      console.log('📄 File SHA:', props.file.id);
-      console.log('📄 Raw content length:', documentContent.length);
-      console.log('📄 Parsed document ID:', parsedContent.id);
-      console.log('📄 DataStream content:', parsedContent.body?.dataStream);
-      console.log('📄 Expected content check:', {
-        hasJaidurgamaa: parsedContent.body?.dataStream?.includes('jaidurgamaa'),
-        hasJaikalimaa: parsedContent.body?.dataStream?.includes('jaikalimaa'),
-        hasWelcome: parsedContent.body?.dataStream?.includes('Welcome'),
-        actualLength: parsedContent.body?.dataStream?.length
-      });
+      univerDocumentData.value = JSON.parse(documentContent);
       
-      univerDocumentData.value = parsedContent;
+      console.log('📄 Parsed document data:', univerDocumentData.value);
+      console.log('📄 Document dataStream:', univerDocumentData.value?.body?.dataStream);
+      console.log('📄 Setting univerDocumentData.value - this should trigger UniverDocument to render');
       
       // Scroll to top after document loads
       setTimeout(() => {
@@ -389,6 +384,7 @@ async function loadUniverDocument() {
       }, 100);
     } catch (parseError) {
       console.error('Error parsing Univer document:', parseError);
+      console.error('Document content that failed to parse:', documentContent);
       error.value = 'Invalid Univer document format';
     }
   } catch (err) {

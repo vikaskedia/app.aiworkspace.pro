@@ -1,0 +1,32 @@
+{
+  "name": "univer-doc-start-kit",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A starter kit for Univer Document",
+  "scripts": {
+    "prepare": "simple-git-hooks",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@univerjs/presets": "0.6.2"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "2.22.0-beta.3",
+    "eslint": "^9.6.0",
+    "eslint-plugin-format": "^0.1.2",
+    "lint-staged": "^15.2.7",
+    "simple-git-hooks": "^2.11.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}

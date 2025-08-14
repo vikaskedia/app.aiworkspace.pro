@@ -668,6 +668,7 @@ import '@univerjs/sheets-formula/facade'
     let univer = null;
     let univerAPI = null;
     let editEventListener = null;
+    let isComponentMounted = true; // Track component mount state to prevent disposed injector access
     const portfolioData = ref({});
     const saving = ref(false);
     const portfolioId = ref(null);
@@ -2361,6 +2362,38 @@ import '@univerjs/sheets-formula/facade'
 
     }
     
+    // Wrapper function to handle initialization with retry logic
+    const initializeUniverWithRetry = async (workbookData = null, forceReadonly = false, retryCount = 0) => {
+      const maxRetries = 2;
+      
+      try {
+        await initializeUniver(workbookData, forceReadonly);
+      } catch (error) {
+        console.error(`❌ Initialization attempt ${retryCount + 1} failed for ${props.spreadsheetId}:`, error);
+        
+        // If this is a disposal error and we have retries left, try again
+        if (retryCount < maxRetries && 
+            (error.message?.includes('disposed') || 
+             error.message?.includes('Cannot read properties of null'))) {
+          console.log(`🔄 Retrying initialization for ${props.spreadsheetId} (attempt ${retryCount + 2}/${maxRetries + 1})`);
+          
+          // Wait a bit before retrying and check if component is still mounted
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (isComponentMounted) {
+            return initializeUniverWithRetry(workbookData, forceReadonly, retryCount + 1);
+          } else {
+            console.log(`⚠️ Component unmounted during retry, aborting for ${props.spreadsheetId}`);
+            return;
+          }
+        }
+        
+        // If we've exhausted retries or it's a different error, show user-friendly message
+        ElMessage.error(`Failed to initialize ${props.spreadsheetName}. Please refresh the page.`);
+        throw error;
+      }
+    };
+
     const initializeUniver = async (workbookData = null, forceReadonly = false) => {
       try {
         console.log(`🚀 Initializing Univer instance for ${props.spreadsheetName} (${props.spreadsheetId})...`);
@@ -2506,15 +2539,26 @@ import '@univerjs/sheets-formula/facade'
         try {
           console.log(`🎯 Adding custom menu using official pattern for ${props.spreadsheetId}...`);
 
+          // Check if component is still mounted before proceeding
+          if (!isComponentMounted) {
+            console.log(`⚠️ Component unmounted during initialization, skipping custom menu for ${props.spreadsheetId}`);
+            return;
+          }
+
           // Check if univer instance was created successfully
           if (!univer) {
             console.warn(`⚠️ Univer instance is null, cannot add custom menu for ${props.spreadsheetId}`);
             return;
           }
           
+          // Wait for Univer to be fully initialized with mount state checks
+          await new Promise(resolve => setTimeout(resolve, 500));
           
-          // Wait for Univer to be fully initialized
-          // await new Promise(resolve => setTimeout(resolve, 1000));
+          // Final mount state check before accessing injector
+          if (!isComponentMounted) {
+            console.log(`⚠️ Component unmounted before injector access, aborting custom menu for ${props.spreadsheetId}`);
+            return;
+          }
           
           // Try to get the injector through different methods
           let injector = null;
@@ -2540,14 +2584,35 @@ import '@univerjs/sheets-formula/facade'
             return;
           }
           
+          // Check if injector is disposed before using it
+          if (injector.disposed || (injector._disposed === true)) {
+            console.warn(`⚠️ Injector is already disposed, skipping custom menu for ${props.spreadsheetId}`);
+            return;
+          }
+          
           // Import custom menu dependencies
           const { ICommandService, CommandType } = await import('@univerjs/core');
           const { ComponentManager, IMenuManagerService, RibbonStartGroup, MenuItemType, ContextMenuPosition, ContextMenuGroup } = await import('@univerjs/ui');
           
-          // Get services
-          const commandService = injector.get(ICommandService);
-          const menuManagerService = injector.get(IMenuManagerService);
-          const componentManager = injector.get(ComponentManager);
+          // Check mount state one more time before getting services
+          if (!isComponentMounted) {
+            console.log(`⚠️ Component unmounted before getting services, aborting custom menu for ${props.spreadsheetId}`);
+            return;
+          }
+          
+          // Get services with error handling for disposed injector
+          let commandService, menuManagerService, componentManager;
+          try {
+            commandService = injector.get(ICommandService);
+            menuManagerService = injector.get(IMenuManagerService);
+            componentManager = injector.get(ComponentManager);
+          } catch (serviceError) {
+            if (serviceError.message && serviceError.message.includes('disposed')) {
+              console.warn(`⚠️ Injector was disposed while getting services for ${props.spreadsheetId}, skipping custom menu`);
+              return;
+            }
+            throw serviceError; // Re-throw if it's not a disposal error
+          }
           console.log('✅ Got all required services from injector');
           
           fnRegisterCustomCommands(commandService, CommandType, menuManagerService, componentManager, RibbonStartGroup, ContextMenuPosition, ContextMenuGroup, MenuItemType, saveFunction, emitFunction);
@@ -2567,6 +2632,24 @@ import '@univerjs/sheets-formula/facade'
 
         // Create workbook with loaded data and styles
         console.log(`📊 Creating Univer workbook with loaded data and ${Object.keys(WORKBOOK_DATA.styles || {}).length} styles...`);
+        
+        // Check if component is still mounted and univerAPI is available before creating workbook
+        if (!isComponentMounted) {
+          console.log(`⚠️ Component unmounted before workbook creation, aborting for ${props.spreadsheetId}`);
+          return;
+        }
+        
+        if (!univerAPI) {
+          console.error(`❌ UniversAPI is null, cannot create workbook for ${props.spreadsheetId}`);
+          throw new Error('UniversAPI is not available');
+        }
+        
+        // Validate WORKBOOK_DATA structure before creating
+        if (!WORKBOOK_DATA || typeof WORKBOOK_DATA !== 'object') {
+          console.error(`❌ Invalid WORKBOOK_DATA for ${props.spreadsheetId}:`, WORKBOOK_DATA);
+          throw new Error('Invalid workbook data structure');
+        }
+        
         // univer.createUnit(UniverInstanceType.UNIVER_SHEET, WORKBOOK_DATA);
         univerAPI.createWorkbook(WORKBOOK_DATA);
 
@@ -2801,11 +2884,21 @@ import '@univerjs/sheets-formula/facade'
         
         console.log('🔍 Injector found, getting services...');
         
-        // Try to get workbook service
+        // Try to get workbook service with disposal check
         let workbookService = null;
         try {
+          // Check if injector is disposed before using it
+          if (injector.disposed || (injector._disposed === true)) {
+            console.log('⚠️ Injector is disposed, cannot get workbook service');
+            return { row: 0, col: 0 };
+          }
+          
           workbookService = injector.get('IWorkbookService') || injector.get('WorkbookService');
         } catch (serviceError) {
+          if (serviceError.message && serviceError.message.includes('disposed')) {
+            console.log('⚠️ Injector was disposed while getting workbook service');
+            return { row: 0, col: 0 };
+          }
           console.log('⚠️ Could not get workbook service:', serviceError.message);
           return { row: 0, col: 0 };
         }
@@ -3196,12 +3289,16 @@ import '@univerjs/sheets-formula/facade'
       } else {
         // Ensure DOM is ready before initialization
         setTimeout(() => {
-          initializeUniver();
+          initializeUniverWithRetry();
         }, 100);
       }
     });
 
     onBeforeUnmount(() => {
+      // Mark component as unmounted to prevent further injector access
+      isComponentMounted = false;
+      console.log(`🔒 Component marked as unmounted for ${props.spreadsheetId}`);
+      
       // Clean up real-time task update subscription
       if (taskUpdateSubscription) {
         taskUpdateSubscription.unsubscribe();
@@ -3720,9 +3817,16 @@ import '@univerjs/sheets-formula/facade'
     // Update current row count based on worksheet data
     const updateRowCount = () => {
       try {
-        if (!univer || !univer.__getInjector) return;
+        if (!isComponentMounted || !univer || !univer.__getInjector) return;
         
         const injector = univer.__getInjector();
+        
+        // Check if injector is disposed before using it
+        if (!injector || injector.disposed || (injector._disposed === true)) {
+          console.log('⚠️ Injector is disposed in updateRowCount, skipping');
+          return;
+        }
+        
         const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
         
         if (workbookService) {
@@ -3845,10 +3949,16 @@ import '@univerjs/sheets-formula/facade'
         
         // First try to get data through the injector services
         try {
-          if (!univer || !univer.__getInjector) {
+          if (!isComponentMounted || !univer || !univer.__getInjector) {
             throw new Error('Univer instance not available');
           }
           const injector = univer.__getInjector();
+          
+          // Check if injector is disposed before using it
+          if (!injector || injector.disposed || (injector._disposed === true)) {
+            throw new Error('Injector is disposed');
+          }
+          
           if (injector) {
             const workbookService = injector.get?.('IWorkbookService') || injector.get?.('WorkbookService');
             if (workbookService) {
@@ -4509,7 +4619,7 @@ import '@univerjs/sheets-formula/facade'
         const cleanedHistoryData = cleanDataForSerialization(workbookData);
         
         // Initialize Univer with history data in readonly mode
-        await initializeUniver(cleanedHistoryData, true);
+        await initializeUniverWithRetry(cleanedHistoryData, true);
         
         // Mark as saved since we loaded from history
         markAsSaved();
@@ -4538,7 +4648,7 @@ import '@univerjs/sheets-formula/facade'
         const cleanedHistoryData = cleanDataForSerialization(workbookData);
         
         // Pass readonly=true to initializeUniver for history loading
-        await initializeUniver(cleanedHistoryData, true);
+        await initializeUniverWithRetry(cleanedHistoryData, true);
 
         // Update URL to reflect the history state
         const historyUrl = `/single-workspace/${currentWorkspaceId.value}/ai_portfolio/${props.portfolioId}/spreadsheet/${historyRecord.spreadsheetId}/history/${historyRecord.id}`;

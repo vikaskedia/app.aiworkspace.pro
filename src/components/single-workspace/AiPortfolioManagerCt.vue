@@ -151,7 +151,7 @@
                               @click.stop
                               divided>
                               <el-icon><Lock /></el-icon>
-                              <!-- {{ spreadsheet.id }} -->
+                              {{ spreadsheet.id }}
                               {{ getSpreadsheetReadonlyState(spreadsheet.id) ? 'Enable Edit' : 'Make Readonly' }}
                             </el-dropdown-item>
                           </el-dropdown-menu>
@@ -2183,26 +2183,34 @@ export default {
           .select('user_id, view_mode')
           .eq('spreadsheet_id', spreadsheetId)
           .eq('workspace_id', currentWorkspaceId.value)
-          .eq('view_mode', false) // false = edit mode
-          .neq('user_id', user.user.id); // exclude current user
+          //.eq('view_mode', false) // false = edit mode
+          .order('created_at', { ascending: false })
+          //.neq('user_id', user.user.id)
+          .limit(1); // exclude current user
 
         if (error) {
           console.error('Error checking spreadsheet edit conflict:', error);
           return false;
         }
+        console.log('🔍 Editing users:', editingUsers);
 
-        if (editingUsers && editingUsers.length > 0) {
+        if (editingUsers && editingUsers.view_mode === false && editingUsers.user_id !== null && editingUsers.length > 0) {
           // Get user info for the editor
-          const { data: editorData } = await supabase
+          if (editingUsers.user_id !== user.user.id) {
+
+            const { data: editorData } = await supabase
             .rpc('get_user_info_by_id', { user_id: editingUsers[0].user_id });
+            
+            const editorEmail = editorData?.[0]?.email || 'Another user';
+            const editorName = editorEmail.split('@')[0];
+            const spreadsheet = spreadsheets.value.find(s => s.id === spreadsheetId);
+            const spreadsheetName = spreadsheet?.name || 'Spreadsheet';
+            
+            ElMessage.warning(`${editorName} is already editing "${spreadsheetName}". Please try again later.`);
+            return true;
+          }
+          return false;
           
-          const editorEmail = editorData?.[0]?.email || 'Another user';
-          const editorName = editorEmail.split('@')[0];
-          const spreadsheet = spreadsheets.value.find(s => s.id === spreadsheetId);
-          const spreadsheetName = spreadsheet?.name || 'Spreadsheet';
-          
-          ElMessage.warning(`${editorName} is already editing "${spreadsheetName}". Please try again later.`);
-          return true;
         }
 
         return false;

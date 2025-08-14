@@ -2655,6 +2655,23 @@ import '@univerjs/sheets-formula/facade'
 
         fnCellEditAndApiCallListener(readonlyState, univerAPI);
 
+
+         // Start formula processing after workbook is created
+         setTimeout(() => {
+          console.log(`🚀 Running initial formula processing for ${props.spreadsheetId}...`);
+          // Process TASKSTATUS formulas once on load
+          processTaskStatusFormulas();
+          processApiCallFormulas();
+          
+          // Note: Removed intervals - formulas are processed once on load only
+          // This prevents repeated processing and duplicate status display
+          
+          console.log(`✅ TASKSTATUS formula processor run once on load (${props.spreadsheetId})`);
+          console.log(`📋 TASKSTATUS Usage: Type "=TASKSTATUS(2464)" in any cell to get status + assignee of task 2464.`);
+          console.log(`👤 Click any TASKSTATUS cell to see assignee details with profile picture.`);
+        }, 1000);
+
+
         // fnTrackSheetChangesListener();
 
         console.log(`✅ Univer initialized successfully for ${props.spreadsheetName} (${props.spreadsheetId})!`);

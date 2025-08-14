@@ -151,7 +151,7 @@
                               @click.stop
                               divided>
                               <el-icon><Lock /></el-icon>
-                              {{ spreadsheet.id }}
+                              <!-- {{ spreadsheet.id }} -->
                               {{ getSpreadsheetReadonlyState(spreadsheet.id) ? 'Enable Edit' : 'Make Readonly' }}
                             </el-dropdown-item>
                           </el-dropdown-menu>

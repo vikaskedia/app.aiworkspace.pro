@@ -193,48 +193,13 @@ const initializeUniver = async () => {
     error.value = null;
     
     console.log('Initializing Univer document editor...');
-    console.log('🔍 CONTENT TRACE - Document data being passed to initialize:', props.documentData);
     
-    // Check for any global Univer instances that might be caching content
+    // Clear any potential caches that might interfere
     if (window.univer) {
-      console.log('⚠️ Found global window.univer - clearing it');
       delete window.univer;
     }
-    
-    // Check for any potential module-level caches
     if (typeof global !== 'undefined' && global.univer) {
-      console.log('⚠️ Found global.univer - clearing it');
       delete global.univer;
-    }
-    
-    // Clear any potential browser storage caches related to Univer
-    try {
-      const storageKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('univer') || key.includes('doc-'))) {
-          storageKeys.push(key);
-        }
-      }
-      storageKeys.forEach(key => {
-        console.log('🗑️ Clearing localStorage key:', key);
-        localStorage.removeItem(key);
-      });
-      
-      // Also clear sessionStorage
-      const sessionKeys = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && (key.includes('univer') || key.includes('doc-'))) {
-          sessionKeys.push(key);
-        }
-      }
-      sessionKeys.forEach(key => {
-        console.log('🗑️ Clearing sessionStorage key:', key);
-        sessionStorage.removeItem(key);
-      });
-    } catch (storageError) {
-      console.warn('⚠️ Error clearing storage:', storageError);
     }
     
     // Set document title
@@ -414,20 +379,24 @@ const initializeUniver = async () => {
     
     // Clear any existing documents first
     try {
-      const existingUnits = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
-      existingUnits.forEach(unit => {
-        console.log('🗑️ Disposing existing document unit:', unit.getUnitId());
-        univer.value.disposeUnit(unit.getUnitId());
-      });
+      if (univer.value && typeof univer.value.getUnitsByType === 'function') {
+        const existingUnits = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+        existingUnits.forEach(unit => {
+          console.log('🗑️ Disposing existing document unit:', unit.getUnitId());
+          if (typeof univer.value.disposeUnit === 'function') {
+            univer.value.disposeUnit(unit.getUnitId());
+          }
+        });
+      } else {
+        console.log('🔍 getUnitsByType not available, skipping unit disposal');
+      }
     } catch (disposeError) {
       console.warn('⚠️ Error disposing existing units:', disposeError);
     }
     
-    // Log what we're about to create
-    console.log('🔍 CONTENT TRACE - About to create document:');
-    console.log('Document ID:', freshDocData.id);
-    console.log('DataStream content:', JSON.stringify(freshDocData.body.dataStream));
-    console.log('Full document data:', JSON.stringify(freshDocData, null, 2));
+    // Log document creation
+    console.log('🔍 Creating document with ID:', freshDocData.id);
+    console.log('🔍 Content preview:', freshDocData.body?.dataStream?.substring(0, 50) + '...');
     
     // Create the document unit with the fresh data
     univer.value.createUnit(UniverInstanceType.UNIVER_DOC, freshDocData);
@@ -435,15 +404,23 @@ const initializeUniver = async () => {
     
     // Immediately check what was actually created
     setTimeout(() => {
-      const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
-      console.log('🔍 CONTENT TRACE - All document units after creation:', units.length);
-      units.forEach((unit, index) => {
-        console.log(`Unit ${index}:`, unit.getUnitId());
-        if (typeof unit.getSnapshot === 'function') {
-          const snapshot = unit.getSnapshot();
-          console.log(`Unit ${index} content:`, snapshot.body?.dataStream);
+      try {
+        if (univer.value && typeof univer.value.getUnitsByType === 'function') {
+          const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+          console.log('🔍 CONTENT TRACE - All document units after creation:', units.length);
+          units.forEach((unit, index) => {
+            console.log(`Unit ${index}:`, unit.getUnitId());
+            if (typeof unit.getSnapshot === 'function') {
+              const snapshot = unit.getSnapshot();
+              console.log(`Unit ${index} content:`, snapshot.body?.dataStream);
+            }
+          });
+        } else {
+          console.log('🔍 getUnitsByType method not available on univer instance');
         }
-      });
+      } catch (unitsError) {
+        console.warn('⚠️ Error checking document units:', unitsError);
+      }
     }, 100);
     
     // Try alternative approach if the document content seems incorrect after a delay
@@ -474,12 +451,14 @@ const initializeUniver = async () => {
                 // Try to recreate the document by disposing and recreating
                 try {
                   // Get all units and dispose them
-                  const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
-                  units.forEach(unit => {
-                    if (unit.dispose) {
-                      unit.dispose();
-                    }
-                  });
+                  if (univer.value && typeof univer.value.getUnitsByType === 'function') {
+                    const units = univer.value.getUnitsByType(UniverInstanceType.UNIVER_DOC);
+                    units.forEach(unit => {
+                      if (unit.dispose) {
+                        unit.dispose();
+                      }
+                    });
+                  }
                   
                   // Try a completely different approach - create empty document and set content
                   setTimeout(async () => {

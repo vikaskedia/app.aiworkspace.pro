@@ -233,13 +233,16 @@ export default {
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/files`);
             break;
           case 'outlines':
-            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/outlines`);
+            window.location.href = `https://outline.aiworkspace.pro/single-workspace/${this.currentWorkspace.id}/outlines`;
             break;
           case 'contacts':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/contacts`);
             break;
           case 'communications':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/communications`);
+            break;
+          case 'canvas':
+            window.location.href = `https://canvas.aiworkspace.pro/single-workspace/${this.currentWorkspace.id}/canvas`;
             break;
           case 'ai_phone':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_phone`);
@@ -468,10 +471,12 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
-                  <a :href="`/single-workspace/${currentWorkspace.id}/outlines`">Outlines</a>
+                  <a :href="`https://outline.aiworkspace.pro/single-workspace/${currentWorkspace.id}/outlines`" target="_blank">Outlines</a>
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
-                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/canvas') }"><a :href="`/single-workspace/${currentWorkspace.id}/canvas`">Canvas</a></el-dropdown-item>
+                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/canvas') }">
+                  <a :href="`https://canvas.aiworkspace.pro/single-workspace/${currentWorkspace.id}/canvas`" target="_blank">Canvas</a>
+                </el-dropdown-item>
                 <!--<el-dropdown-item :class="{ 'is-active': $route.path.includes('/excalidraw') }"><a :href="`/single-workspace/${currentWorkspace.id}/excalidraw`">Excalidraw</a></el-dropdown-item>-->
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>

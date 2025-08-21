@@ -230,7 +230,8 @@ export default {
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/events`);
             break;
           case 'files':
-            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/files`);
+            //this.$router.push(`/single-workspace/${this.currentWorkspace.id}/files`);
+            window.location.href = `https://drive.aiworkspace.pro/single-workspace/${this.currentWorkspace.id}/files`;
             break;
           case 'outlines':
             window.location.href = `https://outline.aiworkspace.pro/single-workspace/${this.currentWorkspace.id}/outlines`;
@@ -469,7 +470,10 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/goals`">Goals</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/tasks`">Tasks</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item>
+                <!--el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item-->
+                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/files') }">
+                  <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace.id}/files`" target="_blank">Files</a>
+                </el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
                   <a :href="`https://outline.aiworkspace.pro/single-workspace/${currentWorkspace.id}/outlines`" target="_blank">Outlines</a>
                 </el-dropdown-item>

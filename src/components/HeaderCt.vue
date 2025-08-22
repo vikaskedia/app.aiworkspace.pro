@@ -468,7 +468,9 @@ export default {
               <template v-if="currentWorkspace">
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/dashboard`">Dashboard</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/goals`">Goals</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/tasks`">Tasks</a></el-dropdown-item>
+                <el-dropdown-item :class="{ 'is-active': $route.path.includes('/tasks') }">
+                  <a :href="`https://tasks.aiworkspace.pro/single-workspace/${currentWorkspace.id}/tasks`" target="_blank">Tasks</a>
+                </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
                 <!--el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item-->
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/files') }">
@@ -493,7 +495,7 @@ export default {
               <!-- Show these options when "All Workspaces" is selected -->
               <template v-else>
                 <el-dropdown-item><a href="https://workspace-home.aiworkspace.pro/all-workspace/dashboard">Dashboard</a></el-dropdown-item>
-                <el-dropdown-item><a href="/all-workspace/tasks">Tasks</a></el-dropdown-item>
+                <el-dropdown-item><a href="https://tasks.aiworkspace.pro/all-workspace/tasks">Tasks</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/goals">Goals</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/events">Events</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/files">Files</a></el-dropdown-item>

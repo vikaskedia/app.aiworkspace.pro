@@ -492,7 +492,7 @@ export default {
               </template>
               <!-- Show these options when "All Workspaces" is selected -->
               <template v-else>
-                <el-dropdown-item><a href="/all-workspace/dashboard">Dashboard</a></el-dropdown-item>
+                <el-dropdown-item><a href="https://workspace-home.aiworkspace.pro/all-workspace/dashboard">Dashboard</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/tasks">Tasks</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/goals">Goals</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/events">Events</a></el-dropdown-item>

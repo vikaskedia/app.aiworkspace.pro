@@ -470,19 +470,19 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/dashboard`">Dashboard</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/goals`">Goals</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/tasks') }">
-                  <a :href="`https://tasks.aiworkspace.pro/single-workspace/${currentWorkspace.id}/tasks`" target="_blank">Tasks</a>
+                  <a :href="`https://tasks.aiworkspace.pro/single-workspace/${currentWorkspace.id}/tasks`" target="_self">Tasks</a>
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
                 <!--el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item-->
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/files') }">
-                  <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace.id}/files`" target="_blank">Files</a>
+                  <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace.id}/files`" target="_self">Files</a>
                 </el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
-                  <a :href="`https://outline.aiworkspace.pro/single-workspace/${currentWorkspace.id}/outlines`" target="_blank">Outlines</a>
+                  <a :href="`https://outline.aiworkspace.pro/single-workspace/${currentWorkspace.id}/outlines`" target="_self">Outlines</a>
                 </el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/communications`">Communications</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/canvas') }">
-                  <a :href="`https://canvas.aiworkspace.pro/single-workspace/${currentWorkspace.id}/canvas`" target="_blank">Canvas</a>
+                  <a :href="`https://canvas.aiworkspace.pro/single-workspace/${currentWorkspace.id}/canvas`" target="_self">Canvas</a>
                 </el-dropdown-item>
                 <!--<el-dropdown-item :class="{ 'is-active': $route.path.includes('/excalidraw') }"><a :href="`/single-workspace/${currentWorkspace.id}/excalidraw`">Excalidraw</a></el-dropdown-item>-->
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>

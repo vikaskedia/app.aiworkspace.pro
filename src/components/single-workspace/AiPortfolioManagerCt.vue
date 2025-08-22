@@ -215,7 +215,7 @@
       </div>
 
       <!-- No Workspace Warning -->
-      <div v-else class="no-workspace-container">
+      <div v-if="!currentWorkspace && !maintenanceMode" class="no-workspace-container">
         <el-alert
           title="No Workspace Selected"
           description="Please select a workspace to manage your portfolios."

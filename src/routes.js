@@ -165,6 +165,7 @@ const routes = [
       {
         path: 'ai_portfolio',
         name: 'AiPortfolioPage',
+        // component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue')
         component: {
           template: `
             <div style="padding:32px;max-width:680px;margin:40px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;">
@@ -231,8 +232,8 @@ const routes = [
         path: 'canvas',
         name: 'ExcalidrawPage',
         component: () => import('./components/single-workspace/ExcalidrawPage.vue')
-      },
-      {
+      }
+      /*{
         path: 'univer-check',
         name: 'UniverCheckPage',
         component: () => import('./components/single-workspace/UniverCheckCt.vue')

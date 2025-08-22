@@ -2268,6 +2268,7 @@ export default {
 
     return {
       props,
+      maintenanceMode,
       currentWorkspace,
       currentWorkspaceId,
       loadChildWorkspaces,

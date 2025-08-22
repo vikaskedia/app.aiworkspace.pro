@@ -175,9 +175,9 @@ const routes = [
             </div>
           `
         },
-        meta: { requiresAuth: true }
+        meta: { requiresAuth: false }
       },
-      {
+      /*{
         path: 'ai_portfolio/:portfolioId',
         name: 'AiPortfolioSpecificPage',
         component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue'),
@@ -217,7 +217,7 @@ const routes = [
           title: 'Portfolio Manager',
           description: 'Unified workbook storage - all sheets in single JSON object'
         }
-      },
+      },*/
       {
         path: 'ai_fund_analyst',
         name: 'AiFundAnalystPage',

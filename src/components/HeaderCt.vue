@@ -256,7 +256,7 @@ export default {
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_fax`);
             break;
           case 'ai_portfolio':
-            this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_portfolio`);
+            window.location.href = `https://spreadsheet.aiworkspace.pro/single-workspace/${this.currentWorkspace.id}/ai-portfolios`;
             break;
           case 'ai_fund_analyst':
             this.$router.push(`/single-workspace/${this.currentWorkspace.id}/ai_fund_analyst`);
@@ -488,7 +488,7 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_phone`">AI Phone</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_intake`">AI Intake</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fax`">AI Fax</a></el-dropdown-item>
-                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_portfolio`">AI Portfolios</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`https://spreadsheet.aiworkspace.pro/single-workspace/${currentWorkspace.id}/ai-portfolios`">AI Portfolios</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/ai_fund_analyst`">AI Fund Analyst</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/contacts`">Contacts</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/settings`">Settings</a></el-dropdown-item>

@@ -165,17 +165,17 @@ const routes = [
       {
         path: 'ai_portfolio',
         name: 'AiPortfolioPage',
-        // component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue')
-        component: {
-          template: `
-            <div style="padding:32px;max-width:680px;margin:40px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;">
-              <h2 style="margin-top:0;">Portfolio Manager moved</h2>
-              <p>The Portfolio Manager has moved to <a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener">spreadsheet.aiworkspace.pro</a>.</p>
-              <p><a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener" style="font-weight:600;">Open Spreadsheet Manager</a></p>
-            </div>
-          `
-        },
-        meta: { requiresAuth: false }
+        component: () => import('./components/single-workspace/AiPortfolioManagerCt.vue'),
+        // component: {
+        //   template: `
+        //     <div style="padding:32px;max-width:680px;margin:40px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;">
+        //       <h2 style="margin-top:0;">Portfolio Manager moved</h2>
+        //       <p>The Portfolio Manager has moved to <a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener">spreadsheet.aiworkspace.pro</a>.</p>
+        //       <p><a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener" style="font-weight:600;">Open Spreadsheet Manager</a></p>
+        //     </div>
+        //   `
+        // },
+        meta: { requiresAuth: true }
       },
       /*{
         path: 'ai_portfolio/:portfolioId',

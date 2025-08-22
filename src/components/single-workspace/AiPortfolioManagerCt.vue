@@ -30,8 +30,18 @@
            
            💾 Enhanced Save System captures ALL Univer features! -->
 
+<div class="portfolio-tabs-container" v-if="maintenanceMode">
+
+  <div style="padding:32px;max-width:680px;margin:40px auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#222;">
+    <h2 style="margin-top:0;">Portfolio Manager moved</h2>
+    <p>The Portfolio Manager has moved to <a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener">spreadsheet.aiworkspace.pro</a>.</p>
+    <p><a href="https://spreadsheet.aiworkspace.pro" target="_blank" rel="noopener" style="font-weight:600;">Open Spreadsheet Manager</a></p>
+  </div>
+
+</div>
+
       <!-- Portfolio Tabs -->
-      <div class="portfolio-tabs-container" v-if="currentWorkspace">
+      <div class="portfolio-tabs-container" v-if="currentWorkspace && !maintenanceMode">
         <el-tabs 
           v-model="activePortfolioId" 
           type="card" 
@@ -434,6 +444,8 @@ export default {
     draggable
   },
   setup(props) {
+
+    const maintenanceMode = ref(true);
     // Workspace store for workspace context
     const workspaceStore = useWorkspaceStore();
     const { currentWorkspace } = storeToRefs(workspaceStore);

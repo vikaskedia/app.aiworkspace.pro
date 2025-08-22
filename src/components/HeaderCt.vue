@@ -186,7 +186,8 @@ export default {
           this.$router.push('/initial-consultation')
           break
         case 'all_workspace':
-          this.$router.push('/all-workspace');
+          //this.$router.push('/all-workspace');
+          window.location.href = 'https://workspace-home.aiworkspace.pro/all-workspace';
           break;
         case 'cases':
           this.$router.push('/cases');

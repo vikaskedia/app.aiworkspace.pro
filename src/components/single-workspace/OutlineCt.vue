@@ -1,172 +1,189 @@
 <template>
   <div class="outline-container">
-    <div v-if="breadcrumbPath.length" class="outline-breadcrumbs">
-      <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
-        <span v-if="idx > 0"> &gt; </span>
-        <a
-          :href="workspaceId ? '/single-workspace/' + workspaceId + '/outlines?focus=' + node.id : '#'"
-          class="breadcrumb-link"
-          @click.prevent="handleBreadcrumb(node, idx)"
-          :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"
-        >{{ getBreadcrumbText(node.text) }}</a>
+    <!-- Page moved warning -->
+    <el-alert
+      title="Page Moved"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="page-moved-alert">
+      <template #default>
+        This page has moved to 
+        <a :href="getNewOutlineUrl()" target="_blank" class="moved-link">
+          {{ getNewOutlineUrl() }}
+        </a>
       </template>
-    </div>
-    <div class="outline-header">
-      <div class="outline-actions">
-        <!-- Search Input -->
-        <div class="search-container">
-          <el-input
-            v-model="searchQuery"
-            placeholder="Search outline..."
-            clearable
-            @input="handleSearchInput"
-            @clear="clearSearch"
-            @keydown.esc="clearSearch"
-            class="search-input"
-            style="width: 250px; margin-right: 8px;"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <span v-if="searchQuery && searchStats" class="search-stats">
-            {{ searchStats.matches }} matches in {{ searchStats.items }} items
-          </span>
-        </div>
-        
-        <!--el-button 
-          type="primary" 
-          @click="saveOutline" 
-          :loading="saving"
-          :disabled="!hasChanges"
-          style="margin-right: 8px;"
-        >
-          Save Outline (cmd+s)
-        </el-button-->
-        <el-tooltip content="Refresh outline from server" placement="bottom">
-          <el-button 
-            icon 
-            @click="manualRefresh" 
-            :loading="refreshing"
-            style="margin-right: 8px;"
-            :type="hasChanges ? 'warning' : 'default'"
-          >
-            <el-icon><Refresh /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-tooltip content="View outline version history" placement="bottom">
-          <el-button 
-            icon 
-            @click="openHistoryDialog" 
-            style="margin-right: 8px;"
-          >
-            <el-icon><Clock /></el-icon>
-          </el-button>
-        </el-tooltip>
-      </div>
-      <div class="sync-status">
-        <el-tag 
-          v-if="!hasChanges" 
-          type="success" 
-          size="small"
-          effect="light"
-        >
-          ✅ Synced ({{ displayVersion }})
-        </el-tag>
-        <el-tag 
-          v-else 
-          type="warning" 
-          size="small"
-          effect="light"
-        >
-          📝 Unsaved changes
-        </el-tag>
-      </div>
-    </div>
-    <el-dialog v-model="historyDialogVisible" title="Outline Version History" width="700px">
-      <el-table :data="versionHistory" style="width: 100%" v-loading="loadingHistory">
-        <el-table-column prop="version" label="Version" width="80" />
-        <el-table-column label="Saved At" width="250">
-          <template #default="scope">
-            {{ formatDate(scope.row.created_at) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="creator_email" label="Created By" width="250" />
-        <el-table-column label="Action" width="80">
-          <template #default="scope">
-            <el-button size="small" @click="viewVersion(scope.row)">View</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <template #footer>
-        <el-button @click="historyDialogVisible = false">Close</el-button>
-      </template>
-    </el-dialog>
+    </el-alert>
 
-    <el-dialog v-model="viewVersionDialogVisible" title="Version Content" width="800px">
-      <div v-if="selectedVersion" class="version-content">
-        <div class="version-info">
-          <p><strong>Version:</strong> {{ selectedVersion.version }}</p>
-          <p><strong>Created By:</strong> {{ selectedVersion.creator_email }}</p>
-          <p><strong>Created At:</strong> {{ formatDate(selectedVersion.created_at) }}</p>
+    <div style="display: none;">
+      <div v-if="breadcrumbPath.length" class="outline-breadcrumbs">
+        <template v-for="(node, idx) in breadcrumbPath" :key="node.id">
+          <span v-if="idx > 0"> &gt; </span>
+          <a
+            :href="workspaceId ? '/single-workspace/' + workspaceId + '/outlines?focus=' + node.id : '#'"
+            class="breadcrumb-link"
+            @click.prevent="handleBreadcrumb(node, idx)"
+            :style="{ fontWeight: idx === breadcrumbPath.length - 1 ? 'bold' : 'normal' }"
+          >{{ getBreadcrumbText(node.text) }}</a>
+        </template>
+      </div>
+      <div class="outline-header">
+        <div class="outline-actions">
+          <!-- Search Input -->
+          <div class="search-container">
+            <el-input
+              v-model="searchQuery"
+              placeholder="Search outline..."
+              clearable
+              @input="handleSearchInput"
+              @clear="clearSearch"
+              @keydown.esc="clearSearch"
+              class="search-input"
+              style="width: 250px; margin-right: 8px;"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <span v-if="searchQuery && searchStats" class="search-stats">
+              {{ searchStats.matches }} matches in {{ searchStats.items }} items
+            </span>
+          </div>
+          
+          <!--el-button 
+            type="primary" 
+            @click="saveOutline" 
+            :loading="saving"
+            :disabled="!hasChanges"
+            style="margin-right: 8px;"
+          >
+            Save Outline (cmd+s)
+          </el-button-->
+          <el-tooltip content="Refresh outline from server" placement="bottom">
+            <el-button 
+              icon 
+              @click="manualRefresh" 
+              :loading="refreshing"
+              style="margin-right: 8px;"
+              :type="hasChanges ? 'warning' : 'default'"
+            >
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="View outline version history" placement="bottom">
+            <el-button 
+              icon 
+              @click="openHistoryDialog" 
+              style="margin-right: 8px;"
+            >
+              <el-icon><Clock /></el-icon>
+            </el-button>
+          </el-tooltip>
         </div>
-        <div class="version-outline">
-          <ul class="outline-list">
-            <OutlinePointsCt
-              v-for="item in selectedVersion.content"
-              :key="item.id"
-              :item="item"
-              :readonly="true"
-              :collapsed="false"
-              :is-node-collapsed="() => false"
-              :check-version-before-edit="checkVersionBeforeEdit"
-              :handle-version-conflict="handleVersionConflict"
-            />
-          </ul>
+        <div class="sync-status">
+          <el-tag 
+            v-if="!hasChanges" 
+            type="success" 
+            size="small"
+            effect="light"
+          >
+            ✅ Synced ({{ displayVersion }})
+          </el-tag>
+          <el-tag 
+            v-else 
+            type="warning" 
+            size="small"
+            effect="light"
+          >
+            📝 Unsaved changes
+          </el-tag>
         </div>
       </div>
-      <template #footer>
-        <el-button @click="viewVersionDialogVisible = false">Close</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- Search Results Header -->
-    <div v-if="searchQuery && searchQuery.trim()" class="search-results-header">
-      <el-icon class="search-icon"><Search /></el-icon>
-      <span class="search-results-text">
-        Showing search results for "<strong>{{ searchQuery }}</strong>"
-      </span>
-      <el-button 
-        text 
-        type="primary" 
-        @click="clearSearch"
-        class="clear-search-btn"
-      >
-        Clear search
-      </el-button>
+      <el-dialog v-model="historyDialogVisible" title="Outline Version History" width="700px">
+        <el-table :data="versionHistory" style="width: 100%" v-loading="loadingHistory">
+          <el-table-column prop="version" label="Version" width="80" />
+          <el-table-column label="Saved At" width="250">
+            <template #default="scope">
+              {{ formatDate(scope.row.created_at) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="creator_email" label="Created By" width="250" />
+          <el-table-column label="Action" width="80">
+            <template #default="scope">
+              <el-button size="small" @click="viewVersion(scope.row)">View</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <template #footer>
+          <el-button @click="historyDialogVisible = false">Close</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="viewVersionDialogVisible" title="Version Content" width="800px">
+        <div v-if="selectedVersion" class="version-content">
+          <div class="version-info">
+            <p><strong>Version:</strong> {{ selectedVersion.version }}</p>
+            <p><strong>Created By:</strong> {{ selectedVersion.creator_email }}</p>
+            <p><strong>Created At:</strong> {{ formatDate(selectedVersion.created_at) }}</p>
+          </div>
+          <div class="version-outline">
+            <ul class="outline-list">
+              <OutlinePointsCt
+                v-for="item in selectedVersion.content"
+                :key="item.id"
+                :item="item"
+                :readonly="true"
+                :collapsed="false"
+                :is-node-collapsed="() => false"
+                :check-version-before-edit="checkVersionBeforeEdit"
+                :handle-version-conflict="handleVersionConflict"
+              />
+            </ul>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="viewVersionDialogVisible = false">Close</el-button>
+        </template>
+      </el-dialog>
+      
+      <!-- Search Results Header -->
+      <div v-if="searchQuery && searchQuery.trim()" class="search-results-header">
+        <el-icon class="search-icon"><Search /></el-icon>
+        <span class="search-results-text">
+          Showing search results for "<strong>{{ searchQuery }}</strong>"
+        </span>
+        <el-button 
+          text 
+          type="primary" 
+          @click="clearSearch"
+          class="clear-search-btn"
+        >
+          Clear search
+        </el-button>
+      </div>
+      
+      <ul class="outline-list">
+        <OutlinePointsCt
+          v-for="item in getFocusedOutline()"
+          :key="item.id"
+          :item="item"
+          :collapsed="isNodeCollapsed(item.id)"
+          :is-node-collapsed="isNodeCollapsed"
+          :check-version-before-edit="checkVersionBeforeEdit"
+          :handle-version-conflict="handleVersionConflict"
+          :search-query="searchQuery"
+          @update="onOutlineUpdate"
+          @move="handleMove"
+          @delete="handleDelete"
+          @drilldown="handleDrilldown"
+          @navigate="handleNavigate"
+          @indent="handleIndent"
+          @outdent="handleOutdent"
+          @add-sibling="handleAddSiblingRoot"
+          @collapse-toggle="handleCollapseToggle"
+        />
+      </ul>
     </div>
-    
-    <ul class="outline-list">
-      <OutlinePointsCt
-        v-for="item in getFocusedOutline()"
-        :key="item.id"
-        :item="item"
-        :collapsed="isNodeCollapsed(item.id)"
-        :is-node-collapsed="isNodeCollapsed"
-        :check-version-before-edit="checkVersionBeforeEdit"
-        :handle-version-conflict="handleVersionConflict"
-        :search-query="searchQuery"
-        @update="onOutlineUpdate"
-        @move="handleMove"
-        @delete="handleDelete"
-        @drilldown="handleDrilldown"
-        @navigate="handleNavigate"
-        @indent="handleIndent"
-        @outdent="handleOutdent"
-        @add-sibling="handleAddSiblingRoot"
-        @collapse-toggle="handleCollapseToggle"
-      />
-    </ul>
   </div>
 </template>
 
@@ -2083,6 +2100,12 @@ This is similar to how Git requires you to pull before pushing when there are co
        searchStats.value = { matches: matchCount, items: shownItemCount };
      }
 
+    // Method to generate new outline URL
+    const getNewOutlineUrl = () => {
+      const currentPath = route.fullPath;
+      return `https://outline.aiworkspace.pro${currentPath}`;
+    };
+
     return { 
       workspaceId,
       outline, 
@@ -2102,6 +2125,7 @@ This is similar to how Git requires you to pull before pushing when there are co
       manualRefresh,
       checkVersionBeforeEdit,
       handleVersionConflict,
+      getNewOutlineUrl,
       // Drilldown
       focusedId,
       handleDrilldown,
@@ -2136,6 +2160,21 @@ This is similar to how Git requires you to pull before pushing when there are co
 </script>
 
 <style scoped>
+/* Page moved alert styling */
+.page-moved-alert {
+  margin-bottom: 2rem;
+}
+
+.moved-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.moved-link:hover {
+  text-decoration: underline;
+}
+
 .outline-container {
   background: white;
   border-radius: 8px;

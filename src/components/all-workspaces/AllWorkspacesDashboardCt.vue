@@ -1,5 +1,20 @@
 <template>
   <div>
+    <!-- Page moved warning -->
+    <el-alert
+      title="Page Moved"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="page-moved-alert">
+      <template #default>
+        This page has moved to 
+        <a href="https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard" target="_blank" class="moved-link">
+          https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard
+        </a>
+      </template>
+    </el-alert>
+    
     <div class="workspaces-header">
       <div class="header-actions">
         <el-switch
@@ -697,5 +712,20 @@ export default {
 
 .stat-link:hover {
   text-decoration: none;
+}
+
+/* Page moved alert styling */
+.page-moved-alert {
+  margin-bottom: 2rem;
+}
+
+.moved-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.moved-link:hover {
+  text-decoration: underline;
 }
 </style> 

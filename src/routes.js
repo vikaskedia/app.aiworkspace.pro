@@ -17,6 +17,7 @@ import OutlineCt from './components/single-workspace/OutlineCt.vue';
 import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
 import DetailedEventViewCt from './components/single-workspace/DetailedEventViewCt.vue';
+import MovedTaskCt from './components/single-workspace/MovedTaskCt.vue';
 
 
 const routes = [
@@ -39,11 +40,11 @@ const routes = [
       {
         path: 'tasks',
         name: 'AllTasksPage',
-        component: () => import('./components/all-workspaces/AllTasksCt.vue'),
+        component: MovedTaskCt,
         children: [
           {
             path: 'saved-filters/:filterId',
-            component: () => import('./components/all-workspaces/AllTasksCt.vue')
+            component: MovedTaskCt
           }
         ]
       },
@@ -102,12 +103,12 @@ const routes = [
       {
         path: 'tasks',
         name: 'TasksPage',
-        component: TasksCt
+        component: MovedTaskCt
       },
       {
         path: 'tasks/:taskId',
         name: 'SingleTaskPage',
-        component: () => import('./components/single-workspace/DetailedTaskViewCt.vue')
+        component: () => MovedTaskCt
       },
       {
         path: 'events',

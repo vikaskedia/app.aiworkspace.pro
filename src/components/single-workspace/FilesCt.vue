@@ -143,8 +143,8 @@ watch(currentWorkspace, async (newWorkspace) => {
     if (!isUpdatingUrl.value) {
       selectedFile.value = null;
     }
-    await Promise.all([loadFolders(), loadFiles()]);
-    updatePageTitle();
+    //await Promise.all([loadFolders(), loadFiles()]);
+    //updatePageTitle();
   } else {
     files.value = [];
     folders.value = [];
@@ -296,10 +296,10 @@ onMounted(async () => {
   // }
   
   // Set initial page title
-  updatePageTitle();
+  //updatePageTitle();
   
   // Initialize from URL parameters
-  await initializeFromUrl();
+  //await initializeFromUrl();
 });
 
 // Cleanup function to cancel active requests when component unmounts
@@ -1482,478 +1482,495 @@ function toggleColumnVisibility(column) {
 
 <template>
   <div class="manage-files">
-    <!-- <div class="content" :class="{ 'split-view': splitViews.length > 0 }"> -->
-    <div class="content" :class="{ 'split-view': selectedFile }">
-      <!-- File system - Only show when no splits are active -->
-      <div class="files-section" v-if="!splitViews.length">
-        <div class="header">
-          <div class="breadcrumbs">
-            <div class="breadcrumb-container">
-              <!--el-button
-                v-if="showBackButton"
+    <!-- Page moved warning -->
+    <el-alert
+      title="Page Moved"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="page-moved-alert">
+      <template #default>
+        This page has moved to 
+        <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/files`" target="_self" class="moved-link">
+          {{ `https://drive.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/files` }}
+        </a>
+      </template>
+    </el-alert>
+
+    <div v-if="false">
+      <!-- <div class="content" :class="{ 'split-view': splitViews.length > 0 }"> -->
+      <div class="content" :class="{ 'split-view': selectedFile }">
+        <!-- File system - Only show when no splits are active -->
+        <div class="files-section" v-if="!splitViews.length">
+          <div class="header">
+            <div class="breadcrumbs">
+              <div class="breadcrumb-container">
+                <!--el-button
+                  v-if="showBackButton"
+                  @click="handleBackNavigation"
+                  type="text"
+                  :icon="ArrowLeft"
+                  class="back-button">
+                  Back
+                </el-button-->
+                <el-breadcrumb separator="/">
+                  <el-breadcrumb-item :class="{ clickable: currentFolder, 'navigation-disabled': isNavigating }">
+                    <a 
+                      :href="generateFolderHref(null)"
+                      @click.prevent="navigateToFolder(null, null)"
+                      class="breadcrumb-link"
+                      :class="{ 'disabled': isNavigating }">
+                      Root
+                    </a>
+                  </el-breadcrumb-item>
+                  <el-breadcrumb-item 
+                    v-for="folder in folderBreadcrumbs" 
+                    :key="folder.id"
+                    :class="{ clickable: folder.id !== currentFolder?.id, 'navigation-disabled': isNavigating }">
+                    <a 
+                      :href="generateFolderHref(folder)"
+                      @click.prevent="navigateToFolder(folder, null)"
+                      class="breadcrumb-link"
+                      :class="{ 'disabled': isNavigating }">
+                      {{ folder.name }}
+                    </a>
+                  </el-breadcrumb-item>
+                </el-breadcrumb>
+              </div>
+            </div>
+            <div class="actions">
+              <!-- Menu Dropdown with All Actions -->
+              <el-dropdown trigger="click" placement="bottom-end">
+                <el-button 
+                  type="primary" 
+                  size="small">
+                  Menu
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item 
+                      @click="uploadDialogVisible = true"
+                      :icon="UploadFilled">
+                      Upload Files
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="newDocDialogVisible = true"
+                      :icon="Plus">
+                      New Document
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="newFolderDialogVisible = true"
+                      :icon="FolderAdd">
+                      New Folder
+                    </el-dropdown-item>
+                    <el-dropdown-item divided></el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="filters.showFilters = !filters.showFilters"
+                      icon="Filter">
+                      {{ filters.showFilters ? 'Hide Filters' : 'Show Filters' }}
+                      <el-badge 
+                        v-if="activeFiltersCount > 0" 
+                        :value="activeFiltersCount" 
+                        class="filter-badge"
+                        type="info" />
+                    </el-dropdown-item>
+                    <el-dropdown-item divided></el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="toggleColumnVisibility('type')"
+                      icon="View">
+                      {{ columnVisibility.type ? 'Hide Type Column' : 'Show Type Column' }}
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="toggleColumnVisibility('size')"
+                      icon="View">
+                      {{ columnVisibility.size ? 'Hide Size Column' : 'Show Size Column' }}
+                    </el-dropdown-item>
+                    <el-dropdown-item divided></el-dropdown-item>
+                    <el-dropdown-item 
+                      v-if="currentFolder"
+                      @click="downloadFolder(currentFolder)"
+                      :icon="Download">
+                      Download Folder
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      v-else
+                      @click="downloadWorkspace"
+                      :icon="Download">
+                      Download All Files
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
+
+          <!-- Add Filters Section -->
+          <el-collapse-transition>
+            <div v-show="filters.showFilters" class="filters-section">
+              <el-form :inline="true" class="filter-form">
+                <el-form-item label="Search">
+                  <el-input
+                    v-model="filters.search"
+                    placeholder="Search files..."
+                    clearable
+                  />
+                </el-form-item>
+                <el-form-item label="Type">
+                  <el-select
+                    v-model="filters.type"
+                    placeholder="All types"
+                    clearable>
+                    <el-option label="Folders" :value="FILE_TYPES.FOLDER" />
+                    <el-option label="PDF" :value="FILE_TYPES.PDF" />
+                    <el-option label="Word" :value="FILE_TYPES.WORD" />
+                    <el-option label="Text" :value="FILE_TYPES.TEXT" />
+                    <el-option label="Images" :value="FILE_TYPES.IMAGE" />
+                    <el-option label="Univer Documents" :value="FILE_TYPES.UNIVER_DOC" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item>
+                  <el-button @click="filters.search = ''; filters.type = null">
+                    Clear Filters
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </el-collapse-transition>
+
+          <!-- Existing Files Table -->
+          <el-table
+            v-loading="loading"
+            :data="filteredItems"
+            style="width: 100%"
+            :default-sort="{ prop: 'sortKey', order: 'ascending' }">
+            
+            <el-table-column 
+              prop="sortKey" 
+              label="Name"
+              sortable
+              min-width="200">
+              <template #default="scope">
+                <div class="name-cell">
+                  <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
+                  <a 
+                    :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
+                    @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
+                    @contextmenu.stop
+                    class="clickable-filename"
+                    :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
+                    {{ scope.row.name }}
+                  </a>
+                </div>
+              </template>
+            </el-table-column>
+            
+            <el-table-column 
+              v-if="columnVisibility.type"
+              prop="type" 
+              label="Type" 
+              sortable
+              width="120"
+              :show-overflow-tooltip="true">
+              <template #default="scope">
+                {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
+              </template>
+            </el-table-column>
+            
+            <el-table-column 
+              v-if="columnVisibility.size"
+              prop="sizeForSort" 
+              label="Size" 
+              sortable
+              width="90">
+              <template #default="scope">
+                {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
+              </template>
+            </el-table-column>
+            
+            <el-table-column 
+              label="Actions" 
+              width="100"
+              fixed="right">
+              <template #default="scope">
+                <el-tooltip 
+                  :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
+                  placement="top">
+                  <el-button
+                    type="primary"
+                    link
+                    :icon="Download"
+                    :loading="downloadingFiles.has(scope.row.id)"
+                    @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
+                    size="small">
+                  </el-button>
+                </el-tooltip>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- Main preview pane -->
+        <template v-if="selectedFile">
+          <div class="preview-container">
+            <div class="preview-actions">
+              <el-button
                 @click="handleBackNavigation"
                 type="text"
                 :icon="ArrowLeft"
-                class="back-button">
+                size="small">
                 Back
-              </el-button-->
-              <el-breadcrumb separator="/">
-                <el-breadcrumb-item :class="{ clickable: currentFolder, 'navigation-disabled': isNavigating }">
-                  <a 
-                    :href="generateFolderHref(null)"
-                    @click.prevent="navigateToFolder(null, null)"
-                    class="breadcrumb-link"
-                    :class="{ 'disabled': isNavigating }">
-                    Root
-                  </a>
-                </el-breadcrumb-item>
-                <el-breadcrumb-item 
-                  v-for="folder in folderBreadcrumbs" 
-                  :key="folder.id"
-                  :class="{ clickable: folder.id !== currentFolder?.id, 'navigation-disabled': isNavigating }">
-                  <a 
-                    :href="generateFolderHref(folder)"
-                    @click.prevent="navigateToFolder(folder, null)"
-                    class="breadcrumb-link"
-                    :class="{ 'disabled': isNavigating }">
-                    {{ folder.name }}
-                  </a>
-                </el-breadcrumb-item>
-              </el-breadcrumb>
-            </div>
-          </div>
-          <div class="actions">
-            <!-- Menu Dropdown with All Actions -->
-            <el-dropdown trigger="click" placement="bottom-end">
-              <el-button 
-                type="primary" 
-                size="small">
-                Menu
-                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item 
-                    @click="uploadDialogVisible = true"
-                    :icon="UploadFilled">
-                    Upload Files
-                  </el-dropdown-item>
-                  <el-dropdown-item 
-                    @click="newDocDialogVisible = true"
-                    :icon="Plus">
-                    New Document
-                  </el-dropdown-item>
-                  <el-dropdown-item 
-                    @click="newFolderDialogVisible = true"
-                    :icon="FolderAdd">
-                    New Folder
-                  </el-dropdown-item>
-                  <el-dropdown-item divided></el-dropdown-item>
-                  <el-dropdown-item 
-                    @click="filters.showFilters = !filters.showFilters"
-                    icon="Filter">
-                    {{ filters.showFilters ? 'Hide Filters' : 'Show Filters' }}
-                    <el-badge 
-                      v-if="activeFiltersCount > 0" 
-                      :value="activeFiltersCount" 
-                      class="filter-badge"
-                      type="info" />
-                  </el-dropdown-item>
-                  <el-dropdown-item divided></el-dropdown-item>
-                  <el-dropdown-item 
-                    @click="toggleColumnVisibility('type')"
-                    icon="View">
-                    {{ columnVisibility.type ? 'Hide Type Column' : 'Show Type Column' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item 
-                    @click="toggleColumnVisibility('size')"
-                    icon="View">
-                    {{ columnVisibility.size ? 'Hide Size Column' : 'Show Size Column' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item divided></el-dropdown-item>
-                  <el-dropdown-item 
-                    v-if="currentFolder"
-                    @click="downloadFolder(currentFolder)"
-                    :icon="Download">
-                    Download Folder
-                  </el-dropdown-item>
-                  <el-dropdown-item 
-                    v-else
-                    @click="downloadWorkspace"
-                    :icon="Download">
-                    Download All Files
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </div>
-
-        <!-- Add Filters Section -->
-        <el-collapse-transition>
-          <div v-show="filters.showFilters" class="filters-section">
-            <el-form :inline="true" class="filter-form">
-              <el-form-item label="Search">
-                <el-input
-                  v-model="filters.search"
-                  placeholder="Search files..."
-                  clearable
-                />
-              </el-form-item>
-              <el-form-item label="Type">
-                <el-select
-                  v-model="filters.type"
-                  placeholder="All types"
-                  clearable>
-                  <el-option label="Folders" :value="FILE_TYPES.FOLDER" />
-                  <el-option label="PDF" :value="FILE_TYPES.PDF" />
-                  <el-option label="Word" :value="FILE_TYPES.WORD" />
-                  <el-option label="Text" :value="FILE_TYPES.TEXT" />
-                  <el-option label="Images" :value="FILE_TYPES.IMAGE" />
-                  <el-option label="Univer Documents" :value="FILE_TYPES.UNIVER_DOC" />
-                </el-select>
-              </el-form-item>
-              <el-form-item>
-                <el-button @click="filters.search = ''; filters.type = null">
-                  Clear Filters
-                </el-button>
-              </el-form-item>
-            </el-form>
-          </div>
-        </el-collapse-transition>
-
-        <!-- Existing Files Table -->
-        <el-table
-          v-loading="loading"
-          :data="filteredItems"
-          style="width: 100%"
-          :default-sort="{ prop: 'sortKey', order: 'ascending' }">
-          
-          <el-table-column 
-            prop="sortKey" 
-            label="Name"
-            sortable
-            min-width="200">
-            <template #default="scope">
-              <div class="name-cell">
-                <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
-                <a 
-                  :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
-                  @click.prevent="scope.row.type === 'dir' ? navigateToFolder(scope.row, null) : handleFileSelect(scope.row)"
-                  @contextmenu.stop
-                  class="clickable-filename"
-                  :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
-                  {{ scope.row.name }}
-                </a>
-              </div>
-            </template>
-          </el-table-column>
-          
-          <el-table-column 
-            v-if="columnVisibility.type"
-            prop="type" 
-            label="Type" 
-            sortable
-            width="120"
-            :show-overflow-tooltip="true">
-            <template #default="scope">
-              {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
-            </template>
-          </el-table-column>
-          
-          <el-table-column 
-            v-if="columnVisibility.size"
-            prop="sizeForSort" 
-            label="Size" 
-            sortable
-            width="90">
-            <template #default="scope">
-              {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
-            </template>
-          </el-table-column>
-          
-          <el-table-column 
-            label="Actions" 
-            width="100"
-            fixed="right">
-            <template #default="scope">
-              <el-tooltip 
-                :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
-                placement="top">
-                <el-button
+              <el-button
                   type="primary"
-                  link
-                  :icon="Download"
-                  :loading="downloadingFiles.has(scope.row.id)"
-                  @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
+                  @click="addSplitView"
                   size="small">
+                  Split Page
                 </el-button>
-              </el-tooltip>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <!-- Main preview pane -->
-      <template v-if="selectedFile">
-        <div class="preview-container">
-          <div class="preview-actions">
-            <el-button
-              @click="handleBackNavigation"
-              type="text"
-              :icon="ArrowLeft"
-              size="small">
-              Back
-            </el-button>
-            <el-button
-                type="primary"
-                @click="addSplitView"
-                size="small">
-                Split Page
-              </el-button>
-          </div>
-          <FilePreviewPane
-            v-model:file="selectedFile"
-            @close="selectedFile = null"
-            @update:file="handleFileUpdate"
-          />
-        </div>
-
-        <!-- Split views - show file browser by default -->
-        <template v-for="(split, index) in splitViews" :key="index">
-          <div class="preview-container split">
-            <div class="preview-actions">
-              <el-button 
-                v-if="split.selectedFile"
-                type="primary"
-                @click="split.showFileBrowser = true"
-                size="small">
-                Browse Files
-              </el-button>
-              <el-button 
-                type="danger"
-                @click="removeSplitView(index)"
-                size="small">
-                Close Split
-              </el-button>
             </div>
-            
-            <template v-if="split.showFileBrowser">
-              <div class="file-browser">
-                <div class="folder-navigation">
-                  <el-breadcrumb separator="/">
-                    <el-breadcrumb-item :class="{ clickable: split.currentFolder, 'navigation-disabled': isNavigating }">
-                      <a 
-                        :href="generateFolderHref(null)"
-                        @click.prevent="navigateToFolder(null, index)"
-                        class="breadcrumb-link"
-                        :class="{ 'disabled': isNavigating }">
-                        Root
-                      </a>
-                    </el-breadcrumb-item>
-                    <el-breadcrumb-item 
-                      v-for="folder in split.folderBreadcrumbs" 
-                      :key="folder.id"
-                      :class="{ clickable: folder.id !== split.currentFolder?.id, 'navigation-disabled': isNavigating }">
-                      <a 
-                        :href="generateFolderHref(folder)"
-                        @click.prevent="navigateToFolder(folder, index)"
-                        class="breadcrumb-link"
-                        :class="{ 'disabled': isNavigating }">
-                        {{ folder.name }}
-                      </a>
-                    </el-breadcrumb-item>
-                  </el-breadcrumb>
-                </div>
-
-                <el-table
-                  v-loading="loading"
-                  :data="filteredItems"
-                  style="width: 100%"
-                  :default-sort="{ prop: 'sortKey', order: 'ascending' }">
-                  <el-table-column prop="sortKey" label="Name" sortable>
-                    <template #default="scope">
-                      <div class="name-cell">
-                        <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
-                        <a 
-                          :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
-                          @click.prevent="scope.row.type === 'dir' ? 
-                            navigateToFolder(scope.row, index) : 
-                            handleSplitFileSelect(scope.row, index)"
-                          @contextmenu.stop
-                          class="clickable-filename"
-                          :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
-                          {{ scope.row.name }}
-                        </a>
-                      </div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column 
-                    v-if="columnVisibility.type"
-                    prop="type" 
-                    label="Type" 
-                    sortable
-                    width="120"
-                    :show-overflow-tooltip="true">
-                    <template #default="scope">
-                      {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column 
-                    v-if="columnVisibility.size"
-                    prop="sizeForSort" 
-                    label="Size" 
-                    sortable
-                    width="90">
-                    <template #default="scope">
-                      {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column 
-                    label="Actions" 
-                    width="60">
-                    <template #default="scope">
-                      <el-tooltip 
-                        :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
-                        placement="top">
-                        <el-button
-                          type="primary"
-                          link
-                          :icon="Download"
-                          :loading="downloadingFiles.has(scope.row.id)"
-                          @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
-                          size="small">
-                        </el-button>
-                      </el-tooltip>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-            </template>
-            
-            <template v-else-if="split.selectedFile">
-              <FilePreviewPane
-                v-model:file="split.selectedFile"
-                @close="split.selectedFile = null"
-                @update:file="(file) => split.selectedFile = file"
-              />
-            </template>
+            <FilePreviewPane
+              v-model:file="selectedFile"
+              @close="selectedFile = null"
+              @update:file="handleFileUpdate"
+            />
           </div>
+
+          <!-- Split views - show file browser by default -->
+          <template v-for="(split, index) in splitViews" :key="index">
+            <div class="preview-container split">
+              <div class="preview-actions">
+                <el-button 
+                  v-if="split.selectedFile"
+                  type="primary"
+                  @click="split.showFileBrowser = true"
+                  size="small">
+                  Browse Files
+                </el-button>
+                <el-button 
+                  type="danger"
+                  @click="removeSplitView(index)"
+                  size="small">
+                  Close Split
+                </el-button>
+              </div>
+              
+              <template v-if="split.showFileBrowser">
+                <div class="file-browser">
+                  <div class="folder-navigation">
+                    <el-breadcrumb separator="/">
+                      <el-breadcrumb-item :class="{ clickable: split.currentFolder, 'navigation-disabled': isNavigating }">
+                        <a 
+                          :href="generateFolderHref(null)"
+                          @click.prevent="navigateToFolder(null, index)"
+                          class="breadcrumb-link"
+                          :class="{ 'disabled': isNavigating }">
+                          Root
+                        </a>
+                      </el-breadcrumb-item>
+                      <el-breadcrumb-item 
+                        v-for="folder in split.folderBreadcrumbs" 
+                        :key="folder.id"
+                        :class="{ clickable: folder.id !== split.currentFolder?.id, 'navigation-disabled': isNavigating }">
+                        <a 
+                          :href="generateFolderHref(folder)"
+                          @click.prevent="navigateToFolder(folder, index)"
+                          class="breadcrumb-link"
+                          :class="{ 'disabled': isNavigating }">
+                          {{ folder.name }}
+                        </a>
+                      </el-breadcrumb-item>
+                    </el-breadcrumb>
+                  </div>
+
+                  <el-table
+                    v-loading="loading"
+                    :data="filteredItems"
+                    style="width: 100%"
+                    :default-sort="{ prop: 'sortKey', order: 'ascending' }">
+                    <el-table-column prop="sortKey" label="Name" sortable>
+                      <template #default="scope">
+                        <div class="name-cell">
+                          <el-icon><component :is="getFileIcon(scope.row)" /></el-icon>
+                          <a 
+                            :href="scope.row.type === 'dir' ? generateFolderHref(scope.row) : scope.row.download_url"
+                            @click.prevent="scope.row.type === 'dir' ? 
+                              navigateToFolder(scope.row, index) : 
+                              handleSplitFileSelect(scope.row, index)"
+                            @contextmenu.stop
+                            class="clickable-filename"
+                            :class="{ 'disabled': isNavigating && scope.row.type === 'dir' }">
+                            {{ scope.row.name }}
+                          </a>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column 
+                      v-if="columnVisibility.type"
+                      prop="type" 
+                      label="Type" 
+                      sortable
+                      width="120"
+                      :show-overflow-tooltip="true">
+                      <template #default="scope">
+                        {{ scope.row.type === 'dir' ? 'Folder' : scope.row.type }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column 
+                      v-if="columnVisibility.size"
+                      prop="sizeForSort" 
+                      label="Size" 
+                      sortable
+                      width="90">
+                      <template #default="scope">
+                        {{ scope.row.type === 'dir' ? '-' : Math.round(scope.row.size / 1024) + ' KB' }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column 
+                      label="Actions" 
+                      width="60">
+                      <template #default="scope">
+                        <el-tooltip 
+                          :content="scope.row.type === 'dir' ? 'Download Folder' : 'Download File'"
+                          placement="top">
+                          <el-button
+                            type="primary"
+                            link
+                            :icon="Download"
+                            :loading="downloadingFiles.has(scope.row.id)"
+                            @click.stop="scope.row.type === 'dir' ? downloadFolder(scope.row) : downloadFile(scope.row)"
+                            size="small">
+                          </el-button>
+                        </el-tooltip>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </template>
+              
+              <template v-else-if="split.selectedFile">
+                <FilePreviewPane
+                  v-model:file="split.selectedFile"
+                  @close="split.selectedFile = null"
+                  @update:file="(file) => split.selectedFile = file"
+                />
+              </template>
+            </div>
+          </template>
         </template>
-      </template>
-    </div>
-
-    <!-- Upload Dialog -->
-    <el-dialog
-      v-model="uploadDialogVisible"
-      title="Upload Files"
-      width="500px">
-      <el-upload
-        class="upload-area"
-        drag
-        action="#"
-        :auto-upload="false"
-        :on-change="(file) => fileList = [file]"
-        :file-list="fileList">
-        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-        <div class="el-upload__text">
-          Drop file here or <em>click to upload</em>
-        </div>
-      </el-upload>
-
-      <div class="tags-section">
-        <h4>Add Tags</h4>
-        <div class="tags-input">
-          <el-tag
-            v-for="tag in selectedTags"
-            :key="tag"
-            closable
-            @close="selectedTags.splice(selectedTags.indexOf(tag), 1)">
-            {{ tag }}
-          </el-tag>
-          <el-input
-            v-if="tagInputVisible"
-            ref="tagInput"
-            v-model="tagInputValue"
-            size="small"
-            style="width: 100px"
-            @keyup.enter="handleTagInputConfirm"
-            @blur="handleTagInputConfirm"
-          />
-          <el-button v-else size="small" @click="showTagInput">
-            + New Tag
-          </el-button>
-        </div>
       </div>
 
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="uploadDialogVisible = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            @click="handleFileUpload(fileList[0])"
-            :disabled="!fileList.length">
-            Upload
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- New Folder Dialog -->
-    <el-dialog
-      v-model="newFolderDialogVisible"
-      title="Create New Folder"
-      width="400px">
-      <el-form>
-        <el-form-item label="Folder Name" required>
-          <el-input 
-            v-model="newFolderName"
-            placeholder="Enter folder name"
-            @keyup.enter="createFolder" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="newFolderDialogVisible = false">Cancel</el-button>
-          <el-button
-            class="create-folder-button"
-            type="primary"
-            @click="createFolder"
-            :disabled="!newFolderName.trim()">
-            Create
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- New Document Dialog -->
-    <el-dialog
-      v-model="newDocDialogVisible"
-      title="Create New Univer Document"
-      width="400px">
-      <el-form>
-        <el-form-item label="Document Name" required>
-          <el-input 
-            v-model="newDocName"
-            placeholder="Enter document name"
-            @keyup.enter="createUniverDocument" />
-          <div class="el-form-item__help">
-            The file will be saved with .univer extension
+      <!-- Upload Dialog -->
+      <el-dialog
+        v-model="uploadDialogVisible"
+        title="Upload Files"
+        width="500px">
+        <el-upload
+          class="upload-area"
+          drag
+          action="#"
+          :auto-upload="false"
+          :on-change="(file) => fileList = [file]"
+          :file-list="fileList">
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">
+            Drop file here or <em>click to upload</em>
           </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="newDocDialogVisible = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            @click="createUniverDocument"
-            :disabled="!newDocName.trim()">
-            Create Document
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
+        </el-upload>
+
+        <div class="tags-section">
+          <h4>Add Tags</h4>
+          <div class="tags-input">
+            <el-tag
+              v-for="tag in selectedTags"
+              :key="tag"
+              closable
+              @close="selectedTags.splice(selectedTags.indexOf(tag), 1)">
+              {{ tag }}
+            </el-tag>
+            <el-input
+              v-if="tagInputVisible"
+              ref="tagInput"
+              v-model="tagInputValue"
+              size="small"
+              style="width: 100px"
+              @keyup.enter="handleTagInputConfirm"
+              @blur="handleTagInputConfirm"
+            />
+            <el-button v-else size="small" @click="showTagInput">
+              + New Tag
+            </el-button>
+          </div>
+        </div>
+
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="uploadDialogVisible = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              @click="handleFileUpload(fileList[0])"
+              :disabled="!fileList.length">
+              Upload
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- New Folder Dialog -->
+      <el-dialog
+        v-model="newFolderDialogVisible"
+        title="Create New Folder"
+        width="400px">
+        <el-form>
+          <el-form-item label="Folder Name" required>
+            <el-input 
+              v-model="newFolderName"
+              placeholder="Enter folder name"
+              @keyup.enter="createFolder" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="newFolderDialogVisible = false">Cancel</el-button>
+            <el-button
+              class="create-folder-button"
+              type="primary"
+              @click="createFolder"
+              :disabled="!newFolderName.trim()">
+              Create
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
+      <!-- New Document Dialog -->
+      <el-dialog
+        v-model="newDocDialogVisible"
+        title="Create New Univer Document"
+        width="400px">
+        <el-form>
+          <el-form-item label="Document Name" required>
+            <el-input 
+              v-model="newDocName"
+              placeholder="Enter document name"
+              @keyup.enter="createUniverDocument" />
+            <div class="el-form-item__help">
+              The file will be saved with .univer extension
+            </div>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="newDocDialogVisible = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              @click="createUniverDocument"
+              :disabled="!newDocName.trim()">
+              Create Document
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+    </div>
   </div>
 </template>
 

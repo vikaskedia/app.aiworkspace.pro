@@ -15,147 +15,149 @@
       </template>
     </el-alert>
     
-    <div class="workspaces-header">
-      <div class="header-actions">
-        <el-switch
-          v-model="showArchived"
-          active-text="Show Archived"
-          inactive-text="Show Active"
-        />
-        <el-button id="idOfButtonToCreateNewWorkspace" type="primary" @click="createWorkspaceDialog = true">
-          <el-icon><Plus /></el-icon>
-          New Workspace
-        </el-button>
+    <div v-if="false">
+      <div class="workspaces-header">
+        <div class="header-actions">
+          <el-switch
+            v-model="showArchived"
+            active-text="Show Archived"
+            inactive-text="Show Active"
+          />
+          <el-button id="idOfButtonToCreateNewWorkspace" type="primary" @click="createWorkspaceDialog = true">
+            <el-icon><Plus /></el-icon>
+            New Workspace
+          </el-button>
+        </div>
       </div>
-    </div>
 
-    <div class="workspaces-grid" v-loading="loading">
-      <el-card v-for="workspace in workspaces" :key="workspace.id" class="workspace-card">
-        <template #header>
-          <div class="workspace-header">
-            <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', workspace)" class="workspace-title-link">
-              <h3 class="clickable-title">{{ workspace.title }}</h3>
+      <div class="workspaces-grid" v-loading="loading">
+        <el-card v-for="workspace in workspaces" :key="workspace.id" class="workspace-card">
+          <template #header>
+            <div class="workspace-header">
+              <a :href="`/single-workspace/${workspace.id}`" @click="handleCommand('view', workspace)" class="workspace-title-link">
+                <h3 class="clickable-title">{{ workspace.title }}</h3>
+              </a>
+              <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, workspace)">
+                <el-button type="primary" link>
+                  <el-icon><More /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <template v-if="!showArchived">
+                      <!--el-dropdown-item command="view">View Dashboard</el-dropdown-item-->
+                      <el-dropdown-item command="edit">Edit Workspace</el-dropdown-item>
+                      <el-dropdown-item command="archive" divided>Archive</el-dropdown-item>
+                    </template>
+                    <template v-else>
+                      <el-dropdown-item command="restore">Restore Workspace</el-dropdown-item>
+                    </template>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </template>
+
+          <div class="workspace-stats">
+            <a :href="`/single-workspace/${workspace.id}/goals`" @click="navigateToGoals(workspace)" class="stat-link">
+              <div class="stat-item clickable-stat">
+                <h4>Goals</h4>
+                <div class="stat-numbers">
+                  <span>{{ workspace.stats?.goals_total || 0 }} Total</span>
+                  <span>{{ workspace.stats?.goals_completed || 0 }} Completed</span>
+                </div>
+              </div>
             </a>
-            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, workspace)">
-              <el-button type="primary" link>
-                <el-icon><More /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <template v-if="!showArchived">
-                    <!--el-dropdown-item command="view">View Dashboard</el-dropdown-item-->
-                    <el-dropdown-item command="edit">Edit Workspace</el-dropdown-item>
-                    <el-dropdown-item command="archive" divided>Archive</el-dropdown-item>
-                  </template>
-                  <template v-else>
-                    <el-dropdown-item command="restore">Restore Workspace</el-dropdown-item>
-                  </template>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <a :href="`/single-workspace/${workspace.id}/tasks`" @click="navigateToTasks(workspace)" class="stat-link">
+              <div class="stat-item clickable-stat">
+                <h4>Tasks</h4>
+                <div class="stat-numbers">
+                  <span>{{ workspace.stats?.tasks_total || 0 }} Total</span>
+                  <span>{{ workspace.stats?.tasks_completed || 0 }} Completed</span>
+                </div>
+              </div>
+            </a>
+            <a :href="`/single-workspace/${workspace.id}/events`" @click="navigateToEvents(workspace)" class="stat-link">
+              <div class="stat-item clickable-stat">
+                <h4>Upcoming Events</h4>
+                <span>{{ workspace.stats?.upcoming_events || 0 }}</span>
+              </div>
+            </a>
           </div>
+
+          <div class="workspace-description" v-if="workspace.description">
+            <p>{{ workspace.description }}</p>
+          </div>
+        </el-card>
+      </div>
+
+      <!-- Create Workspace Dialog -->
+      <el-dialog
+        v-model="createWorkspaceDialog"
+        title="Create New Workspace"
+        id="idOfDialogToCreateNewWorkspace"
+        width="500px">
+        <el-form :model="newWorkspace" label-position="top">
+          <el-form-item label="Title" required>
+            <el-input id="idOfInputWorkspaceTitle" v-model="newWorkspace.title" placeholder="Enter workspace title" />
+          </el-form-item>
+          
+          <el-form-item label="Description">
+            <el-input
+              v-model="newWorkspace.description"
+              type="textarea"
+              rows="3"
+              id="idOfInputWorkspaceDescription"
+              placeholder="Enter workspace description" />
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="createWorkspaceDialog = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              :disabled="!newWorkspace.title"
+              :loading="loading"
+              @click="createWorkspace">
+              Create Workspace
+            </el-button>
+          </span>
         </template>
+      </el-dialog>
 
-        <div class="workspace-stats">
-          <a :href="`/single-workspace/${workspace.id}/goals`" @click="navigateToGoals(workspace)" class="stat-link">
-            <div class="stat-item clickable-stat">
-              <h4>Goals</h4>
-              <div class="stat-numbers">
-                <span>{{ workspace.stats?.goals_total || 0 }} Total</span>
-                <span>{{ workspace.stats?.goals_completed || 0 }} Completed</span>
-              </div>
-            </div>
-          </a>
-          <a :href="`/single-workspace/${workspace.id}/tasks`" @click="navigateToTasks(workspace)" class="stat-link">
-            <div class="stat-item clickable-stat">
-              <h4>Tasks</h4>
-              <div class="stat-numbers">
-                <span>{{ workspace.stats?.tasks_total || 0 }} Total</span>
-                <span>{{ workspace.stats?.tasks_completed || 0 }} Completed</span>
-              </div>
-            </div>
-          </a>
-          <a :href="`/single-workspace/${workspace.id}/events`" @click="navigateToEvents(workspace)" class="stat-link">
-            <div class="stat-item clickable-stat">
-              <h4>Upcoming Events</h4>
-              <span>{{ workspace.stats?.upcoming_events || 0 }}</span>
-            </div>
-          </a>
-        </div>
-
-        <div class="workspace-description" v-if="workspace.description">
-          <p>{{ workspace.description }}</p>
-        </div>
-      </el-card>
+      <!-- Edit Workspace Dialog -->
+      <el-dialog
+        v-model="editWorkspaceDialog"
+        title="Edit Workspace"
+        width="500px">
+        <el-form :model="editingWorkspace" label-position="top">
+          <el-form-item label="Title" required>
+            <el-input v-model="editingWorkspace.title" placeholder="Enter workspace title" />
+          </el-form-item>
+          
+          <el-form-item label="Description">
+            <el-input
+              v-model="editingWorkspace.description"
+              type="textarea"
+              rows="3"
+              placeholder="Enter workspace description" />
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="editWorkspaceDialog = false">Cancel</el-button>
+            <el-button
+              type="primary"
+              :disabled="!editingWorkspace.title"
+              :loading="loading"
+              @click="updateWorkspace">
+              Save Changes
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
-
-    <!-- Create Workspace Dialog -->
-    <el-dialog
-      v-model="createWorkspaceDialog"
-      title="Create New Workspace"
-      id="idOfDialogToCreateNewWorkspace"
-      width="500px">
-      <el-form :model="newWorkspace" label-position="top">
-        <el-form-item label="Title" required>
-          <el-input id="idOfInputWorkspaceTitle" v-model="newWorkspace.title" placeholder="Enter workspace title" />
-        </el-form-item>
-        
-        <el-form-item label="Description">
-          <el-input
-            v-model="newWorkspace.description"
-            type="textarea"
-            rows="3"
-            id="idOfInputWorkspaceDescription"
-            placeholder="Enter workspace description" />
-        </el-form-item>
-      </el-form>
-      
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="createWorkspaceDialog = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            :disabled="!newWorkspace.title"
-            :loading="loading"
-            @click="createWorkspace">
-            Create Workspace
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- Edit Workspace Dialog -->
-    <el-dialog
-      v-model="editWorkspaceDialog"
-      title="Edit Workspace"
-      width="500px">
-      <el-form :model="editingWorkspace" label-position="top">
-        <el-form-item label="Title" required>
-          <el-input v-model="editingWorkspace.title" placeholder="Enter workspace title" />
-        </el-form-item>
-        
-        <el-form-item label="Description">
-          <el-input
-            v-model="editingWorkspace.description"
-            type="textarea"
-            rows="3"
-            placeholder="Enter workspace description" />
-        </el-form-item>
-      </el-form>
-      
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="editWorkspaceDialog = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            :disabled="!editingWorkspace.title"
-            :loading="loading"
-            @click="updateWorkspace">
-            Save Changes
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

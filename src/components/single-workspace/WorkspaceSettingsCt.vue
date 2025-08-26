@@ -344,6 +344,33 @@ export default {
       }
     },
 
+    copyCloneUrl() {
+      if (!this.gitCloneUrl) {
+        ElMessage.error('No repository configured');
+        return;
+      }
+      try {
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(this.gitCloneUrl);
+        } else {
+          const el = document.createElement('textarea');
+          el.value = this.gitCloneUrl;
+          document.body.appendChild(el);
+          el.select();
+          document.execCommand('copy');
+          document.body.removeChild(el);
+        }
+        ElMessage.success('Clone URL copied to clipboard');
+      } catch (e) {
+        ElMessage.error('Failed to copy clone URL');
+      }
+    },
+
+    openCloneUrl() {
+      if (!this.gitCloneUrl) return;
+      window.open(this.gitCloneUrl, '_blank');
+    },
+
     async updateCalendarSettings() {
       try {
         const { error } = await supabase
@@ -885,6 +912,15 @@ export default {
     sortedSharedUsers() {
       return [...this.sharedUsers].sort((a, b) => a.email.localeCompare(b.email));
     }
+    ,
+    gitCloneUrl() {
+      const host = (import.meta && import.meta.env && import.meta.env.VITE_GITEA_HOST) ? import.meta.env.VITE_GITEA_HOST : '';
+      const repo = this.gitSettings && this.gitSettings.repoName ? this.gitSettings.repoName.trim() : '';
+      if (!host || !repo) return '';
+      // Ensure host does not end with a slash
+      const normalizedHost = host.endsWith('/') ? host.slice(0, -1) : host;
+      return `${normalizedHost}/associateattorney/${repo}.git`;
+    }
   }
 };
 </script>
@@ -1026,6 +1062,13 @@ export default {
                 :disabled="!gitSettings.repoName">
                 Save Changes
               </el-button>
+            </div>
+          </el-form-item>
+          <el-form-item label="Clone URL">
+            <div class="horizontal-form-layout">
+              <el-input v-model="gitCloneUrl" readonly placeholder="Repository clone URL will appear here" />
+              <el-button :disabled="!gitCloneUrl" @click="copyCloneUrl">Copy</el-button>
+              <el-button :disabled="!gitCloneUrl" type="primary" @click="openCloneUrl">Open</el-button>
             </div>
           </el-form-item>
           <el-form-item>

@@ -9,7 +9,7 @@
       class="page-moved-alert">
       <template #default>
         This page has moved to 
-        <a :href="`https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/dashboard`" target="_blank" class="moved-link">
+        <a :href="`https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/dashboard`" target="_self" class="moved-link">
           {{ `https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/dashboard` }}
         </a>
       </template>

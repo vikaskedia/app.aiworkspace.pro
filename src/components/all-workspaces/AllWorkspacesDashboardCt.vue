@@ -9,7 +9,7 @@
       class="page-moved-alert">
       <template #default>
         This page has moved to 
-        <a href="https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard" target="_blank" class="moved-link">
+        <a href="https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard" target="_self" class="moved-link">
           https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard
         </a>
       </template>

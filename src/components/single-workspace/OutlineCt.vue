@@ -9,7 +9,7 @@
       class="page-moved-alert">
       <template #default>
         This page has moved to 
-        <a :href="getNewOutlineUrl()" target="_blank" class="moved-link">
+        <a :href="getNewOutlineUrl()" target="_self" class="moved-link">
           {{ getNewOutlineUrl() }}
         </a>
       </template>

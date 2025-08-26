@@ -467,7 +467,7 @@ export default {
             <el-dropdown-menu>
               <!-- Show these options when a specific workspace is selected -->
               <template v-if="currentWorkspace">
-                <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/dashboard`">Dashboard</a></el-dropdown-item>
+                <el-dropdown-item><a :href="`https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace.id}/dashboard`">Dashboard</a></el-dropdown-item>
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/goals`">Goals</a></el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/tasks') }">
                   <a :href="`https://tasks.aiworkspace.pro/single-workspace/${currentWorkspace.id}/tasks`" target="_self">Tasks</a>

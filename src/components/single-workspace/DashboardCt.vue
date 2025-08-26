@@ -1,124 +1,141 @@
 <template>
   <div class="dashboard-overview">
-    <!-- Goals Section -->
-    <div class="dashboard-section">
-      <div class="section-header">
-        <h3>Recent Goals</h3>
-        <el-button 
-          type="primary" 
-          link 
-          @click="$router.push(`/single-workspace/${currentWorkspace?.id}/goals`)">
-          View All Goals
-        </el-button>
-      </div>
-      <el-table
-        v-loading="loadingGoals"
-        :data="recentGoals"
-        style="width: 100%">
-        <el-table-column 
-          prop="title" 
-          label="Title"
-          min-width="200" />
-        <el-table-column 
-          v-if="!currentWorkspace"
-          prop="workspace_title" 
-          label="Workspace"
-          min-width="150" />
-        <el-table-column 
-          prop="status" 
-          label="Status"
-          width="120">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'">
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="priority" 
-          label="Priority"
-          width="100">
-          <template #default="scope">
-            <el-tag :type="
-              scope.row.priority === 'high' ? 'danger' : 
-              scope.row.priority === 'medium' ? 'warning' : 'info'
-            ">
-              {{ scope.row.priority }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+    <!-- Page moved warning -->
+    <el-alert
+      title="Page Moved"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="page-moved-alert">
+      <template #default>
+        This page has moved to 
+        <a :href="`https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/dashboard`" target="_blank" class="moved-link">
+          {{ `https://single-ws-dashboard.aiworkspace.pro/single-workspace/${currentWorkspace?.id}/dashboard` }}
+        </a>
+      </template>
+    </el-alert>
 
-    <!-- Tasks Section -->
-    <div class="dashboard-section">
-      <div class="section-header">
-        <h3>Recent Tasks</h3>
+    <div v-if="false">
+      <!-- Goals Section -->
+      <div class="dashboard-section">
+        <div class="section-header">
+          <h3>Recent Goals</h3>
+          <el-button 
+            type="primary" 
+            link 
+            @click="$router.push(`/single-workspace/${currentWorkspace?.id}/goals`)">
+            View All Goals
+          </el-button>
+        </div>
+        <el-table
+          v-loading="loadingGoals"
+          :data="recentGoals"
+          style="width: 100%">
+          <el-table-column 
+            prop="title" 
+            label="Title"
+            min-width="200" />
+          <el-table-column 
+            v-if="!currentWorkspace"
+            prop="workspace_title" 
+            label="Workspace"
+            min-width="150" />
+          <el-table-column 
+            prop="status" 
+            label="Status"
+            width="120">
+            <template #default="scope">
+              <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'">
+                {{ scope.row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column 
+            prop="priority" 
+            label="Priority"
+            width="100">
+            <template #default="scope">
+              <el-tag :type="
+                scope.row.priority === 'high' ? 'danger' : 
+                scope.row.priority === 'medium' ? 'warning' : 'info'
+              ">
+                {{ scope.row.priority }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- Tasks Section -->
+      <div class="dashboard-section">
+        <div class="section-header">
+          <h3>Recent Tasks</h3>
+          <a 
+            :href="`/single-workspace/${currentWorkspace?.id}/tasks`"
+            class="el-button el-button--primary is-link">
+            View All Tasks
+          </a>
+        </div>
         <a 
-          :href="`/single-workspace/${currentWorkspace?.id}/tasks`"
-          class="el-button el-button--primary is-link">
-          View All Tasks
+          v-for="task in recentTasks" 
+          :key="task.id" 
+          :href="`/single-workspace/${task.workspace_id}/tasks/${task.id}`"
+          class="recent-task">
+          <div class="task-title">{{ task.title }}</div>
+          <div class="task-timestamps">
+            <el-tooltip>
+              <template #content>
+                Created: {{ new Date(task.created_at).toLocaleString() }}<br>
+                Latest Activity: {{ new Date(task.latest_activity_time).toLocaleString() }}
+              </template>
+              <span class="time-ago">{{ task.latestActivityTimeAgo }}</span>
+            </el-tooltip>
+          </div>
         </a>
       </div>
-      <a 
-        v-for="task in recentTasks" 
-        :key="task.id" 
-        :href="`/single-workspace/${task.workspace_id}/tasks/${task.id}`"
-        class="recent-task">
-        <div class="task-title">{{ task.title }}</div>
-        <div class="task-timestamps">
-          <el-tooltip>
-            <template #content>
-              Created: {{ new Date(task.created_at).toLocaleString() }}<br>
-              Latest Activity: {{ new Date(task.latest_activity_time).toLocaleString() }}
-            </template>
-            <span class="time-ago">{{ task.latestActivityTimeAgo }}</span>
-          </el-tooltip>
-        </div>
-      </a>
-    </div>
 
-    <!-- Events Section -->
-    <div class="dashboard-section">
-      <div class="section-header">
-        <h3>Upcoming Events</h3>
-        <el-button 
-          type="primary" 
-          link 
-          @click="$router.push(`/single-workspace/${currentWorkspace?.id}/events`)">
-          View All Events
-        </el-button>
+      <!-- Events Section -->
+      <div class="dashboard-section">
+        <div class="section-header">
+          <h3>Upcoming Events</h3>
+          <el-button 
+            type="primary" 
+            link 
+            @click="$router.push(`/single-workspace/${currentWorkspace?.id}/events`)">
+            View All Events
+          </el-button>
+        </div>
+        <el-table
+          v-loading="loadingEvents"
+          :data="upcomingEvents"
+          style="width: 100%">
+          <el-table-column 
+            prop="title" 
+            label="Title"
+            min-width="200" />
+          <el-table-column 
+            v-if="!currentWorkspace"
+            prop="workspace_title" 
+            label="Workspace"
+            min-width="150" />
+          <el-table-column 
+            prop="event_type" 
+            label="Type"
+            width="120">
+            <template #default="scope">
+              <el-tag>{{ scope.row.event_type }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column 
+            prop="start_time" 
+            label="Date"
+            width="150">
+            <template #default="scope">
+              {{ scope.row.start_time ? new Date(scope.row.start_time).toLocaleDateString() : '-' }}
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
-      <el-table
-        v-loading="loadingEvents"
-        :data="upcomingEvents"
-        style="width: 100%">
-        <el-table-column 
-          prop="title" 
-          label="Title"
-          min-width="200" />
-        <el-table-column 
-          v-if="!currentWorkspace"
-          prop="workspace_title" 
-          label="Workspace"
-          min-width="150" />
-        <el-table-column 
-          prop="event_type" 
-          label="Type"
-          width="120">
-          <template #default="scope">
-            <el-tag>{{ scope.row.event_type }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column 
-          prop="start_time" 
-          label="Date"
-          width="150">
-          <template #default="scope">
-            {{ scope.row.start_time ? new Date(scope.row.start_time).toLocaleDateString() : '-' }}
-          </template>
-        </el-table-column>
-      </el-table>
     </div>
   </div>
 </template>

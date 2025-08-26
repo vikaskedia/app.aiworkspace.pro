@@ -1766,23 +1766,52 @@ export default {
     };
   },
   async created() {
-    const taskId = this.$route.params.taskId;
-    const { data: { user } } = await supabase.auth.getUser();
-    this.currentUser = user;
-    this.loadUserSettings();
-    
-    // Load task first (this will handle caching)
-    await this.loadTask(taskId);
-    
-            // Load other data in parallel
-        await Promise.all([
-          this.loadSharedUsers(),
-          this.refreshTaskCache(),
-          this.loadTaskOutline(),
-          this.loadEsignDocuments()
-        ]);
-    
-    this.setupRealtimeSubscription();
+    try {
+      const taskId = this.$route.params.taskId;
+      const { data: { user } } = await supabase.auth.getUser();
+      this.currentUser = user;
+      this.loadUserSettings();
+      
+      // Load task first (this will handle caching)
+      await this.loadTask(taskId);
+      
+      // Load other data in parallel with comprehensive error handling
+      try {
+        const promises = [
+          this.loadSharedUsers().catch(err => {
+            console.error('Error in loadSharedUsers:', err);
+            return Promise.resolve();
+          }),
+          this.refreshTaskCache().catch(err => {
+            console.error('Error in refreshTaskCache:', err);
+            return Promise.resolve();
+          }),
+          this.loadTaskOutline().catch(err => {
+            console.error('Error in loadTaskOutline:', err);
+            return Promise.resolve();
+          }),
+          this.loadEsignDocuments().catch(err => {
+            console.error('Error in loadEsignDocuments:', err);
+            return Promise.resolve();
+          })
+        ];
+        
+        await Promise.all(promises);
+      } catch (error) {
+        console.error('Error in parallel data loading:', error);
+        // Continue with component initialization even if some parallel operations fail
+      }
+      
+      this.setupRealtimeSubscription();
+    } catch (error) {
+      console.error('Critical error in DetailedTaskViewCt.vue created() hook:', error);
+      // Ensure the component doesn't break completely
+      ElNotification.error({
+        title: 'Loading Error',
+        message: 'There was an error loading the task details. Please refresh the page.',
+        duration: 0
+      });
+    }
   },
 
   async activated() {
@@ -2420,8 +2449,10 @@ export default {
             if (userData?.[0]) {
               this.userEmails[userId] = userData[0].email;
             }
+            return Promise.resolve();
           } catch (error) {
             console.error(`Error loading email for user ${userId}:`, error);
+            return Promise.resolve();
           }
         });
 
@@ -2759,12 +2790,20 @@ export default {
         if (error) throw error;
 
         const sharesWithUserInfo = await Promise.all(
-          shares.map(async (share) => {
-            const userInfo = await this.userStore.getUserInfo(share.shared_with_user_id);
-            return {
-              id: share.shared_with_user_id,
-              email: userInfo?.email || 'Unknown User'
-            };
+          (shares || []).map(async (share) => {
+            try {
+              const userInfo = await this.userStore.getUserInfo(share.shared_with_user_id);
+              return {
+                id: share.shared_with_user_id,
+                email: userInfo?.email || 'Unknown User'
+              };
+            } catch (error) {
+              console.error(`Error getting user info for ${share.shared_with_user_id}:`, error);
+              return {
+                id: share.shared_with_user_id,
+                email: 'Unknown User'
+              };
+            }
           })
         );
 
@@ -5169,10 +5208,20 @@ ${comment.content}
           */
 
         // Update workspace activity for both workspaces
-        await Promise.all([
-          updateWorkspaceActivity(this.currentWorkspace.id),
-          updateWorkspaceActivity(this.moveToForm.targetWorkspaceId)
-        ]);
+        try {
+          await Promise.all([
+            updateWorkspaceActivity(this.currentWorkspace?.id).catch(err => {
+              console.error('Error updating source workspace activity:', err);
+              return Promise.resolve();
+            }),
+            updateWorkspaceActivity(this.moveToForm.targetWorkspaceId).catch(err => {
+              console.error('Error updating target workspace activity:', err);
+              return Promise.resolve();
+            })
+          ]);
+        } catch (error) {
+          console.error('Error updating workspace activities:', error);
+        }
 
         ElNotification.success({
           title: 'Success',

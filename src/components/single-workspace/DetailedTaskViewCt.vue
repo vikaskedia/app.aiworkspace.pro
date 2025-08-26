@@ -2744,6 +2744,13 @@ export default {
     },
     async loadSharedUsers() {
       try {
+        // Guard against missing workspace
+        if (!this.currentWorkspace?.id) {
+          console.warn('Cannot load shared users: currentWorkspace not available');
+          this.sharedUsers = [];
+          return;
+        }
+
         const { data: shares, error } = await supabase
           .from('workspace_access')
           .select('shared_with_user_id')
@@ -2763,6 +2770,8 @@ export default {
 
         this.sharedUsers = sharesWithUserInfo;
       } catch (error) {
+        console.error('Error loading shared users:', error);
+        this.sharedUsers = [];
         ElNotification.error({
           title: 'Error',
           message: 'Error loading users: ' + error.message
@@ -4151,6 +4160,8 @@ ${comment.content}
       if (this.currentWorkspace?.id) {
         await this.taskStore.fetchAndCacheTasks(this.currentWorkspace.id);
       }
+      // Always return a resolved promise to ensure Promise.all works correctly
+      return Promise.resolve();
     },
 
     async refreshCurrentTaskDetail() {
@@ -4164,6 +4175,15 @@ ${comment.content}
     async loadTaskOutline() {
       try {
         this.outlineLoading = true;
+        
+        // Guard against missing task or workspace
+        if (!this.task?.id || !this.currentWorkspace?.id) {
+          console.warn('Cannot load task outline: task or workspace not available');
+          this.taskOutline = [];
+          this.lastSavedOutlineContent = [];
+          this.hasOutlineChanges = false;
+          return;
+        }
         
         // Try to load existing task outline from the main outlines table
         // We'll use a unique title format to distinguish task outlines
@@ -4653,6 +4673,14 @@ ${comment.content}
          async loadEsignDocuments() {
        try {
          this.esignLoading = true;
+         
+         // Guard against missing task
+         if (!this.task?.id) {
+           console.warn('Cannot load e-sign documents: task not available');
+           this.esignDocuments = [];
+           return;
+         }
+         
          const { data: documents, error } = await supabase
            .from('task_documents')
            .select('*')

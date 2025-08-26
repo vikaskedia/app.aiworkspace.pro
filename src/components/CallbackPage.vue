@@ -45,7 +45,8 @@ export default {
         //await supabase.auth.setSession(data.session);
         
         // Construct the full redirect URL
-        const redirectUrl = `${redirectOrigin}/all-workspace`;
+        //const redirectUrl = `${redirectOrigin}/all-workspace`;
+        const redirectUrl = `https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard`
         window.location.href = redirectUrl;
       } else {
         // No session found, redirect to login

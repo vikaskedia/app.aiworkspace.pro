@@ -50,7 +50,7 @@ export default {
       if (path.includes('/goals')) return 'Goals';
       if (path.includes('/tasks')) return 'Tasks';
       if (path.includes('/events')) return 'Events';
-      if (path.includes('/files')) return 'Files';
+      if (path.includes('/files')) return 'Drive';
       if (path.includes('/outlines')) return 'Outlines';
       if (path.includes('/contacts')) return 'Contacts';
       if (path.includes('/communications')) return 'Communications';
@@ -475,7 +475,7 @@ export default {
                 <el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/events`">Events</a></el-dropdown-item>
                 <!--el-dropdown-item><a :href="`/single-workspace/${currentWorkspace.id}/files`">Files</a></el-dropdown-item-->
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/files') }">
-                  <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace.id}/files`" target="_self">Files</a>
+                  <a :href="`https://drive.aiworkspace.pro/single-workspace/${currentWorkspace.id}/files`" target="_self">Drive</a>
                 </el-dropdown-item>
                 <el-dropdown-item :class="{ 'is-active': $route.path.includes('/outlines') }">
                   <a :href="`https://outline.aiworkspace.pro/single-workspace/${currentWorkspace.id}/outlines`" target="_self">Outlines</a>
@@ -499,7 +499,7 @@ export default {
                 <el-dropdown-item><a href="https://tasks.aiworkspace.pro/all-workspace/tasks">Tasks</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/goals">Goals</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/events">Events</a></el-dropdown-item>
-                <el-dropdown-item><a href="/all-workspace/files">Files</a></el-dropdown-item>
+                <el-dropdown-item><a href="/all-workspace/files">Drive</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/contacts">Contacts</a></el-dropdown-item>
                 <el-dropdown-item><a href="/all-workspace/settings">Settings</a></el-dropdown-item>
               </template>

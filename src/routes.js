@@ -4,7 +4,6 @@ import { useWorkspaceStore } from './store/workspace';
 import DashboardCt from './components/single-workspace/DashboardCt.vue';
 import ManageFilesCt from './components/single-workspace/FilesCt.vue';
 import GoalsCt from './components/single-workspace/GoalsCt.vue';
-import TasksCt from './components/single-workspace/TasksCt.vue';
 import EventsCt from './components/single-workspace/EventsCt.vue';
 import ContactsCt from './components/single-workspace/ContactsCt.vue';
 import LoginPage from './components/LoginPage.vue';

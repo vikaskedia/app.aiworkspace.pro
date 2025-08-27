@@ -107,7 +107,7 @@ const routes = [
       {
         path: 'tasks/:taskId',
         name: 'SingleTaskPage',
-        component: () => MovedTaskCt
+        component: () => import('./components/single-workspace/MovedTaskCt.vue')
       },
       {
         path: 'events',

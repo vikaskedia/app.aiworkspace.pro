@@ -49,6 +49,31 @@ export default async function handler(req, res) {
         await handleMessageReceived(eventData)
         break
         
+      // Fax event handlers
+      case 'fax.queued':
+        await handleFaxQueued(eventData)
+        break
+        
+      case 'fax.media.processed':
+        await handleFaxMediaProcessed(eventData)
+        break
+        
+      case 'fax.sending.started':
+        await handleFaxSendingStarted(eventData)
+        break
+        
+      case 'fax.delivered':
+        await handleFaxDelivered(eventData)
+        break
+        
+      case 'fax.failed':
+        await handleFaxFailed(eventData)
+        break
+        
+      case 'fax.received':
+        await handleFaxReceived(eventData)
+        break 
+        
       default:
         console.log('Unhandled event type:', eventType)
     }
@@ -253,5 +278,176 @@ async function handleMessageReceived(eventData) {
     });
   } catch (error) {
     console.error('Error handling received message:', error);
+  }
+}
+
+// ============ FAX EVENT HANDLERS ============
+async function handleFaxQueued(eventData) {
+  try {
+    console.log('Handling fax queued:', eventData.fax_id);
+    
+    // Update fax status to queued
+    const { error } = await supabase
+      .from('faxes')
+      .update({
+        status: 'queued',
+        metadata: eventData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('telnyx_id', eventData.fax_id);
+      
+    if (error) {
+      console.error('Error updating queued fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax queued:', error);
+  }
+}
+
+async function handleFaxMediaProcessed(eventData) {
+  try {
+    console.log('Handling fax media processed:', eventData.fax_id);
+    
+    // Update fax status to media.processed
+    const { error } = await supabase
+      .from('faxes')
+      .update({
+        status: 'media.processed',
+        metadata: eventData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('telnyx_id', eventData.fax_id);
+      
+    if (error) {
+      console.error('Error updating media processed fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax media processed:', error);
+  }
+}
+
+async function handleFaxSendingStarted(eventData) {
+  try {
+    console.log('Handling fax sending started:', eventData.fax_id);
+    
+    // Update fax status to sending
+    const { error } = await supabase
+      .from('faxes')
+      .update({
+        status: 'sending',
+        metadata: eventData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('telnyx_id', eventData.fax_id);
+      
+    if (error) {
+      console.error('Error updating sending fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax sending started:', error);
+  }
+}
+
+async function handleFaxDelivered(eventData) {
+  try {
+    console.log('Handling fax delivered:', eventData.fax_id);
+    
+    // Update fax status to delivered with additional data
+    const { error } = await supabase
+      .from('faxes')
+      .update({
+        status: 'delivered',
+        pages: eventData.page_count || null,
+        // store other event details inside metadata JSONB
+        metadata: Object.assign({}, eventData, { delivered_at: new Date().toISOString() }),
+        updated_at: new Date().toISOString()
+      })
+      .eq('telnyx_id', eventData.fax_id);
+      
+    if (error) {
+      console.error('Error updating delivered fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax delivered:', error);
+  }
+}
+
+async function handleFaxFailed(eventData) {
+  try {
+    console.log('Handling fax failed:', eventData.fax_id);
+    
+    // Update fax status to failed with reason
+    const { error } = await supabase
+      .from('faxes')
+      .update({
+        status: 'failed',
+        status_reason: eventData.errors?.[0]?.detail || eventData.error_message || 'Unknown error',
+        metadata: eventData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('telnyx_id', eventData.fax_id);
+      
+    if (error) {
+      console.error('Error updating failed fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax failed:', error);
+  }
+}
+
+async function handleFaxReceived(eventData) {
+  try {
+    console.log('Handling fax received:', eventData.fax_id);
+    
+    const fromPhone = eventData.from;
+    const toPhone = eventData.to;
+    
+    // Find the workspace based on the receiving fax number
+    const { data: workspaces, error: workspaceError } = await supabase
+      .from('workspaces')
+      .select('id, fax_numbers')
+      .not('fax_numbers', 'is', null);
+
+    if (workspaceError) throw workspaceError;
+
+    let workspaceId = null;
+    for (const workspace of workspaces || []) {
+      const faxNumbers = workspace.fax_numbers || [];
+      if (faxNumbers.some(f => f.number === toPhone)) {
+        workspaceId = workspace.id;
+        break;
+      }
+    }
+
+    if (!workspaceId) {
+      console.error('No workspace found for fax number:', toPhone);
+      return;
+    }
+
+    // Create or update fax record for received fax
+    const { error } = await supabase
+      .from('faxes')
+      .upsert({
+        telnyx_id: eventData.fax_id,
+        workspace_id: workspaceId,
+        connection_id: eventData.connection_id || null,
+        direction: 'inbound',
+        from_number: fromPhone,
+        to_number: toPhone,
+        status: 'received',
+        file_url: eventData.media_url || eventData.original_media_url || null,
+        pages: eventData.page_count || null,
+        // keep additional event details in metadata
+        metadata: eventData
+      }, { 
+        onConflict: 'telnyx_id',
+        ignoreDuplicates: false 
+      });
+      
+    if (error) {
+      console.error('Error creating/updating received fax:', error);
+    }
+  } catch (error) {
+    console.error('Error handling fax received:', error);
   }
 } 

@@ -398,6 +398,35 @@ export default {
     const getCleanPhoneNumber = (formatted) => {
       return formatted.replace(/\D/g, '')
     }
+
+    // --- Hardcoded Telnyx connection mapping (local/development convenience) ---
+    // Maps E.164 phone numbers to Telnyx connection_id strings.
+    const telnyxConnectionMap = {
+      '+18006376854': '2750443489845052961'
+    }
+
+    // Normalize a phone input into E.164-ish string used as keys in the map.
+    const toE164 = (phone) => {
+      if (!phone) return null
+      const digits = String(phone).replace(/\D/g, '')
+      if (digits.length === 10) return '+' + digits
+      if (digits.length === 11 && digits.startsWith('1')) return '+' + digits
+      if (String(phone).startsWith('+')) return phone
+      return '+' + digits
+    }
+
+    const getConnectionIdForPhone = (phone) => {
+      const e164 = toE164(phone)
+      return e164 ? (telnyxConnectionMap[e164] || null) : null
+    }
+
+    const getPhoneForConnectionId = (connId) => {
+      if (!connId) return null
+      for (const [phone, id] of Object.entries(telnyxConnectionMap)) {
+        if (String(id) === String(connId)) return phone
+      }
+      return null
+    }
     
     const handleFileChange = (file) => {
       // Only allow PDF files
@@ -535,7 +564,7 @@ export default {
             from_number: faxData.value.from || null,
             to_number: cleanToNumber || null,
             subject: faxData.value.subject || null,
-            status: giteaUploadResp && giteaUploadResp.ok ? 'Sent' : 'Failed',
+            status: giteaUploadResp && giteaUploadResp.ok ? 'Stored in gitea' : 'Failed storing in gitea',
             file_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
             file_name: file.name,
             gitea_download_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
@@ -568,13 +597,51 @@ export default {
           ElMessage.error('Failed to save fax history: ' + (e.message || String(e)))
         }
 
+        // If we have inserted a DB row and a downloadable file, call server endpoint to create a Telnyx fax
+        try {
+          if (insertedFaxRow && (giteaDownloadUrl || giteaUploadResponse?.content?.download_url)) {
+            const sendResp = await fetch('/api/telnyx/send-fax', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                workspace_id: currentWorkspace.value?.id,
+                from: faxData.value.from,
+                to: cleanToNumber,
+                file_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url,
+                connection_id: getConnectionIdForPhone(faxData.value.from) || null,
+                subject: faxData.value.subject || null,
+                fax_row_id: insertedFaxRow.id
+              })
+            })
+
+            const sendJson = await sendResp.json()
+            // Update local row status based on telnyx response
+            if (sendJson && sendJson.telnyx_id) {
+              // update the UI row if it's the one we just inserted
+              const idx = outboundFaxes.value.findIndex(f => f.id === insertedFaxRow.id)
+              if (idx !== -1) {
+                outboundFaxes.value[idx].status = 'Queued'
+                outboundFaxes.value[idx].telnyx_id = sendJson.telnyx_id
+              }
+              ElMessage.success('Fax queued with Telnyx')
+            } else {
+              console.warn('Telnyx send response:', sendJson)
+            }
+          }
+        } catch (telErr) {
+          // don't block success path — log and show transient message
+          // eslint-disable-next-line no-console
+          console.error('Telnyx send error:', telErr)
+          ElMessage.info('Fax saved but Telnyx enqueue failed (check logs).')
+        }
+
         const newFax = {
           id: insertedFaxRow?.id || Date.now(),
           date: insertedFaxRow?.date || new Date(),
           to: cleanToNumber,
           from: faxData.value.from,
           subject: faxData.value.subject,
-          status: giteaUploadResp && giteaUploadResp.ok ? 'Sent' : 'Failed',
+          status: giteaUploadResp && giteaUploadResp.ok ? 'Stored in gitea' : 'Failed storing in gitea',
           fileName: file.name,
           gitea: giteaUploadResponse
         }

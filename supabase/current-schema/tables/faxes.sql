@@ -13,6 +13,7 @@ create table public.faxes (
   gitea_response jsonb,
   pages integer,
   telnyx_id text,
+  connection_id text,
   event_time timestamptz default now(),
   client_timezone text,
   status_reason text,
@@ -26,6 +27,7 @@ create index idx_faxes_direction on public.faxes (direction);
 create index IF NOT EXISTS idx_faxes_date on public.faxes (date desc);
 create index IF NOT EXISTS idx_faxes_workspace_date on public.faxes (workspace_id, date desc);
 create index IF NOT EXISTS idx_faxes_status on public.faxes (status);
+create index IF NOT EXISTS idx_faxes_connection_id on public.faxes (connection_id);
 
 -- trigger to keep updated_at in sync
 create or replace function public.update_updated_at_column()

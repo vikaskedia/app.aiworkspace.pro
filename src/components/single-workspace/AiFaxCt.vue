@@ -83,9 +83,10 @@
               :auto-upload="false"
               :on-change="handleFileChange"
               :on-remove="handleFileRemove"
-              :accept="pdf"
+              accept="application/pdf"
               :limit="1"
               :file-list="fileList"
+              multiple="false"
             >
               <div class="upload-content">
                 <el-icon class="upload-icon" size="48" color="#4f46e5">
@@ -94,7 +95,7 @@
                 <div class="upload-text">
                   <p class="upload-title">Drop file to upload</p>
                   <p class="upload-subtitle">or <em>click to browse</em></p>
-                  <p class="upload-formats">PDF, DOC, DOCX, TXT, PNG, JPG (Max 10MB)</p>
+                  <p class="upload-formats">PDF (Max 10MB)</p>
                 </div>
               </div>
             </el-upload>
@@ -116,6 +117,7 @@
               {{ sending ? 'Sending Fax...' : 'Send Fax' }}
             </el-button>
           </div>
+          <!-- debug panel removed -->
         </el-form>
       </el-card>
     </div>
@@ -133,6 +135,7 @@
           </template>
           
           <div class="fax-table-container">
+            <!-- timezone shown in Date column header -->
             <el-table
               :data="outboundFaxes"
               stripe
@@ -140,7 +143,10 @@
               v-loading="loadingOutbound"
               empty-text="No outbound faxes found"
             >
-              <el-table-column prop="date" label="Date" width="120">
+              <el-table-column prop="date" width="120">
+                <template #header>
+                  Date <span class="tz-abbrev">({{ getTZAbbrev() }})</span>
+                </template>
                 <template #default="{ row }">
                   <div class="date-cell">
                     <el-icon size="14" color="#6b7280">
@@ -165,6 +171,13 @@
                 </template>
               </el-table-column>
               <el-table-column prop="subject" label="Subject" min-width="200" />
+              <el-table-column prop="fileName" label="File" min-width="200">
+                <template #default="{ row }">
+                  <div class="file-cell">
+                    <span>{{ row.fileName || '-' }}</span>
+                  </div>
+                </template>
+              </el-table-column>
               <el-table-column prop="status" label="Status" width="120">
                 <template #default="{ row }">
                   <el-tag
@@ -202,6 +215,7 @@
           </template>
           
           <div class="fax-table-container">
+            <!-- timezone shown in Date column header -->
             <el-table
               :data="inboundFaxes"
               stripe
@@ -209,7 +223,10 @@
               v-loading="loadingInbound"
               empty-text="No inbound faxes found"
             >
-              <el-table-column prop="date" label="Date" width="120">
+              <el-table-column prop="date" width="120">
+                <template #header>
+                  Date <span class="tz-abbrev">({{ getTZAbbrev() }})</span>
+                </template>
                 <template #default="{ row }">
                   <div class="date-cell">
                     <el-icon size="14" color="#6b7280">
@@ -260,6 +277,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWorkspaceStore } from '../../store/workspace'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { supabase } from '../../supabase'
 import {
   Document,
   Message,
@@ -287,7 +305,7 @@ export default {
     const workspaceStore = useWorkspaceStore()
     const { currentWorkspace } = storeToRefs(workspaceStore)
     
-    // Reactive data
+  // Reactive data
     const faxData = ref({
       from: '',
       to: '',
@@ -295,13 +313,16 @@ export default {
       file: null
     })
     
-    const fileList = ref([])
+  const fileList = ref([])
     const sending = ref(false)
     const loadingOutbound = ref(false)
     const loadingInbound = ref(false)
     const outboundFaxes = ref([])
     const inboundFaxes = ref([])
-    const autoReloadInterval = ref(null)
+  const autoReloadInterval = ref(null)
+  // Timezone display control: default to PST/PDT (America/Los_Angeles).
+  // Keep provision to switch to user's local timezone by setting to 'local'.
+  const displayTimeZone = ref('America/Los_Angeles') // or 'local'
     
     // Form validation rules
     const faxRules = {
@@ -322,10 +343,10 @@ export default {
       return currentWorkspace.value?.fax_numbers || []
     })
     
+    // Subject is optional — require from, to (formatted) and at least one file
     const isFormValid = computed(() => {
-      return faxData.value.from && 
-             faxData.value.to && 
-             faxData.value.subject && 
+      return faxData.value.from &&
+             faxData.value.to &&
              fileList.value.length > 0 &&
              /^\+1 \(\d{3}\) \d{3}-\d{4}$/.test(faxData.value.to)
     })
@@ -379,6 +400,14 @@ export default {
     }
     
     const handleFileChange = (file) => {
+      // Only allow PDF files
+      if (file.raw && file.raw.type !== 'application/pdf') {
+        ElMessage.error('Only PDF files are allowed.')
+        faxData.value.file = null
+        fileList.value = []
+        return
+      }
+      // Always keep only the latest file
       faxData.value.file = file.raw
       fileList.value = [file]
     }
@@ -390,29 +419,168 @@ export default {
     
     const sendFax = async () => {
       try {
-        alert('Sending fax...working on it');return;
         sending.value = true
-        
-        // Convert formatted phone number to clean format
+
+        // ensure file exists
+        const file = faxData.value.file
+        if (!file) {
+          ElMessage.error('No file selected')
+          sending.value = false
+          return
+        }
+
+        // convert file to base64 (strip data: prefix)
+        const fileToBase64 = (f) => new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const result = reader.result
+            if (typeof result === 'string') {
+              // data:<mime>;base64,AAAA
+              const idx = result.indexOf('base64,')
+              if (idx !== -1) resolve(result.substring(idx + 7))
+              else resolve(result)
+            } else {
+              reject(new Error('Failed to read file as base64'))
+            }
+          }
+          reader.onerror = (e) => reject(e)
+          reader.readAsDataURL(f)
+        })
+
+        const base64 = await fileToBase64(file)
+
+        // Upload directly to Gitea from the client (note: requires Gitea CORS to allow this)
+        const repo = currentWorkspace.value?.git_repo || ''
+        if (!repo) {
+          ElMessage.error('Workspace git_repo is missing')
+          sending.value = false
+          return
+        }
+
+        const GITEA_HOST = import.meta.env.VITE_GITEA_HOST
+        const GITEA_TOKEN = import.meta.env.VITE_GITEA_TOKEN
+        const GITEA_USERNAME = 'associateattorney'
+
+        if (!GITEA_HOST || !GITEA_TOKEN) {
+          ElMessage.error('Missing Gitea configuration (VITE_GITEA_HOST / VITE_GITEA_TOKEN)')
+          sending.value = false
+          return
+        }
+
+
+        // Prepare Gitea upload variables
+        const giteaUploadPath = `faxes/${Date.now()}_${file.name}`
+        const giteaUploadUrl = `${GITEA_HOST}/api/v1/repos/${GITEA_USERNAME}/${repo}/contents/${giteaUploadPath}`
+        const giteaUploadPayload = {
+          message: `Upload fax attachment: ${file.name}`,
+          content: base64,
+          branch: 'main'
+        }
+        const giteaUploadResp = await fetch(
+          giteaUploadUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `token ${GITEA_TOKEN}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify(giteaUploadPayload)
+          }
+        )
+
+        let giteaUploadResponse
+        try {
+          giteaUploadResponse = await giteaUploadResp.json()
+        } catch (e) {
+          giteaUploadResponse = { error: 'invalid json response from Gitea' }
+        }
+
+
+
+        // show raw Gitea response to user for inspection
+        try {
+          ElMessageBox.alert(JSON.stringify(giteaUploadResponse, null, 2), 'Gitea response', {
+            confirmButtonText: 'Close',
+            dangerouslyUseHTMLString: false
+          })
+        } catch (e) {
+          ElMessage.info('Upload done (see console)')
+          // eslint-disable-next-line no-console
+          console.log('Gitea response:', giteaUploadResponse)
+        }
+
+        // Extract and log the downloadable file link (like AiPhoneCt)
+        let giteaDownloadUrl = giteaUploadResponse?.content?.download_url
+        if (giteaDownloadUrl) {
+          // Append token if not present
+          if (!giteaDownloadUrl.includes('token=') && GITEA_TOKEN) {
+            giteaDownloadUrl += (giteaDownloadUrl.includes('?') ? '&' : '?') + 'token=' + GITEA_TOKEN
+          }
+          // eslint-disable-next-line no-console
+          console.log('%cDownloadable Gitea file link:', 'color: #1976d2; font-weight: bold;') ///////// SR. << Downloadable Gitea file link:
+          // eslint-disable-next-line no-console
+          console.log(giteaDownloadUrl)
+        }
+        // proceed with outbound flow
         const cleanToNumber = '+' + getCleanPhoneNumber(faxData.value.to)
-        
-        // Here you would implement the actual fax sending logic
-        // For now, we'll simulate the API call
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        // Add to outbound faxes list (mock data)
+
+        // Insert a record into Supabase `faxes` table so history persists
+        let insertedFaxRow = null
+        try {
+          const dbPayload = {
+            workspace_id: currentWorkspace.value?.id || null,
+            direction: 'outbound',
+            from_number: faxData.value.from || null,
+            to_number: cleanToNumber || null,
+            subject: faxData.value.subject || null,
+            status: giteaUploadResp && giteaUploadResp.ok ? 'Sent' : 'Failed',
+            file_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
+            file_name: file.name,
+            gitea_download_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
+            gitea_response: giteaUploadResponse || null,
+            pages: null,
+            telnyx_id: null,
+            // date and event_time are set server-side (timestamptz defaults to now())
+            // store the selected display timezone (default is America/Los_Angeles)
+            client_timezone: displayTimeZone.value || ((Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : null),
+            status_reason: null,
+            metadata: null
+          }
+
+          const { data: inserted, error: insertError } = await supabase
+            .from('faxes')
+            .insert(dbPayload)
+            .select()
+
+          if (insertError) {
+            // do not stop the UI update if DB insert fails
+            // eslint-disable-next-line no-console
+            console.error('Failed to insert fax record:', insertError)
+            ElMessage.error('Failed to save fax history: ' + (insertError.message || String(insertError)))
+          } else {
+            insertedFaxRow = Array.isArray(inserted) && inserted.length ? inserted[0] : inserted
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('Error inserting fax record:', e)
+          ElMessage.error('Failed to save fax history: ' + (e.message || String(e)))
+        }
+
         const newFax = {
-          id: Date.now(),
-          date: new Date(),
+          id: insertedFaxRow?.id || Date.now(),
+          date: insertedFaxRow?.date || new Date(),
           to: cleanToNumber,
           from: faxData.value.from,
           subject: faxData.value.subject,
-          status: 'Sent',
-          fileName: faxData.value.file.name
+          status: giteaUploadResp && giteaUploadResp.ok ? 'Sent' : 'Failed',
+          fileName: file.name,
+          gitea: giteaUploadResponse
         }
-        
+
         outboundFaxes.value.unshift(newFax)
-        
+
         // Reset form
         faxData.value = {
           from: '',
@@ -421,11 +589,12 @@ export default {
           file: null
         }
         fileList.value = []
-        
-        ElMessage.success('Fax sent successfully!')
-        
+
+        if (giteaUploadResp && giteaUploadResp.ok) ElMessage.success('File uploaded to Gitea')
+        else ElMessage.error('Gitea upload failed')
+
       } catch (error) {
-        ElMessage.error('Failed to send fax: ' + error.message)
+        ElMessage.error('Failed to send fax: ' + (error.message || error))
       } finally {
         sending.value = false
       }
@@ -435,10 +604,90 @@ export default {
       try {
         loadingOutbound.value = true
         loadingInbound.value = true
-        
-        // Simulate API calls to load fax history
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
+
+        // If workspace is not available, clear lists
+        if (!currentWorkspace.value || !currentWorkspace.value.id) {
+          outboundFaxes.value = []
+          inboundFaxes.value = []
+          return
+        }
+
+        // Query faxes from Supabase for the current workspace
+        const { data, error } = await supabase
+          .from('faxes')
+          .select('*')
+          .eq('workspace_id', currentWorkspace.value.id)
+          .order('date', { ascending: false })
+
+        if (error) throw error
+
+        // Map DB rows to the UI shape expected by the tables
+        const rows = data || []
+
+        // Helper: normalize timestamp strings returned by Supabase/Postgres into a strict
+        // ISO-like string so `new Date(...)` reliably parses it as the correct UTC instant.
+        const parseTimestampToDate = (ts) => {
+          if (!ts) return null
+          if (ts instanceof Date) return ts
+          if (typeof ts === 'number') return new Date(ts)
+          let s = String(ts).trim()
+
+          // Make 'YYYY-MM-DD HH:MM:SS...' into 'YYYY-MM-DDTHH:MM:SS...' (ISO-like)
+          s = s.replace(/^([0-9]{4}-[0-9]{2}-[0-9]{2})\s+/, '$1T')
+
+          // Normalize timezone offsets.
+          // Matches trailing offsets like +00, +0000, +00:00, -0530, etc.
+          const tzMatch = s.match(/([+-])(\d{1,4})$/)
+          if (tzMatch) {
+            const sign = tzMatch[1]
+            let digits = tzMatch[2]
+            // Ensure digits are at least 2 (hours). Pad if necessary.
+            if (digits.length === 1) digits = '0' + digits
+            // If digits length is 3 or 4 (e.g. 530 or 0530), split last two as minutes
+            let hh = digits.slice(0, 2)
+            let mm = digits.length > 2 ? digits.slice(2) : '00'
+            if (mm.length === 1) mm = '0' + mm
+            const tzNorm = `${sign}${hh}:${mm}`
+            s = s.replace(/([+-]\d{1,4})$/, tzNorm)
+          }
+
+          // If after normalization there's still no timezone designator (Z or ±hh:mm) append Z
+          if (!(/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s))) {
+            s = s + 'Z'
+          }
+
+          return new Date(s)
+        }
+
+        outboundFaxes.value = rows
+          .filter(r => r.direction === 'outbound')
+          .map(r => ({
+            id: r.id,
+            date: r.date ? parseTimestampToDate(r.date) : null,
+            to: r.to_number,
+            from: r.from_number,
+            subject: r.subject,
+            status: r.status,
+            fileName: r.file_name || r.file_url || null,
+            gitea: { download_url: r.gitea_download_url || r.file_url || null }
+          }))
+
+        inboundFaxes.value = rows
+          .filter(r => r.direction === 'inbound')
+          .map(r => ({
+            id: r.id,
+            date: r.date ? parseTimestampToDate(r.date) : null,
+            from: r.from_number,
+            to: r.to_number,
+            subject: r.subject,
+            pages: r.pages,
+            fileName: r.file_name || r.file_url || null,
+            file_url: r.file_url,
+            gitea: { download_url: r.gitea_download_url || r.file_url || null }
+          }))
+
+        // --- Retain old mock data commented out for reference ---
+        /*
         // Mock data - replace with actual API calls
         outboundFaxes.value = [
           {
@@ -458,7 +707,7 @@ export default {
             status: 'Failed'
           }
         ]
-        
+
         inboundFaxes.value = [
           {
             id: 1,
@@ -469,25 +718,154 @@ export default {
             pages: 3
           }
         ]
-        
+        */
+
       } catch (error) {
-        ElMessage.error('Failed to load fax history: ' + error.message)
+        ElMessage.error('Failed to load fax history: ' + (error.message || error))
       } finally {
         loadingOutbound.value = false
         loadingInbound.value = false
       }
     }
+
     
     const viewFax = (fax) => {
-      ElMessageBox.alert(`Viewing fax: ${fax.subject}`, 'Fax Details', {
+      // Prefer explicit downloadable URL from gitea or file_url
+      const downloadUrl = (fax && (fax.gitea?.download_url || fax.file_url || fax.gitea?.downloadUrl)) || null
+
+      if (downloadUrl) {
+        // open in a new tab/window
+        try {
+          window.open(downloadUrl, '_blank', 'noopener')
+          return
+        } catch (e) {
+          // Fall through to MessageBox fallback if window.open fails
+          // eslint-disable-next-line no-console
+          console.error('Failed to open fax URL in new tab', e)
+        }
+      }
+
+      // If no URL available, show details with an instruction
+      const fileName = fax?.fileName || fax?.file_name || 'Attachment'
+      ElMessageBox.alert(`No downloadable file URL available for ${fileName}.`, 'View Fax', {
         confirmButtonText: 'Close'
       })
     }
     
+    // Detect whether the runtime supports the Intl dateStyle/timeStyle options
+    const _supportsDateTimeStyle = (() => {
+      try {
+        // try to construct a formatter using dateStyle. If it throws, not supported
+        // eslint-disable-next-line no-new
+        new Intl.DateTimeFormat('en-US', { dateStyle: 'short' })
+        return true
+      } catch (e) {
+        return false
+      }
+    })()
+
+    // Detect whether the runtime supports timeZoneName option
+    const _supportsTimeZoneName = (() => {
+      try {
+        // eslint-disable-next-line no-new
+        new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+        return true
+      } catch (e) {
+        return false
+      }
+    })()
+
     const formatDate = (date) => {
-      return new Date(date).toLocaleDateString()
+      if (!date) return ''
+      const d = (date instanceof Date) ? date : new Date(date)
+
+      const formatWithOptions = (opts) => {
+        try {
+          return new Intl.DateTimeFormat('en-US', opts).format(d)
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('formatDate error:', e)
+          // Fallback: try a tolerant toLocaleString path that at least respects timeZone when provided.
+          try {
+            const fallbackOpts = {}
+            if (opts && opts.timeZone) fallbackOpts.timeZone = opts.timeZone
+            return d.toLocaleString('en-US', Object.keys(fallbackOpts).length ? fallbackOpts : undefined)
+          } catch (e2) {
+            // eslint-disable-next-line no-console
+            console.error('formatDate fallback error:', e2)
+            return d.toLocaleString()
+          }
+        }
+      }
+
+      // Determine timezone to use. If displayTimeZone is explicitly set to a named IANA zone
+      // (e.g. 'America/Los_Angeles') use that. If it's 'local' or falsy, omit timeZone to let
+      // the runtime use the user's local timezone.
+      const tz = (displayTimeZone.value && displayTimeZone.value !== 'local') ? displayTimeZone.value : undefined
+
+      // Debug: log the input instant and timezone decision (helps verify why UI shows IST/other)
+      // eslint-disable-next-line no-console
+      console.debug('formatDate:', d.toISOString(), 'using tz:', tz || 'local')
+
+      // Build a sanitized options object to avoid passing runtime-unsupported keys
+      let sanitizedOpts = {}
+      if (_supportsDateTimeStyle) {
+        sanitizedOpts.dateStyle = 'short'
+        sanitizedOpts.timeStyle = 'short'
+      } else {
+        sanitizedOpts.year = 'numeric'
+        sanitizedOpts.month = '2-digit'
+        sanitizedOpts.day = '2-digit'
+        sanitizedOpts.hour = '2-digit'
+        sanitizedOpts.minute = '2-digit'
+      }
+      if (_supportsTimeZoneName) sanitizedOpts.timeZoneName = 'short'
+      if (tz) sanitizedOpts.timeZone = tz
+
+      // Try formatting; if Intl rejects any option, formatWithOptions will catch and
+      // fall back to a tolerant toLocaleString path. Also log the sanitized opts for debugging.
+      // eslint-disable-next-line no-console
+      console.debug('formatDate opts:', sanitizedOpts)
+      return formatWithOptions(sanitizedOpts)
     }
     
+    // Return a short timezone abbreviation for the current displayTimeZone (PST/PDT) when possible.
+    const getTZAbbrev = () => {
+      const tz = displayTimeZone.value && displayTimeZone.value !== 'local' ? displayTimeZone.value : undefined
+      try {
+        if (tz && _supportsTimeZoneName) {
+          const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(new Date())
+          const tzPart = parts.find(p => p.type === 'timeZoneName')
+          if (tzPart && tzPart.value) return tzPart.value
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Fallback mapping for America/Los_Angeles
+      if (displayTimeZone.value === 'America/Los_Angeles') {
+        const now = new Date()
+        // Use January and July offsets to detect DST in the environment
+        const janOffset = new Date(now.getFullYear(), 0, 1).getTimezoneOffset()
+        const julOffset = new Date(now.getFullYear(), 6, 1).getTimezoneOffset()
+        const isDST = Math.min(janOffset, julOffset) === now.getTimezoneOffset()
+        return isDST ? 'PDT' : 'PST'
+      }
+
+      return displayTimeZone.value === 'local' ? Intl.DateTimeFormat().resolvedOptions().timeZone : (displayTimeZone.value || '')
+    }
+
+    const getTZLabel = () => {
+      if (displayTimeZone.value === 'America/Los_Angeles') {
+        const abbrev = getTZAbbrev()
+        return `Times shown in Pacific Time (PT) — ${abbrev}`
+      }
+      if (displayTimeZone.value === 'local' || !displayTimeZone.value) {
+        return `Times shown in your local timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`
+      }
+      return `Times shown in ${displayTimeZone.value}`
+    }
+
     const getStatusType = (status) => {
       switch (status.toLowerCase()) {
         case 'sent': return 'success'
@@ -515,11 +893,13 @@ export default {
         clearInterval(autoReloadInterval.value)
       }
     })
+
+  // no runtime debug
     
     return {
       // Data
-      faxData,
-      fileList,
+  faxData,
+  fileList,
       sending,
       loadingOutbound,
       loadingInbound,
@@ -538,7 +918,9 @@ export default {
       handleFileRemove,
       sendFax,
       viewFax,
-      formatDate,
+  formatDate,
+  getTZLabel,
+  getTZAbbrev,
       getStatusType
     }
   }
@@ -795,6 +1177,11 @@ export default {
   background: #f8faff;
 }
 
+.tz-abbrev {
+  color: #475569;
+  font-weight: 600;
+  margin-left: 6px;
+}
 .date-cell,
 .phone-cell {
   display: flex;

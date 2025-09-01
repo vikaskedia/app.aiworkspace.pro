@@ -1,5 +1,6 @@
 import { MP } from './mixpanel';
 import { supabase } from './supabase';
+import { setSessionCookie, clearSessionCookie, syncCookiesToLocalStorage, clearLocalStorageTokens, ACCESS_COOKIE, REFRESH_COOKIE } from './utils/authRedirect';
 
 export const AuthTracking = {
   // Track authentication state changes
@@ -14,6 +15,15 @@ export const AuthTracking = {
               provider: session.user.app_metadata.provider,
               email: session.user.email
             });
+            
+            // Set cross-subdomain cookies for session sharing
+            if (session.access_token) {
+              setSessionCookie(ACCESS_COOKIE, session.access_token);
+            }
+            if (session.refresh_token) {
+              setSessionCookie(REFRESH_COOKIE, session.refresh_token);
+            }
+            syncCookiesToLocalStorage();
           }
           break;
 
@@ -21,12 +31,26 @@ export const AuthTracking = {
           MP.track('Authentication State Changed', {
             event: 'SIGNED_OUT'
           });
+          
+          // Clear cross-subdomain cookies and localStorage
+          clearSessionCookie(ACCESS_COOKIE);
+          clearSessionCookie(REFRESH_COOKIE);
+          clearLocalStorageTokens();
           break;
 
         case 'TOKEN_REFRESHED':
           MP.track('Authentication State Changed', {
             event: 'TOKEN_REFRESHED'
           });
+          
+          // Update cross-subdomain cookies with refreshed tokens
+          if (session?.access_token) {
+            setSessionCookie(ACCESS_COOKIE, session.access_token);
+          }
+          if (session?.refresh_token) {
+            setSessionCookie(REFRESH_COOKIE, session.refresh_token);
+          }
+          syncCookiesToLocalStorage();
           break;
 
         case 'USER_UPDATED':

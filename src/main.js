@@ -7,6 +7,7 @@ import { useCacheStore } from './store/cache';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import { MP } from './mixpanel';
 import { AuthTracking } from './auth-tracking';
+import { restoreCrossSubdomainSession } from './plugins/crossSubdomainAuth';
 import router from "./routes";
 import ElementPlus from "element-plus";
 import "element-plus/dist/index.css";
@@ -66,8 +67,15 @@ rootVueApp.config.globalProperties.$mp = MP;
 // Auth tracking setup
 AuthTracking.setupAuthListener();
 
-// Mount the app
-rootVueApp.mount('#app')
+// Restore cross-subdomain session before mounting
+restoreCrossSubdomainSession().then(() => {
+  // Mount the app after session restoration
+  rootVueApp.mount('#app')
+}).catch((error) => {
+  console.error('Failed to restore cross-subdomain session:', error);
+  // Mount the app anyway
+  rootVueApp.mount('#app')
+});
 
 // Add window error handler
 window.onerror = function(message, source, lineno, colno, error) {

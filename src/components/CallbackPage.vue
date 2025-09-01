@@ -1,6 +1,7 @@
 <script>
 import { supabase } from '../supabase';
 import { MP } from '../mixpanel';
+import { setSessionCookie, syncCookiesToLocalStorage, getPostLoginBase, ACCESS_COOKIE, REFRESH_COOKIE } from '../utils/authRedirect';
 
 export default {
   async mounted() {
@@ -28,26 +29,30 @@ export default {
           lastLoginAt: new Date().toISOString()
         });
         
-        // Get the original redirect origin from URL params if available
-        const params = new URLSearchParams(window.location.search);
-        const redirectOrigin = params.get('redirect_origin') || window.location.origin;
+        // Set cross-subdomain cookies for session sharing
+        if (data.session.access_token) {
+          setSessionCookie(ACCESS_COOKIE, data.session.access_token);
+        }
+        if (data.session.refresh_token) {
+          setSessionCookie(REFRESH_COOKIE, data.session.refresh_token);
+        }
+        syncCookiesToLocalStorage();
         
-        // const getRootDomain = () => {
-        //   const hostname = window.location.hostname;
-        //   if (hostname === 'localhost') return 'localhost';
-        //   return '.' + hostname.split('.').slice(-2).join('.');
-        // };
-
-        // // Set cookie with dynamic domain
-        // document.cookie = `sb-auth-token=${data.session.access_token}; domain=${getRootDomain()}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        // Get the post-login redirect URL
+        const redirectUrl = getPostLoginBase();
         
-        // Ensure localStorage is synced
-        //await supabase.auth.setSession(data.session);
-        
-        // Construct the full redirect URL
-        //const redirectUrl = `${redirectOrigin}/all-workspace`;
-        const redirectUrl = `https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard`
-        window.location.href = redirectUrl;
+        // If it's a relative URL, construct the full URL
+        if (redirectUrl.startsWith('/')) {
+          const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const baseUrl = isLocal 
+            ? 'http://localhost/login' 
+            : `https://all-ws-dashboard.aiworkspace.pro/all-workspace/dashboard`;
+          console.log('[callback] redirecting to:', `${baseUrl}${redirectUrl}`, { isLocal, hostname: window.location.hostname });
+          window.location.href = `${baseUrl}${redirectUrl}`;
+        } else {
+          console.log('[callback] redirecting to absolute URL:', redirectUrl);
+          window.location.href = redirectUrl;
+        }
       } else {
         // No session found, redirect to login
         this.$router.push('/login');

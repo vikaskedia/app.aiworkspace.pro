@@ -18,7 +18,8 @@ export const supabase = createClient(
       cookieOptions: {
         domain: '.aiworkspace.pro',
         path: '/',
-        sameSite: 'Lax'
+        sameSite: 'Lax',
+        secure: window.location.protocol === 'https:'
       }
     },
     debug: true

@@ -7,7 +7,50 @@
       </div>
     </header>
 
-    <el-card class="login-card">
+    <!-- Show profile if user is logged in -->
+    <el-card v-if="isAuthenticated" class="profile-card" shadow="never">
+      <div class="profile-header">
+        <h1>Welcome to AI Workspace</h1>
+        <el-button type="danger" @click="handleLogout" class="logout-btn">
+          Logout
+        </el-button>
+      </div>
+      
+      <div class="success-message">
+        <h2>You have successfully logged in into AI Workspace</h2>
+      </div>
+
+      <div class="profile-content">
+        <div class="avatar-section">
+          <img 
+            :src="userAvatar" 
+            :alt="userName"
+            class="user-avatar"
+          />
+        </div>
+        
+        <div class="user-details">
+          <div class="detail-row">
+            <span class="label">Logged In User Details:</span>
+          </div>
+          <div class="detail-row">
+            <span class="field-label">Name:</span>
+            <span class="field-value">{{ userName }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="field-label">Email:</span>
+            <span class="field-value">{{ userEmail }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="field-label">Login Provider:</span>
+            <span class="field-value">{{ loginProvider }}</span>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- Show login form if user is not logged in -->
+    <el-card v-else class="login-card">
       <div class="logo-section">
         <h2>Welcome Back</h2>
         <p>Sign in to continue to your account</p>
@@ -101,10 +144,11 @@
 <script>
 import { supabase } from '../supabase';
 import { ElMessage } from 'element-plus';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { MP } from '../mixpanel';
 import { useRouter } from 'vue-router';
 import { setPageTitle } from '../utils/page-title';
+import { buildOAuthRedirectUrl } from '../utils/authRedirect';
 
 export default {
   setup() {
@@ -116,6 +160,8 @@ export default {
     const loading = ref(false);
     const loginFormRef = ref(null);
     const router = useRouter();
+    const user = ref(null);
+    const isAuthenticated = ref(false);
 
     const rules = {
       email: [
@@ -128,22 +174,89 @@ export default {
       ]
     };
 
+    // User profile computed properties
+    const userName = computed(() => {
+      if (!user.value) return 'Unknown User'
+      return user.value.user_metadata?.full_name || 
+             user.value.user_metadata?.name || 
+             user.value.email || 'Unknown User'
+    });
+
+    const userEmail = computed(() => {
+      if (!user.value) return 'No email'
+      return user.value.email || 'No email'
+    });
+
+    const userAvatar = computed(() => {
+      if (!user.value) return ''
+      return user.value.user_metadata?.avatar_url || 
+             user.value.user_metadata?.picture || 
+             `https://ui-avatars.com/api/?name=${encodeURIComponent(userName.value)}&background=random`
+    });
+
+    const loginProvider = computed(() => {
+      if (!user.value) return 'Unknown'
+      const providers = user.value.app_metadata?.providers
+      if (providers && Array.isArray(providers)) {
+        return providers.map(provider => {
+          if (provider === 'google') return 'Google'
+          if (provider === 'github') return 'GitHub' 
+          if (provider === 'twitter') return 'Twitter/X'
+          return provider
+        }).join(', ')
+      }
+      // Fallback to single provider if providers array not available
+      const provider = user.value.app_metadata?.provider
+      if (provider === 'google') return 'Google'
+      if (provider === 'github') return 'GitHub' 
+      if (provider === 'twitter') return 'Twitter/X'
+      return provider || 'Email/Password'
+    });
+
+    // Check authentication status
+    const checkAuthStatus = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          user.value = session.user;
+          isAuthenticated.value = true;
+        } else {
+          user.value = null;
+          isAuthenticated.value = false;
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        user.value = null;
+        isAuthenticated.value = false;
+      }
+    };
+
     // Set page title
     setPageTitle({ componentName: 'Sign In' });
+
+    // Check auth status on component mount
+    checkAuthStatus();
 
     return {
       loginForm,
       loading,
       loginFormRef,
       rules,
-      router
+      router,
+      user,
+      isAuthenticated,
+      userName,
+      userEmail,
+      userAvatar,
+      loginProvider,
+      checkAuthStatus
     };
   },
 
   methods: {
     async loginWithProvider(provider) {
       try {
-        const redirectTo = `${window.location.origin}/callback`;
+        const redirectTo = buildOAuthRedirectUrl();
         const mainDomain = window.location.hostname === 'localhost' 
           ? 'http://localhost' 
           : `https://www.${window.location.hostname.split('.').slice(-2).join('.')}`;
@@ -209,6 +322,10 @@ export default {
 
         ElMessage.success('Login successful');
 
+        // Update user state
+        this.user = data.user;
+        this.isAuthenticated = true;
+
         // Access the user ID from the session data
         const userId = data.user?.id;
         console.log(userId);
@@ -245,6 +362,22 @@ export default {
         ElMessage.error('Login failed: ' + error.message);
       } finally {
         this.loading = false;
+      }
+    },
+
+    async handleLogout() {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        
+        // Clear user state
+        this.user = null;
+        this.isAuthenticated = false;
+        
+        ElMessage.success('Logged out successfully');
+      } catch (error) {
+        console.error('Logout error:', error);
+        ElMessage.error('Failed to logout');
       }
     }
   },
@@ -495,6 +628,207 @@ export default {
 
 :deep(.el-input__prefix) {
   margin-right: 8px;
+}
+
+/* Profile card styles */
+.profile-card {
+  width: 100%;
+  max-width: none;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 10px 25px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  padding: 0;
+  overflow: hidden;
+  margin: auto;
+}
+
+@media (min-width: 900px) {
+  .profile-card {
+    max-width: 1000px;
+  }
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  color: white;
+  margin: 0;
+  border-bottom: none;
+}
+
+.profile-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.logout-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.3);
+  border-color: rgba(255,255,255,0.5);
+  transform: translateY(-1px);
+}
+
+.success-message {
+  text-align: center;
+  padding: 30px 32px 20px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.success-message h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #059669;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.profile-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 32px;
+  background: #fafafa;
+}
+
+.avatar-section {
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 5px solid #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  transition: transform 0.3s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+}
+
+.user-details {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 5px 28px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  display: block;
+  width: 100%;
+}
+
+.field-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 140px;
+}
+
+.field-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  background: linear-gradient(135deg, #0f172a, #334155);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (max-width: 768px) {
+  .profile-card {
+    margin: 12px;
+  }
+  
+  .profile-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    padding: 20px;
+  }
+  
+  .profile-header h1 {
+    font-size: 22px;
+    text-align: center;
+  }
+  
+  .success-message {
+    padding: 24px 20px 12px;
+  }
+  
+  .success-message h2 {
+    font-size: 20px;
+  }
+  
+  .profile-content {
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    padding: 24px 16px;
+  }
+  
+  .user-avatar {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .user-details {
+    padding: 20px 16px;
+  }
+  
+  .detail-row {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    padding: 8px 0;
+    margin-bottom: 12px;
+  }
+  
+  .field-label {
+    min-width: auto;
+    margin-right: 8px;
+  }
+  
+  .label {
+    font-size: 18px;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+  }
 }
 </style>
   

@@ -7,6 +7,7 @@ import GoalsCt from './components/single-workspace/GoalsCt.vue';
 import EventsCt from './components/single-workspace/EventsCt.vue';
 import ContactsCt from './components/single-workspace/ContactsCt.vue';
 import LoginPage from './components/LoginPage.vue';
+import LoginRedirect from './components/LoginRedirect.vue';
 import SignupPage from './components/SignupPage.vue';
 import CallbackPage from './components/CallbackPage.vue';
 import WorkspaceLayout from './components/single-workspace/WorkspaceLayout.vue';
@@ -248,7 +249,7 @@ const routes = [
   {
     path: '/login',
     name: 'LoginPage',
-    component: LoginPage,
+    component: LoginRedirect,
     meta: { requiresAuth: false }
   },
   {

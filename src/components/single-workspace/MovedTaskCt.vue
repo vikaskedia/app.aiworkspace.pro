@@ -5,7 +5,7 @@
     </svg>
     <div class="message">
       The task component has been moved to <strong>https://tasks.aiworkspace.pro</strong>.
-      You can access the page here <a :href="redirectUrl">{{ redirectUrl }}</a>.
+      You can access the page here <a :href="redirectUrl" target="_self">{{ redirectUrl }}</a>.
     </div>
   </div>
 </template>

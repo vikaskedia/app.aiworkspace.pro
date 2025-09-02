@@ -1,5 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import telnyx from 'telnyx'
+// Ensure fetch exists in older Node runtimes
+let nodeFetch
+if (typeof fetch === 'undefined') {
+  try {
+    nodeFetch = await import('node-fetch')
+    // node-fetch exports default
+    global.fetch = nodeFetch.default || nodeFetch
+  } catch (e) {
+    // ignore — runtime may provide fetch; fallback errors will be handled later
+    // eslint-disable-next-line no-console
+    console.warn('node-fetch not available; relying on global fetch if present')
+  }
+}
 
 // Supabase service-role client for server-side writes
 const supabase = createClient(
@@ -40,18 +53,53 @@ export default async function handler(req, res) {
         // Remove undefined keys
         Object.keys(telnyxPayload).forEach(k => telnyxPayload[k] === undefined && delete telnyxPayload[k])
 
-        // Use Telnyx SDK to create fax
+        // Use Telnyx SDK to create fax. If the SDK fails, capture rich details
+        // and attempt a direct HTTP POST to the Telnyx /v2/faxes endpoint as a fallback
         let json = null
         try {
           const resp = await telnyxClient.faxes.create(telnyxPayload)
           // SDK typically returns an object with a `data` property
           json = resp && (resp.data || resp)
         } catch (e) {
-          // capture the error response body if available
+          // Log richer debug info (do NOT log API keys)
           // eslint-disable-next-line no-console
-          console.error('Telnyx SDK error:', e)
-          // Try to extract useful response info
-          json = e?.data || e?.response || { error: String(e) }
+          console.error('Telnyx SDK error:', {
+            message: e?.message,
+            statusCode: e?.statusCode || e?.raw?.statusCode || null,
+            raw: e?.raw || e?.response || null
+          })
+
+          // Try a fallback explicit POST to the Telnyx v2/faxes endpoint so we can
+          // observe the exact HTTP response body. This uses the server-side fetch
+          // (Node 18+ / Vercel runtime provides global fetch).
+          try {
+            const fallbackResp = await fetch('https://api.telnyx.com/v2/faxes', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${TELNYX_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(telnyxPayload)
+            })
+
+            const text = await fallbackResp.text()
+            // attempt to parse JSON, but fall back to raw text
+            try {
+              json = JSON.parse(text)
+            } catch (parseErr) {
+              json = { raw: text }
+            }
+
+            // If fallback returned non-2xx, include status for clarity
+            if (!fallbackResp.ok) {
+              json = Object.assign({}, json, { httpStatus: fallbackResp.status })
+            }
+          } catch (fetchErr) {
+            // Final fallback: surface both SDK error and fetch error messages
+            // eslint-disable-next-line no-console
+            console.error('Telnyx fallback POST error:', String(fetchErr))
+            json = { error: 'Telnyx SDK failed and fallback POST failed', sdkError: String(e), fetchError: String(fetchErr) }
+          }
         }
 
     // If Telnyx returned an id, persist it to the faxes table for tracking

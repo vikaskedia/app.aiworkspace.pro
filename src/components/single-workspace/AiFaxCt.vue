@@ -598,9 +598,11 @@ export default {
         }
 
         // If we have inserted a DB row and a downloadable file, call server endpoint to create a Telnyx fax
+        console.log('========= calling /api/telnyx/send-fax started =========');
         try {
           if (insertedFaxRow && (giteaDownloadUrl || giteaUploadResponse?.content?.download_url)) {
             const sendResp = await fetch('/api/telnyx/send-fax', {
+            // const sendResp = await fetch('https://app.aiworkspace.pro/api/telnyx/send-fax', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -634,6 +636,7 @@ export default {
           console.error('Telnyx send error:', telErr)
           ElMessage.info('Fax saved but Telnyx enqueue failed (check logs).')
         }
+        console.log('========= calling /api/telnyx/send-fax ended =========');
 
         const newFax = {
           id: insertedFaxRow?.id || Date.now(),

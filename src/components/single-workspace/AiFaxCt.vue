@@ -62,7 +62,8 @@
                   placeholder="+1 (123) 456-7890"
                   size="large"
                   class="to-input"
-                  @input="formatToNumber"
+                  @input="onToInput"
+                  @blur="onToBlur"
                 >
                   <template #prefix>
                     <el-icon color="#6b7280">
@@ -352,38 +353,48 @@ export default {
     })
     
     // Methods
-    const formatToNumber = (value) => {
-      // Remove all non-digits
-      let cleaned = value.replace(/\D/g, '')
-      
-      // Limit to 11 digits (1 + 10)
-      if (cleaned.length > 11) {
-        cleaned = cleaned.substring(0, 11)
+    // Debounce timer to auto-format after typing stops
+    const formatDebounceTimer = ref(null)
+
+    // Shared formatter used by blur and debounce
+    const formatPhoneNormalized = () => {
+      const raw = String(faxData.value.to || '')
+      let cleaned = raw.replace(/\D/g, '')
+      if (cleaned.length === 10) cleaned = '1' + cleaned
+      if (cleaned.length === 11 && cleaned.startsWith('1')) {
+        const country = cleaned.substring(0, 1)
+        const area = cleaned.substring(1, 4)
+        const ex = cleaned.substring(4, 7)
+        const last = cleaned.substring(7, 11)
+        faxData.value.to = `+${country} (${area}) ${ex}-${last}`
+      } else if (cleaned.length > 0) {
+        faxData.value.to = cleaned.startsWith('+') ? cleaned : ('+' + cleaned)
+      } else {
+        faxData.value.to = ''
       }
-      
-      // Auto-add country code if not present
-      if (cleaned.length === 10) {
-        cleaned = '1' + cleaned
+    }
+
+    // Keep raw updates while typing to avoid caret jumps. Start/reset debounce timer.
+    const onToInput = (value) => {
+      faxData.value.to = value
+      // reset debounce
+      if (formatDebounceTimer.value) {
+        clearTimeout(formatDebounceTimer.value)
+        formatDebounceTimer.value = null
       }
-      
-      // Format as +1 (XXX) XXX-XXXX
-      if (cleaned.length >= 1) {
-        let formatted = '+1'
-        if (cleaned.length > 1) {
-          formatted += ' ('
-          if (cleaned.length > 4) {
-            formatted += cleaned.substring(1, 4) + ') '
-            if (cleaned.length > 7) {
-              formatted += cleaned.substring(4, 7) + '-' + cleaned.substring(7, 11)
-            } else {
-              formatted += cleaned.substring(4)
-            }
-          } else {
-            formatted += cleaned.substring(1)
-          }
-        }
-        faxData.value.to = formatted
+      formatDebounceTimer.value = setTimeout(() => {
+        formatDebounceTimer.value = null
+        formatPhoneNormalized()
+      }, 1000)
+    }
+
+    // Format phone immediately on blur and clear debounce timer.
+    const onToBlur = () => {
+      if (formatDebounceTimer.value) {
+        clearTimeout(formatDebounceTimer.value)
+        formatDebounceTimer.value = null
       }
+      formatPhoneNormalized()
     }
     
     const formatPhoneDisplay = (phone) => {
@@ -964,6 +975,14 @@ export default {
       }
     })
 
+    // Clean up debounce timer when component unmounts
+    onUnmounted(() => {
+      if (formatDebounceTimer && formatDebounceTimer.value) {
+        clearTimeout(formatDebounceTimer.value)
+        formatDebounceTimer.value = null
+      }
+    })
+
   // no runtime debug
     
     return {
@@ -981,8 +1000,9 @@ export default {
       availableFaxNumbers,
       isFormValid,
       
-      // Methods
-      formatToNumber,
+  // Methods
+  onToInput,
+  onToBlur,
       formatPhoneDisplay,
       handleFileChange,
       handleFileRemove,

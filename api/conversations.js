@@ -88,17 +88,8 @@ export default async function handler(req, res) {
     const conversations = allConversations */
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        messages(
-          id,
-          message_body,
-          created_at,
-          direction,
-          status
-        )
-      `)
-      .eq('matter_id', matterId)
+      .select('*')
+      .eq('workspace_id', workspaceId)
       .order('last_message_at', { ascending: false })
     
     if (error) throw error

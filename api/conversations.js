@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch conversations for the workspace using pagination to get ALL records
-    let allConversations = []
+    /* let allConversations = []
     let offset = 0
     const batchSize = 1000
     let hasMore = true
@@ -85,7 +85,24 @@ export default async function handler(req, res) {
       }
     }
 
-    const conversations = allConversations
+    const conversations = allConversations */
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        messages(
+          id,
+          message_body,
+          created_at,
+          direction,
+          status
+        )
+      `)
+      .eq('matter_id', matterId)
+      .order('last_message_at', { ascending: false })
+    
+    if (error) throw error
+
     console.log('Total conversations fetched:', conversations.length)
 
     // Get user-specific unread counts if user is authenticated

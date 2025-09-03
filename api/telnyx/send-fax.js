@@ -1,4 +1,4 @@
-/*
+
 import { createClient } from '@supabase/supabase-js'
 import telnyx from 'telnyx'
 // Ensure fetch exists in older Node runtimes
@@ -118,8 +118,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to send fax', details: String(error) })
   }
 }
-*/
 
+/*
 // Active implementation placed after the commented reference code above.
 import { createClient } from '@supabase/supabase-js'
 import telnyx from 'telnyx'
@@ -272,4 +272,4 @@ export default async function handler(req, res) {
     console.error('send-fax error:', error)
     return res.status(500).json({ error: 'Failed to send fax', details: String(error) })
   }
-}
+}*/

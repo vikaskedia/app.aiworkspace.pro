@@ -33,13 +33,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields: to, file_url' })
     }
 
-    const TELNYX_API_KEY = process.env.TELNYX_API_KEY
-    if (!TELNYX_API_KEY) {
-      return res.status(500).json({ error: 'Telnyx API key not configured' })
+    const TELNYX_FAX_API_KEY = process.env.TELNYX_FAX_API_KEY
+    if (!TELNYX_FAX_API_KEY) {
+      return res.status(500).json({ error: 'Telnyx fax API key not configured' })
     }
 
         // Initialize Telnyx SDK client
-        const telnyxClient = telnyx(TELNYX_API_KEY)
+  const telnyxClient = telnyx(TELNYX_FAX_API_KEY)
 
         // Build payload for Telnyx Fax create API. Adjust as needed for your Telnyx account.
         const telnyxPayload = {
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
             const fallbackResp = await fetch('https://api.telnyx.com/v2/faxes', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${TELNYX_API_KEY}`,
+                'Authorization': `Bearer ${TELNYX_FAX_API_KEY}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify(telnyxPayload)
@@ -148,8 +148,8 @@ export default async function handler(req, res) {
 
     if (!to || !file_url) return res.status(400).json({ error: 'Missing required fields: to, file_url' })
 
-    const TELNYX_API_KEY = process.env.TELNYX_API_KEY
-    if (!TELNYX_API_KEY) return res.status(500).json({ error: 'Telnyx API key not configured' })
+  const TELNYX_FAX_API_KEY = process.env.TELNYX_FAX_API_KEY
+  if (!TELNYX_FAX_API_KEY) return res.status(500).json({ error: 'Telnyx fax API key not configured' })
 
     const MAX_BYTES = 50 * 1024 * 1024 // 50 MB
     const MAX_PAGES = 350
@@ -211,7 +211,7 @@ export default async function handler(req, res) {
 
     if (pageCount > MAX_PAGES) return res.status(400).json({ error: 'page_count_limit_exceeded', detail: `File has ${pageCount} pages, exceeds ${MAX_PAGES}` })
 
-    const telnyxClient = telnyx(TELNYX_API_KEY)
+  const telnyxClient = telnyx(TELNYX_FAX_API_KEY)
     const telnyxPayload = {
       connection_id: connection_id || undefined,
       to,
@@ -237,7 +237,7 @@ export default async function handler(req, res) {
         const fallbackResp = await fetch('https://api.telnyx.com/v2/faxes', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${TELNYX_API_KEY}`,
+            'Authorization': `Bearer ${TELNYX_FAX_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(telnyxPayload)

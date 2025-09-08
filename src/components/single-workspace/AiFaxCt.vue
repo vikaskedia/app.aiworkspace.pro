@@ -549,6 +549,7 @@ export default {
         // Call server endpoint to queue Telnyx fax using Supabase file URL
         if (fileUrl) {
           try {
+            const connectionId = getConnectionIdForPhone(faxData.value.from)
             const resp = await fetch('/api/telnyx/send-fax', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -557,7 +558,8 @@ export default {
                 from: faxData.value.from,
                 to: faxData.value.to,
                 file_url: fileUrl,
-                fax_row_id: insertedRow?.id || null
+                fax_row_id: insertedRow?.id || null,
+                connection_id: connectionId
               })
             })
             const json = await resp.json()

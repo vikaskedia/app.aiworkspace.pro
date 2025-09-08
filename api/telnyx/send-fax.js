@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase service-role client for server-side writes
@@ -21,6 +20,23 @@ function buildFormUrlEncoded(payload) {
     }
   }
   return params.join('&')
+}
+
+function normalizeToE164(phone) {
+  if (!phone || typeof phone !== 'string') {
+    return null
+  }
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+${digits}`
+  }
+  if (digits.length === 10) {
+    return `+1${digits}`
+  }
+  if (phone.startsWith('+')) {
+    return `+${digits}`
+  }
+  return phone
 }
 
 export default async function handler(req, res) {
@@ -186,7 +202,7 @@ export default async function handler(req, res) {
     const payload = {
       media_url: file_url,
       connection_id: connection_id || undefined,
-      to,
+      to: normalizeToE164(to),
       from: from || undefined,
       quality: quality || undefined,
       t38_enabled: typeof t38_enabled === 'boolean' ? t38_enabled : undefined,

@@ -476,8 +476,8 @@ export default {
 
         // Build a unique upload path
         const wsId = currentWorkspace.value?.id || 'anon'
-        const uploadPath = `faxes/${wsId}/${Date.now()}_${file.name}`
-
+        const uploadPath = `${wsId}/${Date.now()}_${file.name}`
+        console.log('=============',uploadPath)
         // Upload file to Supabase Storage (bucket: 'faxes')
         const { data: uploadData, error: uploadError } = await supabase
           .storage
@@ -491,13 +491,16 @@ export default {
           return
         }
 
-        // Try to get a public URL, fall back to signed URL
+        // Try to get a public URL using the same pattern as other components
         let fileUrl = null
         try {
-          const { publicURL } = supabase.storage.from('faxes').getPublicUrl(uploadPath) || {}
-          if (publicURL) fileUrl = publicURL
+          const { data: publicData } = supabase.storage.from('faxes').getPublicUrl(uploadPath) || {}
+          // older SDKs return { data: { publicUrl } } or { publicUrl }
+          fileUrl = (publicData && (publicData.publicUrl || publicData.publicURL)) || (publicData && publicData.publicUrl) || null
+          // Fallback: some SDK versions return an object directly
+          if (!fileUrl && publicData && typeof publicData === 'string') fileUrl = publicData
         } catch (e) {
-          // ignore
+          // ignore and fallback to signed URL
         }
 
         if (!fileUrl) {

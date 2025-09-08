@@ -60,3 +60,10 @@ create policy "Users can delete their own avatars"
 on storage.objects for delete
 to authenticated
 using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text); 
+
+
+CREATE POLICY "Allow authenticated uploads to faxes bucket"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'faxes');

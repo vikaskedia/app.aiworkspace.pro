@@ -458,10 +458,8 @@ export default {
     }
     
     const sendFax = async () => {
+      sending.value = true
       try {
-        sending.value = true
-
-        // ensure file exists
         const file = faxData.value.file
         if (!file) {
           ElMessage.error('No file selected')
@@ -469,213 +467,134 @@ export default {
           return
         }
 
-        // convert file to base64 (strip data: prefix)
-        const fileToBase64 = (f) => new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => {
-            const result = reader.result
-            if (typeof result === 'string') {
-              // data:<mime>;base64,AAAA
-              const idx = result.indexOf('base64,')
-              if (idx !== -1) resolve(result.substring(idx + 7))
-              else resolve(result)
-            } else {
-              reject(new Error('Failed to read file as base64'))
-            }
-          }
-          reader.onerror = (e) => reject(e)
-          reader.readAsDataURL(f)
-        })
-
-        const base64 = await fileToBase64(file)
-
-        // Upload directly to Gitea from the client (note: requires Gitea CORS to allow this)
-        const repo = currentWorkspace.value?.git_repo || ''
-        if (!repo) {
-          ElMessage.error('Workspace git_repo is missing')
+        // Only allow PDF
+        if (file.type !== 'application/pdf') {
+          ElMessage.error('Only PDFs are allowed')
           sending.value = false
           return
         }
 
-        const GITEA_HOST = import.meta.env.VITE_GITEA_HOST
-        const GITEA_TOKEN = import.meta.env.VITE_GITEA_TOKEN
-        const GITEA_USERNAME = 'associateattorney'
+        // Build a unique upload path
+        const wsId = currentWorkspace.value?.id || 'anon'
+        const uploadPath = `faxes/${wsId}/${Date.now()}_${file.name}`
 
-        if (!GITEA_HOST || !GITEA_TOKEN) {
-          ElMessage.error('Missing Gitea configuration (VITE_GITEA_HOST / VITE_GITEA_TOKEN)')
+        // Upload file to Supabase Storage (bucket: 'faxes')
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage
+          .from('faxes')
+          .upload(uploadPath, file, { contentType: file.type })
+
+        if (uploadError) {
+          console.error('Storage upload error', uploadError)
+          ElMessage.error('Failed to upload file to storage')
           sending.value = false
           return
         }
 
-
-        // Prepare Gitea upload variables
-        const giteaUploadPath = `faxes/${Date.now()}_${file.name}`
-        const giteaUploadUrl = `${GITEA_HOST}/api/v1/repos/${GITEA_USERNAME}/${repo}/contents/${giteaUploadPath}`
-        const giteaUploadPayload = {
-          message: `Upload fax attachment: ${file.name}`,
-          content: base64,
-          branch: 'main'
-        }
-        const giteaUploadResp = await fetch(
-          giteaUploadUrl,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `token ${GITEA_TOKEN}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache'
-            },
-            body: JSON.stringify(giteaUploadPayload)
-          }
-        )
-
-        let giteaUploadResponse
+        // Try to get a public URL, fall back to signed URL
+        let fileUrl = null
         try {
-          giteaUploadResponse = await giteaUploadResp.json()
+          const { publicURL } = supabase.storage.from('faxes').getPublicUrl(uploadPath) || {}
+          if (publicURL) fileUrl = publicURL
         } catch (e) {
-          giteaUploadResponse = { error: 'invalid json response from Gitea' }
+          // ignore
         }
 
-
-
-        // show raw Gitea response to user for inspection
-        try {
-          ElMessageBox.alert(JSON.stringify(giteaUploadResponse, null, 2), 'Gitea response', {
-            confirmButtonText: 'Close',
-            dangerouslyUseHTMLString: false
-          })
-        } catch (e) {
-          ElMessage.info('Upload done (see console)')
-          // eslint-disable-next-line no-console
-          console.log('Gitea response:', giteaUploadResponse)
-        }
-
-        // Extract and log the downloadable file link (like AiPhoneCt)
-        let giteaDownloadUrl = giteaUploadResponse?.content?.download_url
-        if (giteaDownloadUrl) {
-          // Append token if not present
-          if (!giteaDownloadUrl.includes('token=') && GITEA_TOKEN) {
-            giteaDownloadUrl += (giteaDownloadUrl.includes('?') ? '&' : '?') + 'token=' + GITEA_TOKEN
-          }
-          // eslint-disable-next-line no-console
-          console.log('%cDownloadable Gitea file link:', 'color: #1976d2; font-weight: bold;') ///////// SR. << Downloadable Gitea file link:
-          // eslint-disable-next-line no-console
-          console.log(giteaDownloadUrl)
-        }
-        // proceed with outbound flow
-        const cleanToNumber = '+' + getCleanPhoneNumber(faxData.value.to)
-
-        // Insert a record into Supabase `faxes` table so history persists
-        let insertedFaxRow = null
-        try {
-          const dbPayload = {
-            workspace_id: currentWorkspace.value?.id || null,
-            direction: 'outbound',
-            from_number: faxData.value.from || null,
-            to_number: cleanToNumber || null,
-            subject: faxData.value.subject || null,
-            status: giteaUploadResp && giteaUploadResp.ok ? 'Stored in gitea' : 'Failed storing in gitea',
-            file_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
-            file_name: file.name,
-            gitea_download_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url || null,
-            gitea_response: giteaUploadResponse || null,
-            pages: null,
-            telnyx_id: null,
-            // date and event_time are set server-side (timestamptz defaults to now())
-            // store the selected display timezone (default is America/Los_Angeles)
-            client_timezone: displayTimeZone.value || ((Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : null),
-            status_reason: null,
-            metadata: null
-          }
-
-          const { data: inserted, error: insertError } = await supabase
+        if (!fileUrl) {
+          const { data: signedData, error: signedError } = await supabase
+            .storage
             .from('faxes')
-            .insert(dbPayload)
-            .select()
-
-          if (insertError) {
-            // do not stop the UI update if DB insert fails
-            // eslint-disable-next-line no-console
-            console.error('Failed to insert fax record:', insertError)
-            ElMessage.error('Failed to save fax history: ' + (insertError.message || String(insertError)))
+            .createSignedUrl(uploadPath, 60 * 60) // 1 hour
+          if (signedError) {
+            console.warn('createSignedUrl failed', signedError)
           } else {
-            insertedFaxRow = Array.isArray(inserted) && inserted.length ? inserted[0] : inserted
+            fileUrl = signedData?.signedUrl || null
           }
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.error('Error inserting fax record:', e)
-          ElMessage.error('Failed to save fax history: ' + (e.message || String(e)))
         }
 
-        // If we have inserted a DB row and a downloadable file, call server endpoint to create a Telnyx fax
-        console.log('========= calling /api/telnyx/send-fax started =========');
-        try {
-          if (insertedFaxRow && (giteaDownloadUrl || giteaUploadResponse?.content?.download_url)) {
-            const sendResp = await fetch('/api/telnyx/send-fax', {
-            // const sendResp = await fetch('https://app.aiworkspace.pro/api/telnyx/send-fax', {
+  // Log resolved file URL so developers can copy it from the browser console.
+  // This may be a public URL or a short-lived signed URL depending on bucket policy.
+  // eslint-disable-next-line no-console
+  console.log('Supabase uploaded file URL:', fileUrl)
+
+        // Insert fax record into Supabase 'faxes' table
+        const dbPayload = {
+          workspace_id: currentWorkspace.value?.id || null,
+          direction: 'outbound',
+          from_number: faxData.value.from || null,
+          to_number: (faxData.value.to || null),
+          subject: faxData.value.subject || null,
+          status: fileUrl ? 'stored' : 'uploaded',
+          file_url: fileUrl,
+          file_name: file.name,
+          storage_path: uploadPath
+        }
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('faxes')
+          .insert(dbPayload)
+          .select()
+
+        if (insertError) {
+          console.error('DB insert failed', insertError)
+          ElMessage.error('Failed to save fax record')
+          // continue: we still have the uploaded file
+        }
+
+        const insertedRow = Array.isArray(inserted) && inserted.length ? inserted[0] : (inserted || null)
+
+        // Call server endpoint to queue Telnyx fax using Supabase file URL
+        if (fileUrl) {
+          try {
+            const resp = await fetch('/api/telnyx/send-fax', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 workspace_id: currentWorkspace.value?.id,
                 from: faxData.value.from,
-                to: cleanToNumber,
-                file_url: giteaDownloadUrl || giteaUploadResponse?.content?.download_url,
-                connection_id: getConnectionIdForPhone(faxData.value.from) || null,
-                subject: faxData.value.subject || null,
-                fax_row_id: insertedFaxRow.id
+                to: faxData.value.to,
+                file_url: fileUrl,
+                fax_row_id: insertedRow?.id || null
               })
             })
-
-            const sendJson = await sendResp.json()
-            // Update local row status based on telnyx response
-            if (sendJson && sendJson.telnyx_id) {
-              // update the UI row if it's the one we just inserted
-              const idx = outboundFaxes.value.findIndex(f => f.id === insertedFaxRow.id)
+            const json = await resp.json()
+            if (json && json.telnyx_id && insertedRow) {
+              // update local list if present
+              const idx = outboundFaxes.value.findIndex(f => f.id === insertedRow.id)
               if (idx !== -1) {
-                outboundFaxes.value[idx].status = 'Queued'
-                outboundFaxes.value[idx].telnyx_id = sendJson.telnyx_id
+                outboundFaxes.value[idx].status = 'queued'
+                outboundFaxes.value[idx].telnyx_id = json.telnyx_id
               }
-              ElMessage.success('Fax queued with Telnyx')
-            } else {
-              console.warn('Telnyx send response:', sendJson)
+              ElMessage.success('Fax queued')
             }
+          } catch (e) {
+            console.error('Telnyx enqueue error', e)
+            ElMessage.info('File uploaded and saved, but failed to enqueue fax')
           }
-        } catch (telErr) {
-          // don't block success path — log and show transient message
-          // eslint-disable-next-line no-console
-          console.error('Telnyx send error:', telErr)
-          ElMessage.info('Fax saved but Telnyx enqueue failed (check logs).')
         }
-        console.log('========= calling /api/telnyx/send-fax ended =========');
 
+        // Update UI list with new fax
         const newFax = {
-          id: insertedFaxRow?.id || Date.now(),
-          date: insertedFaxRow?.date || new Date(),
-          to: cleanToNumber,
+          id: insertedRow?.id || Date.now(),
+          date: insertedRow?.date || new Date(),
+          to: faxData.value.to,
           from: faxData.value.from,
           subject: faxData.value.subject,
-          status: giteaUploadResp && giteaUploadResp.ok ? 'Stored in gitea' : 'Failed storing in gitea',
+          status: insertedRow ? (insertedRow.status || 'stored') : (fileUrl ? 'stored' : 'uploaded'),
           fileName: file.name,
-          gitea: giteaUploadResponse
+          file_url: fileUrl,
+          storage_path: uploadPath
         }
 
         outboundFaxes.value.unshift(newFax)
 
         // Reset form
-        faxData.value = {
-          from: '',
-          to: '',
-          subject: '',
-          file: null
-        }
+        faxData.value = { from: '', to: '', subject: '', file: null }
         fileList.value = []
 
-        if (giteaUploadResp && giteaUploadResp.ok) ElMessage.success('File uploaded to Gitea')
-        else ElMessage.error('Gitea upload failed')
-
-      } catch (error) {
-        ElMessage.error('Failed to send fax: ' + (error.message || error))
+      } catch (err) {
+        console.error('sendFax error', err)
+        ElMessage.error('Failed to send fax')
       } finally {
         sending.value = false
       }
@@ -741,31 +660,35 @@ export default {
         }
 
         outboundFaxes.value = rows
-          .filter(r => r.direction === 'outbound')
-          .map(r => ({
-            id: r.id,
-            date: r.date ? parseTimestampToDate(r.date) : null,
-            to: r.to_number,
-            from: r.from_number,
-            subject: r.subject,
-            status: r.status,
-            fileName: r.file_name || r.file_url || null,
-            gitea: { download_url: r.gitea_download_url || r.file_url || null }
-          }))
+          .filter(function (r) { return r.direction === 'outbound' })
+          .map(function (r) {
+            return {
+              id: r.id,
+              date: r.date ? parseTimestampToDate(r.date) : null,
+              to: r.to_number,
+              from: r.from_number,
+              subject: r.subject,
+              status: r.status,
+              fileName: r.file_name || r.file_url || null,
+              gitea: { download_url: r.gitea_download_url || r.file_url || null }
+            }
+          });
 
         inboundFaxes.value = rows
-          .filter(r => r.direction === 'inbound')
-          .map(r => ({
-            id: r.id,
-            date: r.date ? parseTimestampToDate(r.date) : null,
-            from: r.from_number,
-            to: r.to_number,
-            subject: r.subject,
-            pages: r.pages,
-            fileName: r.file_name || r.file_url || null,
-            file_url: r.file_url,
-            gitea: { download_url: r.gitea_download_url || r.file_url || null }
-          }))
+          .filter(function (r) { return r.direction === 'inbound' })
+          .map(function (r) {
+            return {
+              id: r.id,
+              date: r.date ? parseTimestampToDate(r.date) : null,
+              from: r.from_number,
+              to: r.to_number,
+              subject: r.subject,
+              pages: r.pages,
+              fileName: r.file_name || r.file_url || null,
+              file_url: r.file_url,
+              gitea: { download_url: r.gitea_download_url || r.file_url || null }
+            }
+          });
 
         // --- Retain old mock data commented out for reference ---
         /*
@@ -880,7 +803,7 @@ export default {
       }
 
       // Determine timezone to use. If displayTimeZone is explicitly set to a named IANA zone
-      // (e.g. 'America/Los_Angeles') use that. If it's 'local' or falsy, omit timeZone to let
+      // (e.g. 'America/Los_angeles') use that. If it's 'local' or falsy, omit timeZone to let
       // the runtime use the user's local timezone.
       const tz = (displayTimeZone.value && displayTimeZone.value !== 'local') ? displayTimeZone.value : undefined
 

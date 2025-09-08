@@ -45,9 +45,13 @@ export default async function handler(req, res) {
       client_state
     } = req.body || {}
 
-    // Validate required fields
-    if (!to || !file_url) {
-      return res.status(400).json({ error: 'Missing required fields: to, file_url' })
+    // Validate required fields. If file_url is not provided we allow fax_row_id so
+    // the server can attempt to generate a signed URL from the stored storage_path.
+    if (!to) {
+      return res.status(400).json({ error: 'Missing required field: to' })
+    }
+    if (!file_url && !fax_row_id) {
+      return res.status(400).json({ error: 'Missing required fields: file_url or fax_row_id' })
     }
 
     const TELNYX_FAX_API_KEY = process.env.TELNYX_FAX_API_KEY
@@ -75,11 +79,48 @@ export default async function handler(req, res) {
     let byteSize = null
 
     // Try HEAD first to get content-length
+    // If file_url wasn't provided by the client, but we have a fax_row_id, attempt
+    // to look up the storage path in the `faxes` table and create a short-lived
+    // signed URL using the service-role Supabase client.
+    if (!file_url && fax_row_id) {
+      try {
+        const { data: row, error: rowErr } = await supabase
+          .from('faxes')
+          .select('storage_bucket, storage_path')
+          .eq('id', fax_row_id)
+          .single()
+
+        if (!rowErr && row && row.storage_path) {
+          const bucket = row.storage_bucket || 'faxes'
+          try {
+            const { data: signedData, error: signedError } = await supabase
+              .storage
+              .from(bucket)
+              .createSignedUrl(row.storage_path, 60 * 60)
+
+            // supabase-js returns signedUrl (or signedURL) on different versions.
+            if (!signedError && signedData) {
+              file_url = signedData.signedUrl || signedData.signedURL || null
+            } else {
+              console.warn('createSignedUrl failed or returned no url', signedError, signedData)
+            }
+          } catch (e) {
+            console.error('Error creating signed URL from storage:', e)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to lookup faxes row for signed URL generation:', e)
+      }
+    }
+
+    // Try HEAD first to get content-length (only if we now have a file_url)
     try {
-      const head = await fetch(file_url, { method: 'HEAD' })
-      if (head && head.ok) {
-        const cl = head.headers.get('content-length')
-        if (cl) byteSize = parseInt(cl, 10)
+      if (file_url) {
+        const head = await fetch(file_url, { method: 'HEAD' })
+        if (head && head.ok) {
+          const cl = head.headers.get('content-length')
+          if (cl) byteSize = parseInt(cl, 10)
+        }
       }
     } catch (e) {
       // ignore — we'll fetch the body below if needed

@@ -415,12 +415,35 @@ async function handleFaxFailed(eventData) {
         console.warn('Workspace lookup failed for inbound failed fax:', e)
       }
 
-      const { error } = await supabase
-        .from('faxes')
-        .upsert(payload, { onConflict: 'telnyx_id', ignoreDuplicates: false })
+      // Safe upsert: the DB may not have a unique constraint on telnyx_id.
+      // First try to find an existing row, update if found, otherwise insert.
+      try {
+        const { data: existing, error: findErr } = await supabase
+          .from('faxes')
+          .select('id')
+          .eq('telnyx_id', payload.telnyx_id)
+          .limit(1)
+          .single()
 
-      if (error) {
-        console.error('Error upserting inbound failed fax:', error)
+        if (findErr && findErr.code !== 'PGRST116') {
+          // Unexpected error
+          console.error('Error finding existing fax by telnyx_id:', findErr)
+        }
+
+        if (existing && existing.id) {
+          const { error: updErr } = await supabase
+            .from('faxes')
+            .update(payload)
+            .eq('id', existing.id)
+          if (updErr) console.error('Error updating existing inbound failed fax:', updErr)
+        } else {
+          const { error: insErr } = await supabase
+            .from('faxes')
+            .insert(payload)
+          if (insErr) console.error('Error inserting inbound failed fax:', insErr)
+        }
+      } catch (e) {
+        console.error('Error upserting inbound failed fax (safe upsert):', e)
       }
       return
     }
@@ -474,9 +497,9 @@ async function handleFaxReceived(eventData) {
     }
 
     // Create or update fax record for received fax
-    const { error } = await supabase
-      .from('faxes')
-      .upsert({
+    // Safe upsert: query first, then update or insert to avoid requiring ON CONFLICT
+    try {
+      const payload = {
         telnyx_id: eventData.fax_id,
         workspace_id: workspaceId,
         connection_id: eventData.connection_id || null,
@@ -486,15 +509,34 @@ async function handleFaxReceived(eventData) {
         status: 'received',
         file_url: eventData.media_url || eventData.original_media_url || null,
         pages: eventData.page_count || null,
-        // keep additional event details in metadata
         metadata: eventData
-      }, { 
-        onConflict: 'telnyx_id',
-        ignoreDuplicates: false 
-      });
-      
-    if (error) {
-      console.error('Error creating/updating received fax:', error);
+      }
+
+      const { data: existing, error: findErr } = await supabase
+        .from('faxes')
+        .select('id')
+        .eq('telnyx_id', payload.telnyx_id)
+        .limit(1)
+        .single()
+
+      if (findErr && findErr.code !== 'PGRST116') {
+        console.error('Error finding existing received fax by telnyx_id:', findErr)
+      }
+
+      if (existing && existing.id) {
+        const { error: updErr } = await supabase
+          .from('faxes')
+          .update(payload)
+          .eq('id', existing.id)
+        if (updErr) console.error('Error updating existing received fax:', updErr)
+      } else {
+        const { error: insErr } = await supabase
+          .from('faxes')
+          .insert(payload)
+        if (insErr) console.error('Error inserting received fax:', insErr)
+      }
+    } catch (e) {
+      console.error('Error creating/updating received fax (safe upsert):', e);
     }
   } catch (error) {
     console.error('Error handling fax received:', error);

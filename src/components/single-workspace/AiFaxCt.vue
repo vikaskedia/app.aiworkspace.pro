@@ -131,7 +131,7 @@
             <div class="tab-label">
               <el-icon><Upload /></el-icon>
               <span>Outbound Faxes</span>
-              <el-badge :value="outboundFaxes.length" class="tab-badge" />
+              <!-- <el-badge :value="outboundFaxes.length" class="tab-badge" /> -->
             </div>
           </template>
           
@@ -211,7 +211,7 @@
             <div class="tab-label">
               <el-icon><Download /></el-icon>
               <span>Inbound Faxes</span>
-              <el-badge :value="inboundFaxes.length" class="tab-badge" />
+              <!-- <el-badge :value="inboundFaxes.length" class="tab-badge" /> -->
             </div>
           </template>
           
@@ -270,6 +270,19 @@
         </el-tab-pane>
       </el-tabs>
     </div>
+    <!-- Pre-refresh toast (bottom-right) -->
+    <div v-if="preRefreshVisible" class="pre-refresh-toast">
+      <div class="toast-body">
+        <div class="toast-text">
+          <strong>Refreshing fax history in {{ preRefreshCountdown }}s</strong>
+          <div class="toast-sub">Cancel prevents the refresh. Dismiss only hides this message — refresh will still occur.</div>
+        </div>
+        <div class="toast-actions">
+          <el-button size="small" @click="cancelPreRefresh">Cancel</el-button>
+          <el-button size="small" type="primary" @click="preRefreshVisible = false">Dismiss</el-button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -321,6 +334,16 @@ export default {
     const outboundFaxes = ref([])
     const inboundFaxes = ref([])
   const autoReloadInterval = ref(null)
+  // Auto-refresh control for 30-minute refresh with pre-refresh notification
+  const autoRefreshTimeout = ref(null) // holds timeout id for 30m timer
+  const preRefreshCountdownTimer = ref(null) // holds interval for 10s countdown
+  const preRefreshVisible = ref(false)
+  const preRefreshCountdown = ref(10) // seconds remaining in the pre-refresh notice
+  // Per-pre-refresh token so cancelling only affects the current imminent refresh
+  const preRefreshIdCounter = ref(0)
+  const activePreRefreshId = ref(null)
+  // Use a Set to remember cancelled pre-refresh ids (so future cycles still run)
+  const cancelledPreRefreshIds = ref(new Set())
   // Timezone display control: default to PST/PDT (America/Los_Angeles).
   // Keep provision to switch to user's local timezone by setting to 'local'.
   const displayTimeZone = ref('America/Los_Angeles') // or 'local'
@@ -884,23 +907,88 @@ export default {
       }
     }
     
-    const setupAutoReload = () => {
-      // Auto reload every 15 minutes (900,000 milliseconds)
-      autoReloadInterval.value = setInterval(() => {
-        loadFaxHistory()
-      }, 15 * 60 * 1000)
+      const startAutoRefreshCycle = () => {
+      // Clear any existing timers
+      if (autoRefreshTimeout.value) {
+        clearTimeout(autoRefreshTimeout.value)
+        autoRefreshTimeout.value = null
+      }
+      // Start 30 minute timer to show pre-refresh dialog
+    autoRefreshTimeout.value = setTimeout(() => {
+          // Assign a new id for this imminent pre-refresh and mark active
+          const thisPreId = ++preRefreshIdCounter.value
+          activePreRefreshId.value = thisPreId
+
+          // Show pre-refresh dialog for this id
+          preRefreshCountdown.value = 10
+          preRefreshVisible.value = true
+
+          // Start 10s countdown (unique to thisPreId)
+          if (preRefreshCountdownTimer.value) {
+            clearInterval(preRefreshCountdownTimer.value)
+            preRefreshCountdownTimer.value = null
+          }
+          preRefreshCountdownTimer.value = setInterval(() => {
+            preRefreshCountdown.value -= 1
+            if (preRefreshCountdown.value <= 0) {
+              // Countdown finished; hide dialog and perform refresh only if this id wasn't cancelled
+              clearInterval(preRefreshCountdownTimer.value)
+              preRefreshCountdownTimer.value = null
+              preRefreshVisible.value = false
+              const wasCancelled = cancelledPreRefreshIds.value.has(thisPreId)
+              if (!wasCancelled) {
+                try {
+                  loadFaxHistory()
+                } catch (e) {
+                  console.error('Auto-refresh loadFaxHistory failed:', e)
+                }
+              }
+              // Restart the cycle for the next period
+              startAutoRefreshCycle()
+            }
+          }, 1000)
+    }, 30 * 60 * 1000)
+    }
+
+      // Cancel only the currently active pre-refresh (by id). If no id provided, use activePreRefreshId
+      const cancelPreRefresh = (id) => {
+        const cancelId = id || activePreRefreshId.value
+        if (!cancelId) return
+        // mark this pre-refresh id as cancelled so the countdown handler will skip the refresh
+        cancelledPreRefreshIds.value.add(cancelId)
+        // hide UI and clear countdown timer for the active pre-refresh
+        preRefreshVisible.value = false
+        if (preRefreshCountdownTimer.value) {
+          clearInterval(preRefreshCountdownTimer.value)
+          preRefreshCountdownTimer.value = null
+        }
+        // Clear active id
+        activePreRefreshId.value = null
+        // Restart the 30-minute cycle from now for next attempts
+        startAutoRefreshCycle()
+      }
+
+    const stopAllAutoRefresh = () => {
+      if (autoRefreshTimeout.value) {
+        clearTimeout(autoRefreshTimeout.value)
+        autoRefreshTimeout.value = null
+      }
+      if (preRefreshCountdownTimer.value) {
+        clearInterval(preRefreshCountdownTimer.value)
+        preRefreshCountdownTimer.value = null
+      }
+      preRefreshVisible.value = false
     }
     
     // Lifecycle hooks
     onMounted(() => {
       loadFaxHistory()
-      setupAutoReload()
+      // start the 30-minute auto-refresh cycle
+      startAutoRefreshCycle()
     })
     
     onUnmounted(() => {
-      if (autoReloadInterval.value) {
-        clearInterval(autoReloadInterval.value)
-      }
+      stopAllAutoRefresh()
     })
 
     // Clean up debounce timer when component unmounts
@@ -910,6 +998,7 @@ export default {
         formatDebounceTimer.value = null
       }
     })
+
 
   // no runtime debug
     
@@ -940,6 +1029,14 @@ export default {
   getTZLabel,
   getTZAbbrev,
       getStatusType
+  ,
+  // Auto-refresh controls
+  preRefreshVisible,
+  preRefreshCountdown,
+  cancelPreRefresh,
+  // exported for testing/visibility
+  activePreRefreshId,
+  cancelledPreRefreshIds
     }
   }
 }
@@ -1199,6 +1296,41 @@ export default {
   color: #475569;
   font-weight: 600;
   margin-left: 6px;
+}
+
+.pre-refresh-content {
+  text-align: left;
+  padding: 0.5rem 0;
+}
+
+.pre-refresh-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1200;
+  background: transparent;
+}
+.pre-refresh-toast .toast-body {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 300px;
+}
+.pre-refresh-toast .toast-text {
+  flex: 1 1 auto;
+}
+.pre-refresh-toast .toast-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.pre-refresh-toast .toast-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 .date-cell,
 .phone-cell {

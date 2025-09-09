@@ -375,8 +375,57 @@ async function handleFaxDelivered(eventData) {
 async function handleFaxFailed(eventData) {
   try {
     console.log('Handling fax failed:', eventData.fax_id);
-    
-    // Update fax status to failed with reason
+
+    // If this failure pertains to an inbound fax, upsert a record so we keep
+    // the inbound fax metadata in our `faxes` table. We intentionally do NOT
+    // download or store the incoming media in storage — only metadata is kept.
+    const direction = (eventData.direction || '').toLowerCase()
+    if (direction === 'inbound') {
+      const payload = {
+        telnyx_id: eventData.fax_id,
+        workspace_id: null, // will try to find workspace below
+        connection_id: eventData.connection_id || null,
+        direction: 'inbound',
+        from_number: eventData.from || null,
+        to_number: eventData.to || null,
+        status: 'failed',
+        status_reason: eventData.failure_reason || eventData.errors?.[0]?.detail || eventData.error_message || 'Unknown error',
+        pages: eventData.page_count || null,
+        metadata: eventData,
+        updated_at: new Date().toISOString()
+      }
+
+      // Try to resolve workspace by matching the to_number against workspace fax_numbers
+      try {
+        const { data: workspaces, error: wsErr } = await supabase
+          .from('workspaces')
+          .select('id, fax_numbers')
+          .not('fax_numbers', 'is', null)
+
+        if (!wsErr && workspaces && workspaces.length) {
+          for (const workspace of workspaces) {
+            const faxNumbers = workspace.fax_numbers || []
+            if (faxNumbers.some(f => f.number === (eventData.to || payload.to_number))) {
+              payload.workspace_id = workspace.id
+              break
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Workspace lookup failed for inbound failed fax:', e)
+      }
+
+      const { error } = await supabase
+        .from('faxes')
+        .upsert(payload, { onConflict: 'telnyx_id', ignoreDuplicates: false })
+
+      if (error) {
+        console.error('Error upserting inbound failed fax:', error)
+      }
+      return
+    }
+
+    // Default: treat as outbound-related failure and update existing record
     const { error } = await supabase
       .from('faxes')
       .update({
@@ -386,7 +435,7 @@ async function handleFaxFailed(eventData) {
         updated_at: new Date().toISOString()
       })
       .eq('telnyx_id', eventData.fax_id);
-      
+
     if (error) {
       console.error('Error updating failed fax:', error);
     }

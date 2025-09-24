@@ -18,9 +18,31 @@ import DebugCors from './components/DebugCors.vue';
 import InitialConsultationCt from './components/initial-consultaion/InitialConsultationCt.vue';
 import DetailedEventViewCt from './components/single-workspace/DetailedEventViewCt.vue';
 import MovedTaskCt from './components/single-workspace/MovedTaskCt.vue';
+import ComingSoonCt from './components/ComingSoonCt.vue';
 
+// Coming Soon Mode - Set to true to enable coming soon for all routes
+const COMING_SOON_MODE = true;
+
+// Routes that should be excluded from coming soon (e.g., login, callback, etc.)
+const EXCLUDED_FROM_COMING_SOON = [
+  '/coming-soon',
+  '/debug-cors',
+  // Add any other routes that should remain accessible
+];
 
 const routes = [
+  // Coming Soon route
+  {
+    path: '/coming-soon',
+    name: 'ComingSoon',
+    component: ComingSoonCt,
+    props: {
+      title: 'Application Under Maintenance',
+      feature: 'all features'
+    },
+    meta: { requiresAuth: false }
+  },
+  
   {
     path: '/all-workspace',
     component: () => import('./components/all-workspaces/AllWorkspaceLayout.vue'),
@@ -401,6 +423,15 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
+  // Check if coming soon mode is enabled and route is not excluded
+  if (COMING_SOON_MODE && !EXCLUDED_FROM_COMING_SOON.includes(to.path)) {
+    // Don't redirect if already on coming soon page
+    if (to.path !== '/coming-soon') {
+      next('/coming-soon');
+      return;
+    }
+  }
+
   // Get session status first
   const { data: { session } } = await supabase.auth.getSession();
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
